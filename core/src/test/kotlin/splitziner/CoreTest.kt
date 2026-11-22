@@ -1183,7 +1183,7 @@ class DrawerTest {
         assertTrue(rep.findings.any { it.title.contains("drawer", ignoreCase = true) }, rep.findings.map { it.title }.toString())
         val roomy = cabinetWithDrawer(12.7)
         val cut2 = CutList.build(roomy, fmt)
-        assertTrue(splitziner.check.DesignCheck.run(cut2.parts, cut2.rows, fmt, null).findings.none { it.title.contains("slides") })
+        assertTrue(splitziner.check.DesignCheck.run(cut2.parts, cut2.rows, fmt, null).findings.none { it.title.contains("No room") })
     }
 }
 

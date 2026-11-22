@@ -60,15 +60,17 @@ object GuideSteps {
         val out = ArrayList<GuideStep>()
         // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
         // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
-        val unitOf = drawn.groupBy { it.id.substringBefore('.') }.filter { it.value.size >= 2 }
+        val keyOf = splitziner.explode.AssemblyPlan.unitKeys(drawn)
+        fun unit(p: Part) = keyOf[p.id] ?: p.id.substringBefore('.')
+        val unitOf = drawn.groupBy { unit(it) }.filter { it.value.size >= 2 }
         fun kind(ms: List<Part>) = ms.mapNotNull { it.item }.sorted()
         val benchOf = HashMap<List<Int>, Int>()
         for (st in steps) if (st.subassembly) benchOf[kind(st.partIds.mapNotNull { byId[it] })] = st.step
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
-            val units = if (st.subassembly) emptyMap() else cur.groupBy { it.id.substringBefore('.') }.filter { (root, _) -> root in unitOf && benchOf.containsKey(kind(unitOf.getValue(root))) }
-            val loose = cur.filter { it.id.substringBefore('.') !in units }
+            val units = if (st.subassembly) emptyMap() else cur.groupBy { unit(it) }.filter { (root, _) -> root in unitOf && benchOf.containsKey(kind(unitOf.getValue(root))) }
+            val loose = cur.filter { unit(it) !in units }
             val count = LinkedHashMap<Int?, Int>()
             for (p in loose) count[p.item] = (count[p.item] ?: 0) + 1
             val unitCount = LinkedHashMap<Int, MutableList<List<Part>>>()
@@ -96,7 +98,9 @@ object GuideSteps {
             for ((bench, us) in unitCount) {
                 val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
                 val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
-                lines += "${if (base) "Place" else "Fit"} ${if (us.size > 1) "both" else "the"} sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
+                val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
+                lines += if (drawer) "Slide ${if (us.size > 1) "both drawers" else "the drawer"} from step $bench in$where."
+                    else "${if (base) "Place" else "Fit"} ${if (us.size > 1) "both" else "the"} sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
@@ -139,14 +143,16 @@ object GuideSteps {
                 if (!base) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
                 lines += how
             }
-            val list = unitCount.map { (bench, us) -> "Sub-assembly from step $bench" to us.size } +
+            val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
                 count.map { (item, n) -> "Item ${item ?: "-"} ${loose.first { it.item == item }.desc}" to n }
             val o = overrides[stepKey(st.partIds)]
             val auto = when {
                 st.subassembly -> {
                     val its = count.keys.filterNotNull().sorted()  // a bench step has no units, so count holds all its parts
                     val names = if (its.size == 1) "item ${its[0]}" else "items ${its.dropLast(1).joinToString(", ")} and ${its.last()}"
-                    "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
+                    val isDrawer = st.partIds.all { keyOf[it]?.startsWith("drawer") == true }
+                    if (isDrawer) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} drawer boxes from" else "make the drawer box from"} $names"
+                    else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
                 }
                 base -> "Step ${st.step}: base"
                 else -> "Step ${st.step}"

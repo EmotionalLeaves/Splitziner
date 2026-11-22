@@ -58,9 +58,22 @@ object AssemblyPlan {
      * sub-assembly. Each kind is made first, on the bench, as its own step; the main build then places
      * each sub-assembly whole. Without sub-assemblies, or with the user's own order, this is [planCore].
      */
+    /**
+     * Which unit (sub-assembly) each part belongs to: the boards that came from one drawn part share the id before
+     * the dot ("P02", "P02.2"), and the parts of a drawer box are one unit too, made on the bench and hung whole.
+     */
+    fun unitKeys(parts: List<Part>): Map<String, String> {
+        val live = parts.filter { !it.excluded }
+        val out = HashMap<String, String>()
+        for (p in live) out[p.id] = p.id.substringBefore('.')
+        runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.ids) out[id] = "drawer${k + 1}" }
+        return out
+    }
+
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val live = all.filter { !it.excluded }
-        val units = live.groupBy { it.id.substringBefore('.') }
+        val keyOf = unitKeys(live)
+        val units = live.groupBy { keyOf.getValue(it.id) }
         // Two boards (an L, a pair of strips) are simply fitted one after the other; a bench step for them is a page of nothing.
         val subs = units.filter { it.value.size >= MIN_SUB_PARTS }
         if (order != null || subs.isEmpty()) return planCore(all, maxSteps, order)
@@ -95,7 +108,7 @@ object AssemblyPlan {
         val firstMain = bench.size + 1
         val out = all.map { p ->
             if (p.excluded) p else {
-                val u = unitOf[p.id] ?: unitOf[p.id.substringBefore('.')]
+                val u = unitOf[p.id] ?: unitOf[keyOf[p.id] ?: p.id.substringBefore('.')]
                 p.copy(explode = u?.explode, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
             }
         }

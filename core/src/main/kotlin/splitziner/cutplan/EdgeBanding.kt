@@ -27,6 +27,8 @@ object EdgeBanding {
             // Only a plain box lined up with the axes: its box is its shape.
             if (abs(p.mesh.volume) < 0.9 * e[0] * e[1] * e[2]) continue
             val k = (0..2).minByOrNull { e[it] }!!
+            // A back panel (thin front to back, at the back of the piece) stands against the wall: none of its edges show.
+            if (k == 1 && hi[i].y >= live.indices.maxOf { hi[it].y } - 1.0 && live.indices.maxOf { hi[it].y } - live.indices.minOf { lo[it].y } > 3 * e[1]) continue
             val tol = maxOf(0.5, 0.2 * e[k])
             for (a in (0..2).filter { it != k }) for (side in 0..1) {
                 // Edges facing the back (against a wall) or the floor are not counted.

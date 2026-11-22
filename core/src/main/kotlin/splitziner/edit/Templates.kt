@@ -65,6 +65,26 @@ object Templates {
                 box(st, d - 3 * st, lh - m, inner, st, m),                    // modesty panel, set in from the back
             )
         },
+        Template("nightstand", "Nightstand", "A small cabinet with a drawer on slides at the top and an open shelf below. The drawer box leaves 1/2 in (12.7 mm) each side for ball-bearing slides.", listOf(
+            Field("w", "Width", 450.0, 18.0), Field("h", "Height", 600.0, 24.0), Field("d", "Depth", 400.0, 16.0),
+            Field("t", "Board thickness", 18.0, 0.75), Field("dh", "Drawer opening height", 150.0, 6.0), Field("dt", "Drawer box thickness", 12.0, 0.5),
+        )) { v ->
+            val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val dh = v.getValue("dh"); val dt = v.getValue("dt")
+            val inner = w - 2 * t; val back = 6.0; val dIn = d - back
+            val out = arrayListOf(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h),
+                box(t, 0.0, 50.0, inner, dIn, t), box(t, 0.0, h - t, inner, dIn, t), box(t, 0.0, 0.0, inner, t, 50.0),
+                box(t, 0.0, h - t - dh - t, inner, dIn, t),                 // divider under the drawer
+                box(t, d - back, 50.0, inner, back, h - 50.0))
+            // Drawer box: 12.7 mm each side for slides, 6 mm clear above and below, front set back by the false front.
+            val slide = 12.7; val bx0 = t + slide; val bx1 = w - t - slide
+            val z0 = h - t - dh + 6.0; val bh = dh - 12.0; val y0 = 0.0; val y1 = dIn - 10.0
+            out += box(bx0, y0, z0, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, z0, bx1 - bx0, dt, bh)
+            out += box(bx0, y0 + dt, z0, dt, y1 - y0 - 2 * dt, bh); out += box(bx1 - dt, y0 + dt, z0, dt, y1 - y0 - 2 * dt, bh)
+            out += box(bx0 + dt, y0 + dt, z0, bx1 - bx0 - 2 * dt, y1 - y0 - 2 * dt, 6.0)
+            // False front covering the opening, 2 mm clear all round, in front of the carcass.
+            out += box(t + 2.0, -t, h - t - dh + 2.0, inner - 4.0, t, dh - 4.0)
+            out
+        },
         Template("box", "Open box", "A bottom with four sides around it: a crate, planter or drawer box.", listOf(
             Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 300.0, 12.0), Field("h", "Height", 200.0, 8.0), Field("t", "Side thickness", 12.0, 0.5), Field("bt", "Bottom thickness", 6.0, 0.25),
         )) { v ->

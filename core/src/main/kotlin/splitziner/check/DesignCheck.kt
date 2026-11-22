@@ -264,14 +264,30 @@ object DesignCheck {
                 "They overlap by about ${d(c.depth)} $u" + (if (cs.size > 1) " in ${cs.size} places" else "") + (if (slight) ". Probably one was drawn a touch too long; trim it to fit when building." else ". Two solid parts cannot do that. If it is meant as a joint (a tenon, a housing), one part needs a matching recess; otherwise one of them must be shortened or moved."),
                 cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct(), houseFix + cutFixes)
         }
+        // Drawers run on slides, which are hardware and not in the model: a drawer box and the front fixed to it
+        // float as drawn, and that is right.
+        val drawers = runCatching { Drawers.find(live) }.getOrDefault(emptyList())
+        val onSlides = HashSet<Int>()
+        run {
+            val idx = live.indices.associateBy { live[it].id }
+            for (dr in drawers) for (g in rel.groups) if (g.any { live[it].id in dr.ids }) onSlides += g
+            for (dr in drawers) dr.ids.mapNotNull { idx[it] }.forEach { onSlides += it }
+        }
+        for (dr in drawers) {
+            val its = live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted()
+            val depth = Drawers.depthOf(live, dr)
+            val slide = Drawers.slideLength(depth, fmt.isInch)
+            out += Finding(Severity.NOTE, "Drawer on slides (items ${its.joinToString(", ")})",
+                "Items ${its.joinToString(", ")} make a drawer. It runs on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit its depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", dr.ids)
+        }
         if (n > 1) {
-            val alone = (0 until n).filter { touching[it].isEmpty() }
+            val alone = (0 until n).filter { touching[it].isEmpty() && it !in onSlides }
             if (alone.isNotEmpty()) out += Finding(Severity.PROBLEM, "${alone.size} part${if (alone.size == 1) " touches" else "s touch"} nothing",
                 "${items(alone.map { live[it] })}: no other part is within ${d(TOUCH)} $u. In the model ${if (alone.size == 1) "it floats" else "they float"} in the air; built for real ${if (alone.size == 1) "it needs" else "they need"} something to hold ${if (alone.size == 1) "it" else "them"}.",
                 alone.map { live[it].id })
             // Groups of parts joined to each other but to nothing else.
             val groups = rel.groups
-            val islands = groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1)
+            val islands = groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
             for (g in islands) out += Finding(Severity.PROBLEM, "${g.size} parts are joined to each other but not to the rest",
                 "${items(g.map { live[it] })} touch each other and nothing else, so as drawn they are a separate object.", g.map { live[it].id })
         }

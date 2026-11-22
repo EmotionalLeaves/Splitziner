@@ -13,6 +13,12 @@ object Drawers {
 
     class Drawer(val ids: List<String>, val left: Double, val right: Double)
 
+    /** The longest standard slide (2 in or 50 mm steps) that fits a drawer [depth] mm deep, as sold: "14 in", "350 mm". */
+    fun slideLength(depth: Double, inch: Boolean): String? =
+        if (inch) (10..28 step 2).lastOrNull { it * 25.4 <= depth + 1 }?.let { "$it in" } else (250..700 step 50).lastOrNull { it <= depth + 1 }?.let { "$it mm" }
+
+    fun depthOf(parts: List<Part>, d: Drawer): Double = parts.filter { it.id in d.ids }.let { ps -> ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y } }
+
     fun find(parts: List<Part>): List<Drawer> {
         val live = parts.filter { !it.excluded }
         if (live.size < 6) return emptyList()
