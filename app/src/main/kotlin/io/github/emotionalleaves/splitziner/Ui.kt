@@ -1958,6 +1958,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val template = key?.let { splitziner.edit.Templates.byKey(it) }
     val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
     var error by remember { mutableStateOf<String?>(null) }
+    // Said under the picture while typing, when the sizes leave some part no room.
+    var sizesWrong by remember { mutableStateOf<String?>(null) }
     // A small picture of the design at the sizes typed so far, redrawn a moment after typing stops.
     val sizesKey = key + values.entries.sortedBy { it.key }.joinToString { "${it.key}=${it.value}" }
     val preview by androidx.compose.runtime.produceState<io.github.emotionalleaves.splitziner.render.PreparedSheet?>(null, sizesKey) {
@@ -1967,7 +1969,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             runCatching {
                 val d = splitziner.edit.Templates.defaults(t, false)
                 val mm = t.fields.associate { f -> f.key to (num(values[f.key] ?: "")?.let { v -> if (f.count) v else if (inch) v * 25.4 else v } ?: d.getValue(f.key)) }
-                val parts = t.build(mm).mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
+                val parts = try { t.build(mm) } catch (e: splitziner.edit.Templates.SizesDoNotFit) { sizesWrong = e.message; return@runCatching null }.mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
+                sizesWrong = null
                 io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(parts, 90.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false)))
             }.getOrNull()
         }
@@ -1998,6 +2001,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
                     preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
+                    sizesWrong?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     for (f in template.fields) if (f.toggle) Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
