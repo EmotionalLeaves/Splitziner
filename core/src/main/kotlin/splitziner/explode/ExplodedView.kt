@@ -292,7 +292,9 @@ object ExplodedView {
             val box = partBoxes[i] ?: continue
             if (o.length < 1e-9 || (opt.highlight.isNotEmpty() && p.id !in opt.highlight)) continue
             val key = keyOf(p)
-            if (opt.arrows && seenArrow.add(key)) arrow(dl, geo, box, Vec2(-(o dot geo.view.x), -(o dot geo.view.up)), s, ox, oy)
+            // Several of one item going in the same way (four shelves) take one arrow, not a flight of them.
+            val od = o.normalized(); val way = "${p.item}/${Math.round(od.x * 4)},${Math.round(od.y * 4)},${Math.round(od.z * 4)}"
+            if (opt.arrows && seenArrow.add(key) && (p.item == null || seenArrow.add(way))) arrow(dl, geo, box, Vec2(-(o dot geo.view.x), -(o dot geo.view.up)), s, ox, oy)
             val units = opt.unitCounts[p.id]
             val same = if (units != null) geo.parts.indices.filter { geo.parts[it].id in opt.unitCounts && keyOf(geo.parts[it]) == key && partBoxes[it] != null }
                 else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts }

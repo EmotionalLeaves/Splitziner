@@ -107,7 +107,7 @@ object AssemblyPlan {
             val r = planCore(all, maxSteps, order)
             val (st, ren) = mergeFloating(r.steps, live)
             if (st.size == r.steps.size && ren.all { (k, v) -> k == v }) return r
-            return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { ren[it] ?: it }) }, st)
+            return PlanResult(shareGroups(r.parts.map { p -> p.copy(step = p.step?.let { ren[it] ?: it }) }), st)
         }
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
         val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
@@ -159,7 +159,7 @@ object AssemblyPlan {
                 p.copy(explode = u?.explode, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
             }
         }
-        return PlanResult(out, steps)
+        return PlanResult(shareGroups(out), steps)
     }
 
     /**
@@ -239,6 +239,28 @@ object AssemblyPlan {
             out += merged.copy(step = out.size + 1); renumber[st.step] = out.size
         }
         return out to renumber
+    }
+
+    /**
+     * Parts of one item fitted in one step the same way (four shelves) move as one group in its picture: they are
+     * pulled out the same distance, side by side, instead of each clearing the last and drifting apart.
+     */
+    private fun shareGroups(parts: List<Part>): List<Part> {
+        // Parts of a sub-assembly (a drawer box, a frame) keep moving with their unit.
+        val unitOf = unitKeys(parts)
+        val unitSize = unitOf.values.groupingBy { it }.eachCount()
+        fun single(p: Part) = !p.excluded && p.item != null && (unitSize[unitOf[p.id] ?: p.id] ?: 1) == 1
+        val key = { p: Part -> if (!single(p)) null else p.explode?.let { e -> val d = e.normalized(); "${p.step}/${p.item}/${Math.round(d.x * 4)},${Math.round(d.y * 4)},${Math.round(d.z * 4)}" } }
+        val counts = parts.mapNotNull { key(it) }.groupingBy { it }.eachCount()
+        return parts.map { p ->
+            val k = key(p)
+            if (k == null || (counts[k] ?: 0) < 2) p
+            else {
+                val same = parts.filter { key(it) == k }
+                val far = same.maxOf { it.explode!!.length }
+                p.copy(group = "like/$k", explode = p.explode!!.normalized() * far)
+            }
+        }
     }
 
     /** A shelf set this close in front of a back panel (mm) counts as one the back covers. */
