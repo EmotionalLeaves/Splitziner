@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.23.0 - Housing joints and edge banding
+
+Grooves as real joints, and the desk comes out with no problems left.
+
+- **Housing joints.** Where a smaller part runs part way into a bigger one (no deeper than half its thickness), the app can now keep it as drawn and treat the overlap as a groove cut to take it. **Fix what can be fixed** does this by itself. On the Check tab it's offered as "Keep it: groove item ...". After that:
+  - the overlap is no longer reported as a problem;
+  - the grooved part gets its own detail sheet giving the groove's depth, width and length;
+  - the guide says to glue the part into its groove.
+- **Your desk:** Fix what can be fixed now leaves **no problems**. The last two overlaps (the 2 in panel with the strip and the blocks running into it) become grooves in that panel. What's left are a few hairline overlaps to trim while building, and two shelves that may sag under load.
+- **Edge banding.** The cutting plan now estimates how much iron-on edge banding to buy for plywood or particleboard edges that show. Edges facing the back and the floor aren't counted.
+- **Paper you can print.** Title block → Sheet size has a new choice: "Choose, but printable at home (A or B)". It keeps every sheet to letter or 11 x 17 in.
+- **Build steps in 3D.** Bench steps now show the rest of the piece faint, so you can see where the sub-assembly goes. The pull-apart slider is hidden while playing.
+- Drawings of large assemblies use all of the phone's cores for hidden lines.
+
 ## v0.22.0 - Build steps in 3D and CNC profiles
 
 Watch it go together, and send parts to a CNC.
