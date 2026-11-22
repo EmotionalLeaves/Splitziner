@@ -292,6 +292,17 @@ class SmokeTest {
                 when (key) { "cabinet" -> assertEquals(2, doors); "shelves" -> assertEquals(4, pins); else -> assertEquals(4, drawers) }
                 vm.closeProject(); rule.waitForIdle()
             }
+            // A drawer added to a plain cabinet's upper opening, the way Add a drawer does it.
+            val t = splitziner.edit.Templates.byKey("cabinet")
+            vm.newDesign("cabinet", splitziner.edit.Templates.defaults(t, false))
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            val a0 = vm.state.value.open!!.analysis
+            val boxes = splitziner.edit.Editor.drawerAt(a0.parts, a0.bounds.center.x, a0.bounds.min.z + 0.8 * a0.bounds.extents.z, 18.0)!!
+            vm.addEdits(boxes.mapIndexed { i, (mn, sz) -> splitziner.edit.Edit.AddBox("R${i + 1}", "Drawer", mn, sz) })
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.size == 6 }
+            val drawers = splitziner.check.Drawers.find(vm.state.value.open!!.analysis.parts).size
+            println("SMOKE added drawer: drawers=$drawers hardware=${vm.hardwareFor(vm.state.value.open!!)}")
+            assertEquals(1, drawers)
             assertNull(Diagnostics.lastCrash())
         }
     }

@@ -31,7 +31,13 @@ fun main(args: Array<String>) {
         if (file?.startsWith("template:") == true) {
             val t = splitziner.edit.Templates.byKey(file!!.removePrefix("template:"))
             val tmp = File(out.apply { mkdirs() }, "${t.key}.stl")
-            tmp.outputStream().use { splitziner.io.StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, display == "in") + (System.getenv("TPL") ?: "").split(',').filter { it.contains('=') }.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }), it) }
+            // TPL=key=value,... overrides template sizes; DRAWER=x,z adds a drawer to the opening round that point.
+            var meshes = t.build(splitziner.edit.Templates.defaults(t, display == "in") + (System.getenv("TPL") ?: "").split(',').filter { it.contains('=') }.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() })
+            System.getenv("DRAWER")?.split(',')?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 2 }?.let { (x, z) ->
+                val ps = meshes.mapIndexed { i, m -> splitziner.parts.Part("P$i", "P", m) }
+                splitziner.edit.Editor.drawerAt(ps, x, z, 18.0)?.let { bs -> meshes = meshes + bs.map { (mn, sz) -> splitziner.edit.Editor.box(mn, sz) } }
+            }
+            tmp.outputStream().use { splitziner.io.StlWriter.writeParts(meshes, it) }
             file = tmp.path; if (units == null) units = "mm"
         }
         val f = File(file ?: error("no input file"))

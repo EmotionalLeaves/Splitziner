@@ -39,7 +39,7 @@ object Drawers {
             val walls0 = live.indices.filter { w ->
                 w != b && w !in used && ext(w).z > 2 * e.z && ext(w).z >= minOf(ext(w).x, ext(w).y) &&
                     lo[w].z >= lo[b].z - 30 && lo[w].z <= hi[b].z + 1 &&
-                    lo[w].x >= lo[b].x - reach(w) && hi[w].x <= hi[b].x + reach(w) && lo[w].y >= lo[b].y - 30 && hi[w].y <= hi[b].y + 30 &&
+                    lo[w].x >= lo[b].x - reach(w) && hi[w].x <= hi[b].x + reach(w) && lo[w].y >= lo[b].y - reach(w) && hi[w].y <= hi[b].y + 30 &&
                     thin(w) < 30
             }
             // A part much taller than the rest (the carcass's back panel behind the bottom drawer) is not a wall.

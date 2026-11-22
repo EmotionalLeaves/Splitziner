@@ -141,6 +141,35 @@ object Editor {
         return if (clash) null else mn to sz
     }
 
+    /**
+     * A drawer for the opening round ([x], [z]): an inset front [t] thick like [doorAt]'s, and behind it a box of
+     * [bt] boards, 12.7 mm (1/2 in) clear each side for ball-bearing slides, 6 mm clear above and below, stopping
+     * 10 mm short of whatever closes the opening at the back. Returns the front, then the box's front, back, sides
+     * and bottom, as min corner and size; null when there is no opening or no room.
+     */
+    fun drawerAt(parts: List<Part>, x: Double, z: Double, t: Double, bt: Double = 12.0): List<Pair<Vec3, Vec3>>? {
+        val front = doorAt(parts, x, z, t) ?: return null
+        val (fm, fs) = front
+        // The opening is the front plus its 2 mm gap all round.
+        val x0 = fm.x - 2.0; val x1 = fm.x + fs.x + 2.0; val z0 = fm.z - 2.0; val z1 = fm.z + fs.z + 2.0
+        val all = parts.filter { !it.excluded }.map { it.mesh.bounds }
+        val y0 = fm.y + t
+        // The back: the nearest part behind the opening, else the back of the uprights either side.
+        val sides = all.filter { b -> b.max.x <= x0 + 0.5 && b.max.x >= x0 - 0.5 || b.min.x >= x1 - 0.5 && b.min.x <= x1 + 0.5 }
+        val behind = all.filter { b -> b.min.y > y0 + 50.0 && b.min.x < x1 - 1 && b.max.x > x0 + 1 && b.min.z < z1 - 1 && b.max.z > z0 + 1 }.minOfOrNull { it.min.y }
+        val back = behind ?: sides.maxOfOrNull { it.max.y } ?: return null
+        val slide = 12.7
+        val bx0 = x0 + slide; val bx1 = x1 - slide; val bz = z0 + 6.0; val bh = z1 - z0 - 12.0; val y1 = back - 10.0
+        if (bx1 - bx0 < 4 * bt || bh < 40.0 || y1 - y0 < 150.0) return null
+        val bottom = minOf(bt, 6.0)
+        return listOf(
+            front,
+            Vec3(bx0, y0, bz) to Vec3(bx1 - bx0, bt, bh), Vec3(bx0, y1 - bt, bz) to Vec3(bx1 - bx0, bt, bh),
+            Vec3(bx0, y0 + bt, bz) to Vec3(bt, y1 - y0 - 2 * bt, bh), Vec3(bx1 - bt, y0 + bt, bz) to Vec3(bt, y1 - y0 - 2 * bt, bh),
+            Vec3(bx0 + bt, y0 + bt, bz) to Vec3(bx1 - bx0 - 2 * bt, y1 - y0 - 2 * bt, bottom),
+        )
+    }
+
     fun box(min: Vec3, size: Vec3): Mesh {
         val a = min; val b = min + size
         return Mesh(

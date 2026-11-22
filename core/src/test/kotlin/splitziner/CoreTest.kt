@@ -1415,3 +1415,23 @@ class OverlayDrawerFrontsTest {
         assertTrue(f.byStep.values.flatten().none { (it.through.id in ids) != (it.into.id in ids) })
     }
 }
+
+class AddDrawerTest {
+    @Test fun aDrawerAddedToAnOpeningIsFoundAndHung() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        // Above the shelf (which is at mid height).
+        val boxes = splitziner.edit.Editor.drawerAt(parts, 300.0, 600.0, 18.0)!!
+        assertEquals(6, boxes.size)
+        val withDrawer = parts + boxes.mapIndexed { i, (mn, sz) -> Part("D$i", "Drawer", splitziner.edit.Editor.box(mn, sz)) }
+        val drawers = splitziner.check.Drawers.find(withDrawer)
+        assertEquals(1, drawers.size)
+        assertEquals(6, drawers[0].ids.size)
+        assertTrue(drawers[0].left > 12.0 && drawers[0].right > 12.0)
+        assertTrue(splitziner.check.Doors.find(withDrawer).isEmpty())
+        val cut = CutList.build(withDrawer, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.problems == 0, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title + ": " + it.detail }.toString())
+    }
+}
