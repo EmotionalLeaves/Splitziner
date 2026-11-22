@@ -163,7 +163,26 @@ object GuideSteps {
                     else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
                 }
                 base -> "Step ${st.step}: base"
-                else -> "Step ${st.step}"
+                else -> {
+                    // What goes on, in plain words: "Step 6: the back panel", "Step 5: 4 shelves", "Step 8: hang the drawers".
+                    fun plural(w: String, n: Int) = if (n == 1) w else when {
+                        w.endsWith("helf") -> w.dropLast(1) + "ves"
+                        w.endsWith("s") -> w
+                        else -> w + "s"
+                    }
+                    val bits = ArrayList<String>()
+                    for ((bench, us) in unitCount) {
+                        val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
+                        bits += if (drawer) (if (us.size == 1) "hang the drawer" else "hang the ${us.size} drawers") else (if (us.size == 1) "the sub-assembly from step $bench" else "the ${us.size} sub-assemblies from step $bench")
+                    }
+                    for ((item, n) in count) {
+                        val nm = loose.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
+                        val w = nm ?: (if (item != null) "item $item" else "part")
+                        bits += if (nm == null) (if (n == 1) w else "$n× $w") else if (n == 1) "the $w" else "$n ${plural(w, n)}"
+                    }
+                    if (bits.isEmpty() || bits.size > 3) "Step ${st.step}"
+                    else "Step ${st.step}: " + (if (bits.size == 1) bits[0] else bits.dropLast(1).joinToString(", ") + " and " + bits.last())
+                }
             }
             val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
             // The list says how many of each part the whole step needs, all copies of the sub-assembly included.
