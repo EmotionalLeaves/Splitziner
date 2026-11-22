@@ -33,9 +33,15 @@ sealed class Edit {
     data class CutBack(val id: String, val by: String) : Edit()
     /** Replace each part by the plain boards it would be built from (see [Boards]). New pieces get ids "<id>.2", "<id>.3"... */
     data class SplitBoards(val ids: List<String>) : Edit()
+    /**
+     * [id] runs into [into] on purpose: a groove (housing) is cut in [into] to take it. Nothing is moved; the
+     * overlap in the model is the groove. The check stops calling it a clash, and the guide and drawings say so.
+     */
+    data class House(val id: String, val into: String) : Edit()
 }
 
-class EditResult(val parts: List<Part>, val notes: List<String>)
+/** [housed] are (part, the part grooved to take it) pairs, for the parts that still exist. */
+class EditResult(val parts: List<Part>, val notes: List<String>, val housed: List<Pair<String, String>> = emptyList())
 
 object Editor {
     /** At most this share of a part may be cut away by a trim; more than that is a design decision, not a tidy-up. */
@@ -106,6 +112,7 @@ object Editor {
     fun apply(parts: List<Part>, edits: List<Edit>): EditResult {
         var cur = parts.map { fresh(it, it.mesh) }
         val notes = ArrayList<String>()
+        val housed = ArrayList<Pair<String, String>>()
         for (e in edits) {
             try {
                 cur = when (e) {
@@ -139,6 +146,7 @@ object Editor {
                     is Edit.AddBox -> cur + Part(e.id, e.name, box(e.min, e.size))
                     is Edit.Duplicate -> cur.firstOrNull { it.id == e.id }?.let { cur + Part(e.newId, it.name, MeshOps.translated(it.mesh, e.d), material = it.material) } ?: cur
                     is Edit.Merge -> merge(cur, e, notes)
+                    is Edit.House -> { housed += e.id to e.into; cur }
                     is Edit.CutBack -> {
                         val a = cur.firstOrNull { it.id == e.id }; val b = cur.firstOrNull { it.id == e.by }
                         val r = if (a != null && b != null) cutBack(a, b) else null
@@ -163,7 +171,8 @@ object Editor {
                 notes += "A change could not be applied (${e::class.simpleName}): ${ex.message}"
             }
         }
-        return EditResult(cur, notes)
+        val ids = cur.map { it.id }.toSet()
+        return EditResult(cur, notes, housed.filter { it.first in ids && it.second in ids }.distinct())
     }
 
     private fun merge(cur: List<Part>, e: Edit.Merge, notes: MutableList<String>): List<Part> {

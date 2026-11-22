@@ -849,6 +849,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
@@ -1081,11 +1082,13 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (f.partIds.isNotEmpty()) TextButton(onClick = { onShow(f.partIds[0]) }) { Text("Show in 3D") }
                             for (fix in f.fixes) TextButton(onClick = {
-                                vm.addEdit(when (fix.kind) {
-                                    splitziner.check.FixKind.SET_THICKNESS -> splitziner.edit.Edit.Thickness(fix.partIds, fix.value)
-                                    splitziner.check.FixKind.SQUARE_UP -> splitziner.edit.Edit.SquareUp(fix.partIds)
-                                    splitziner.check.FixKind.SPLIT_BOARDS -> splitziner.edit.Edit.SplitBoards(fix.partIds)
-                                    splitziner.check.FixKind.CUT_BACK -> splitziner.edit.Edit.CutBack(fix.partIds[0], fix.partIds[1])
+                                vm.addEdits(when (fix.kind) {
+                                    splitziner.check.FixKind.SET_THICKNESS -> listOf(splitziner.edit.Edit.Thickness(fix.partIds, fix.value))
+                                    splitziner.check.FixKind.SQUARE_UP -> listOf(splitziner.edit.Edit.SquareUp(fix.partIds))
+                                    splitziner.check.FixKind.SPLIT_BOARDS -> listOf(splitziner.edit.Edit.SplitBoards(fix.partIds))
+                                    splitziner.check.FixKind.CUT_BACK -> listOf(splitziner.edit.Edit.CutBack(fix.partIds[0], fix.partIds[1]))
+                                    // Pairs of (housed part, grooved part), one per place they overlap.
+                                    splitziner.check.FixKind.HOUSE -> fix.partIds.chunked(2).filter { it.size == 2 }.map { splitziner.edit.Edit.House(it[0], it[1]) }
                                 })
                             }) { Text(fix.label) }
                         }

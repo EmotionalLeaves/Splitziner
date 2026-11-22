@@ -149,6 +149,13 @@ object AutoFix {
                         push(Edit.CutBack(cb.first.id, cb.second.id), "Cut ${label(cb.first)} back so it stops at the face of ${label(cb.second)} (a butt joint): about ${Math.round(cb.third * 100).coerceAtLeast(1)}% of it removed.")
                         continue
                     }
+                    // A smaller part sitting part way into a bigger one, no deeper than half its thickness, is how a
+                    // housing joint is drawn: keep it, and say the groove must be cut.
+                    val (small, big) = if (abs(a.mesh.volume) <= abs(b.mesh.volume)) a to b else b to a
+                    if (DesignCheck.housable(small, big, c.depth)) {
+                        push(Edit.House(small.id, big.id), "Kept ${label(small)} sitting ${d(c.depth)} $u into ${label(big)} as a housing joint: a groove is cut in ${label(big)} to take it.")
+                        continue
+                    }
                     left += "${label(a).replaceFirstChar { it.uppercase() }} and ${label(b)} overlap by about ${d(c.depth)} $u. " +
                         (if (ab == null && ba == null) "Making it fit means shortening the larger part or cutting away much of the smaller one, which is a design decision. Cut a recess (a housing) in one to take the other, move one, or use the cut-back the Check tab offers."
                         else "Making it fit means shortening the larger part or cutting away much of the smaller one, which is a design decision. The Check tab offers each cut and says how much it removes.")

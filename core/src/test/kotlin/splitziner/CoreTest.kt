@@ -1085,3 +1085,26 @@ class EdgeBandingTest {
         assertEquals((900.0 + 900.0 + 600.0) * 1.1, est.lengthMm, 1e-6)
     }
 }
+
+class HousingTest {
+    /** A 40 mm thick base with a 6 mm lip standing 10 mm down into it: trimming the lip would lose a third of it. */
+    private fun parts() = listOf(
+        Part("P01", "Base", Fixtures.box(0.0, 600.0, 0.0, 300.0, 0.0, 40.0)),
+        Part("P02", "Lip", Fixtures.box(0.0, 600.0, 280.0, 286.0, 30.0, 60.0)),
+    )
+
+    @Test fun fixerKeepsAShallowEntryAsAGrooveAndTheCheckAcceptsIt() {
+        val fmt = LengthFormat("mm")
+        val plan = splitziner.edit.AutoFix.plan(parts(), fmt)
+        val house = plan.edits.filterIsInstance<splitziner.edit.Edit.House>()
+        assertEquals(listOf(splitziner.edit.Edit.House("P02", "P01")), house, "${plan.done} / ${plan.left}")
+        val res = splitziner.edit.Editor.apply(parts(), plan.edits)
+        assertEquals(listOf("P02" to "P01"), res.housed)
+        val cut = CutList.build(res.parts, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null, housed = res.housed)
+        assertTrue(rep.findings.none { it.title.contains("same space") }, rep.findings.map { it.title }.toString())
+        val notes = splitziner.drawing.PartDrawings.grooveNotes(cut.parts.first { it.id == "P01" }, cut.parts, res.housed, fmt)
+        assertEquals(1, notes.size); assertTrue(notes[0].startsWith("GROOVE FOR ITEM"), notes[0])
+        assertTrue(notes[0].contains("10 DEEP X 6 WIDE X 600 LONG"), notes[0])
+    }
+}

@@ -84,7 +84,7 @@ fun main(args: Array<String>) {
             var plain = emptySet<Int>()
             time("drawing") {
                 val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
-                plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format)
+                plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) - splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed)
                 val noted = splitziner.drawing.PartDrawings.plainNote(plain)?.let { info.copy(notes = info.notes + it) } ?: info
                 val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(), a.format, plan?.parts)
                 r.sheets.forEachIndexed { i, d -> File(out, "sheet${i + 1}.svg").writeText(splitziner.export.SvgWriter.write(d)) }
@@ -96,14 +96,14 @@ fun main(args: Array<String>) {
                 println("profiles  ${pr.profiles} flat items, left out ${pr.leftOut}")
             }
             time("details") {
-                val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format, plain)
+                val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format, plain, a.housed)
                 println("details   ${items.size} drawn, ${plain.size} plain items left to the list")
                 for ((row, d) in items) { File(out, "item%02d.svg".format(row.item)).writeText(splitziner.export.SvgWriter.write(d.sheets[0])); if (d.qa.isNotEmpty()) println("detail    ${d.qa}") }
             }
             time("guide") {
                 val pl = plan!!
                 val method = splitziner.joinery.JoinMethod.defaultFor(tools)
-                val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, tools)
+                val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, tools, a.housed)
                 println("hardware  ${method.label}: ${fasten.hardware}")
                 if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
                 val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap(), fasten)
@@ -115,7 +115,7 @@ fun main(args: Array<String>) {
                 println("guide     ${steps.size} steps, ${pages.size} pages")
             }
             time("check") {
-                val rep = splitziner.check.DesignCheck.run(plan?.parts ?: a.parts, a.cutList.rows, a.format, tools)
+                val rep = splitziner.check.DesignCheck.run(plan?.parts ?: a.parts, a.cutList.rows, a.format, tools, housed = a.housed)
                 for (w in rep.work) println("work      item ${w.item}: ${w.work.joinToString { it.name }} holes ${w.holeDiameters.map { a.format.format(it) }} cutouts ${w.cutouts}")
                 for (f in rep.findings) println("finding   ${f.severity} | ${f.title} | ${f.detail} ${if (f.fixes.isEmpty()) "" else "| fix: " + f.fixes.joinToString { it.label }}")
                 println("tools     ${rep.toolsNeeded}")

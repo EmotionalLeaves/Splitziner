@@ -68,8 +68,33 @@ object PartDrawings {
     fun build(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat): List<DrawingResult> =
         items(parts, rows, info, settings, fmt, emptySet()).map { it.second }
 
+    /** Items with a groove cut for a housed part: these always get a detail sheet, which gives the groove. */
+    fun groovedItems(parts: List<Part>, housed: List<Pair<String, String>>): Set<Int> {
+        val byId = parts.associateBy { it.id }
+        return housed.mapNotNull { byId[it.second]?.item }.toSet()
+    }
+
+    /** Notes for the grooves in [p]: one per part housed in it, sized from where the two overlap in the model. */
+    fun grooveNotes(p: Part, parts: List<Part>, housed: List<Pair<String, String>>, fmt: LengthFormat): List<String> {
+        val byId = parts.associateBy { it.id }
+        val d = { v: Double -> fmt.format(v) }
+        return housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
+            val q = byId[pid] ?: return@mapNotNull null
+            val a = p.mesh.bounds; val b = q.mesh.bounds
+            val e = doubleArrayOf(minOf(a.max.x, b.max.x) - maxOf(a.min.x, b.min.x), minOf(a.max.y, b.max.y) - maxOf(a.min.y, b.min.y), minOf(a.max.z, b.max.z) - maxOf(a.min.z, b.min.z))
+            if (e.any { it <= 0 }) return@mapNotNull null
+            // The overlap is the groove. Its depth runs along the direction the housed part sticks out of this one;
+            // of the other two sizes the smaller is the groove's width, the larger its length.
+            val qe = doubleArrayOf(b.extents.x, b.extents.y, b.extents.z)
+            val out = (0..2).filter { e[it] < qe[it] - 0.01 }
+            val k = out.minByOrNull { e[it] } ?: (0..2).minByOrNull { e[it] }!!
+            val rest = (0..2).filter { it != k }.map { e[it] }.sorted()
+            "GROOVE FOR ITEM ${q.item}: ${d(e[k])} DEEP X ${d(rest[0])} WIDE X ${d(rest[1])} LONG, WHERE ITEM ${q.item} MEETS IT ON THE ASSEMBLY DRAWING"
+        }.groupingBy { it }.eachCount().map { (t, n) -> if (n > 1) "$t ($n PLACES)." else "$t." }
+    }
+
     /** Detail drawings for every item except those in [skip], each with the row it details. */
-    fun items(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, skip: Set<Int>): List<Pair<CutListRow, DrawingResult>> {
+    fun items(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, skip: Set<Int>, housed: List<Pair<String, String>> = emptyList()): List<Pair<CutListRow, DrawingResult>> {
         val byId = parts.associateBy { it.id }
         val out = ArrayList<Pair<CutListRow, DrawingResult>>()
         for (row in rows) {
@@ -81,7 +106,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt)

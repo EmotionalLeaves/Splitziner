@@ -23,7 +23,7 @@ import kotlin.math.abs
 enum class Severity { PROBLEM, CHECK, NOTE }
 
 /** A change the app can make for the user to deal with a finding. */
-enum class FixKind { SET_THICKNESS, SQUARE_UP, SPLIT_BOARDS, CUT_BACK }
+enum class FixKind { SET_THICKNESS, SQUARE_UP, SPLIT_BOARDS, CUT_BACK, HOUSE }
 
 class Fix(val kind: FixKind, val label: String, val partIds: List<String>, val value: Double = 0.0)
 
@@ -139,7 +139,18 @@ object DesignCheck {
 
     private val DIRS = listOf(Vec3(0.5377, 0.2954, 0.7897).normalized(), Vec3(-0.3511, 0.8623, -0.3651).normalized(), Vec3(0.1113, -0.5202, -0.8467).normalized())
 
-    fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt)): CheckReport {
+    /**
+     * Whether [small] running [depth] mm into [big] could be a groove (housing) in [big]: the smaller part goes in no
+     * deeper than half of [big]'s thickness, so what is left of [big] behind the groove still holds.
+     */
+    fun housable(small: Part, big: Part, depth: Double): Boolean {
+        if (abs(small.mesh.volume) > abs(big.mesh.volume)) return false
+        val bt = listOf(big.mesh.extents.x, big.mesh.extents.y, big.mesh.extents.z).min()
+        return depth >= 1.0 && depth <= 0.5 * bt
+    }
+
+    fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt), housed: List<Pair<String, String>> = emptyList()): CheckReport {
+        val housedPairs = housed.map { setOf(it.first, it.second) }.toSet()
         val live = parts.filter { !it.excluded }
         val out = ArrayList<Finding>()
         val d = { v: Double -> fmt.format(v) }
@@ -234,7 +245,7 @@ object DesignCheck {
         val rel = relations(live)
         val lo = rel.lo; val hi = rel.hi; val touching = rel.touching; val clashes = rel.clashes
         // Many clashes of the same two items (a pair of drawers in a pair of slides) are told once.
-        for ((_, cs) in clashes.groupBy { setOf(live[it.a].item, live[it.b].item) }) {
+        for ((_, cs) in clashes.filter { setOf(live[it.a].id, live[it.b].id) !in housedPairs }.groupBy { setOf(live[it.a].item, live[it.b].item) }) {
             val c = cs.maxByOrNull { it.depth }!!
             val pa = live[c.a]; val pb = live[c.b]
             // A few millimetres is usually a part drawn slightly too long; more than that changes how the thing goes together.
@@ -245,10 +256,13 @@ object DesignCheck {
                 runCatching { splitziner.edit.Editor.cutBack(pa, pb) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pa.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pa.id, pb.id)) },
                 runCatching { splitziner.edit.Editor.cutBack(pb, pa) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pb.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pb.id, pa.id)) },
             )
+            // Or keep it as drawn and cut a groove for it: the overlap is then the joint.
+            val (small, big) = if (abs(pa.mesh.volume) <= abs(pb.mesh.volume)) pa to pb else pb to pa
+            val houseFix = if (!slight && housable(small, big, c.depth)) listOf(Fix(FixKind.HOUSE, "Keep it: groove item ${big.item} for item ${small.item}", cs.map { if (abs(live[it.a].mesh.volume) <= abs(live[it.b].mesh.volume)) live[it.a].id to live[it.b].id else live[it.b].id to live[it.a].id }.flatMap { listOf(it.first, it.second) })) else emptyList()
             out += Finding(if (slight) Severity.CHECK else Severity.PROBLEM,
                 (if (same) "Two of item ${pa.item}" else "Items ${minOf(pa.item ?: 0, pb.item ?: 0)} and ${maxOf(pa.item ?: 0, pb.item ?: 0)}") + (if (slight) " overlap slightly" else " occupy the same space"),
                 "They overlap by about ${d(c.depth)} $u" + (if (cs.size > 1) " in ${cs.size} places" else "") + (if (slight) ". Probably one was drawn a touch too long; trim it to fit when building." else ". Two solid parts cannot do that. If it is meant as a joint (a tenon, a housing), one part needs a matching recess; otherwise one of them must be shortened or moved."),
-                cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct(), cutFixes)
+                cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct(), houseFix + cutFixes)
         }
         if (n > 1) {
             val alone = (0 until n).filter { touching[it].isEmpty() }

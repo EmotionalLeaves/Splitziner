@@ -227,6 +227,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addEdit(edit: splitziner.edit.Edit) = update { it.copy(edits = it.edits + edit) }
+    fun addEdits(edits: List<splitziner.edit.Edit>) = update { it.copy(edits = it.edits + edits) }
     fun undoLastEdit() = update { it.copy(edits = it.edits.dropLast(1)) }
     fun undoAllEdits() = update { it.copy(edits = emptyList()) }
 
@@ -251,7 +252,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val report = withContext(Dispatchers.Default) {
                     val t0 = System.nanoTime()
                     val a = open.analysis
-                    splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta)).also {
+                    splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta), housed = a.housed).also {
                         Diagnostics.log("check: ${it.problems} problems, ${it.checks} to check, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     }
                 }
@@ -277,13 +278,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val t0 = System.nanoTime()
                     val pl = planOf(a, open.meta.stepOrder)
                     val method = methodFor(open.meta)
-                    val fasten = runCatching { splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, toolsFor(open.meta)) }.onFailure { Diagnostics.logError("fastening", it) }.getOrNull()
+                    val fasten = runCatching { splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, toolsFor(open.meta), a.housed) }.onFailure { Diagnostics.logError("fastening", it) }.getOrNull()
                     val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText, fasten)
                     val drawn = pl.parts.filter { !it.excluded }
                     val view = splitziner.explode.ExplodedView.pickView(drawn)
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                     // The cover lists the tools the parts call for, named from the maker's own tools once they have chosen them.
-                    val tools = runCatching { (_state.value.check ?: splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta))).toolsNeeded }.getOrDefault(emptyList())
+                    val tools = runCatching { (_state.value.check ?: splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta), housed = a.housed)).toolsNeeded }.getOrDefault(emptyList())
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
                         hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it })
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
@@ -319,7 +320,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val planned = runCatching { planOf(a, open.meta.stepOrder).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()
                     // Plain square boards need no detail drawing; a general note on the assembly says which they are.
                     val details = a.parts.count { !it.excluded } > 1
-                    val plain = if (details) runCatching { splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) }.getOrDefault(emptySet()) else emptySet()
+                    val plain = if (details) runCatching { splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) - splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed) }.getOrDefault(emptySet()) else emptySet()
                     // The title block's weight, when the user has not written one and every item has a known material.
                     val info0 = open.meta.drawingInfo(BuildConfig.VERSION_NAME)
                     val wt = splitziner.material.Materials.weight(a.parts, a.cutList.rows)
@@ -332,7 +333,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // One detail drawing per item, when there is more than one part to detail.
                     if (details) runCatching {
                         val t2 = System.nanoTime()
-                        val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, baseInfo, open.meta.drawingSettings(), a.format, plain)
+                        val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, baseInfo, open.meta.drawingSettings(), a.format, plain, a.housed)
                         for ((row, d) in items) { sheets += d.sheets; labels += d.sheets.map { "Item ${row.item}: ${row.description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
                         Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms, ${plain.size} plain items left to the list")
                     }.onFailure { Diagnostics.logError("part drawings", it) }

@@ -43,6 +43,8 @@ class Analysis(
     val originalParts: List<Part> = parts,
     /** Changes that could not be replayed, in plain words. */
     val editNotes: List<String> = emptyList(),
+    /** (part, the part grooved to take it) pairs the user accepted as housing joints. */
+    val housed: List<Pair<String, String>> = emptyList(),
 ) {
     /** Overall size as "W x D x H units". */
     val overallSize: String get() {
@@ -130,6 +132,6 @@ object Pipeline {
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
             ?: Aabb.of(doubleArrayOf())
         progress.report(1.0, "Done")
-        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList())
+        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), edited?.housed ?: emptyList())
     }
 }

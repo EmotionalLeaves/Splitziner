@@ -165,6 +165,7 @@ object EditJson {
         is splitziner.edit.Edit.Delete -> JSONObject().put("op", "delete").put("ids", JSONArray(e.ids))
         is splitziner.edit.Edit.SplitBoards -> JSONObject().put("op", "boards").put("ids", JSONArray(e.ids))
         is splitziner.edit.Edit.CutBack -> JSONObject().put("op", "cutback").put("id", e.id).put("by", e.by)
+        is splitziner.edit.Edit.House -> JSONObject().put("op", "house").put("id", e.id).put("into", e.into)
     }
 
     /** Null for a change this version does not know, so an older app skips it and keeps the rest. */
@@ -181,6 +182,7 @@ object EditJson {
             "delete" -> splitziner.edit.Edit.Delete(ids(o.getJSONArray("ids")))
             "boards" -> splitziner.edit.Edit.SplitBoards(ids(o.getJSONArray("ids")))
             "cutback" -> splitziner.edit.Edit.CutBack(o.getString("id"), o.getString("by"))
+            "house" -> splitziner.edit.Edit.House(o.getString("id"), o.getString("into"))
             else -> null
         }
     }.getOrNull()

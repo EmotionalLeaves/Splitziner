@@ -84,7 +84,7 @@ object Fastening {
     private fun size(mm: Double, fmt: LengthFormat): String =
         if (fmt.isInch) fraction(maxOf(0.125, mm / 25.4)) else "${Math.round(maxOf(1.0, mm) * 2) / 2.0}".removeSuffix(".0") + " mm"
 
-    fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat, tools: Set<Tool>? = null): FastenPlan {
+    fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat, tools: Set<Tool>? = null, housed: List<Pair<String, String>> = emptyList()): FastenPlan {
         val live = parts.filter { !it.excluded }
         val rel = DesignCheck.relations(live)
         val stepOf = HashMap<String, Int>()
@@ -210,6 +210,14 @@ object Fastening {
             if (faceToFace && !glueOnly) { val key = "$size brads"; totals[key] = (totals[key] ?: 0) + count; continue }
             if (!glueOnly) { val key = if (kind == "dowels") size else "$size $kind"; totals[key] = (totals[key] ?: 0) + count }
         }
+        // Housing joints the user kept: the part is glued into a groove cut in the other.
+        val byId = live.associateBy { it.id }
+        for ((pid, gid) in housed) {
+            val p = byId[pid] ?: continue; val g = byId[gid] ?: continue
+            val sameUnit = p.id.substringBefore('.') == g.id.substringBefore('.') && benchOf.containsKey(p.id) && benchOf.containsKey(g.id)
+            val step = if (sameUnit) maxOf(stepOf[p.id] ?: 0, stepOf[g.id] ?: 0) else maxOf(mainOf(p), mainOf(g))
+            joints.getOrPut(step) { ArrayList() } += Joint(g, p, 0, "", "housed", true)
+        }
         // Identical sub-assemblies are made more than once: their fasteners count that many times.
         for (st in steps) if (st.subassembly && st.makeCount > 1) {
             for (jt in joints[st.step].orEmpty()) if (!jt.glueOnly && jt.kind != "thin") {
@@ -242,7 +250,8 @@ object Fastening {
         val groups = js.groupBy { Triple(itemName(it.through), itemName(it.into), it.size + it.glueOnly) }
         for ((key, g) in groups.entries.take(maxLines)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
-            out += if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
+            out += if (j.kind == "housed") "Glue ${key.second} into the groove cut for it in ${key.first}$times, and clamp until dry."
+            else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
             else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times."
             else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
@@ -264,7 +273,7 @@ object Fastening {
         if (groups.size > maxLines) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "edge" -> "edge glued"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
+                j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(maxLines).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
