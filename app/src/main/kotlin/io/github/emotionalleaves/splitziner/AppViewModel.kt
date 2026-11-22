@@ -36,6 +36,8 @@ class DrawingState(
 
 data class UiState(
     val projects: List<ProjectMeta> = emptyList(),
+    /** Bumped when a project's picture is saved, so the list reloads it. */
+    val thumbsVersion: Int = 0,
     val open: OpenProject? = null,
     /** Non-null while work is running: what is happening, and how far along (0..1). */
     val busyLabel: String? = null,
@@ -388,6 +390,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?): List<Pair<String, List<String>>> =
         a.cutList.rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools))?.let { "Item ${r.item}: ${r.description}" to it } }
 
+    /**
+     * Draws the model small, as the drawings show it, for its card in the project list. In the background and
+     * only for models that draw quickly; the list shows a letter until the picture exists.
+     */
+    private fun saveThumb(meta: ProjectMeta, analysis: splitziner.pipeline.Analysis) {
+        val parts = analysis.parts.filter { !it.excluded }.map { it.copy(explode = null) }
+        if (parts.isEmpty() || parts.size > 300) return
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching {
+                val view = splitziner.explode.ExplodedView.pickView(parts)
+                val sheet = io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(parts, 80.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false), view, "thumb"))
+                val w = 240; val h = 180
+                val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                val c = android.graphics.Canvas(bmp); c.drawColor(android.graphics.Color.WHITE)
+                val k = minOf(w / sheet.widthMm, h / sheet.heightMm)
+                c.translate((w - sheet.widthMm * k) / 2, (h - sheet.heightMm * k) / 2)
+                sheet.draw(c, k)
+                store.thumb(meta.id).outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                bmp.recycle()
+                _state.update { it.copy(projects = store.list(), thumbsVersion = it.thumbsVersion + 1) }
+            }.onFailure { Diagnostics.logError("thumbnail", it) }
+        }
+    }
+
+    fun thumbFile(id: String): java.io.File = store.thumb(id)
+
     /** Writes the open project to a single file in the app's cache, for sharing. */
     fun exportProject(): java.io.File? {
         val open = _state.value.open ?: return null
@@ -530,6 +558,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             store.save(saved)
             drawingJob?.cancel(); guideJob?.cancel(); checkJob?.cancel()
             _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
+            saveThumb(saved, analysis)
         } catch (e: Throwable) {
             if (deleteOnFailure) store.delete(meta.id)
             fail("analysis", e)

@@ -69,6 +69,8 @@ class ProjectStore(context: Context) {
 
     fun dir(id: String) = File(root, id)
     fun source(id: String) = File(dir(id), "source.stl")
+    /** A small picture of the model for the project list; may not exist yet. */
+    fun thumb(id: String) = File(dir(id), "thumb.png")
 
     fun list(): List<ProjectMeta> =
         (root.listFiles() ?: emptyArray()).mapNotNull { d -> runCatching { read(File(d, "project.json")) }.getOrNull() }

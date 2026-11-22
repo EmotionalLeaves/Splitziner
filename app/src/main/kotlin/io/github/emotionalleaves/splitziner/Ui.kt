@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -205,7 +206,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
             Text("Projects", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
         }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-            items(state.projects, key = { it.id }) { p -> ProjectCard(p, enabled = state.busyLabel == null, onOpen = { vm.openProject(p) }, onDelete = { confirmDelete = p }) }
+            items(state.projects, key = { it.id }) { p -> ProjectCard(p, vm.thumbFile(p.id), state.thumbsVersion, enabled = state.busyLabel == null, onOpen = { vm.openProject(p) }, onDelete = { confirmDelete = p }) }
         }
     }
     UpdateDialogs(state, vm)
@@ -1733,11 +1734,19 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
 
 /** One project in the list: a monogram, its name, what it is, and when it was last used. */
 @Composable
-private fun ProjectCard(p: ProjectMeta, enabled: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabled: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    // The model's picture, read off the main thread; a letter stands in until there is one.
+    val pic by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, p.id, p.updatedAt, version) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { if (thumb.exists()) android.graphics.BitmapFactory.decodeFile(thumb.path)?.let { b -> b.asImageBitmap() } else null }.getOrNull()
+        }
+    }
     ElevatedCard(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onOpen)) {
         Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
+            val shot = pic
+            if (shot != null) androidx.compose.foundation.Image(shot, contentDescription = null, modifier = Modifier.size(64.dp, 48.dp).background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.small).padding(2.dp))
+            else Box(Modifier.size(64.dp, 48.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
                 Text(p.name.trim().take(1).uppercase().ifBlank { "?" }, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
