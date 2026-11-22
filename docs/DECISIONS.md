@@ -184,3 +184,8 @@ Departures from the build spec, newest first.
 ## v0.84
 - A face frame (stiles and rails flat across the front) is its own sub-assembly. It is made flat on the bench, with pocket screws through the rails' ends on the back (or glue and dowels). It goes on the finished case before doors and drawers, glued to the front edges and pinned with brads set below the surface. Screws through a stile's edge, which would show, are no longer suggested, and a face frame is never the starting piece.
 - Equal starting candidates (a pedestal desk's three uprights) go by how many parts they touch. A piece standing alone that nothing ties in until later (a desk's far end panel) waits for the step that joins it, instead of being propped up from step 1 or fitted with an unrelated back panel.
+- Pocket screws are used only where a pocket can go: an end or edge meeting a face.
+  - Two faces together take plain screws, and so does a board lying on its support (a slat on its cleat, a bottom on its kick board), screwed down through it.
+  - A thin panel (a 1/4 in back) is pinned.
+  - An edge too thin for a screw but fine for a brad is glued and pinned, as with screws.
+  - Found by running the complex models with every joining method: a bunk bed asked for 168 pocket screws, many of them through slats.
