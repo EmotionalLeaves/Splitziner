@@ -30,7 +30,7 @@ data class DrawingSettings(
     val hidden: String = "auto",
     /** "auto" cuts a view open when its inside is hidden; "none" never does. */
     val sections: String = "auto",
-    val maxLevelDims: Int = 5,
+    val maxLevelDims: Int = 8,
     /** Use the standard's full lettering heights even on small sheets. */
     val strictLettering: Boolean = false,
 )
