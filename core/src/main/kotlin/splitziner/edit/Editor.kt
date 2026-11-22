@@ -114,6 +114,29 @@ object Editor {
         return Vec3(mn[0], mn[1], mn[2]) to Vec3(sz[0], sz[1], sz[2])
     }
 
+    /**
+     * An inset door for the opening round the point ([x], [z]) on the front: between the uprights left and right and
+     * the parts below and above, [gap] mm clear all round, [t] thick, its face flush with the front of the opening.
+     */
+    fun doorAt(parts: List<Part>, x: Double, z: Double, t: Double, gap: Double = 2.0): Pair<Vec3, Vec3>? {
+        val live = parts.filter { !it.excluded }
+        if (live.isEmpty()) return null
+        val all = live.map { it.mesh.bounds }
+        fun thin(i: Int, k: Int): Boolean { val e = all[i].extents; return e[k] < 0.3 * minOf(e[(k + 1) % 3], e[(k + 2) % 3]) }
+        val left = live.indices.filter { thin(it, 0) && all[it].max.x <= x && all[it].min.z <= z && all[it].max.z >= z }.maxByOrNull { all[it].max.x } ?: return null
+        val right = live.indices.filter { thin(it, 0) && all[it].min.x >= x && all[it].min.z <= z && all[it].max.z >= z }.minByOrNull { all[it].min.x } ?: return null
+        val x0 = all[left].max.x; val x1 = all[right].min.x
+        val below = live.indices.filter { thin(it, 2) && all[it].max.z <= z && all[it].min.x < x1 && all[it].max.x > x0 }.maxByOrNull { all[it].max.z } ?: return null
+        val above = live.indices.filter { thin(it, 2) && all[it].min.z >= z && all[it].min.x < x1 && all[it].max.x > x0 }.minByOrNull { all[it].min.z } ?: return null
+        val z0 = all[below].max.z; val z1 = all[above].min.z
+        val front = minOf(all[left].min.y, all[right].min.y)
+        if (x1 - x0 < 100.0 || z1 - z0 < 100.0) return null
+        val mn = Vec3(x0 + gap, front, z0 + gap); val sz = Vec3(x1 - x0 - 2 * gap, t, z1 - z0 - 2 * gap)
+        // Nothing may be in the way (a drawer front, a rail).
+        val clash = all.any { bb -> bb.min.x < mn.x + sz.x && bb.max.x > mn.x && bb.min.y < mn.y + sz.y && bb.max.y > mn.y && bb.min.z < mn.z + sz.z && bb.max.z > mn.z }
+        return if (clash) null else mn to sz
+    }
+
     fun box(min: Vec3, size: Vec3): Mesh {
         val a = min; val b = min + size
         return Mesh(

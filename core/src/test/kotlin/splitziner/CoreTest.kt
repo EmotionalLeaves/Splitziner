@@ -1268,3 +1268,22 @@ class DividerAtTest {
         assertEquals(18.0, min.z, 1e-6); assertEquals((720.0 - 18) / 2 - 18, size.z, 1e-6)
     }
 }
+
+class DoorTest {
+    @Test fun aDoorAddedToACabinetHangsOnHinges() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        // The opening below the shelf.
+        val (min, size) = splitziner.edit.Editor.doorAt(parts, 300.0, 150.0, 18.0)!!
+        assertEquals(20.0, min.x, 1e-6); assertEquals(560.0, size.x, 1e-6)
+        val withDoor = splitziner.edit.Editor.apply(parts, listOf(splitziner.edit.Edit.AddBox("D1", "Door", min, size))).parts
+        val cut = CutList.build(withDoor, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.findings.none { it.title.contains("touches nothing") }, rep.findings.map { it.title }.toString())
+        assertTrue(rep.findings.any { it.title.startsWith("Door") })
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val f = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+        assertTrue(f.hardware.any { it.contains("2 × concealed (cup) hinges") }, f.hardware.toString())
+    }
+}

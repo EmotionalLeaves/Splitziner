@@ -230,6 +230,13 @@ object Fastening {
             joints.getOrPut(step) { ArrayList() }.add(0, Joint(box, box, 1, len, "slides", false))
             totals["pair of $len drawer slides"] = (totals["pair of $len drawer slides"] ?: 0) + 1
         }
+        // Doors hang on hinges, fitted in the step the door goes in.
+        for (dr in runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList())) {
+            val p = live.first { it.id == dr.id }
+            val n = splitziner.check.Doors.hinges(dr.height)
+            joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, "hinges", "hinges", false))
+            totals["concealed (cup) hinges"] = (totals["concealed (cup) hinges"] ?: 0) + n
+        }
         // Tall, shallow pieces get a wall anchor (see the check's "Fix it to the wall").
         if (live.isNotEmpty()) {
             val h = live.maxOf { it.mesh.bounds.max.z } - live.minOf { it.mesh.bounds.min.z }; val dd = live.maxOf { it.mesh.bounds.max.y } - live.minOf { it.mesh.bounds.min.y }
@@ -249,7 +256,7 @@ object Fastening {
             val frac = if (m.groupValues[2].isNotEmpty()) m.groupValues[2].toDouble() / m.groupValues[3].toDouble() else 0.0
             return whole + frac
         }
-        fun kindRank(k: String) = when { k.contains("slides") -> 5; k.contains("bracket") -> 4; k.contains("pocket") -> 0; k.endsWith("screws") -> 1; k.contains("dowel") -> 2; k.endsWith("brads") -> 3; else -> 4 }
+        fun kindRank(k: String) = when { k.contains("slides") || k.contains("hinges") -> 5; k.contains("bracket") -> 4; k.contains("pocket") -> 0; k.endsWith("screws") -> 1; k.contains("dowel") -> 2; k.endsWith("brads") -> 3; else -> 4 }
         val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}" else "$n × $k" } + listOf("Wood glue") +
             (if (method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) listOf("Buy about 10% extra fasteners") else emptyList())
         return FastenPlan(method, joints, hardware)
@@ -275,7 +282,8 @@ object Fastening {
         val groups = js.groupBy { Triple(itemName(it.through), itemName(it.into), it.size + it.glueOnly) }
         for ((key, g) in groups.entries.take(maxLines)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
-            out += if (j.kind == "slides") "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer."
+            out += if (j.kind == "hinges") "Drill the hinge cups in the back of ${key.first} with a 35 mm bit (using the hinges' template), screw on ${count(n)} hinges, then hang it and adjust it until the gaps are even."
+            else if (j.kind == "slides") "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer."
             else if (j.kind == "housed") "Glue ${key.second} into the groove cut for it in ${key.first}$times, and clamp until dry."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
@@ -300,7 +308,7 @@ object Fastening {
         if (groups.size > maxLines) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
+                j.kind == "slides" -> "on slides"; j.kind == "hinges" -> "on hinges"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(maxLines).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

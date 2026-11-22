@@ -280,6 +280,13 @@ object DesignCheck {
             out += Finding(Severity.NOTE, "Drawer on slides (items ${its.joinToString(", ")})",
                 "Items ${its.joinToString(", ")} make a drawer. It runs on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit its depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", dr.ids)
         }
+        // Doors hang on hinges, which are hardware too.
+        val doors = runCatching { Doors.find(live) }.getOrDefault(emptyList())
+        run { val idx = live.indices.associateBy { live[it].id }; for (dr in doors) idx[dr.id]?.let { onSlides += it } }
+        for (dr in doors) {
+            val it0 = live.first { it.id == dr.id }.item
+            out += Finding(Severity.NOTE, "Door (item $it0)", "Item $it0 is a door. It hangs on ${Doors.hinges(dr.height)} hinges, which are hardware and not in the model. Concealed (cup) hinges need a 35 mm hole in the back of the door; follow the hinges' own template.", listOf(dr.id))
+        }
         if (n > 1) {
             val alone = (0 until n).filter { touching[it].isEmpty() && it !in onSlides }
             if (alone.isNotEmpty()) out += Finding(Severity.PROBLEM, "${alone.size} part${if (alone.size == 1) " touches" else "s touch"} nothing",

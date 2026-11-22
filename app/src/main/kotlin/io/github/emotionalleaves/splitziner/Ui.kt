@@ -340,7 +340,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     var more by remember { mutableStateOf(false) }
                     OutlinedButton(onClick = { more = true }, enabled = state.busyLabel == null) { Text("More\u2026") }
                     androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
-                        androidx.compose.material3.DropdownMenuItem(text = { Text("Add a shelf or divider") }, onClick = { more = false; showShelf = true })
+                        androidx.compose.material3.DropdownMenuItem(text = { Text("Add a shelf, divider or door") }, onClick = { more = false; showShelf = true })
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Overall size") }, onClick = { more = false; showSize = true })
                         if (open.meta.edits.isNotEmpty()) androidx.compose.material3.DropdownMenuItem(text = { Text("Changes (${open.meta.edits.size})") }, onClick = { more = false; showChanges = true })
                     }
@@ -928,7 +928,7 @@ private val HELP = listOf(
     "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
     "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
     "Check" to "The Check tab looks at the model the way someone about to build it would. It flags parts that pass through each other, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, shelves that run a long way between supports, and whether it would tip over. Problems (red) stop the build as drawn; Check items (amber) need your judgement. It works from shapes alone: it knows nothing about wood, glue, screws or loads, and its sag and balance findings are rules of thumb.",
-    "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, turn it a quarter turn, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place; More > Add a shelf or divider puts a shelf between the sides at the height you give, or an upright divider between shelves. New design on the home screen starts a bookcase, cabinet, desk, nightstand (with a drawer on slides), table, bench or open box at the sizes you give (in stock thicknesses), or a single board. Undo takes the last change back.",
+    "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, turn it a quarter turn, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place; More > Add a shelf, divider or door puts a shelf between the sides at the height you give, an upright divider between shelves, or an inset door in an opening (with its hinges on the hardware list). New design on the home screen starts a bookcase, cabinet, desk, nightstand (with a drawer on slides), table, bench or open box at the sizes you give (in stock thicknesses), or a single board. Undo takes the last change back.",
     "Frames and boxes drawn as one piece" to "3D programs often join a frame, an open box or a channel into one solid. Nobody can cut that from one board. The check finds these and offers Make from N boards, which splits the part into the plain boards it would be built from. Frames with a step in their thickness (a rebate) become two stacked layers, which make the same step. Rounded corners come out square.",
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
@@ -1477,7 +1477,8 @@ private fun OverallSizeDialog(open: OpenProject, onDismiss: () -> Unit, onApply:
 private fun ShelfDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitziner.edit.Edit) -> Unit) {
     val a = open.analysis; val fmt = a.format
     val unit = if (fmt.isInch) 25.4 else 1.0
-    var divider by remember { mutableStateOf(false) }
+    var kind by remember { mutableIntStateOf(0) }   // 0 shelf, 1 divider, 2 door
+    val divider = kind == 1
     var where by remember { mutableStateOf(sizeText(fmt, a.bounds.extents.z / 2)) }
     var t by remember { mutableStateOf(sizeText(fmt, if (fmt.isInch) 19.05 else 18.0)) }
     var msg by remember { mutableStateOf<String?>(null) }
@@ -1486,22 +1487,31 @@ private fun ShelfDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitz
         confirmButton = { TextButton(onClick = {
             val v = num(where); val th = num(t)
             if (v == null || th == null || th <= 0) { msg = "Enter the position and thickness as numbers"; return@TextButton }
-            val r = if (divider) splitziner.edit.Editor.dividerAt(a.parts, a.bounds.min.x + v * unit, th * unit)
-                else splitziner.edit.Editor.shelfAt(a.parts, a.bounds.min.z + v * unit, th * unit)
-            if (r == null) { msg = if (divider) "No room for a divider there: there must be a shelf (or top and bottom) above and below it, and nothing already in the way." else "No room for a shelf there: there must be an upright part on both sides at that height, and nothing already in the way."; return@TextButton }
-            onAdd(splitziner.edit.Edit.AddBox(newId(open, "S"), if (divider) "Divider" else "Shelf", r.first, r.second))
+            val r = when (kind) {
+                1 -> splitziner.edit.Editor.dividerAt(a.parts, a.bounds.min.x + v * unit, th * unit)
+                2 -> splitziner.edit.Editor.doorAt(a.parts, a.bounds.center.x, a.bounds.min.z + v * unit, th * unit)
+                else -> splitziner.edit.Editor.shelfAt(a.parts, a.bounds.min.z + v * unit, th * unit)
+            }
+            if (r == null) { msg = when (kind) {
+                1 -> "No room for a divider there: there must be a shelf (or top and bottom) above and below it, and nothing already in the way."
+                2 -> "No opening there: there must be sides left and right and parts above and below, with nothing already in front."
+                else -> "No room for a shelf there: there must be an upright part on both sides at that height, and nothing already in the way." }; return@TextButton }
+            onAdd(splitziner.edit.Edit.AddBox(newId(open, "S"), listOf("Shelf", "Divider", "Door")[kind], r.first, r.second))
         }) { Text("Add") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text(if (divider) "Add a divider" else "Add a shelf") },
+        title = { Text("Add a " + listOf("shelf", "divider", "door")[kind]) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row {
-                    androidx.compose.material3.FilterChip(selected = !divider, onClick = { divider = false; where = sizeText(fmt, a.bounds.extents.z / 2); msg = null }, label = { Text("Shelf") })
-                    Spacer(Modifier.width(6.dp))
-                    androidx.compose.material3.FilterChip(selected = divider, onClick = { divider = true; where = sizeText(fmt, a.bounds.extents.x / 2); msg = null }, label = { Text("Divider") })
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for ((k, label) in listOf("Shelf", "Divider", "Door").withIndex())
+                        androidx.compose.material3.FilterChip(selected = kind == k, onClick = { kind = k; where = sizeText(fmt, if (k == 1) a.bounds.extents.x / 2 else a.bounds.extents.z / 2); msg = null }, label = { Text(label) })
                 }
-                Text(if (divider) "An upright board between the shelves above and below it, as deep as they allow." else "A shelf between the sides either side of the middle, as deep as they allow, stopping at a back panel.", style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(where, { where = it; msg = null }, label = { Text(if (divider) "Centre, from the left end, ${fmt.unitLabel}" else "Height of its top from the floor, ${fmt.unitLabel}") }, singleLine = true)
+                Text(when (kind) {
+                    1 -> "An upright board between the shelves above and below it, as deep as they allow."
+                    2 -> "An inset door filling the opening at that height, 2 mm (about 1/16 in) clear all round, its face flush with the front. Hinges go on the hardware list."
+                    else -> "A shelf between the sides either side of the middle, as deep as they allow, stopping at a back panel."
+                }, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(where, { where = it; msg = null }, label = { Text(when (kind) { 1 -> "Centre, from the left end, ${fmt.unitLabel}"; 2 -> "A height inside the opening, ${fmt.unitLabel}"; else -> "Height of its top from the floor, ${fmt.unitLabel}" }) }, singleLine = true)
                 OutlinedTextField(t, { t = it; msg = null }, label = { Text("Thickness, ${fmt.unitLabel}") }, singleLine = true)
                 msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
