@@ -497,7 +497,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val inchLocale: Boolean get() = java.util.Locale.getDefault().country in setOf("US", "LR", "MM")
 
     /** Starts a project from a template ([key] in [splitziner.edit.Templates]), or from one board when [key] is null. Sizes in mm. */
-    fun newDesign(key: String? = null, values: Map<String, Double> = emptyMap()) {
+    fun newDesign(key: String? = null, values: Map<String, Double> = emptyMap(), material: String? = null) {
         if (_state.value.busyLabel != null) return
         viewModelScope.launch {
             try {
@@ -513,6 +513,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm", inchStyle = if (inch) "fraction" else m.inchStyle).also { store.save(it) }
                 }
                 analyze(meta, deleteOnFailure = true)
+                // The material chosen with the template, given to every item; each can still be changed on the Cut list tab.
+                if (material != null) _state.value.open?.takeIf { it.meta.id == meta.id }?.let { o ->
+                    update { m -> m.copy(items = m.items + o.analysis.cutList.rows.associate { r -> CutList.itemKey(r.kind, r.t, r.w, r.l) to ItemOverride(material = material) }) }
+                }
             } catch (e: Throwable) { fail("new design", e) }
         }
     }

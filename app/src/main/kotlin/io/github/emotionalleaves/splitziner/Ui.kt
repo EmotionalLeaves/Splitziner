@@ -1196,7 +1196,7 @@ private val HELP = listOf(
     "Full-size templates" to "On the Drawing tab, More > Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
     "Prices" to "On the Cut list tab, More > Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",
     "CNC profiles" to "On the Cut list tab, More > CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
-    "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
+    "Weight" to "A new design from a template can take a material for every part from the start (New design, Material). Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Build pack" to "The project menu (\u22ee, top right) has Share build pack: one zip with the drawings and the build guide as PDFs, the cutting plan, the cut list as a spreadsheet file (CSV) and the shopping list. Send it to a print shop, to whoever is helping you build, or to yourself.",
     "Doors, drawers and shelf pins" to "On the 3D tab, More > Add a shelf, divider, door or drawer fills an opening. Doors get concealed hinges (2, 3 or 4 by height) and their drawings show where the cups go; drawers get a box sized for ball-bearing slides; adjustable shelves rest on 4 pins in rows of holes on the 32 mm system. The guide hangs all of them last, once the box is finished, and their hardware is on the shopping list.",
     "Backing up" to "Open the project menu (\u22ee, top right), then Share project. It makes one file with the model and everything you set and changed. Open that file with Import (or Open with) on any phone with the app to get the project back.",
@@ -2029,6 +2029,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val template = key?.let { splitziner.edit.Templates.byKey(it) }
     val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
     var error by remember { mutableStateOf<String?>(null) }
+    // Optional: the material for every part, so weights and the list of material are filled in from the start.
+    var material by remember { mutableStateOf<String?>(null) }
     // Said under the picture while typing, when the sizes leave some part no room.
     var sizesWrong by remember { mutableStateOf<String?>(null) }
     // A small picture of the design at the sizes typed so far, redrawn a moment after typing stops.
@@ -2059,7 +2061,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             }
             // Sizes that leave a part no room are caught here, with a plain reason, not after the project is made.
             splitziner.edit.Templates.problem(t, splitziner.edit.Templates.defaults(t, inch) + mm)?.let { error = it; return@TextButton }
-            onDismiss(); vm.newDesign(t.key, mm)
+            onDismiss(); vm.newDesign(t.key, mm, material)
         }) { Text("Create") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         title = { Text("New design") },
@@ -2073,6 +2075,13 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 else {
                     preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
                     sizesWrong?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    if (template != null) {
+                        Text("Material (optional; each part can be changed later)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            androidx.compose.material3.FilterChip(selected = material == null, onClick = { material = null }, label = { Text("Not set") })
+                            for (m in listOf("Plywood", "Birch plywood", "MDF", "Pine", "Poplar", "Oak")) androidx.compose.material3.FilterChip(selected = material == m, onClick = { material = m }, label = { Text(m) })
+                        }
+                    }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     for (f in template.fields) if (f.toggle) Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
