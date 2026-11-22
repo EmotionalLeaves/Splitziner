@@ -196,3 +196,12 @@ Departures from the build spec, newest first.
 - A "centre leg" is judged against the other legs' outline, not the whole model. A round table's legs, set well in from an overhanging top, are just legs.
 - A thick stick of no standard lumber size (a 2-1/2 in square leg) is planned from the next standard size up (4x4), planed or ripped down. Before, it fell to "thicker than any sheet sold". The cut plan's notes heading is now "NOTES".
 - Step titles count parts by their own names ("the bottom and 3 shelves", "the front and the back").
+
+## v0.86
+- Repeated modules: a set of parts repeated two or more times, each copy shifted by the same step sideways and standing on the floor (four base cabinets under one worktop). Each copy is one unit. Doors, drawers and their fronts stay out of the units and go on at the end. Parts across them (the worktop) are fitted after. A vertical repeat (shelves and dividers) is not a module.
+  - A unit of more than 6 parts is built over several bench steps (at most 5). Later steps show earlier parts greyed. A lone first piece is merged into the next step. Every copy's parts are matched to the first copy's by item and position in the unit, so their joints land in the right step.
+  - All the cabinets are set out together and clamped flush. Neighbouring sides are screwed together with screws shorter than both sides, no glue, so the run can come apart to move.
+  - A top on flat stretchers is screwed up through them, through clearance holes, with screws that stop well short of its face.
+  - A long, thick "Top" bigger than a sheet suggests a ready-made worktop.
+- A door with doors on both sides (a row of cabinets) is still a door if an upright stands behind one of its edges. Doors hang together in one step, up to 12.
+- Boards alike that lie end to end in line (stretchers across a run of cabinets) are not slats.
