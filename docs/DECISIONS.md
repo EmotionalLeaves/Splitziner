@@ -139,3 +139,10 @@ Departures from the build spec, newest first.
   - items whose even spacing the step already gives
 - Bench steps measure against the longest touching part of the unit. Build steps measure against a part already built or a different item going in with it. The first step, which only sets things out, gets none.
 - The shelf-spacing line is named from the parts going in ("the shelves (item 3)"), not from every part of that item.
+
+## v0.80
+- Positions in build steps are only given when the step adds at most two kinds of item and they take at most two lines. A busy step of a sculpted STL listed a dozen offsets that the picture shows better.
+- Drawer slides:
+  - The line now says where the cabinet half goes, read off the model. Its centre line is level with the middle of the drawer box's height, measured down from the top of the cabinet side beside it. Its front end is flush with, or set back from, the front edge, as the box is.
+  - Drawer halves are centred on the drawer sides, flush with the box front. This is the usual practice for side-mount slides. The slide maker's instructions are still the authority.
+  - Several drawers hung in one step are one line, with their lines listed top first, even when the boxes are different sizes (graduated drawers).

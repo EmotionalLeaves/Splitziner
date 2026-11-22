@@ -29,7 +29,8 @@ enum class JoinMethod(val label: String, val needs: Set<Tool>) {
 }
 
 /** One joint: [through] is fastened into [into]; [count] fasteners of [size]. */
-class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean)
+/** [at]: for slides, where the cabinet half goes, "down|back" from the cabinet side's top and front edges, formatted. */
+class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean, val at: String = "")
 
 /** [byStep] tells each step's joints (one copy of a sub-assembly made several times); [all] is every joint in the piece. */
 class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>, val all: List<Joint> = byStep.values.flatten())
@@ -307,7 +308,16 @@ object Fastening {
             val box = ps.filter { it.id in dr.boxIds }.maxByOrNull { kotlin.math.abs(it.mesh.volume) } ?: ps.maxByOrNull { kotlin.math.abs(it.mesh.volume) }!!
             // Hung by its box; an applied front goes on in a later step, and its handle with it.
             val front = ps.firstOrNull { it.id in applied }
-            joints.getOrPut(ps.filter { it.id in dr.boxIds }.maxOfOrNull { mainOf(it) } ?: step) { ArrayList() }.add(0, Joint(box, front ?: box, 1, len, "slides", false))
+            // Where the cabinet half goes, read off the model: its centre line level with the middle of the drawer box's
+            // height, measured down from the top of the cabinet side beside it, and how far back the box starts.
+            val boxParts = ps.filter { it.id in dr.boxIds }.ifEmpty { listOf(box) }
+            val bLo = splitziner.math.Vec3(boxParts.minOf { it.mesh.bounds.min.x }, boxParts.minOf { it.mesh.bounds.min.y }, boxParts.minOf { it.mesh.bounds.min.z })
+            val bHi = splitziner.math.Vec3(boxParts.maxOf { it.mesh.bounds.max.x }, boxParts.maxOf { it.mesh.bounds.max.y }, boxParts.maxOf { it.mesh.bounds.max.z })
+            val side = live.filter { it.id !in dr.ids && it.mesh.bounds.max.x <= bLo.x + 0.5 && it.mesh.bounds.min.z <= bLo.z && it.mesh.bounds.max.z >= bHi.z &&
+                it.mesh.bounds.min.y <= bLo.y + 1.0 && it.mesh.bounds.max.y >= bHi.y - 1.0 }.maxByOrNull { it.mesh.bounds.max.x }
+            val u = if (fmt.isInch) " in" else " mm"
+            val at = side?.let { c -> "${fmt.format(c.mesh.bounds.max.z - (bLo.z + bHi.z) / 2)}$u|${fmt.format(maxOf(0.0, bLo.y - c.mesh.bounds.min.y))}$u" } ?: ""
+            joints.getOrPut(ps.filter { it.id in dr.boxIds }.maxOfOrNull { mainOf(it) } ?: step) { ArrayList() }.add(0, Joint(box, front ?: box, 1, len, "slides", false, at))
             totals["pair of $len drawer slides"] = (totals["pair of $len drawer slides"] ?: 0) + 1
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
         }
@@ -440,7 +450,8 @@ object Fastening {
         // Plain fixings from one part into several (a side screwed to the bottom and the kick board) are one line;
         // hung parts and the like keep a line per part, as their wording is about that part.
         val plainKinds = setOf("screws", "brads", "pocket screws", "dowels", "corner", "brackets", "laminate", "")
-        val groups0 = (js - cut.toSet()).groupBy { Triple(itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
+        // Drawers hung in one step are one line however many sizes of box they are (graduated drawers).
+        val groups0 = (js - cut.toSet()).groupBy { if (it.kind == "slides") Triple("drawers", "*", it.size + it.kind + (it.into === it.through)) else Triple(itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
         fun joined(names: List<String>): String {
             if (names.size == 1) return names[0]
             val m = names.map { Regex("""^(.*?) \((.*)\)$""").find(it) }
@@ -467,8 +478,16 @@ object Fastening {
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
             else if (j.kind == "slides") {
                 val handle = j.into === j.through
-                if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it." + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
-                else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer." + (if (handle) " Fit its handle or knob in the middle of the front." else "")
+                // Where the cabinet halves go: a level line down from the top of each side, front end set back as the box is.
+                val ats = g.sortedByDescending { it.through.mesh.bounds.max.z }.map { it.at }.filter { it.isNotEmpty() }.map { it.split('|') }
+                val mark = if (ats.size != g.size || ats.isEmpty()) "" else {
+                    val downs = ats.map { it[0] }; val backs = ats.map { it[1] }.distinct()
+                    val back = if (backs.size == 1) (if (backs[0].startsWith("0 ") || backs[0] == "0") ", its front end flush with the front edge" else ", its front end ${backs[0]} back from the front edge") else ""
+                    if (downs.size == 1) " Draw a level line on each side of the cabinet ${downs[0]} down from its top edge; the centre of the slide's cabinet half goes on it$back. Centre the drawer halves on the drawer's sides, flush with its front."
+                    else " Draw level lines on each side of the cabinet ${downs.dropLast(1).joinToString(", ")} and ${downs.last()} down from its top edge, one for each drawer from the top; the centre of each slide's cabinet half goes on its line$back. Centre the drawer halves on the drawers' sides, flush with their fronts."
+                }
+                if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it.$mark" + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
+                else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer.$mark" + (if (handle) " Fit its handle or knob in the middle of the front." else "")
             }
             else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
