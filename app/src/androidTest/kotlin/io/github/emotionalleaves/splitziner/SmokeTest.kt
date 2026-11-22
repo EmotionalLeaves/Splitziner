@@ -124,6 +124,16 @@ class SmokeTest {
                 tap("Back"); tap("Not done")
                 rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
             }.onFailure { println("SMOKE build mode failed: ${it.message}") }
+            // Help: its own screen, by section, searchable.
+            runCatching {
+                rule.onNodeWithContentDescription("Project menu").performClick(); rule.waitForIdle()
+                tap("Help")
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Search help").fetchSemanticsNodes().isNotEmpty() }
+                tap("Cutting plan")
+                shot("c10_help")
+                println("SMOKE help opens")
+                rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
+            }.onFailure { println("SMOKE help failed: ${it.message}") }
             // The build pack: every output in one zip.
             val pack = makeBuildPack(ctx, vm.state.value.open!!, vm, vm.state.value.drawing!!, guide)
             val names = java.util.zip.ZipFile(pack).use { z -> z.entries().toList().map { it.name } }

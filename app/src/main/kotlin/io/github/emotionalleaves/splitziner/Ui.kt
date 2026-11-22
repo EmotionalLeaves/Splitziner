@@ -530,18 +530,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         }
     }
 
-    if (showHelp) AlertDialog(
-        onDismissRequest = { showHelp = false },
-        confirmButton = { TextButton(onClick = { showHelp = false }) { Text("OK") } },
-        // For reporting a problem; kept here so it does not take a line of every screen.
-        dismissButton = { TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") } },
-        title = { Text("What to trust, and what to check") },
-        text = {
-            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((head, body) in HELP) { Text(head, fontWeight = FontWeight.Bold); Text(body, style = MaterialTheme.typography.bodyMedium) }
-            }
-        },
-    )
+    if (showHelp) HelpDialog(onDismiss = { showHelp = false }, onCopyReport = { copy(context, vm.diagnosticReport()) })
     if (showUnits) UnitsDialog(open, onDismiss = { showUnits = false }) { file, display, style ->
         showUnits = false
         vm.update { it.copy(fileUnits = file, displayUnits = display, inchStyle = style) }
@@ -1115,6 +1104,64 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
     }
 }
 
+
+/** Which part of the app each help topic is about, so the list reads by section. */
+private val HELP_SECTIONS = listOf(
+    "Getting a model in" to listOf("Units", "Which way is up", "Round things", "Frames and boxes drawn as one piece", "Joined parts", "Backing up", "Projects"),
+    "3D and changing the model" to listOf("Changing parts", "Overall size", "Doors, drawers and shelf pins", "Changes", "Grooves (housings)"),
+    "Check and fixes" to listOf("Check", "Fixing a model", "Tools"),
+    "Drawings" to listOf("Dimensions", "Holes", "Tolerances and materials", "Full-size templates", "Not a checked drawing", "Printing"),
+    "Build guide" to listOf("Build order", "Joining", "Build mode"),
+    "Cut list and buying" to listOf("Sizes and counts", "Cutting plan", "Shopping list", "Prices", "Weight", "CNC profiles", "Build pack"),
+)
+
+/** Help as its own screen: topics under their sections, each opened with a tap, and a search over all of them. */
+@Composable
+private fun HelpDialog(onDismiss: () -> Unit, onCopyReport: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var open by remember { mutableStateOf(setOf<String>()) }
+    val byHead = HELP.toMap()
+    val placed = HELP_SECTIONS.flatMap { it.second }.toSet()
+    val sections = HELP_SECTIONS + listOf("More" to HELP.map { it.first }.filter { it !in placed })
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    Column(Modifier.weight(1f)) {
+                        Text("Help", style = MaterialTheme.typography.titleLarge)
+                        Text("What the app does, what to trust and what to check", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                OutlinedTextField(query, { query = it }, placeholder = { Text("Search help") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                val q = query.trim().lowercase()
+                LazyColumn(Modifier.weight(1f)) {
+                    for ((section, heads) in sections) {
+                        val shown = heads.filter { h -> byHead.containsKey(h) && (q.isEmpty() || h.lowercase().contains(q) || byHead.getValue(h).lowercase().contains(q)) }
+                        if (shown.isEmpty()) continue
+                        item(key = "s/$section") { Text(section, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)) }
+                        items(shown, key = { "t/$it" }) { h ->
+                            // A search opens every topic it finds; otherwise each opens with a tap.
+                            val expanded = q.isNotEmpty() || h in open
+                            Column(Modifier.fillMaxWidth().clickable { open = if (h in open) open - h else open + h }.padding(vertical = 8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(h, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                    Text(if (expanded) "\u2212" else "+", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (expanded) Text(byHead.getValue(h), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
+                    // For reporting a problem; kept here so it does not take a line of every screen.
+                    TextButton(onClick = onCopyReport) { Text("Copy diagnostic report") }
+                }
+            }
+        }
+    }
+}
 
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
