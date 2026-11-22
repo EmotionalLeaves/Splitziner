@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.33.0 - Safety and stiffness checks
+
+Safety and stiffness checks.
+
+- **Fix it to the wall.** A piece taller than 30 in and less than half as deep as it is tall (a bookcase, say) can be pulled over by a climbing child or a heavy drawer. The Check tab now says so, an anti-tip wall strap is added to the hardware, and the guide ends with fixing it to the wall.
+- **Racking.** A case with two upright sides and no back panel (or wide rail across the back) leans like a parallelogram when pushed. The Check tab now spots it and says what stops it.
+- The note on joints now points to Joining on the Guide tab, and says plainly that joint strength is never calculated.
+
 ## v0.32.0 - Tidier screens
 
 Tidier screens.
