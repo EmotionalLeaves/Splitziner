@@ -303,6 +303,14 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 OutlinedButton(onClick = { shareModel(context, open) }, modifier = Modifier.weight(1f)) { Text("Whole model (STL)") }
             }
         } else {
+            // Roughly what it weighs, from the materials the user has set; typical densities, so only an estimate.
+            val wt = remember(a.cutList.rows) { splitziner.material.Materials.weight(a.parts, a.cutList.rows) }
+            Text(
+                if (wt.unknownItems.size == a.cutList.rows.size) "Set a material (tap an item) to get a weight estimate."
+                else "Weighs about ${splitziner.material.Materials.format(wt.kg, a.format.isInch)} (typical densities)" +
+                    if (wt.unknownItems.isEmpty()) "." else if (wt.unknownItems.size > 6) ", not counting ${wt.unknownItems.size} items with no material, or one the app does not know."
+                    else ", not counting item${if (wt.unknownItems.size == 1) "" else "s"} ${wt.unknownItems.joinToString(", ")}: no material, or one the app does not know.",
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
                     Row(Modifier.fillMaxWidth().clickable { editRow = row }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -364,7 +372,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         }
     }
     editRow?.let { row ->
-        ItemDialog(row, onDismiss = { editRow = null }) { o -> editRow = null; vm.setItem(row, o) }
+        ItemDialog(row, onDismiss = { editRow = null }) { o, all -> editRow = null; if (all) vm.setItemAndRest(row, o) else vm.setItem(row, o) }
     }
 }
 
@@ -479,19 +487,28 @@ private fun PartDialog(p: Part, onDismiss: () -> Unit, onApply: (String, Boolean
 }
 
 @Composable
-private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOverride) -> Unit) {
+private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOverride, Boolean) -> Unit) {
     var material by remember { mutableStateOf(row.material) }
     var spec by remember { mutableStateOf(row.materialSpec) }
     var partNo by remember { mutableStateOf(row.partNo) }
+    var forAll by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onApply(ItemOverride(material.trim(), spec.trim(), partNo.trim())) }) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { onApply(ItemOverride(material.trim(), spec.trim(), partNo.trim()), forAll && material.isNotBlank()) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         title = { Text("Item ${row.item}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${row.description}  ×${row.qty}", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(value = material, onValueChange = { material = it }, label = { Text("Material (e.g. birch plywood)") }, singleLine = true)
+                // Common materials: tapping one fills the box, and the app then knows roughly what it weighs.
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (m in splitziner.material.Materials.COMMON.take(12)) androidx.compose.material3.SuggestionChip(onClick = { material = m.name }, label = { Text(m.name, style = MaterialTheme.typography.labelSmall) })
+                }
+                Row(Modifier.fillMaxWidth().clickable { forAll = !forAll }, verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(checked = forAll, onCheckedChange = { forAll = it })
+                    Text("Also use this material for every item that has none yet", style = MaterialTheme.typography.bodySmall)
+                }
                 OutlinedTextField(value = spec, onValueChange = { spec = it }, label = { Text("Material spec or grade") }, singleLine = true)
                 OutlinedTextField(value = partNo, onValueChange = { partNo = it }, label = { Text("Part number") }, singleLine = true)
             }
@@ -802,6 +819,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
     "Holes" to "Each part's own drawing shows where its round holes are and how big: a size note such as 3X 8 DIA THRU, and each centre measured from the datum corner. The app finds straight round holes with a flat rim. It does not know about threads, countersinks or what a hole is for, and holes drilled at an angle are drawn but not dimensioned.",

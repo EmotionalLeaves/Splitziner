@@ -314,7 +314,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // Plain square boards need no detail drawing; a general note on the assembly says which they are.
                     val details = a.parts.count { !it.excluded } > 1
                     val plain = if (details) runCatching { splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) }.getOrDefault(emptySet()) else emptySet()
-                    val baseInfo = open.meta.drawingInfo(BuildConfig.VERSION_NAME)
+                    // The title block's weight, when the user has not written one and every item has a known material.
+                    val info0 = open.meta.drawingInfo(BuildConfig.VERSION_NAME)
+                    val wt = splitziner.material.Materials.weight(a.parts, a.cutList.rows)
+                    val baseInfo = if (info0.weight.isBlank() && wt.unknownItems.isEmpty() && wt.kg > 0) info0.copy(weight = "ABOUT " + splitziner.material.Materials.format(wt.kg, a.format.isInch).uppercase()) else info0
                     val info = splitziner.drawing.PartDrawings.plainNote(plain)?.let { baseInfo.copy(notes = baseInfo.notes + it) } ?: baseInfo
                     val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, info, open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")
@@ -425,6 +428,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setItem(row: CutListRow, value: ItemOverride) =
         update { it.copy(items = it.items + (CutList.itemKey(row.kind, row.t, row.w, row.l) to value)) }
+
+    /** Sets [row] as given and gives every item that has no material yet the same material. */
+    fun setItemAndRest(row: CutListRow, value: ItemOverride) {
+        val rows = _state.value.open?.analysis?.cutList?.rows ?: return
+        update { m ->
+            val more = rows.filter { it.item != row.item && it.material.isBlank() }.associate { r ->
+                val k = CutList.itemKey(r.kind, r.t, r.w, r.l)
+                k to (m.items[k] ?: ItemOverride()).copy(material = value.material)
+            }
+            m.copy(items = m.items + more + (CutList.itemKey(row.kind, row.t, row.w, row.l) to value))
+        }
+    }
 
     fun deleteProject(meta: ProjectMeta) {
         store.delete(meta.id)

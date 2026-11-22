@@ -1023,3 +1023,24 @@ class SmallPanelTest {
         assertTrue(splitziner.cutplan.CutPlanner.shoppingList(r, fmt)[0].startsWith("1 quarter sheet 1/2 in thick"), splitziner.cutplan.CutPlanner.shoppingList(r, fmt)[0])
     }
 }
+
+class MaterialsTest {
+    @Test fun densityFromWhatPeopleType() {
+        assertEquals(680.0, splitziner.material.Materials.density("Baltic birch plywood")!!, 1e-9)
+        assertEquals(560.0, splitziner.material.Materials.density("3/4 ply")!!, 1e-9)
+        assertEquals(500.0, splitziner.material.Materials.density("Pine 1x4")!!, 1e-9)
+        assertNull(splitziner.material.Materials.density("unobtainium"))
+        assertNull(splitziner.material.Materials.density(""))
+    }
+
+    @Test fun weightCountsOnlyKnownMaterials() {
+        val fmt = LengthFormat("mm")
+        val parts = listOf(Part("P1", "P", Fixtures.box(0.0, 1000.0, 0.0, 100.0, 0.0, 10.0)), Part("P2", "P", Fixtures.box(0.0, 500.0, 0.0, 100.0, 50.0, 60.0)))
+        val cut = CutList.build(parts, fmt)
+        val rows = cut.rows.map { if (it.l > 900) it.copy(material = "Pine") else it }
+        val w = splitziner.material.Materials.weight(cut.parts, rows)
+        assertEquals(1000.0 * 100 * 10 * 1e-9 * 500, w.kg, 1e-9)
+        assertEquals(1, w.unknownItems.size)
+        assertEquals("0.5 kg", splitziner.material.Materials.format(w.kg, false))
+    }
+}
