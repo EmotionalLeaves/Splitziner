@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.85.0 - Angled legs and shaped parts
+
+- **Angled legs**: splayed legs and other sticks with ends sawn off square are listed with their angles ("ends cut at 8° and 8°, compound"), and their detail drawing tells you to set both mitre and bevel.
+- **Round tables** on legs set well in are no longer said to have "centre legs".
+- **Odd-size legs** (say 2-1/2 in square) are planned from a 4x4 planed or ripped down, instead of "not in the plan".
+- Step titles read better: "the bottom and 3 shelves".
+
 ## v0.84.0 - Face frames, pocket screws, pedestal desks
 
 - **Face frames** are built properly: stiles and rails are joined flat on the bench with pocket screws on the back (or dowels), then glued and pinned to the front of the finished case, before doors and drawers.
