@@ -393,6 +393,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // Woodworkers in inch countries read 3-1/2, not 3.50: new projects there start in fractions.
                     val meta = (resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened."))
                         .let { m -> if (inchLocale) m.copy(inchStyle = "fraction").also { store.save(it) } else m }
+                        // OBJ files are Y-up by convention (Blender and most others write them so).
+                        .let { m -> if (name.lowercase().endsWith(".obj")) m.copy(up = "y").also { store.save(it) } else m }
                     val file = store.source(meta.id)
                     Diagnostics.log("import $name, ${file.length()} bytes")
                     val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }

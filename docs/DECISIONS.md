@@ -59,3 +59,4 @@ Departures from the build spec, newest first.
 - **Edge banding is estimated for square sheet panels aligned with the model**, counting free edges except those facing the back (+Y, taken to be against a wall) and the floor, with 10% for trimming.
 - **The whole model is resized by stretching, not scaling.** Every vertex beyond a plane moves; the plane goes through the middle of the widest corner-free band between 25% and 75% of the size, so only plain lengths are cut across and every board keeps its thickness. Shrinking is limited to 90% of that band.
 - **New inch projects default to fractions** (to 1/16 in), as woodworkers in inch countries read sizes; drawings in decimal inches remain one setting away.
+- **OBJ files are read as well as STL**, objects and groups becoming parts, and are taken as Y-up by default because that is the OBJ convention; the user can turn them like any project.
