@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.88.0 - Dowels, spacing, metric boards
+
+- **Dowels** are suggested only where they work (an end or edge into a face). Slats on cleats and thin backs are screwed or pinned instead.
+- **Spacing** instructions skip gaps with something in them, and work bay by bay in bookcases.
+- Metric board sizes are given in whole millimetres (19 mm, not 19.1).
+- Busy steps get a proper title ("the kick board, the divider and 2 more").
+
 ## v0.87.0 - Complex project test on device
 
 - Bookcases with several bays sharing uprights are built as one piece, not as separate "cabinets".
