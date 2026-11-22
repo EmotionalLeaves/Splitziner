@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.60.0 - Clearer exploded views
+
+- **Clearer exploded views:** doors and drawer fronts are now pulled far enough out to clear the shelves and boxes behind them, so each part can be seen on its own instead of overlapping.
+
 ## v0.59.0 - Workbench template
 
 - **New template: Workbench.** It has a thick top on four legs with aprons, plus stretchers low down that carry a shelf. You set the length, width, height, top and leg sizes, how high the stretchers sit, and how thick the shelf is. The guide builds it from two end frames, each with its apron and stretcher.
