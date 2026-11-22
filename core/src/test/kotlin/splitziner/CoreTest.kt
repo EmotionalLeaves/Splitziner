@@ -958,7 +958,7 @@ class SubassemblyTest {
         // The second frame touches nothing until the top joins them, so it goes in with the top.
         assertTrue(plan.steps.last().partIds.last() == "P03", plan.steps.map { it.partIds }.toString())
         val guide = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
-        assertTrue(guide[0].title.startsWith("Step 1: make 2 by joining items"), guide[0].title)
+        assertTrue(guide[0].title.startsWith("Step 1: make 2 of sub-assembly A from items"), guide[0].title)
         assertTrue(guide[0].text[0].startsWith("Lay down"), guide[0].text.toString())
     }
 }

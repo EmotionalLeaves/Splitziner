@@ -176,7 +176,15 @@ object GuideSteps {
         // A case built whole and set on the top of the piece below: a hutch.
         val upperBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it] == "upper" } }.map { it.step }.toSet()
         val cabinetWord = drawn.any { keyOf[it.id]?.startsWith("module") == true && it.name in setOf("Bottom", "Side", "Divider") }
-        fun unitWord(bench: Int, n: Int) = if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
+        // Other sub-assemblies are lettered, as in a maker's manual: "make sub-assembly A", later "sub-assembly A".
+        val special = moduleBench + faceBench + frameBench + upperBench + tenonRail.keys
+        val letterOf = HashMap<Int, String>()
+        for (st in steps) if (st.subassembly && st.continues == null && st.step !in special && !st.partIds.all { keyOf[it]?.startsWith("drawer") == true }) {
+            val seq = steps.filter { it.step == st.step || it.continues == st.step }.map { it.step }
+            val letter = if (letterOf.size < 26) ('A' + letterOf.values.distinct().size).toString() else "${letterOf.values.distinct().size + 1}"
+            for (s0 in seq) letterOf[s0] = letter
+        }
+        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -366,6 +374,10 @@ object GuideSteps {
                     else if (st.step in tenonRail) "Step ${st.step}: glue the tenons into ${if (st.makeCount > 1) "${st.makeCount} ${unitWord(st.step, 2)}" else "the ${unitWord(st.step, 1)}"} ($names)"
                     else if (st.step in trestleBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} trestle ends from" else "make the trestle end from"} $names"
                     else if (st.step in frameBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} frames from" else "make the frame from"} $names"
+                    else if (st.step in letterOf) {
+                        val seq = seqOf(st); val k = seq.indexOfFirst { it.step == st.step } + 1
+                        "Step ${st.step}: make ${if (st.makeCount > 1) "${st.makeCount} of " else ""}sub-assembly ${letterOf[st.step]}" + (if (seq.size > 1) " ($k of ${seq.size}): $names" else " from $names")
+                    }
                     else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
                 }
                 else -> {
@@ -381,7 +393,9 @@ object GuideSteps {
                     if (drawers > 0) bits += if (drawers == 1) "hang the drawer" else "hang the $drawers drawers"
                     for ((bench, us) in unitCount) {
                         if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) continue
-                        bits += if (us.size == 1) "${if ((placedUnits[bench] ?: 0) > 0) otherOf(bench) else "the"} ${unitWord(bench, 1)} from step $bench" else "the ${us.size} ${unitWord(bench, us.size)} from step $bench"
+                        // A lettered sub-assembly is named by its letter alone: "sub-assembly A from step 1".
+                        bits += if (us.size == 1) (if (bench in letterOf && (placedUnits[bench] ?: 0) == 0) "" else "${if ((placedUnits[bench] ?: 0) > 0) otherOf(bench) else "the"} ") + "${unitWord(bench, 1)} from step $bench"
+                            else "the ${us.size} ${unitWord(bench, us.size)} from step $bench"
                     }
                     // Parts of one name are counted together, whatever their item numbers: "3 drawer fronts".
                     val byName = LinkedHashMap<String, Int>()
@@ -401,7 +415,7 @@ object GuideSteps {
                     // Only made sub-assemblies to set out: "Step 3: set out the 3 frames".
                     val unitsOnly = base && loose.isEmpty() && unitCount.isNotEmpty() && unitCount.values.sumOf { it.size } > 1
                     val nUnits = unitCount.values.sumOf { it.size }
-                    if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in trestleBench }) "trestle ends" else if (unitCount.keys.all { it in frameBench }) "frames" else if (unitCount.keys.all { it in moduleBench }) unitWord(unitCount.keys.first(), 2) else "sub-assemblies"}"
+                    if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in trestleBench }) "trestle ends" else if (unitCount.keys.all { it in frameBench }) "frames" else if (unitCount.keys.all { it in moduleBench }) unitWord(unitCount.keys.first(), 2) else if (unitCount.keys.size == 1 && unitCount.keys.first() in letterOf) unitWord(unitCount.keys.first(), 2) else "sub-assemblies"}"
                     else if (bits.isEmpty()) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
                     // Many kinds of part: the first few, and how many more.
                     else if (bits.size > 3) "Step ${st.step}: ${if (base) "start with " else ""}${bits.take(2).joinToString(", ")} and ${bits.size - 2} more"

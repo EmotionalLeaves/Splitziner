@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.9.0 - Lettered sub-assemblies
+
+- Complicated builds read more easily: sub-assemblies without a name of their own are lettered A, B, C… ("make sub-assembly B", then "fit sub-assembly B from step 4"), instead of "join items 3, 4, 7, 8, 15 and 16" and "the sub-assembly from step 4".
+
 ## v1.8.0 - Models stand up by themselves
 
 - Models saved with Y up (Blender, Fusion and others by default) are now stood up automatically on import, instead of arriving lying on their backs. The project notes say when this happens. If the guess is wrong, use Which way is up in the project menu.
