@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.27.0 - Faster big models, drawer checks
+
+Faster on big models, drawer checks, and dialogs that speak your units.
+
+- **Big assemblies draw about twice as fast.** On a 600-part model the drawing went from 12 s to about 6 s. Repeated parts (hundreds of identical bolts) are now traced once, and plain boards use a quick outline.
+- **Drawer slides.** The Check tab now spots drawer boxes (an open box sitting in an opening) that leave no room for slides. Ball-bearing slides need about 1/2 in each side; the check says so before you cut the drawer parts.
+- **Ready to build.** When nothing stops the build, the Check tab says so in green and points to the next steps: read the guide, then share the shopping list.
+- **Sizes in your style.** In fraction projects, the size boxes in Change, Add a board and Overall size start in fractions (3/4, 36-1/2). The Change dialog is titled by item number, and its buttons wrap instead of running off the edge.
+- **Fixed:** a speed-up made earlier in this release could undo small notches when parts were edited. It was caught by a new test that runs your desk through Fix what can be fixed and checks nothing is left that stops the build. The speed-up now only applies to pictures.
+
 ## v0.26.0 - Full-size templates, before and after
 
 Full-size paper templates, and a guide that covers before and after the build.
