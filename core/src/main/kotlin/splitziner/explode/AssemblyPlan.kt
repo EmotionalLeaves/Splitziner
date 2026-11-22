@@ -106,7 +106,7 @@ object AssemblyPlan {
         if (subs.isEmpty()) {
             val r = planCore(all, maxSteps, order)
             val (st, ren) = mergeFloating(r.steps, live)
-            if (st.size == r.steps.size) return r
+            if (st.size == r.steps.size && ren.all { (k, v) -> k == v }) return r
             return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { ren[it] ?: it }) }, st)
         }
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
@@ -168,6 +168,60 @@ object AssemblyPlan {
      * Returns the steps and, per old step number, the new one.
      */
     private fun mergeFloating(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val (a0, r0) = backLast(steps, units)
+        val (a, ra1) = mergeFloating0(a0, units)
+        val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
+        val (b, rb) = mergeAlike(a, units)
+        return b to ra.mapValues { (_, v) -> rb[v] ?: v }
+    }
+
+    /**
+     * A thin back panel goes on after the shelves and dividers it covers, as a cabinetmaker does: the case is
+     * squared up with the back, and the shelves are fixed while it is still open. It moves later only past
+     * steps that do not come in from behind, so nothing it would block is fitted after it.
+     */
+    private fun backLast(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val byId = units.associateBy { it.id }
+        fun touch(a: String, b: String): Boolean { val x = byId[a]?.mesh?.bounds ?: return false; val y = byId[b]?.mesh?.bounds ?: return false; return (0..2).all { x.min[it] <= y.max[it] + NEAR_BACK && y.min[it] <= x.max[it] + NEAR_BACK } }
+        val list = steps.toMutableList()
+        val i = list.indexOfFirst { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { byId[it]?.name == "Back panel" } }
+        if (i < 0 || i == list.size - 1) return list to steps.associate { it.step to it.step }
+        val back = list[i]
+        var j = i
+        for (k in i + 1 until list.size) {
+            val st = list[k]
+            // Doors, drawers and shelves on pins are hung in a squared case, so the back stays before them.
+            val hung = st.partIds.any { id -> id.startsWith("drawer") || byId[id]?.name in setOf("Door", "Drawer front", "Adjustable shelf") }
+            if (st.subassembly || hung || st.directions.any { d -> back.directions.any { (it dot d) > 0.5 } }) break
+            if (st.partIds.any { id -> back.partIds.any { touch(id, it) } }) j = k
+        }
+        if (j == i) return list to steps.associate { it.step to it.step }
+        list.removeAt(i); list.add(j, back)
+        val renumber = HashMap<Int, Int>()
+        val out = list.mapIndexed { n, st -> renumber[st.step] = n + 1; st.copy(step = n + 1) }
+        return out to renumber
+    }
+
+    /**
+     * Steps that each fit one more of the same item the same way (four shelves, one after another) are one step:
+     * "fit the four shelves" reads as the job it is, and the guide is not four pages of the same picture.
+     */
+    private fun mergeAlike(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val itemOf = units.associate { it.id to it.item }
+        val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
+        for ((n, st) in steps.withIndex()) {
+            val last = out.lastOrNull()
+            val items = st.partIds.map { itemOf[it] }.distinct()
+            val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && items.size == 1 && items[0] != null &&
+                last.partIds.all { itemOf[it] == items[0] } && last.directions.toSet() == st.directions.toSet() &&
+                last.partIds.size + st.partIds.size <= MAX_GROUP
+            if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds); renumber[st.step] = out.size; continue }
+            out += st.copy(step = out.size + 1); renumber[st.step] = out.size
+        }
+        return out to renumber
+    }
+
+    private fun mergeFloating0(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
         val boundsOf = units.associate { it.id to it.mesh.bounds }
         val floor = units.minOfOrNull { it.mesh.bounds.min.z } ?: 0.0
         fun touch(a: String, b: String): Boolean { val x = boundsOf[a] ?: return false; val y = boundsOf[b] ?: return false; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
@@ -186,6 +240,9 @@ object AssemblyPlan {
         }
         return out to renumber
     }
+
+    /** A shelf set this close in front of a back panel (mm) counts as one the back covers. */
+    private const val NEAR_BACK = 25.0
 
     /** Boards from one drawn part are built on the bench only when there are at least this many of them. */
     private const val MIN_SUB_PARTS = 3

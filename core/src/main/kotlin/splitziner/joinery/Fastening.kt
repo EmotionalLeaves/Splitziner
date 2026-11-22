@@ -181,7 +181,8 @@ object Fastening {
             val width = dims.min()
             // Two pieces lying face to face (a laminated frame, a panel on a panel) are glued and clamped;
             // a few fasteners only hold them while the glue sets.
-            val faceToFace = width > 3 * tThrough
+            // A back panel on a shelf's edge is not: that strip is too narrow to clamp a face to.
+            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0
             // A top resting on its supports is never fixed through its visible face: brackets go underneath.
             // Nor is a top with nothing above it (a table top on its aprons): screw heads in it would be on show.
             val ti0 = idx.getValue(thr.id)
