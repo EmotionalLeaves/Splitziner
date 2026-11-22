@@ -111,9 +111,10 @@ object AssemblyPlan {
         if (order != null) return planCore(all, maxSteps, order)
         if (subs.isEmpty()) {
             val r = planCore(all, maxSteps, order)
-            val (st, ren) = mergeFloating(r.steps, live)
-            if (st.size == r.steps.size && ren.all { (k, v) -> k == v }) return r
-            return PlanResult(shareGroups(r.parts.map { p -> p.copy(step = p.step?.let { ren[it] ?: it }) }), st)
+            val moved = HashMap<String, Int>()
+            val (st, ren) = mergeFloating(r.steps, live, moved = moved)
+            if (st.size == r.steps.size && ren.all { (k, v) -> k == v } && moved.isEmpty()) return r
+            return PlanResult(shareGroups(r.parts.map { p -> p.copy(step = moved[p.id] ?: p.step?.let { ren[it] ?: it }) }), st)
         }
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
         val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
@@ -131,8 +132,12 @@ object AssemblyPlan {
                     val b = p.mesh.bounds
                     val overlapsAbove = u.any { o -> o !== p && o.mesh.bounds.min.z >= b.max.z - 0.5 &&
                         minOf(o.mesh.bounds.max.x, b.max.x) > maxOf(o.mesh.bounds.min.x, b.min.x) && minOf(o.mesh.bounds.max.y, b.max.y) > maxOf(o.mesh.bounds.min.y, b.min.y) }
+                    // A rail sitting on its legs (a bed's centre rail on its short legs) is lowered onto them, never slid
+                    // in end-on along its own length.
+                    val touching = u.filter { o -> o !== p && (0..2).all { k -> o.mesh.bounds.min[k] <= b.max[k] + 0.5 && b.min[k] <= o.mesh.bounds.max[k] + 0.5 } }
+                    val sitsOnThem = touching.isNotEmpty() && touching.all { o -> o.mesh.bounds.max.z <= b.min.z + 0.5 }
                     benchExplode[p.id] = if (e != null && (p.name == "Apron" || p.name.endsWith("ail")) && kotlin.math.abs(e.z) < 0.1 * e.length && b.extents.z < maxOf(b.extents.x, b.extents.y) &&
-                        kotlin.math.abs(if (b.extents.x >= b.extents.y) e.x else e.y) < 0.5 * e.length && b.max.z >= unitTop - 0.5 && !overlapsAbove) Vec3(0.0, 0.0, e.length) else e
+                        (sitsOnThem || kotlin.math.abs(if (b.extents.x >= b.extents.y) e.x else e.y) < 0.5 * e.length) && b.max.z >= unitTop - 0.5 && !overlapsAbove) Vec3(0.0, 0.0, e.length) else e
                 }
                 ids += u.map { it.id }
             }
@@ -150,9 +155,11 @@ object AssemblyPlan {
         val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
             unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
-        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts)
-        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts, subs)
-        val unitOf = main.parts.associate { it.id to it.copy(step = it.step?.let { s0 -> renumber[s0] ?: s0 }) }
+        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
+            members = subs)
+        val moved = HashMap<String, Int>()
+        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts, subs, moved)
+        val unitOf = main.parts.associate { it.id to it.copy(step = moved[it.id] ?: it.step?.let { s0 -> renumber[s0] ?: s0 }) }
         val steps = ArrayList<BuildStep>(bench)
         for (st in mainSteps) {
             val ids = st.partIds.flatMap { id -> subs[id]?.map { it.id } ?: listOf(id) }
@@ -173,15 +180,16 @@ object AssemblyPlan {
      * second end frame) cannot be fastened yet: it goes in with the step after it, which joins it to the rest.
      * Returns the steps and, per old step number, the new one.
      */
-    private fun mergeFloating(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>> = emptyMap()): Pair<List<BuildStep>, Map<Int, Int>> {
+    private fun mergeFloating(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>> = emptyMap(), moved: MutableMap<String, Int> = HashMap()): Pair<List<BuildStep>, Map<Int, Int>> {
         val (q0, rq) = railsBeforeSlats(steps, units, members)
         val (s00, rs0) = supportsFirst(q0, units, members)
         val rs = rq.mapValues { (_, v) -> rs0[v] ?: v }; val s0 = s00
         val (a00, r00) = backLast(s0, units)
         val r0 = rs.mapValues { (_, v) -> r00[v] ?: v }; val a0 = a00
-        val (a, ra1) = mergeFloating0(a0, units)
+        val (a, ra1) = mergeFloating0(a0, units, moved)
         val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
         val (b, rb) = mergeAlike(a, units)
+        for (k in moved.keys.toList()) moved[k] = rb[moved[k]!!] ?: moved[k]!!
         return b to ra.mapValues { (_, v) -> rb[v] ?: v }
     }
 
@@ -275,27 +283,46 @@ object AssemblyPlan {
             val names = (st.partIds + (last?.partIds ?: emptyList())).map { nameOf[it] }.distinct()
             val sameItem = items.size == 1 && items[0] != null && last != null && last.partIds.all { itemOf[it] == items[0] }
             val sameName = names.size == 1 && names[0] != null
+            // A pair fitted from opposite sides (a table's front and back aprons) is one step: "from the front and back".
+            val opposite = last != null && last.directions.size == 1 && st.directions.size == 1 &&
+                last.directions[0].x == -st.directions[0].x && last.directions[0].y == -st.directions[0].y && last.directions[0].z == -st.directions[0].z
             val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
-                last.directions.toSet() == st.directions.toSet() && last.partIds.size + st.partIds.size <= MAX_GROUP
-            if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds); renumber[st.step] = out.size; continue }
+                (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) && last.partIds.size + st.partIds.size <= MAX_GROUP
+            if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
         return out to renumber
     }
 
-    private fun mergeFloating0(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
+    private fun mergeFloating0(steps: List<BuildStep>, units: List<Part>, moved: MutableMap<String, Int>): Pair<List<BuildStep>, Map<Int, Int>> {
         val boundsOf = units.associate { it.id to it.mesh.bounds }
         val floor = units.minOfOrNull { it.mesh.bounds.min.z } ?: 0.0
         fun touch(a: String, b: String): Boolean { val x = boundsOf[a] ?: return false; val y = boundsOf[b] ?: return false; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
         val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
         val built = HashSet<String>(); var carry: BuildStep? = null
-        for ((n, st) in steps.withIndex()) {
-            val merged = carry?.let { c -> st.copy(partIds = c.partIds + st.partIds, directions = (c.directions + st.directions).distinct(), items = (c.items + st.items).distinct().sorted()) } ?: st
+        for ((n, st0) in steps.withIndex()) {
+            var st = st0
+            fun onFloor(id: String) = (boundsOf[id]?.min?.z ?: Double.MAX_VALUE) <= floor + 1.0
+            // Standing beside the base, before anything ties them together (a bed's other side frame and its centre
+            // frame), they are set out with it: placed, not fitted from a direction they never travel. The rest of
+            // their step (the slats that tie them) stays a step of its own.
+            val base = out.lastOrNull()
+            if (carry == null && base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { onFloor(it) }) {
+                val standing = st.partIds.filter { id -> onFloor(id) && built.none { touch(id, it) } }
+                if (standing.isNotEmpty()) {
+                    out[out.size - 1] = base.copy(partIds = base.partIds + standing)
+                    built += standing
+                    if (standing.size == st.partIds.size) { renumber[st.step] = out.size; continue }
+                    for (id in standing) moved[id] = out.size
+                    st = st.copy(partIds = st.partIds - standing.toSet())
+                }
+            }
             val alone = carry == null && built.isNotEmpty() && n < steps.size - 1 &&
-                st.partIds.all { id -> (boundsOf[id]?.min?.z ?: Double.MAX_VALUE) <= floor + 1.0 } &&
+                st.partIds.all { id -> onFloor(id) } &&
                 st.partIds.none { id -> built.any { touch(id, it) } }
             built += st.partIds
             if (alone) { carry = st; continue }
+            val merged = carry?.let { c -> st.copy(partIds = c.partIds + st.partIds, directions = (c.directions + st.directions).distinct(), items = (c.items + st.items).distinct().sorted()) } ?: st
             carry?.let { renumber[it.step] = out.size + 1 }
             carry = null
             out += merged.copy(step = out.size + 1); renumber[st.step] = out.size
@@ -341,7 +368,8 @@ object AssemblyPlan {
     private const val MAX_GROUP = 5
 
     /** [hungGiven], when not null, names the parts hung last (doors, drawers made whole, shelves on pins) instead of finding them. */
-    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null, hungFirst: Set<String> = emptySet()): PlanResult {
+    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null, hungFirst: Set<String> = emptySet(),
+                         members: Map<String, List<Part>> = emptyMap()): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
         if (n == 0) return PlanResult(all, emptyList())
@@ -366,6 +394,11 @@ object AssemblyPlan {
         fun shadow(k: Int, i: Int): Geometry = shadowCache[k][i] ?: run {
             val view = ViewDef("axis$k", Vec3.axis(k), Vec3.axis((k + 1) % 3))
             Silhouette.outline(parts[i].mesh, view).buffer(-tol).also { shadowCache[k][i] = it }
+        }
+
+        val memberShadows = HashMap<String, Geometry>()
+        fun memberShadow(k: Int, m: Part): Geometry = memberShadows.getOrPut("$k/${m.id}") {
+            Silhouette.outline(m.mesh, ViewDef("axis$k", Vec3.axis(k), Vec3.axis((k + 1) % 3))).buffer(-tol)
         }
 
         fun touches(a: Int, b: Int) = (0..2).all { lo[a][it] <= hi[b][it] + tol && lo[b][it] <= hi[a][it] + tol }
@@ -396,7 +429,18 @@ object AssemblyPlan {
                 // Parts entirely behind the direction of travel are not in the way.
                 val behind = if (d.sign > 0) hi[j][d.k] <= lo[i][d.k] + tol else lo[j][d.k] >= hi[i][d.k] - tol
                 if (behind) continue
-                val a = shadow(d.k, i); val b = shadow(d.k, j)
+                val a = shadow(d.k, i)
+                // A made sub-assembly is judged board by board: a slat resting on a frame's cleat is not blocked by
+                // that cleat, only by a board of the frame that lies across its path.
+                val ms = members[parts[j].id]
+                if (ms != null) {
+                    if (ms.any { m -> val mb = m.mesh.bounds
+                            val mBehind = if (d.sign > 0) mb.max[d.k] <= lo[i][d.k] + tol else mb.min[d.k] >= hi[i][d.k] - tol
+                            val apart = (0..2).any { ax -> ax != d.k && (mb.min[ax] >= hi[i][ax] - tol || mb.max[ax] <= lo[i][ax] + tol) }
+                            !mBehind && !apart && memberShadow(d.k, m).let { b -> !a.isEmpty && !b.isEmpty && a.intersects(b) && a.intersection(b).area > tol * tol } }) out += j
+                    continue
+                }
+                val b = shadow(d.k, j)
                 if (!a.isEmpty && !b.isEmpty && a.intersects(b) && a.intersection(b).area > tol * tol) out += j
             }
             out.toIntArray()

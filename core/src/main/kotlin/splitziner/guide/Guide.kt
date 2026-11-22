@@ -133,9 +133,10 @@ object GuideSteps {
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
             for ((item, n) in count) {
                 val sides = ArrayList<String>()
-                for (p in loose) if (p.item == item) p.explode?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
+                // On the bench a part moves as the bench picture shows it, not as its unit later goes into the build.
+                for (p in loose) if (p.item == item) (if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode)?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
                 val where = when {
-                    st.step == 1 || sides.isEmpty() -> ""
+                    base || (st.step == 1 && !st.subassembly) || sides.isEmpty() -> ""
                     sides.size == 2 && sides.all { it.startsWith("from the ") } -> " from the ${sides[0].removePrefix("from the ")} and ${sides[1].removePrefix("from the ")}"
                     else -> " " + sides.joinToString(", ")
                 }
@@ -174,6 +175,13 @@ object GuideSteps {
                     lines += "Space $what $g apart, evenly; a spacer block cut to $g keeps every gap the same."
                 }
             }
+            // Pieces set out apart (two end frames, a desk's two sides) stand alone until the next step ties them.
+            if (base && cur.size > 1) {
+                val seen = HashSet<Int>(); val stack = ArrayDeque(listOf(0))
+                fun near(a: Part, b: Part) = (0..2).all { k -> a.mesh.bounds.min[k] <= b.mesh.bounds.max[k] + 0.5 && b.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 0.5 }
+                while (stack.isNotEmpty()) { val k = stack.removeLast(); if (!seen.add(k)) continue; for (m in cur.indices) if (m !in seen && near(cur[k], cur[m])) stack += m }
+                if (seen.size < cur.size) lines += "Stand them in place, spaced to the overall sizes on the drawing and square to each other; a helper, clamps or a prop holds them up until the next step ties them together."
+            }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
             if (st.subassembly) {
@@ -201,7 +209,6 @@ object GuideSteps {
                     else if (st.step in frameBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} frames from" else "make the frame from"} $names"
                     else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
                 }
-                base -> "Step ${st.step}: base"
                 else -> {
                     // What goes on, in plain words: "Step 6: the back panel", "Step 5: 4 shelves", "Step 8: hang the drawers".
                     fun plural(w: String, n: Int) = if (n == 1) w else when {
@@ -226,10 +233,17 @@ object GuideSteps {
                     }
                     for ((key, n) in byName) {
                         if (key.startsWith("\u0000")) { val w = key.drop(1); bits += if (n == 1) w else "$n× $w" }
-                        else bits += if (n == 1) "the $key" else "$n ${plural(key, n)}"
+                        else bits += if (n == 1) "the $key" else "${if (base) "the " else ""}$n ${plural(key, n)}"
                     }
-                    if (bits.isEmpty() || bits.size > 3) "Step ${st.step}"
-                    else "Step ${st.step}: " + (if (bits.size == 1) bits[0] else bits.dropLast(1).joinToString(", ") + " and " + bits.last())
+                    val said = if (bits.size == 1) bits.firstOrNull() else bits.dropLast(1).joinToString(", ") + " and " + bits.lastOrNull()
+                    // The first step says where the build starts: "Step 3: start with the 2 frames from step 1 and ...".
+                    // Only made sub-assemblies to set out: "Step 3: set out the 3 frames".
+                    val unitsOnly = base && loose.isEmpty() && unitCount.isNotEmpty() && unitCount.values.sumOf { it.size } > 1
+                    val nUnits = unitCount.values.sumOf { it.size }
+                    if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in frameBench }) "frames" else "sub-assemblies"}"
+                    else if (bits.isEmpty() || bits.size > 3) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
+                    else if (base) "Step ${st.step}: start with $said"
+                    else "Step ${st.step}: $said"
                 }
             }
             val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
@@ -467,7 +481,9 @@ object GuideLayout {
             if (slot >= 2 || wantsFull) { p = pages.new(); slot = 0; cursor = h - 22 }
             val blockH = if (wantsFull) usable else usable / 2
             val topY = cursor
-            p.text(12.0, topY, s.title, 4.5, vAlign = VAlign.TOP, bold = true)
+            // A long title is set smaller to stay on the page rather than run off its edge.
+            val titleH = (4.5 * fullW / (1.05 * StrokeFont.width(s.title, 4.5))).coerceIn(3.2, 4.5)
+            p.text(12.0, topY, s.title, titleH, vAlign = VAlign.TOP, bold = true)
             val picTop = topY - 8
             val ty0: Double
             if (wantsFull) {

@@ -387,7 +387,7 @@ class GuideTest {
         val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
         assertEquals(plan.steps.size, steps.size)
         assertEquals("Place item 2.", steps[0].text[0])
-        assertTrue(steps[1].text[0].startsWith("Fit item 1 from the left"), steps[1].text[0])
+        assertTrue(steps[1].text[0].startsWith("Fit 2× item 1 from the left and right"), steps[1].text[0])
         // The top panel goes on only after both sides are there to carry it.
         val stepOf = plan.parts.associate { it.id to it.step!! }
         assertTrue(stepOf.getValue("P04") > stepOf.getValue("P01") && stepOf.getValue("P04") > stepOf.getValue("P02"))

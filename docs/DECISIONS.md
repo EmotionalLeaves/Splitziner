@@ -111,3 +111,12 @@ Departures from the build spec, newest first.
 - Template sizes are checked before a project is made: a part with less than 1 mm on any side means the sizes don't fit.
 - Rails joining legs are side rails (along the long way, at the outside within a leg's thickness), end rails (across), or a centre rail (not at the outside).
 - Even spacing is stated once, in the first step that lays any of the parts. It applies to three or more like parts lying flat with gaps of at least 3 mm that are equal within 1.5 mm.
+
+## v0.77
+- Dowels are named as sold (3/8 x 1-1/2 in, 1/4 x 1-1/4 in; 8 x 40 mm, 6 x 30 mm) and "Before you build" says how to mark and drill them with a jig: a little over half the length into the end or edge, never more than two-thirds through a board.
+- Glue and brads: brads forgive a thinner edge than screws (9 mm, not 15 mm), but a 1/4 in panel's edge still splits, so it goes in a rabbet or against a cleat. The "too thin to take …" line names what the chosen method drives (screws, brads, dowels).
+- Pieces that stand on the floor next to the first piece, touching nothing yet (a table's second end frame, a bed's other side frame and centre frame, a desk's second side), are set out in the first step instead of being "fitted from the front" with whatever ties them. That step's title says "set out the 3 frames" or "start with the bottom", and when the pieces stand apart it says to prop or clamp them until the next step joins them.
+- A pair of one item fitted from opposite sides (front and back aprons, left and right sides) is one step: "Fit 2× item 3 from the front and back".
+- In a step that adds parts to a made frame, a board is only blocked by the frame boards that lie across its path. A slat resting on a frame's cleat now goes in from above instead of being slid in sideways.
+- Bench steps use the bench picture's directions in their text, including step 1. A rail sitting on its legs is lowered onto them.
+- A step title too long for the page is set smaller rather than running off the edge.
