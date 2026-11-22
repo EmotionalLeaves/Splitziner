@@ -230,6 +230,11 @@ object Fastening {
             joints.getOrPut(step) { ArrayList() }.add(0, Joint(box, box, 1, len, "slides", false))
             totals["pair of $len drawer slides"] = (totals["pair of $len drawer slides"] ?: 0) + 1
         }
+        // Tall, shallow pieces get a wall anchor (see the check's "Fix it to the wall").
+        if (live.isNotEmpty()) {
+            val h = live.maxOf { it.mesh.bounds.max.z } - live.minOf { it.mesh.bounds.min.z }; val dd = live.maxOf { it.mesh.bounds.max.y } - live.minOf { it.mesh.bounds.min.y }
+            if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
+        }
         // Identical sub-assemblies are made more than once: their fasteners count that many times.
         for (st in steps) if (st.subassembly && st.makeCount > 1) {
             for (jt in joints[st.step].orEmpty()) if (!jt.glueOnly && jt.kind != "thin") {

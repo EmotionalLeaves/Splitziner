@@ -319,6 +319,13 @@ object DesignCheck {
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }
+        // Tall, shallow furniture can be pulled over (by a child climbing it, or a drawer pulled out): anchor it.
+        if (live.isNotEmpty()) run {
+            val all = live.map { it.mesh.bounds }
+            val h = all.maxOf { it.max.z } - all.minOf { it.min.z }; val dd = all.maxOf { it.max.y } - all.minOf { it.min.y }
+            if (h > 760.0 && h > 2.0 * dd) out += Finding(Severity.CHECK, "Fix it to the wall",
+                "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud.")
+        }
         // A case (two upright sides) with no back panel racks: pushed sideways, it leans like a parallelogram.
         if (live.size >= 3) run {
             val all = live.map { it.mesh.bounds }
