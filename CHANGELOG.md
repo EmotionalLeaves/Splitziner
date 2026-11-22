@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.71.0 - Build progress on project cards
+
+- **Project cards show how far the build has got**, for example "3 of 8 steps done", or "built" once every step in Build mode is ticked.
+- In 3D **Build steps**, each step shows the guide's own title ("the back panel", "hang the 4 drawers") once the guide has been made, instead of a list of item numbers.
+- Deleting a project also clears its build progress and shopping ticks.
+
 ## v0.70.0 - Tidier guides for graduated drawers
 
 - **Graduated chests of drawers have a shorter guide:** the drawer fronts, which differ in size, now go on in one step ("Step 10: 4 drawer fronts") instead of three. Step titles count drawers and parts of the same name together ("hang the 2 drawers").
