@@ -69,6 +69,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -1013,7 +1014,7 @@ private val HELP = listOf(
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
-    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
+    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Share list to buy sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )
@@ -1200,49 +1201,91 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
     var boardL by remember { mutableStateOf(prefs.getString("boardL_$tag", null) ?: show(def.boardL)) }
     var kerf by remember { mutableStateOf(prefs.getString("kerf_$tag", null) ?: show(def.kerf)) }
     var rotate by remember { mutableStateOf(prefs.getBoolean("rotate", true)) }
-    var error by remember { mutableStateOf<String?>(null) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                val w = num(sheetW); val l = num(sheetL); val b = num(boardL); val k = num(kerf)
-                if (w == null || l == null || b == null || k == null || w <= 0 || l <= 0 || b <= 0 || k < 0) { error = "Enter each size as a number, for example ${show(def.sheetW)}"; return@TextButton }
-                prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
-                try {
-                    // The sheet's longer side is its length, whichever box it was typed in.
-                    val stock = splitziner.cutplan.StockSettings(minOf(w, l) * unit, maxOf(w, l) * unit, b * unit, k * unit, rotate, lumber = fmt.isInch)
-                    val rows = open.analysis.cutList.rows
-                    val plan = splitziner.cutplan.CutPlanner.plan(rows, stock)
-                    val pages = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
-                    sharePdf(context, open, pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "cutting_plan")
-                    onDismiss()
-                } catch (e: Throwable) {
-                    Diagnostics.logError("cutting plan", e)
-                    error = "Could not make the cutting plan"
+    var editing by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf(0) }
+    val w = num(sheetW); val l = num(sheetL); val b = num(boardL); val k = num(kerf)
+    val valid = w != null && l != null && b != null && k != null && w > 0 && l > 0 && b > 0 && k >= 0
+    // The sheet's longer side is its length, whichever box it was typed in.
+    val stock = if (valid) splitziner.cutplan.StockSettings(minOf(w!!, l!!) * unit, maxOf(w, l) * unit, b!! * unit, k!! * unit, rotate, lumber = fmt.isInch) else null
+    class Made(val pages: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, val summary: String, val buy: List<String>)
+    // Worked out again as the sizes change, away from the screen's thread; the plan is shown, not just shared.
+    val made by androidx.compose.runtime.produceState<Made?>(null, stock, open.analysis) {
+        val st = stock ?: return@produceState
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            runCatching {
+                val rows = open.analysis.cutList.rows
+                val plan = splitziner.cutplan.CutPlanner.plan(rows, st)
+                val dls = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
+                val used = plan.sheets.map { it.used }.let { if (it.isEmpty()) null else it.average() }
+                val summary = listOfNotNull(
+                    plan.sheets.size.takeIf { it > 0 }?.let { "$it sheet${if (it == 1) "" else "s"}" },
+                    plan.boards.size.takeIf { it > 0 }?.let { "$it length${if (it == 1) "" else "s"}" },
+                    used?.let { "${Math.round(it * 100)}% of sheet used" },
+                    plan.leftOut.size.takeIf { it > 0 }?.let { "$it part${if (it == 1) "" else "s"} too big for the stock" }).joinToString("  \u00b7  ")
+                Made(dls.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, summary, splitziner.cutplan.CutPlanner.shoppingList(plan, fmt))
+            }.onFailure { Diagnostics.logError("cutting plan", it) }.getOrNull()
+        }
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    Column(Modifier.weight(1f)) {
+                        Text("Cutting plan", style = MaterialTheme.typography.titleLarge)
+                        Text(made?.summary ?: if (valid) "Laying out\u2026" else "Check the stock sizes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                    }
                 }
-            }) { Text("Share plan (PDF)") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Cutting plan") },
-        text = {
-            Column {
-                Text("What you will cut from, in ${if (fmt.isInch) "inches" else "millimetres"}. These are common sizes; change them to match what you can buy.", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(sheetW, { sheetW = it }, label = { Text("Sheet width") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(sheetL, { sheetL = it }, label = { Text("Sheet length") }, singleLine = true, modifier = Modifier.weight(1f))
+                // What it is cut from, in one line; the boxes open only when asked for.
+                androidx.compose.material3.OutlinedCard(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Row(Modifier.fillMaxWidth().clickable { editing = !editing }, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Stock", style = MaterialTheme.typography.labelLarge)
+                                Text("Sheets ${sheetW.trim()} x ${sheetL.trim()}, boards ${boardL.trim()} long, saw cut ${kerf.trim()} ($tag)" + if (!rotate) ", grain kept" else "",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            TextButton(onClick = { editing = !editing }) { Text(if (editing) "Done" else "Change") }
+                        }
+                        if (editing) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(sheetW, { sheetW = it }, label = { Text("Sheet width") }, singleLine = true, modifier = Modifier.weight(1f))
+                                OutlinedTextField(sheetL, { sheetL = it }, label = { Text("Sheet length") }, singleLine = true, modifier = Modifier.weight(1f))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(boardL, { boardL = it }, label = { Text("Board length") }, singleLine = true, modifier = Modifier.weight(1f))
+                                OutlinedTextField(kerf, { kerf = it }, label = { Text("Saw cut") }, singleLine = true, modifier = Modifier.weight(1f))
+                            }
+                            Row(Modifier.fillMaxWidth().clickable { rotate = !rotate }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Checkbox(checked = rotate, onCheckedChange = { rotate = it })
+                                Text("Panels may be turned to fit (untick to keep grain along the sheet)", style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (!valid) Text("Enter each size as a number, for example ${show(def.sheetW)}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { sheetW = show(def.sheetW); sheetL = show(def.sheetL); boardL = show(def.boardL); kerf = show(def.kerf); rotate = true }) { Text("Use common sizes") }
+                        }
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(boardL, { boardL = it }, label = { Text("Board length") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(kerf, { kerf = it }, label = { Text("Saw cut") }, singleLine = true, modifier = Modifier.weight(1f))
+                val pages = made?.pages.orEmpty()
+                val shown = page.coerceIn(0, maxOf(0, pages.size - 1))
+                Box(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
+                    if (pages.isNotEmpty()) io.github.emotionalleaves.splitziner.render.SheetPreview(pages[shown], Modifier.fillMaxSize())
+                    else if (valid) LinearProgressIndicator(Modifier.align(Alignment.Center).fillMaxWidth(0.6f))
                 }
-                Row(Modifier.fillMaxWidth().clickable { rotate = !rotate }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.Checkbox(checked = rotate, onCheckedChange = { rotate = it })
-                    Text("Panels may be turned to fit (untick to keep grain along the sheet)", style = MaterialTheme.typography.bodySmall)
+                if (pages.size > 1) PagerBar(if (shown == 0) "Summary and what to buy" else "Page ${shown + 1}", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
+                    shown > 0, shown < pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(enabled = pages.isNotEmpty(), onClick = {
+                        prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
+                        sharePdf(context, open, pages, "cutting_plan")
+                    }) { Text("Share PDF") }
+                    OutlinedButton(enabled = made != null, onClick = {
+                        val text = (listOf("${open.meta.title.ifBlank { open.meta.name }}: to buy") + made!!.buy.map { "\u2022 $it" }).joinToString("\n")
+                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share shopping list"))
+                    }) { Text("Share list to buy") }
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
-        },
-    )
+        }
+    }
 }
 
 
@@ -1260,7 +1303,8 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             text = {
                 LazyColumn {
                     if (plan.done.isNotEmpty()) item { Text("The app will:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) }
-                    items(plan.done) { Text("• $it", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
+                    // The fixes are worded as done ("Made item 13 from 4 boards"); before they are applied they read as to do.
+                    items(plan.done) { Text("• ${toDo(it)}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
                     if (plan.left.isNotEmpty()) item { Text("Left for you to decide:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
                     items(plan.left) { Text("• $it", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
                     item { Text("Your original file is not altered. Undo brings it back.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
@@ -1859,4 +1903,11 @@ internal fun makeBuildPack(context: Context, open: OpenProject, vm: AppViewModel
                 val zip = File(dir, "${base}_build_pack.zip")
                 java.util.zip.ZipOutputStream(zip.outputStream()).use { z -> for (f in files) { z.putNextEntry(java.util.zip.ZipEntry(f.name)); f.inputStream().use { it.copyTo(z) }; z.closeEntry() } }
                 return zip
+}
+
+/** "Made item 13 from 4 boards" as a change still to make: "Make item 13 from 4 boards". */
+internal fun toDo(line: String): String {
+    val verbs = mapOf("Made" to "Make", "Moved" to "Move", "Joined" to "Join", "Kept" to "Keep", "Changed" to "Change", "Cut" to "Cut", "Removed" to "Remove", "Added" to "Add", "Turned" to "Turn")
+    val first = line.substringBefore(' ')
+    return verbs[first]?.let { it + line.removePrefix(first) } ?: line
 }

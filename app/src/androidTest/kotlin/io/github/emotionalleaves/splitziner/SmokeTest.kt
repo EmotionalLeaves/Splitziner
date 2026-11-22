@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -120,7 +121,12 @@ class SmokeTest {
 
             // Dialogs people use, photographed for review: the cutting plan and the tools list.
             runCatching {
-                tap("Cut list"); tap("Cutting plan"); shot("c06_cutplan"); tap("Cancel")
+                tap("Cut list"); tap("Cutting plan")
+                // The plan is laid out and shown in the app now, not only shared.
+                rule.waitUntil(60_000) { rule.onAllNodesWithText("Share list to buy").fetchSemanticsNodes().isNotEmpty() && rule.onAllNodesWithText("of sheet used", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                println("SMOKE cutting plan shown")
+                shot("c06_cutplan")
+                rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
                 tap("More\u2026"); tap("Prices"); shot("c08_prices"); tap("Cancel")
                 tap("Check"); waitFor(vm, 120_000) { vm.state.value.check != null }; tap("Tools"); shot("c07_tools"); tap("Cancel")
             }.onFailure { println("SMOKE dialog shots failed: ${it.message}") }
