@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.17.0 - Lumber-yard shopping list and butt joints
+
+A shopping list for a real lumber yard, and overlaps settled as butt joints.
+
+- **Standard lumber.** In inch projects the cutting plan now buys boards as 1x, 5/4x and 2x lumber: "2 lengths of 1x3 (actual .75 x 2.50), some pieces ripped narrower". Boards in thicknesses lumber is not sold in (1/2 in, 1/4 in strips) are cut from sheet, as they are in practice.
+- **Sheets by their real names:** 1/4 in, 3/8 in, 3/4 in. A thickness drawn a hair off (1.02 in) counts as the stock one.
+- **Panels thicker than any sheet** (a 2 in slab) are listed as glue-ups or butcher-block, not "buy a 2 in sheet".
+- **Butt joints.** Where one part stops partway into another, Fix what can be fixed now cuts the smaller part back to the other's face. The Check tab offers that cut either way, with how much of each part it removes.
+- **Much faster on big assemblies:** the 600-part test's guide went from 40 s to under 6 s.
+
 ## v0.16.0 - Joining and hardware
 
 The guide now says how to fix each joint, and what hardware to buy.

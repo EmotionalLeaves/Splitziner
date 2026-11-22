@@ -8,6 +8,7 @@ import splitziner.sheet.HAlign
 import splitziner.sheet.LineStyle
 import splitziner.sheet.StrokeFont
 import splitziner.sheet.VAlign
+import kotlin.math.abs
 
 /** The stock the plan cuts from. These are the user's to set; the defaults are common sizes, not knowledge of the project. */
 data class StockSettings(
@@ -19,10 +20,12 @@ data class StockSettings(
     val kerf: Double = 3.0,
     /** False keeps every panel's length along the sheet's length, for grain or pattern. */
     val rotate: Boolean = true,
+    /** Boards come from standard North American lumber (1x4, 2x6...) and other boards are cut from sheet. */
+    val lumber: Boolean = false,
 ) {
     companion object {
         /** A 4 x 8 ft sheet, 8 ft lengths and a 1/8 in saw cut. */
-        val INCH = StockSettings(1219.2, 2438.4, 2438.4, 3.175)
+        val INCH = StockSettings(1219.2, 2438.4, 2438.4, 3.175, lumber = true)
         fun defaultFor(fmt: LengthFormat) = if (fmt.isInch) INCH else StockSettings()
     }
 }
@@ -33,7 +36,24 @@ class PlacedPiece(val item: Int, val x: Double, val y: Double, val w: Double, va
 class SheetLayout(val thickness: Double, val material: String, val pieces: List<PlacedPiece>, val used: Double)
 
 /** One bought length and the pieces cut from it, in order. */
-class BoardLayout(val kind: PartKind, val t: Double, val w: Double, val material: String, val cuts: List<Pair<Int, Double>>, val offcut: Double)
+/** [stockName] is what to ask for ("1x4"), when the pieces come from standard lumber; [ripTo] is set when they are ripped narrower from it. */
+class BoardLayout(val kind: PartKind, val t: Double, val w: Double, val material: String, val cuts: List<Pair<Int, Double>>, val offcut: Double,
+    val stockName: String? = null, val stockW: Double = w, val ripTo: Double? = null)
+
+/**
+ * Standard North American lumber: what it is called and what it really measures. A 1x4 is
+ * 3/4 x 3-1/2 in; a 2x4 is 1-1/2 x 3-1/2 in.
+ */
+object Lumber {
+    class Size(val name: String, val t: Double, val w: Double)
+    private const val IN = 25.4
+    private val WIDTHS = listOf(2 to 1.5, 3 to 2.5, 4 to 3.5, 6 to 5.5, 8 to 7.25, 10 to 9.25, 12 to 11.25)
+    // 5/4 ("five-quarter") boards are a full inch thick.
+    val SIZES: List<Size> = listOf("1" to 0.75, "5/4" to 1.0, "2" to 1.5).flatMap { (nt, at) -> WIDTHS.map { (nw, aw) -> Size("${nt}x$nw", at * IN, aw * IN) } }
+
+    /** The narrowest standard board of this thickness at least [w] wide, or null if the thickness is not a lumber thickness. */
+    fun fit(t: Double, w: Double): Size? = SIZES.filter { abs(it.t - t) < maxOf(0.8, 0.03 * it.t) && it.w >= w - 0.8 }.minByOrNull { it.w }
+}
 
 class CutPlanResult(val stock: StockSettings, val sheets: List<SheetLayout>, val boards: List<BoardLayout>, val leftOut: List<String>)
 
@@ -55,9 +75,18 @@ object CutPlanner {
         val sheets = ArrayList<SheetLayout>(); val boards = ArrayList<BoardLayout>()
         fun key(v: Double) = Math.round(v * 100)
 
-        val flat = rows.filter { it.kind == PartKind.PANEL || (it.kind == PartKind.SHAPED && it.t < FLAT_SHARE * it.w) }
+        // In inches, boards come from standard lumber when their thickness is a lumber thickness (3/4 or 1-1/2 in).
+        // Boards of other thicknesses (a 1/2 in or 1/4 in strip) are cut as strips from sheet goods, as they are in practice.
+        val lumberish = { r: CutListRow -> stock.lumber && r.kind == PartKind.BOARD && Lumber.fit(r.t, r.w) != null }
+        val flat = rows.filter { it.kind == PartKind.PANEL || (it.kind == PartKind.SHAPED && it.t < FLAT_SHARE * it.w) || (stock.lumber && it.kind == PartKind.BOARD && !lumberish(it)) }
         for (r in rows) if (r.kind == PartKind.SHAPED && r !in flat) leftOut += "Item ${r.item} is a shaped block; it is not in the plan."
-        for ((group, members) in flat.groupBy { key(it.t) to it.material }.entries.sortedBy { it.key.first }) {
+        // A thickness within a hair of a stock one (1.02 in drawn for 1 in) is that stock thickness.
+        val stockT = splitziner.check.DesignCheck.stockThicknesses(if (stock.lumber) LengthFormat("in") else LengthFormat("mm"))
+        fun snapT(t: Double) = stockT.firstOrNull { abs(it - t) <= maxOf(0.4, 0.03 * it) } ?: t
+        // Panels thicker than any sheet sold are glued up from boards (or bought as a butcher-block blank), not cut from sheet.
+        val tooThick = flat.filter { snapT(it.t) > stockT.max() + 0.5 }
+        for (r in tooThick) leftOut += "Item ${r.item} is thicker than any sheet sold: glue it up from boards, or buy it as a butcher-block panel."
+        for ((group, members) in (flat - tooThick.toSet()).groupBy { key(snapT(it.t)) to it.material }.entries.sortedBy { it.key.first }) {
             val wants = ArrayList<Want>()
             for (r in members) {
                 val fits = (r.w <= stock.sheetW + 1e-6 && r.l <= stock.sheetL + 1e-6) || (stock.rotate && r.l <= stock.sheetW + 1e-6 && r.w <= stock.sheetL + 1e-6)
@@ -99,9 +128,12 @@ object CutPlanner {
             for (o in open) sheets += SheetLayout(group.first / 100.0, group.second, o.pieces, o.pieces.sumOf { it.w * it.l } / (stock.sheetW * stock.sheetL))
         }
 
-        val long = rows.filter { it.kind == PartKind.BOARD || it.kind == PartKind.ROD }
-        for ((_, members) in long.groupBy { listOf(it.kind, key(it.t), key(it.w), it.material) }.entries.sortedBy { (it.key[1] as Long) * 100000 + (it.key[2] as Long) }) {
+        val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it))) || it.kind == PartKind.ROD }
+        // Pieces that come from the same standard board are cut from the same lengths, ripped narrower where needed.
+        fun stockKey(r: CutListRow): List<Any> { val lb = if (r.kind == PartKind.BOARD && stock.lumber) Lumber.fit(r.t, r.w) else null; return if (lb != null) listOf(r.kind, lb.name, r.material) else listOf(r.kind, key(r.t), key(r.w), r.material) }
+        for ((_, members) in long.groupBy { stockKey(it) }.entries.sortedBy { (key(it.value[0].t)) * 100000 + key(it.value[0].w) }) {
             val first = members[0]
+            val lb = if (first.kind == PartKind.BOARD && stock.lumber) Lumber.fit(first.t, first.w) else null
             val wants = ArrayList<Pair<Int, Double>>()
             for (r in members) {
                 if (r.l > stock.boardL + 1e-6) { leftOut += "Item ${r.item} is longer than the stock length; it is not in the plan."; continue }
@@ -115,7 +147,11 @@ object CutPlanner {
                 if (i < 0) { bins += ArrayList<Pair<Int, Double>>(); left += stock.boardL; i = bins.size - 1 }
                 bins[i] += c; left[i] = left[i] - c.second - stock.kerf
             }
-            bins.forEachIndexed { i, cuts -> boards += BoardLayout(first.kind, first.t, first.w, first.material, cuts, maxOf(0.0, left[i])) }
+            val widest = members.maxOf { it.w }
+            bins.forEachIndexed { i, cuts ->
+                boards += if (lb != null) BoardLayout(first.kind, lb.t, lb.w, first.material, cuts, maxOf(0.0, left[i]), lb.name, lb.w, if (members.any { lb.w - it.w > 0.8 }) widest else null)
+                else BoardLayout(first.kind, first.t, first.w, first.material, cuts, maxOf(0.0, left[i]))
+            }
         }
         return CutPlanResult(stock, sheets, boards, leftOut)
     }
@@ -124,12 +160,16 @@ object CutPlanner {
     fun shoppingList(r: CutPlanResult, fmt: LengthFormat): List<String> {
         val out = ArrayList<String>()
         fun mat(m: String) = if (m.isBlank()) "" else " ($m)"
+        // Sheet thicknesses as sold: 3/8 in, not .37.
+        val tf = if (fmt.isInch) fmt.copy(inchStyle = "fraction", fractionDenominator = 32) else fmt
         for ((k, v) in r.sheets.groupBy { it.thickness to it.material })
-            out += "${v.size} sheet${if (v.size == 1) "" else "s"} ${fmt.format(k.first)} thick, ${fmt.format(r.stock.sheetW)} x ${fmt.format(r.stock.sheetL)}${mat(k.second)}"
-        for ((k, v) in r.boards.groupBy { listOf(it.kind, it.t, it.w, it.material) }) {
+            out += "${v.size} sheet${if (v.size == 1) "" else "s"} ${tf.format(k.first)}${if (fmt.isInch) " in" else " mm"} thick, ${fmt.format(r.stock.sheetW)} x ${fmt.format(r.stock.sheetL)}${mat(k.second)}"
+        for ((k, v) in r.boards.groupBy { listOf(it.kind, it.stockName ?: "${it.t}x${it.w}", it.material) }) {
             val b = v[0]
-            val section = if (b.kind == PartKind.ROD) "rod ${fmt.format((b.t + b.w) / 2)} dia" else "${fmt.format(b.t)} x ${fmt.format(b.w)}"
-            out += "${v.size} length${if (v.size == 1) "" else "s"} of $section, ${fmt.format(r.stock.boardL)} long${mat(k[3] as String)}"
+            val section = if (b.kind == PartKind.ROD) "rod ${fmt.format((b.t + b.w) / 2)} dia"
+                else if (b.stockName != null) "${b.stockName} (actual ${fmt.format(b.t)} x ${fmt.format(b.w)})" + if (b.ripTo != null) ", some pieces ripped narrower" else ""
+                else "${fmt.format(b.t)} x ${fmt.format(b.w)}"
+            out += "${v.size} length${if (v.size == 1) "" else "s"} of $section, ${fmt.format(r.stock.boardL)} long${mat(k[2] as String)}"
         }
         return out
     }
@@ -212,12 +252,12 @@ object CutPlanLayout {
             var lastKey: List<Any>? = null
             var n = 0
             for (b in r.boards) {
-                val key = listOf(b.kind, b.t, b.w, b.material)
+                val key = listOf(b.kind, b.stockName ?: "${b.t}x${b.w}", b.material)
                 val newGroup = key != lastKey
                 if (y - (if (newGroup) 22 else 13) < 16) { p = page(); y = h - 26 }
                 if (newGroup) {
-                    val count = r.boards.count { listOf(it.kind, it.t, it.w, it.material) == key }
-                    val section = if (b.kind == PartKind.ROD) "Rod ${d((b.t + b.w) / 2)} dia" else "${d(b.t)} x ${d(b.w)}"
+                    val count = r.boards.count { listOf(it.kind, it.stockName ?: "${it.t}x${it.w}", it.material) == key }
+                    val section = if (b.kind == PartKind.ROD) "Rod ${d((b.t + b.w) / 2)} dia" else if (b.stockName != null) "${b.stockName} (actual ${d(b.t)} x ${d(b.w)})" else "${d(b.t)} x ${d(b.w)}"
                     y -= 3
                     p.text(20.0, y, "$section" + (if (b.material.isBlank()) "" else ", ${b.material}") + ": $count length${if (count == 1) "" else "s"} of ${d(s.boardL)}", 3.2, vAlign = VAlign.TOP, bold = true)
                     y -= 7; lastKey = key; n = 0

@@ -977,3 +977,19 @@ class FasteningTest {
         assertTrue(guide.any { st -> st.text.any { it.startsWith("Drill pilot holes") } })
     }
 }
+
+class LumberTest {
+    @Test fun boardsBecomeStandardLumber() {
+        val fmt = LengthFormat("in")
+        val I = Fixtures.INCH
+        val ms = listOf(Fixtures.box(0.0, 30 * I, 0.0, 3.5 * I, 0.0, 0.75 * I), Fixtures.box(0.0, 30 * I, 10 * I, 13 * I, 0.0, 0.75 * I),
+            Fixtures.box(0.0, 30 * I, 20 * I, 22 * I, 0.0, 0.5 * I))
+        val rows = CutList.build(ms.mapIndexed { i, m -> Part("P$i", "P", m) }, fmt).rows
+        val r = splitziner.cutplan.CutPlanner.plan(rows, splitziner.cutplan.StockSettings.INCH)
+        val buy = splitziner.cutplan.CutPlanner.shoppingList(r, fmt)
+        println("lumber: $buy")
+        // The 3-1/2 and 3 in wide boards both come from 1x4 (the 3 in one ripped); the 1/2 in strip comes from sheet.
+        assertTrue(buy.any { it.contains("1x4 (actual .75 x 3.50), some pieces ripped narrower") }, buy.toString())
+        assertTrue(buy.any { it.contains("sheet 1/2 in thick") }, buy.toString())
+    }
+}
