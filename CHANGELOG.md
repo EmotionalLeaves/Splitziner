@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.63.0 - Step titles that say what goes on
+
+- **Guide steps now say what goes on in that step:** "Step 5: 4 shelves", "Step 6: the back panel", "Step 7: hang the 4 drawers". Before, most steps were titled only "Step 5". The same titles show in Build mode and in the page list.
+- **Bed frame:** the end rails that tie the frame together now go on before the last slats.
+
 ## v0.62.0 - Print from the app
 
 - **Print straight from the app.** Print opens your phone's print screen, where you can pick a printer on your Wi-Fi or choose "Save as PDF". It's on the Guide tab, under More on the Drawing tab, and in the cutting plan.
