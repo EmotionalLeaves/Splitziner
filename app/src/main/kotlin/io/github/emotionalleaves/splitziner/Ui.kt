@@ -172,6 +172,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var pull by remember { mutableFloatStateOf(0f) }
     var showHelp by remember { mutableStateOf(false) }
     var editRow by remember { mutableStateOf<CutListRow?>(null) }
+    var showCutPlan by remember { mutableStateOf(false) }
+    if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
     val context = LocalContext.current
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -265,7 +267,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     for (w in a.cutList.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
             }
-            Button(onClick = { shareCsv(context, open) }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) { Text("Share cut list (CSV)") }
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = { showCutPlan = true }, modifier = Modifier.weight(1f)) { Text("Cutting plan") }
+                OutlinedButton(onClick = { shareCsv(context, open) }, modifier = Modifier.weight(1f)) { Text("Share CSV") }
+            }
         }
         TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") }
     }
@@ -673,6 +678,7 @@ private val HELP = listOf(
     "Dimensions" to "Everything is measured from the lower-left-front corner. Which faces really matter for fit is a design decision the app can't make.",
     "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
     "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
+    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about grain, defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )
@@ -726,4 +732,66 @@ private fun shareParts(context: Context, open: OpenProject) {
         Diagnostics.logError("share parts", e)
         Toast.makeText(context, "Could not pack the parts", Toast.LENGTH_LONG).show()
     }
+}
+
+
+/** Asks what stock the plan should cut from, in the project's units, then shares the plan as a PDF. */
+@Composable
+private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val fmt = open.analysis.format
+    val unit = if (fmt.isInch) 25.4 else 1.0
+    val prefs = remember { context.getSharedPreferences("cutplan", Context.MODE_PRIVATE) }
+    val def = splitziner.cutplan.StockSettings.defaultFor(fmt)
+    val tag = if (fmt.isInch) "in" else "mm"
+    fun show(v: Double) = String.format(java.util.Locale.ROOT, "%.3f", v / unit).trimEnd('0').trimEnd('.')
+    // The last sizes used are remembered, separately for inch and millimetre projects.
+    var sheetW by remember { mutableStateOf(prefs.getString("sheetW_$tag", null) ?: show(def.sheetW)) }
+    var sheetL by remember { mutableStateOf(prefs.getString("sheetL_$tag", null) ?: show(def.sheetL)) }
+    var boardL by remember { mutableStateOf(prefs.getString("boardL_$tag", null) ?: show(def.boardL)) }
+    var kerf by remember { mutableStateOf(prefs.getString("kerf_$tag", null) ?: show(def.kerf)) }
+    var rotate by remember { mutableStateOf(prefs.getBoolean("rotate", true)) }
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val w = sheetW.trim().toDoubleOrNull(); val l = sheetL.trim().toDoubleOrNull(); val b = boardL.trim().toDoubleOrNull(); val k = kerf.trim().toDoubleOrNull()
+                if (w == null || l == null || b == null || k == null || w <= 0 || l <= 0 || b <= 0 || k < 0) { error = "Enter each size as a number, for example ${show(def.sheetW)}"; return@TextButton }
+                prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
+                try {
+                    // The sheet's longer side is its length, whichever box it was typed in.
+                    val stock = splitziner.cutplan.StockSettings(minOf(w, l) * unit, maxOf(w, l) * unit, b * unit, k * unit, rotate)
+                    val rows = open.analysis.cutList.rows
+                    val plan = splitziner.cutplan.CutPlanner.plan(rows, stock)
+                    val pages = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt)
+                    sharePdf(context, open, pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "cutting_plan")
+                    onDismiss()
+                } catch (e: Throwable) {
+                    Diagnostics.logError("cutting plan", e)
+                    error = "Could not make the cutting plan"
+                }
+            }) { Text("Share plan (PDF)") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Cutting plan") },
+        text = {
+            Column {
+                Text("What you will cut from, in ${if (fmt.isInch) "inches" else "millimetres"}. These are common sizes; change them to match what you can buy.", style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(sheetW, { sheetW = it }, label = { Text("Sheet width") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(sheetL, { sheetL = it }, label = { Text("Sheet length") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(boardL, { boardL = it }, label = { Text("Board length") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(kerf, { kerf = it }, label = { Text("Saw cut") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth().clickable { rotate = !rotate }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(checked = rotate, onCheckedChange = { rotate = it })
+                    Text("Panels may be turned to fit (untick to keep grain along the sheet)", style = MaterialTheme.typography.bodySmall)
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
 }

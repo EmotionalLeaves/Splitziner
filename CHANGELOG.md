@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.10.0 - Cutting plan
+
+A cutting plan: how much to buy and where to cut.
+
+- **Cutting plan.** On the Cut list tab, tap **Cutting plan**. Enter the sheet size, the length your boards come in and the width of your saw cut, and share a PDF that shows:
+  - **what to buy** (how many sheets of each thickness, how many lengths of each board size),
+  - **each sheet drawn to scale** with every panel numbered and sized,
+  - **each board length as a bar** with its cuts and what is left over.
+- Every sheet can be cut with straight cuts right across, the way a circular or table saw works.
+- Untick "Panels may be turned" to keep grain running along the sheet. Your sizes are remembered for next time.
+- It is a good layout, not a proven best one, and it knows nothing about grain, defects or offcuts you already own. Parts bigger than your stock are listed as left out.
+
 ## v0.9.0 - Holes on the drawings
 
 Drawings now tell you where to drill.

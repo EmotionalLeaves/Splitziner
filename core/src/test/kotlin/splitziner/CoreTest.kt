@@ -683,3 +683,53 @@ class HoleTest {
         assertTrue(r.sheets[0].prims.any { it is splitziner.sheet.Segments && it.style == splitziner.sheet.LineStyle.CENTER })
     }
 }
+
+class CutPlanTest {
+    private fun cabinetRows(fmt: LengthFormat): List<splitziner.parts.CutListRow> {
+        val meshes = Fixtures.miniCabinet(Fixtures.INCH).toMutableList()
+        repeat(5) { meshes += MeshOps.translated(Fixtures.box(0.0, 30.0 * Fixtures.INCH, 0.0, 3.5 * Fixtures.INCH, 0.0, 0.75 * Fixtures.INCH), Vec3(0.0, 2000.0 + it * 200, 0.0)) }
+        return CutList.build(meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }, fmt).rows
+    }
+
+    @Test fun everyPieceIsPlacedOnceWithoutOverlap() {
+        val fmt = LengthFormat("in")
+        val rows = cabinetRows(fmt)
+        val stock = splitziner.cutplan.StockSettings.INCH
+        val r = splitziner.cutplan.CutPlanner.plan(rows, stock)
+        assertTrue(r.leftOut.isEmpty(), r.leftOut.toString())
+        val panels = rows.filter { it.kind == splitziner.parts.PartKind.PANEL }
+        assertEquals(panels.sumOf { it.qty }, r.sheets.sumOf { it.pieces.size })
+        for (sh in r.sheets) {
+            for (a in sh.pieces) {
+                assertTrue(a.x >= -1e-6 && a.y >= -1e-6 && a.x + a.w <= stock.sheetW + 1e-6 && a.y + a.l <= stock.sheetL + 1e-6)
+                val row = rows.first { it.item == a.item }
+                assertEquals(row.w * row.l, a.w * a.l, 1e-6)
+                // Pieces are at least a saw cut apart.
+                for (b in sh.pieces) if (a !== b) {
+                    val gapX = maxOf(b.x - (a.x + a.w), a.x - (b.x + b.w)); val gapY = maxOf(b.y - (a.y + a.l), a.y - (b.y + b.l))
+                    assertTrue(maxOf(gapX, gapY) >= stock.kerf - 1e-6, "pieces ${a.item} and ${b.item} are closer than a saw cut")
+                }
+            }
+        }
+        // Five 30 in boards: three fit in one 96 in length, so two lengths are needed.
+        val boards = r.boards.filter { it.kind == splitziner.parts.PartKind.BOARD && abs(it.w - 3.5 * Fixtures.INCH) < 0.01 }
+        assertEquals(5, boards.sumOf { b -> b.cuts.count { abs(it.second - 30.0 * Fixtures.INCH) < 0.01 } }); assertEquals(2, boards.size)
+        assertEquals(rows.filter { it.kind == splitziner.parts.PartKind.BOARD }.sumOf { it.qty }, r.boards.sumOf { it.cuts.size })
+        for (b in boards) assertTrue(b.cuts.sumOf { it.second } + stock.kerf * (b.cuts.size - 1) <= stock.boardL + 1e-6)
+        val pages = splitziner.cutplan.CutPlanLayout.pages(r, rows, "Cabinet, storage", fmt)
+        java.io.File("build/preview").mkdirs()
+        pages.forEachIndexed { i, pg -> java.io.File("build/preview/cutplan%d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(pg)) }
+        println("cutplan: sheets=${r.sheets.size} boards=${r.boards.size} pages=${pages.size} buy=${splitziner.cutplan.CutPlanner.shoppingList(r, fmt)}")
+    }
+
+    @Test fun oversizeAndGrainAreRespected() {
+        val fmt = LengthFormat("mm")
+        val big = Part("P01", "P", Fixtures.box(0.0, 3000.0, 0.0, 600.0, 0.0, 18.0))
+        val wide = Part("P02", "P", Fixtures.box(0.0, 1000.0, 0.0, 2000.0, 0.0, 18.0))
+        val rows = CutList.build(listOf(big, wide), fmt).rows
+        val r = splitziner.cutplan.CutPlanner.plan(rows, splitziner.cutplan.StockSettings(rotate = false))
+        assertEquals(1, r.leftOut.size)
+        assertEquals(1, r.sheets.sumOf { it.pieces.size })
+        assertTrue(r.sheets[0].pieces.none { it.rotated })
+    }
+}
