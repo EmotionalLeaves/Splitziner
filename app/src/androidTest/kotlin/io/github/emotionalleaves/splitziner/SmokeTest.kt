@@ -134,7 +134,7 @@ class SmokeTest {
             runCatching {
                 tap("Cut list"); tap("Cutting plan")
                 // The plan is laid out and shown in the app now, not only shared.
-                rule.waitUntil(60_000) { rule.onAllNodesWithText("Share list to buy").fetchSemanticsNodes().isNotEmpty() && rule.onAllNodesWithText("of sheet used", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                rule.waitUntil(60_000) { rule.onAllNodesWithText("Share list").fetchSemanticsNodes().isNotEmpty() && rule.onAllNodesWithText("of sheet used", substring = true).fetchSemanticsNodes().isNotEmpty() }
                 println("SMOKE cutting plan shown")
                 shot("c06_cutplan")
                 rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()

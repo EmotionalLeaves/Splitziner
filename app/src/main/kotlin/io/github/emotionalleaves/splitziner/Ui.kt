@@ -766,6 +766,7 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
                 var more by remember { mutableStateOf(false) }
                 OutlinedButton(onClick = { more = true }, enabled = ready) { Text("More\u2026") }
                 androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("Print") }, onClick = { more = false; if (d != null) printPdf(context, open, d.sheets, "drawing") })
                     androidx.compose.material3.DropdownMenuItem(text = { Text("This sheet as an image") }, onClick = { more = false; if (d != null) shareImage(context, open, d, shown) })
                     androidx.compose.material3.DropdownMenuItem(text = { Text("DXF for CAD") }, onClick = { more = false; if (d != null) shareDxf(context, open, d) })
                     androidx.compose.material3.DropdownMenuItem(text = { Text("Full-size templates") }, onClick = {
@@ -858,6 +859,34 @@ private fun sharePdf(context: Context, open: OpenProject, sheets: List<io.github
 }
 
 
+/**
+ * Sends the pages to a printer through Android's own print screen, which offers the phone's printers, Wi-Fi
+ * printers nearby and "Save as PDF". Each sheet prints at its own paper size where the printer allows.
+ */
+private fun printPdf(context: Context, open: OpenProject, sheets: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, kind: String) {
+    try {
+        val base = open.meta.drawingNo.ifBlank { open.meta.name }.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
+        val file = PdfExporter.write(context, sheets, "${base}_$kind.pdf")
+        val pm = context.getSystemService(Context.PRINT_SERVICE) as android.print.PrintManager
+        val name = "${open.meta.title.ifBlank { open.meta.name }} ${kind.replace('_', ' ')}"
+        pm.print(name, object : android.print.PrintDocumentAdapter() {
+            override fun onLayout(old: android.print.PrintAttributes?, new: android.print.PrintAttributes?, cancel: android.os.CancellationSignal?, cb: LayoutResultCallback, extras: android.os.Bundle?) {
+                if (cancel?.isCanceled == true) { cb.onLayoutCancelled(); return }
+                cb.onLayoutFinished(android.print.PrintDocumentInfo.Builder("${base}_$kind.pdf").setContentType(android.print.PrintDocumentInfo.CONTENT_TYPE_DOCUMENT).setPageCount(sheets.size).build(), true)
+            }
+            override fun onWrite(pages: Array<out android.print.PageRange>?, dest: android.os.ParcelFileDescriptor, cancel: android.os.CancellationSignal?, cb: WriteResultCallback) {
+                try {
+                    file.inputStream().use { input -> java.io.FileOutputStream(dest.fileDescriptor).use { input.copyTo(it) } }
+                    cb.onWriteFinished(arrayOf(android.print.PageRange.ALL_PAGES))
+                } catch (e: Exception) { cb.onWriteFailed(e.message) }
+            }
+        }, null)
+    } catch (e: Throwable) {
+        Diagnostics.logError("print", e)
+        Toast.makeText(context, "Could not print", Toast.LENGTH_LONG).show()
+    }
+}
+
 @Composable
 private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifier: Modifier) {
     val context = LocalContext.current
@@ -913,6 +942,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             OutlinedButton(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
             OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
             OutlinedButton(onClick = { showJoin = true }, enabled = !state.guideBusy) { Text("Joining") }
+            OutlinedButton(onClick = { if (g != null) printPdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Print") }
         }
     }
     if (showEditor && g != null) StepEditor(open, g.steps, vm, onDismiss = { showEditor = false })
@@ -1104,10 +1134,11 @@ private val HELP = listOf(
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
+    "Printing" to "Print, on the Guide tab, under More on the Drawing tab and in the cutting plan, opens the phone's own print screen: choose a printer on your Wi-Fi, or Save as PDF. Drawings print each sheet at its own size where the printer allows; letter or A4 paper takes the guide and the cutting plan as they are.",
     "Projects" to "On the first screen, each project's menu (\u22ee) can rename it, make a copy to try a variation without losing the original, or delete it. Your original model file is never changed.",
     "Build mode" to "On the Guide tab, Build mode shows the guide one step to a screen, for the workshop: the picture large, the parts and hardware the step uses, and what to do, numbered. Done, next marks the step done and moves on; the app remembers which steps are done, so you can stop and pick up another day where you left off.",
     "Shopping list" to "On the Cut list tab, Shopping list opens a checklist of everything to buy: the sheets and lengths from the cutting plan, edge banding, and the screws, hinges and slides the guide uses. Tick each line as it goes in the trolley; the ticks stay with the project until you clear them. Share sends the list as text.",
-    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Share list to buy sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
+    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Print prints it (or saves it as a PDF), Share list sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )
@@ -1443,15 +1474,16 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                 }
                 if (pages.size > 1) PagerBar(if (shown == 0) "Summary and what to buy" else "Page ${shown + 1}", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
                     shown > 0, shown < pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = pages.isNotEmpty(), onClick = {
                         prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
                         sharePdf(context, open, pages, "cutting_plan")
                     }) { Text("Share PDF") }
+                    OutlinedButton(enabled = pages.isNotEmpty(), onClick = { printPdf(context, open, pages, "cutting_plan") }) { Text("Print") }
                     OutlinedButton(enabled = made != null, onClick = {
                         val text = (listOf("${open.meta.title.ifBlank { open.meta.name }}: to buy") + made!!.buy.map { "\u2022 $it" }).joinToString("\n")
                         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share shopping list"))
-                    }) { Text("Share list to buy") }
+                    }) { Text("Share list") }
                 }
             }
         }
