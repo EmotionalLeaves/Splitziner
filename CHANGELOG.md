@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.19.0 - Grooves, edge joints and smaller sheets
+
+Joints you can actually make, and a shopping list that doesn't buy eight full sheets.
+
+- **Grooves with sizes.** Where a part is too thin to screw into, the guide now gives the groove: "Cut a groove 1/2 in wide and 3/8 in deep in item 11 for its edge, make item 40 3/8 in bigger on that edge than the cut list says, and glue it in." If you have not ticked a router or table saw, it tells you to glue a cleat instead. Depth is 0.4 of the grooved part, at most 3/8 in, a common rule for housings.
+- **No more screws along inside a thin board.** A 1/4 in board met on its edge is set in a groove, and two boards lying side by side in one plane are edge-glued and clamped, not screwed.
+- **Joints in the right step.** A frame built on the bench is no longer told to be screwed to parts it has not met yet; joints between sub-assemblies are made when they come together in the main build. Bench steps now say how their own joints are made.
+- **Plain counts:** "screw it to item 7 with two 2-1/2 in screws", and the end of a busy step lists every remaining joint and how it is made, instead of "the other 8 the same way".
+- **Half and quarter sheets.** When everything of one thickness fits on half or a quarter of a sheet, the cutting plan buys that size (most stores sell 2 x 4 ft and 4 x 4 ft panels). The test desk went from 8 full sheets to 4 full sheets and 4 quarter sheets.
+- **Copy diagnostic report** moved into Help, giving every screen another line.
+
 ## v0.18.0 - Which way is up, and leaner drawings
 
 Models saved the wrong way up, fewer pointless drawing sheets, a cleaner guide, and a roomier screen.
