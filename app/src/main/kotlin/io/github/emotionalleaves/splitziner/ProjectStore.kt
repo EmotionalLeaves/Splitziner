@@ -33,6 +33,8 @@ data class ProjectMeta(
     val sheet: String = "auto",
     /** "auto", "on" or "off". */
     val hidden: String = "auto",
+    /** "auto" or "none". */
+    val sections: String = "auto",
 ) {
     fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
         title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
@@ -40,7 +42,7 @@ data class ProjectMeta(
         toleranceLines = tolerance, softwareVersion = version, sourceFile = fileName,
     )
 
-    fun drawingSettings() = splitziner.drawing.DrawingSettings(sheet = sheet, hidden = hidden)
+    fun drawingSettings() = splitziner.drawing.DrawingSettings(sheet = sheet, hidden = hidden, sections = sections)
 
     fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames)
 }
@@ -78,7 +80,7 @@ class ProjectStore(context: Context) {
         o.put("items", items)
         o.put("title", meta.title).put("drawingNo", meta.drawingNo).put("rev", meta.rev).put("organisation", meta.organisation)
         o.put("designer", meta.designer).put("drawn", meta.drawn).put("checked", meta.checked).put("approved", meta.approved)
-        o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden)
+        o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden).put("sections", meta.sections)
         o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
         // Write to a temporary file first so a crash never leaves a half-written project.
         val tmp = File(dir(meta.id), "project.json.tmp")
@@ -103,7 +105,7 @@ class ProjectStore(context: Context) {
             designer = o.optString("designer"), drawn = o.optString("drawn"), checked = o.optString("checked"), approved = o.optString("approved"),
             date = o.optString("date"), notes = strings(o.optJSONArray("notes")) ?: emptyList(),
             tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
-            sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"),
+            sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"), sections = o.optString("sections", "auto"),
         )
     }
 

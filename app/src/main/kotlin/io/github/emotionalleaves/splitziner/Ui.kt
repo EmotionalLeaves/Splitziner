@@ -477,6 +477,8 @@ private fun TitleBlockDialog(meta: ProjectMeta, onDismiss: () -> Unit, onApply: 
                 for ((label, v) in listOf("Choose for me" to "auto", "A (8.5 \u00d7 11 in)" to "A", "B (11 \u00d7 17 in)" to "B", "C (17 \u00d7 22 in)" to "C", "D (22 \u00d7 34 in)" to "D", "E (34 \u00d7 44 in)" to "E")) {
                     Choice(label, v, m.sheet) { m = m.copy(sheet = it) }
                 }
+                Text("Section views (cut open to show the inside)", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                for ((label, v) in listOf("When the inside is hidden" to "auto", "Never" to "none")) Choice(label, v, m.sections) { m = m.copy(sections = it) }
                 Text("Hidden edges (dashed lines)", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                 for ((label, v) in listOf("Choose for me" to "auto", "Always show" to "on", "Never show" to "off")) Choice(label, v, m.hidden) { m = m.copy(hidden = it) }
             }

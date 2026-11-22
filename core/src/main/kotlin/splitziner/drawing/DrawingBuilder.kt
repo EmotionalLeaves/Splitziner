@@ -26,6 +26,8 @@ data class DrawingSettings(
     val scale: Double? = null,
     /** "auto", "on" or "off". */
     val hidden: String = "auto",
+    /** "auto" cuts a view open when its inside is hidden; "none" never does. */
+    val sections: String = "auto",
     val maxLevelDims: Int = 5,
     /** Use the standard's full lettering heights even on small sheets. */
     val strictLettering: Boolean = false,
@@ -34,7 +36,7 @@ data class DrawingSettings(
 class DrawingResult(val sheets: List<DisplayList>, val sheet: SheetSize, val scale: Double, val scaleText: String, val qa: List<String>)
 
 /** Line work of the three principal views. Costly to compute, so it is kept between redraws. */
-class ViewSet(val scene: Mesh, val views: Map<String, ViewLines>)
+class ViewSet(val scene: Mesh, val views: Map<String, ViewLines>, val sections: Map<String, splitziner.section.SectionGeometry> = emptyMap())
 
 object DrawingBuilder {
     /** Preferred scales come first in each direction; 1/50 and 1/100 are last resorts for very large objects. */
@@ -57,19 +59,42 @@ object DrawingBuilder {
     fun scaleText(s: Double): String = if (s >= 1) "${trim(s)}/1" else "1/${trim(1 / s)}"
     private fun trim(v: Double) = if (v == Math.rint(v)) "${v.toLong()}" else "$v"
 
-    fun views(parts: List<Part>): ViewSet {
+    /** A view is cut open when its hidden line work outweighs its visible line work by this factor. */
+    private const val SECTION_RATIO = 1.5
+
+    /** Section letters in order, without the easily misread I, O, Q and X. */
+    private val SECTION_LETTERS = ('A'..'Z').filter { it !in DrawingInfo.EXCLUDED_LETTERS }
+
+    fun views(parts: List<Part>, sections: String = "auto"): ViewSet {
         val meshes = parts.filter { !it.excluded }.map { it.mesh }
         val scene = MeshOps.concatenate(meshes)
         val map = LinkedHashMap<String, ViewLines>()
         for (v in listOf(ViewDef.FRONT, ViewDef.TOP, ViewDef.RIGHT)) map[v.name] = HiddenLine.compute(meshes, scene, v)
-        return ViewSet(scene, map)
+        // A front or side view whose inside is hidden behind outer material becomes a full section in its place.
+        val cut = LinkedHashMap<String, splitziner.section.SectionGeometry>()
+        if (sections == "auto") for (v in listOf(ViewDef.FRONT, ViewDef.RIGHT)) {
+            val lines = map.getValue(v.name)
+            if (lines.hiddenLength > SECTION_RATIO * lines.visibleLength && lines.hiddenLength > 0) {
+                val sec = runCatching { splitziner.section.SectionBuilder.build(meshes, v, "${SECTION_LETTERS[cut.size]}") }.getOrNull() ?: continue
+                cut[v.name] = sec; map[v.name] = sec.lines
+            }
+        }
+        return ViewSet(scene, map, cut)
     }
 
     private class Margins(val left: Double, val right: Double, val top: Double, val bottom: Double)
 
-    private fun margins(view: String, groups: List<DimGroup>, th: Double): Margins {
+    private fun margins(view: String, groups: List<DimGroup>, th: Double, sections: Map<String, splitziner.section.SectionGeometry> = emptyMap()): Margins {
         fun need(side: String) = groups.filter { it.view == view && it.side == side }.maxOfOrNull { DimDrawer.margin(it, th) } ?: 6.0
-        return Margins(need("left"), need("right"), need("top"), need("bottom"))
+        var left = need("left"); var right = need("right"); var top = need("top"); var bottom = need("bottom")
+        // "SECTION A-A" sits under a sectioned view.
+        if (view in sections) bottom += th * 1.2 + 8
+        // Cutting-plane marks, arrows and letters stick out of the top view.
+        if (view == "top") {
+            if ("front" in sections) { left = maxOf(left, 8 + th * 2); right = maxOf(right, 8 + th * 2); top = maxOf(top, 14 + th * 1.6) }
+            if ("right" in sections) { top = maxOf(top, 8 + th * 2); bottom = maxOf(bottom, 8 + th * 2); left = maxOf(left, 14 + th * 1.6) }
+        }
+        return Margins(left, right, top, bottom)
     }
 
     fun notesFor(info: DrawingInfo, sheet: SheetSize): List<String> {
@@ -111,7 +136,7 @@ object DrawingBuilder {
 
         fun place(sheet: SheetSize, s: Double, listH: Double): Placed {
             val th = Lettering.of(sheet, settings.strictLettering).dims
-            val f = margins("front", groups, th); val t = margins("top", groups, th); val r = margins("right", groups, th)
+            val f = margins("front", groups, th, vs.sections); val t = margins("top", groups, th, vs.sections); val r = margins("right", groups, th, vs.sections)
             val bandTop = sheet.fieldY0 + Furniture.TITLE_HEIGHT + listH
             // Third-angle layout: top view above the front view, right view to its right.
             val ax0 = sheet.fieldX0 + 2 + CALL + maxOf(f.left, t.left)
@@ -178,11 +203,43 @@ object DrawingBuilder {
         for ((name, lines) in vs.views) {
             val o = origin.getValue(name); val b = lines.bounds
             fun paper(a: DoubleArray): DoubleArray = DoubleArray(a.size) { i -> if (i % 2 == 0) o[0] + (a[i] - b[0]) * s else o[1] + (a[i] - b[1]) * s }
+            vs.sections[name]?.let { sec ->
+                splitziner.section.Hatch.draw(dl, sec.faces, s) { x, y -> doubleArrayOf(o[0] + (x - b[0]) * s, o[1] + (y - b[1]) * s) }
+                val label = dl.text(o[0] + (b[2] - b[0]) * s / 2, o[1] - margins(name, groups, th).bottom - 2, "SECTION ${sec.letter}-${sec.letter}", L.descTitle, splitziner.sheet.HAlign.CENTER, splitziner.sheet.VAlign.TOP, bold = true, tag = "section")
+                if (label.x0 < 0) dl.qa += "Section label runs off the sheet"
+            }
             if (lines.hidden.isNotEmpty()) { if (showHidden(lines)) dl.segs(paper(lines.hidden), LineStyle.HIDDEN) else hiddenOff += name }
             dl.segs(paper(lines.visible), LineStyle.THICK)
             dl.register(o[0] - 0.5, o[1] - 0.5, o[0] + (b[2] - b[0]) * s + 0.5, o[1] + (b[3] - b[1]) * s + 0.5, "view")
         }
         if (hiddenOff.isNotEmpty() && settings.hidden == "auto") qa += "Hidden lines omitted for clarity in: ${hiddenOff.joinToString(", ")}"
+
+        // Cutting-plane marks on the top view: thick end strokes, arrows in the direction of sight, and the letter.
+        run {
+            val tl = vs.views.getValue("top"); val o = origin.getValue("top"); val b = tl.bounds
+            fun px(x: Double) = o[0] + (x - b[0]) * s
+            fun py(y: Double) = o[1] + (y - b[1]) * s
+            vs.sections["front"]?.let { sec ->
+                // The front section's plane is a horizontal line across the top view; the viewer looks toward +Y (up the sheet).
+                val y = py(sec.at); val x0 = px(b[0]) - 5; val x1 = px(b[2]) + 5
+                val stroke = minOf(20.0, 0.25 * (x1 - x0))
+                dl.line(x0, y, x0 + stroke, y, LineStyle.CUT); dl.line(x1 - stroke, y, x1, y, LineStyle.CUT)
+                for (x in doubleArrayOf(x0, x1)) {
+                    dl.line(x, y, x, y + 8, LineStyle.CUT); dl.arrow(x, y + 8 + 3, 0.0, 1.0, 3.5, 0.9)
+                    dl.text(x, y + 8 + 3 + 3.5, sec.letter, L.sectionLetter * 0.8, splitziner.sheet.HAlign.CENTER, splitziner.sheet.VAlign.BOTTOM, bold = true, tag = "section")
+                }
+            }
+            vs.sections["right"]?.let { sec ->
+                // The side section's plane is a vertical line on the top view; the viewer looks toward -X (left on the sheet).
+                val x = px(sec.at); val y0 = py(b[1]) - 5; val y1 = py(b[3]) + 5
+                val stroke = minOf(20.0, 0.25 * (y1 - y0))
+                dl.line(x, y0, x, y0 + stroke, LineStyle.CUT); dl.line(x, y1 - stroke, x, y1, LineStyle.CUT)
+                for (y in doubleArrayOf(y0, y1)) {
+                    dl.line(x, y, x - 8, y, LineStyle.CUT); dl.arrow(x - 8 - 3, y, -1.0, 0.0, 3.5, 0.9)
+                    dl.text(x - 8 - 3 - 3.5, y, sec.letter, L.sectionLetter * 0.8, splitziner.sheet.HAlign.RIGHT, splitziner.sheet.VAlign.CENTER, bold = true, tag = "section")
+                }
+            }
+        }
 
         val lo = vs.scene.bounds.min
         for (g in groups) {

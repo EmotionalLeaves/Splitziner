@@ -56,6 +56,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // Hidden-line views are the slow part of a drawing, so they are kept for as long as the parts do not change.
     private var viewSet: ViewSet? = null
     private var viewSetFor: Analysis? = null
+    private var viewSetSections: String? = null
     private var drawingJob: Job? = null
     private var guideJob: Job? = null
     private var plan: splitziner.explode.PlanResult? = null
@@ -109,7 +110,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val result = withContext(Dispatchers.Default) {
                     val a = open.analysis
                     val t0 = System.nanoTime()
-                    val vs = if (viewSetFor === a && viewSet != null) viewSet!! else DrawingBuilder.views(a.parts).also { viewSet = it; viewSetFor = a }
+                    val sec = open.meta.sections
+                    val vs = if (viewSetFor === a && viewSetSections == sec && viewSet != null) viewSet!!
+                    else DrawingBuilder.views(a.parts, sec).also { viewSet = it; viewSetFor = a; viewSetSections = sec }
                     val t1 = System.nanoTime()
                     // The exploded sheet needs the assembly plan; if planning fails the drawing still gets its first sheet.
                     val planned = runCatching { planOf(a).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()

@@ -443,3 +443,43 @@ class BiggerAssemblyTest {
         assertTrue(t4 - t0 < 60_000_000_000L)
     }
 }
+
+class SectionTest {
+    /** Six panels forming a closed box, with eight shelves inside. From outside none of the shelves show. */
+    private fun closedBoxWithShelf(): List<splitziner.mesh.Mesh> = listOf(
+        Fixtures.box(0.0, 400.0, 0.0, 300.0, 0.0, 18.0), Fixtures.box(0.0, 400.0, 0.0, 300.0, 482.0, 500.0),
+        Fixtures.box(0.0, 18.0, 0.0, 300.0, 18.0, 482.0), Fixtures.box(382.0, 400.0, 0.0, 300.0, 18.0, 482.0),
+        Fixtures.box(18.0, 382.0, 0.0, 18.0, 18.0, 482.0), Fixtures.box(18.0, 382.0, 282.0, 300.0, 18.0, 482.0),
+    ) + (1..8).map { i -> Fixtures.box(18.0, 382.0, 18.0, 282.0, i * 50.0, i * 50.0 + 12.0) }
+
+    @Test fun closedBoxIsDrawnAsSections() {
+        val fmt = LengthFormat("mm")
+        val parts = closedBoxWithShelf().mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val cut = CutList.build(parts, fmt)
+        val vs = splitziner.drawing.DrawingBuilder.views(cut.parts)
+        assertEquals(setOf("front", "right"), vs.sections.keys)
+        assertEquals("A", vs.sections.getValue("front").letter); assertEquals("B", vs.sections.getValue("right").letter)
+        // The front section cuts the two sides, top, bottom and eight shelves. The front and back panels are not cut.
+        assertEquals(12, vs.sections.getValue("front").faces.size)
+        assertEquals(0, vs.views.getValue("front").hidden.size)
+        val r = splitziner.drawing.DrawingBuilder.build(cut.parts, cut.rows, vs, splitziner.sheet.DrawingInfo(title = "Box, closed, with shelf", drawingNo = "BOX-1"), splitziner.drawing.DrawingSettings(), fmt)
+        java.io.File("build/preview").mkdirs()
+        java.io.File("build/preview/box_sheet1.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[0]))
+        println("box: sheet ${r.sheet.letter} ${r.scaleText} qa ${r.qa}")
+    }
+
+    @Test fun clippedCubeIsHalfTheVolume() {
+        val cube = Fixtures.box(0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+        val v = splitziner.view.ViewDef.FRONT
+        val origin = Vec3(0.0, 5.0, 0.0)
+        val face = splitziner.section.SectionBuilder.sectionPolygons(cube, origin, v)
+        assertNotNull(face); assertEquals(100.0, face!!.area, 1e-3)
+        val half = splitziner.section.SectionBuilder.clipBehind(cube, origin, v, face)
+        assertEquals(500.0, abs(half.volume), 0.05)
+    }
+
+    @Test fun openCabinetIsNotSectioned() {
+        val parts = Fixtures.miniCabinet(Fixtures.INCH).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        assertTrue(splitziner.drawing.DrawingBuilder.views(parts).sections.isEmpty())
+    }
+}

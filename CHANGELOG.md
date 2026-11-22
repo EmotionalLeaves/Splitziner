@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 - Section views
+
+Section views: when the inside of your model is hidden, the drawing cuts it open.
+
+- **Automatic sections.** If the front or side view would mostly be hidden edges (a closed cabinet, a box with shelves inside), the app draws that view as a section instead: sliced through near the middle, with the cut material hatched and the shelves behind shown clearly. The view is labelled **SECTION A-A** (and **B-B** for the side).
+- **Cutting-plane marks on the top view** show where each cut was taken and which way you are looking, with matching letters.
+- **Touching parts are hatched at different angles** so you can tell them apart; very thin parts are filled solid.
+- The cut is placed to avoid slicing along a face or through small pieces.
+- Open models that already show their inside (like an open-front bookcase) are left as normal views. To turn sections off, open **Title block** and choose **Never** under Section views.
+
 ## v0.4.0 - Exploded view and build guide
 
 Exploded view and a step-by-step build guide.
