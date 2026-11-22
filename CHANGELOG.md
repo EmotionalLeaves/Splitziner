@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.53.0 - Build mode and shopping list polish
+
+- **Build mode:** steps without a title of their own now show their first instruction as the title (for example "Fit item 1 (side) from the left") instead of "Fit the parts". The parts each step needs are listed in ordinary type.
+- **Shopping list:** advice such as "buy about 10% extra screws" now appears as a note under the list instead of as a line to tick off.
+
 ## v0.52.0 - Build mode: the guide one step per screen
 
 - **Build mode** on the Guide tab is for using in the workshop. It shows the guide one step per screen: a large picture, what the step uses, and numbered instructions, with any check to make. Tap **Done, next** to move on. The app remembers which steps are done, so next time you open it, it picks up where you left off.
