@@ -209,3 +209,10 @@ Departures from the build spec, newest first.
 ## v0.87
 - Modules must be boxes that meet only side to side (two panels back to back). Bays that share an upright (a library whose shelves run into the next bay's side) are one piece of furniture.
 - The device tests now open a 69-part kitchen run (four cabinets, eight doors, four drawers, one worktop), build its guide and export it as a PDF, so complicated projects are checked on a phone on every release.
+
+## v0.88
+- Ran every complex model with every joining method and scanned the guide text for anomalies.
+- Dowels follow the pocket-screw rule: only an end or edge meeting a face. Two faces, a board lying on its support, or a thin panel take plain screws or brads. A plain screwed or pinned joint is worded as such whatever method is chosen.
+- Even spacing is only given across empty gaps (not across a divider between two bays' tops) and is also looked for within one stack (a bay's shelves). Ties in build order go to the group that reaches less high.
+- Metric boards snap to whole-millimetre stock thickness: a 3/4 in board is 19 mm, not "19.1".
+- A step with more than three kinds of part is titled with the first two "and N more", instead of a bare "Step 3".
