@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.75.0 - Frames by name in the guide
+
+- **Clearer wording for frames in the guide:** a sub-assembly with legs is called a **frame** ("Step 1: make 2 frames from items 2 and 4"). The steps say "Place one frame from step 1", then "Fit the other frame from step 1", instead of "the sub-assembly" both times.
+
 ## v0.74.0 - Material with a new design
 
 - **Choose a material when you start a new design.** Under the preview, pick plywood, birch plywood, MDF, pine, poplar or oak, or leave it unset. Every part gets that material from the start, so the weight, the list of material and the cutting plan labels are filled in straight away. You can still change any part on the Cut list tab.
