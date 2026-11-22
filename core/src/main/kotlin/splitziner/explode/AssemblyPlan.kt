@@ -123,11 +123,12 @@ object AssemblyPlan {
         val tol = maxOf(1e-3 * (allHi - allLo).length, 0.05)
         val cen = (allLo + allHi) * 0.5
 
-        // Base: of the parts standing on the floor, the one with the largest footprint.
-        var base = 0; var bestFoot = -1.0
+        // Base: of the parts standing on the floor, the biggest. A bookcase starts from a side, not from the kick
+        // board that happens to have the wider footprint; a table from a leg, a cabinet from its bottom.
+        var base = 0; var best = -1.0
         for (i in 0 until n) if (lo[i].z <= allLo.z + tol) {
-            val foot = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y)
-            if (foot > bestFoot) { bestFoot = foot; base = i }
+            val size = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y) * (hi[i].z - lo[i].z)
+            if (size > best) { best = size; base = i }
         }
 
         // Shadow of every part along each axis, shrunk a little so parts that only touch do not count as overlapping.
