@@ -30,6 +30,6 @@ Tap **Copy diagnostic report** in the app and paste the text into an issue or a 
 - `core/` is the engine in plain Kotlin with no Android code: `./gradlew :core:test`.
 - `cli/` runs the engine on a file: `./gradlew :cli:run --args="model.stl"`.
 - `app/` is the Android app. It is only configured when an Android SDK is present.
-- A release is cut by adding a `## vX.Y.Z` heading to `CHANGELOG.md` (see `scripts/release.sh`); CI builds and publishes the APK.
+- A release is cut by adding a `## vX.Y.Z` heading to `CHANGELOG.md` (see `scripts/release.sh`); the CI run for that push tests, builds and publishes the APK.
 - The APK is signed with a deliberately public key in `keystore/` so every build installs over the last. Do not reuse it for a store release.
 - The build spec is in `docs/SPEC.md`; choices that differ from it are in `docs/DECISIONS.md`.

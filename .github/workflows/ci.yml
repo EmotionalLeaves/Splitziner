@@ -1,5 +1,8 @@
 name: CI
 
+# Every push to main is tested and built. If the top "## vX.Y.Z" heading in CHANGELOG.md
+# has no release yet, the same run publishes the APK as that release: bump the changelog,
+# push, done. One job on purpose: two jobs downloading dependencies at once get rate-limited.
 on:
   push:
     branches: [main]
@@ -11,14 +14,28 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Engine tests + APK
+    name: Tests, APK, release
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+
+      - name: Work out version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep -m1 -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed 's/^## v//')
+          [ -z "$VERSION" ] && VERSION=0.0.1
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [ "${{ github.event_name }}" = "pull_request" ] || gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"; echo "v$VERSION: build only"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"; echo "v$VERSION: will be released"
+          fi
 
       - uses: actions/setup-java@v5
         with:
@@ -35,23 +52,56 @@ jobs:
       - name: Test & build
         run: |
           set -o pipefail
-          ./gradlew --no-daemon --stacktrace :core:test :app:assembleRelease 2>&1 | tee build-output.txt
+          # Dependency hosts sometimes answer 429 (too many requests); what was fetched stays cached, so retry.
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon --stacktrace -PversionName="$VERSION" :core:test :app:assembleRelease 2>&1 | tee build-output.txt; then exit 0; fi
+            if ! grep -qE "HTTP 429|was not found in any of the following sources|Could not resolve|Could not GET" build-output.txt; then exit 1; fi
+            echo "Dependency download failed (attempt $attempt); retrying in 30 s"; sleep 30
+          done
+          exit 1
+
+      - name: Collect and verify
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/Splitziner-$VERSION.apk"
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
+          "$APKSIGNER" verify --print-certs "out/Splitziner-$VERSION.apk" | head -3
+
+      - name: Release notes from CHANGELOG
+        if: steps.version.outputs.release == 'true'
+        run: |
+          awk -v v="## v$VERSION" 'index($0,v)==1{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          cat >> notes.md <<'NOTES'
+
+          **Install:** open this page on your phone, tap the `.apk` under Assets, and allow the install when Android asks. It installs over the previous version and keeps your projects.
+          NOTES
+
+      - uses: softprops/action-gh-release@v2
+        if: steps.version.outputs.release == 'true'
+        with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          name: Splitziner v${{ env.VERSION }}
+          body_path: notes.md
+          files: out/*.apk
 
       - name: Report the result on the commit
         if: always() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           STATUS: ${{ job.status }}
+          RELEASED: ${{ steps.version.outputs.release }}
         run: |
           {
-            echo "### CI $STATUS"
-            if [ "$STATUS" != "success" ]; then
+            echo "### CI $STATUS (v$VERSION, released: $RELEASED)"
+            if [ "$STATUS" != "success" ] && [ -f build-output.txt ]; then
               echo '```'
-              grep -A3 -E "^e: |error:|FAILED|What went wrong|AssertionError" build-output.txt | head -100 || true
+              grep -A3 -E "^e: |error:|FAILED|What went wrong|AssertionError" build-output.txt | grep -v "^\s*at " | head -100 || true
               echo '```'
               echo 'Tail:'
               echo '```'
-              tail -40 build-output.txt
+              grep -v "^\s*at " build-output.txt | tail -40
               echo '```'
             fi
           } | head -c 60000 > result.md
@@ -71,5 +121,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: splitziner-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: out/*.apk
           if-no-files-found: error
