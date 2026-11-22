@@ -141,14 +141,14 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import STL") }
+            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import STL or OBJ") }
             OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
         }
         if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
         BusyBar(state)
         Spacer(Modifier.height(8.dp))
         if (state.projects.isEmpty() && state.busyLabel == null) {
-            Text("Import an STL file to get started.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 24.dp))
+            Text("Import an STL or OBJ file, or start a new design.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 24.dp))
         }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(state.projects, key = { it.id }) { p ->

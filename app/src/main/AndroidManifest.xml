@@ -22,7 +22,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- "Open with" for STL files. Providers report STL under several MIME types. -->
+            <!-- "Open with" for STL and OBJ files. Providers report STL under several MIME types. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.SEND" />
@@ -34,6 +34,7 @@
                 <data android:mimeType="application/vnd.ms-pki.stl" />
                 <data android:mimeType="model/x.stl-binary" />
                 <data android:mimeType="model/x.stl-ascii" />
+                <data android:mimeType="model/obj" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>

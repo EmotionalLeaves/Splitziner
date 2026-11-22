@@ -58,7 +58,7 @@ object StlReader {
      */
     const val MAX_TRIANGLES = 20_000_000
 
-    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head)
+    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head) || ObjReader.looksLikeObj(head)
 
     private fun declaredCount(head: ByteArray): Long =
         if (head.size < 84) -1 else ByteBuffer.wrap(head, 80, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
@@ -79,6 +79,12 @@ object StlReader {
     fun read(open: () -> java.io.InputStream, size: Long, name: String = "model.stl"): RawModel {
         val warnings = ArrayList<String>()
         val head = open().use { s -> val b = ByteArray(1024); var n = 0; while (n < b.size) { val r = s.read(b, n, b.size - n); if (r < 0) break; n += r }; b.copyOf(n) }
+        // OBJ files are read too, by name or by their first lines.
+        if (name.lowercase().endsWith(".obj") || (!isBinary(head, size) && !isAscii(head) && ObjReader.looksLikeObj(head))) {
+            val r = open().use { ObjReader.read(it, warnings) }
+            if (r.soup.isEmpty()) throw StlException("The file contains no triangles")
+            return RawModel(r.soup, name, warnings).also { it.groups = r.groups }
+        }
         val n = declaredCount(head)
         val soup = when {
             // Binary is tested first: many binary files begin with the word "solid".

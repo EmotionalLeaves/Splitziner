@@ -1127,3 +1127,21 @@ class StretchTest {
         assertEquals(700.0, narrower.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents.x, 1e-6)
     }
 }
+
+class ObjTest {
+    @Test fun objObjectsBecomeParts() {
+        // Two unit cubes as quads, written the way most programs write OBJ.
+        val sb = StringBuilder("# test\nmtllib x.mtl\n")
+        for ((k, ox) in listOf(0.0, 50.0).withIndex()) {
+            sb.append("o Box$k\n")
+            for (z in listOf(0.0, 10.0)) for (y in listOf(0.0, 10.0)) for (x in listOf(0.0, 10.0)) sb.append("v ${x + ox} $y $z\n")
+            val b = 8 * k
+            fun f(vararg i: Int) = sb.append("f " + i.joinToString(" ") { "${it + b}/1/1" } + "\n")
+            f(1, 3, 4, 2); f(5, 6, 8, 7); f(1, 2, 6, 5); f(3, 7, 8, 4); f(1, 5, 7, 3); f(2, 4, 8, 6)
+        }
+        val bytes = sb.toString().toByteArray()
+        val a = Pipeline.analyze(bytes, "boxes.obj", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, a.parts.size)
+        assertTrue(a.parts.all { abs(abs(it.mesh.volume) - 1000.0) < 1e-6 }, a.parts.map { it.mesh.volume }.toString())
+    }
+}
