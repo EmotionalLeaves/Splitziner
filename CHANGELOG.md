@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.62.0 - Print from the app
+
+- **Print straight from the app.** Print opens your phone's print screen, where you can pick a printer on your Wi-Fi or choose "Save as PDF". It's on the Guide tab, under More on the Drawing tab, and in the cutting plan.
+- In the cutting plan, the buttons wrap onto a second line on narrow phones. The shopping-list button is now just "Share list".
+
 ## v0.61.0 - Bed frame template and more accurate joints
 
 - **New template: Bed frame.** It has side and end rails round the mattress, legs in the corners, cleats along the side rails carrying slats, and a centre rail on two more legs so no slat spans more than half the width. Set the mattress size, height, rail and leg sizes, and the slat width and gap. The guide builds the side frames (rail, legs and cleat) on the bench, then joins them and screws the slats down.
