@@ -129,9 +129,9 @@ private fun copy(context: Context, text: String) {
 private fun BusyBar(state: UiState) {
     val label = state.busyLabel ?: return
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(progress = { state.busyFraction }, modifier = Modifier.fillMaxWidth())
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(progress = { state.busyFraction }, modifier = Modifier.fillMaxWidth().height(6.dp), strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
     }
 }
 
@@ -321,13 +321,20 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 }
             },
         )
-        BusyBar(state)
+        Box(Modifier.padding(horizontal = 16.dp)) { BusyBar(state) }
+        // The check runs as soon as a project opens, so its tab can say at once whether anything needs attention.
+        LaunchedEffect(open.analysis) { vm.ensureCheck() }
+        val problems = state.check?.problems ?: 0
         // One row of tabs, all six always in view: compact labels without the usual side padding fit a narrow phone.
         androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
             listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label ->
                 androidx.compose.material3.Tab(selected = tab == i, onClick = { tab = i }, selectedContentColor = MaterialTheme.colorScheme.primary, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
-                    Text(label, style = if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 380) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                        maxLines = 1, softWrap = false, modifier = Modifier.padding(vertical = 14.dp))
+                    Row(Modifier.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 380) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                            maxLines = 1, softWrap = false)
+                        // A small red dot on Check when there are problems to fix.
+                        if (i == 5 && problems > 0) Box(Modifier.padding(start = 3.dp).size(7.dp).background(MaterialTheme.colorScheme.error, androidx.compose.foundation.shape.CircleShape))
+                    }
                 }
             }
         }
