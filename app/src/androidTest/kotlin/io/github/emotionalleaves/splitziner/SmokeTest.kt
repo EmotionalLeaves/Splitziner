@@ -113,6 +113,17 @@ class SmokeTest {
             assertTrue(guide.stepCount >= 2)
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
+            // Build mode: a step a screen; Done moves on and is remembered.
+            runCatching {
+                tap("Build mode")
+                rule.waitUntil(20_000) { rule.onAllNodesWithText("Step 1 of", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                tap("Done, next")
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Step 2 of", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                shot("c05b_build_mode")
+                println("SMOKE build mode moves on")
+                tap("Back"); tap("Not done")
+                rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
+            }.onFailure { println("SMOKE build mode failed: ${it.message}") }
             // The build pack: every output in one zip.
             val pack = makeBuildPack(ctx, vm.state.value.open!!, vm, vm.state.value.drawing!!, guide)
             val names = java.util.zip.ZipFile(pack).use { z -> z.entries().toList().map { it.name } }

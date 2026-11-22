@@ -26,7 +26,10 @@ class OpenProject(val meta: ProjectMeta, val analysis: Analysis)
 
 /** The drawing for the open project: its sheets ready to show, and what the engine wants the user to know. */
 /** The build guide for the open project, laid out on pages. */
-class GuideState(val pages: List<PreparedSheet>, val stepCount: Int, val steps: List<splitziner.explode.BuildStep>)
+class GuideState(val pages: List<PreparedSheet>, val stepCount: Int, val steps: List<splitziner.explode.BuildStep>, val work: List<WorkStep> = emptyList())
+
+/** One step as the build mode shows it, a screen at a time: its picture, what it uses, what to do. */
+class WorkStep(val title: String, val picture: PreparedSheet, val parts: List<String>, val text: List<String>, val check: String?)
 
 class DrawingState(
     val sheets: List<PreparedSheet>, val labels: List<String>, val sheetLetter: String, val scaleText: String, val qa: List<String>,
@@ -308,7 +311,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta), fasten))
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
-                    GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
+                    val work = steps.map { st -> WorkStep(st.title, PreparedSheet.of(st.picture), st.parts.map { (what, n) -> "$n\u00d7 $what" }, st.text, st.check) }
+                    GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps, work)
                 }
                 _state.update { it.copy(guide = result, guideBusy = false) }
             } catch (e: kotlinx.coroutines.CancellationException) {

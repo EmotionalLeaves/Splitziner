@@ -850,6 +850,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     var page by rememberSaveable { mutableIntStateOf(0) }
     var showEditor by remember { mutableStateOf(false) }
     var showJoin by remember { mutableStateOf(false) }
+    var showBuild by remember { mutableStateOf(false) }
     if (showJoin) {
         val current = vm.methodFor(open.meta)
         val owned = vm.toolsFor(open.meta)
@@ -893,12 +894,77 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         }
         if (g != null) PagerBar("Page ${shown + 1} of ${g.pages.size}", "${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
+            Button(onClick = { showBuild = true }, enabled = g != null && !state.guideBusy && g.work.isNotEmpty()) { Text("Build mode") }
+            OutlinedButton(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
             OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
             OutlinedButton(onClick = { showJoin = true }, enabled = !state.guideBusy) { Text("Joining") }
         }
     }
     if (showEditor && g != null) StepEditor(open, g.steps, vm, onDismiss = { showEditor = false })
+    if (showBuild && g != null) BuildModeDialog(open, g.work, onDismiss = { showBuild = false })
+}
+
+/**
+ * The guide a step at a screen, for the workshop: the picture large, what the step uses, what to do, then
+ * "Done" moves on. Steps marked done are kept with the project, so the build can be picked up another day.
+ */
+@Composable
+private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("build", Context.MODE_PRIVATE) }
+    val key = "done_${open.meta.id}"
+    var done by remember { mutableStateOf(prefs.getStringSet(key, emptySet())!!.mapNotNull { it.toIntOrNull() }.toSet()) }
+    // Opens at the first step not yet done.
+    var at by remember { mutableIntStateOf((work.indices.firstOrNull { it !in done } ?: 0)) }
+    fun save() { prefs.edit().putStringSet(key, done.map { it.toString() }.toSet()).apply() }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            val st = work[at.coerceIn(0, work.size - 1)]
+            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    Column(Modifier.weight(1f)) {
+                        Text("Step ${at + 1} of ${work.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(st.title.substringAfter(": ", st.title).replaceFirstChar { it.uppercase() }.let { if (it.startsWith("Step ")) "Fit the parts" else it },
+                            style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (at in done) Text("Done", style = MaterialTheme.typography.labelLarge, color = successColors().second,
+                        modifier = Modifier.background(successColors().first, MaterialTheme.shapes.small).padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+                LinearProgressIndicator(progress = { done.size.toFloat() / work.size }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                Box(Modifier.fillMaxWidth().weight(0.9f).background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.medium).padding(4.dp)) {
+                    io.github.emotionalleaves.splitziner.render.SheetPreview(st.picture, Modifier.fillMaxSize())
+                }
+                LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp)) {
+                    if (st.parts.isNotEmpty()) {
+                        item { Text("You need", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                        items(st.parts) { Text("\u2022 $it", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                    item { Text("What to do", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
+                    items(st.text.size) { i ->
+                        Row(Modifier.padding(vertical = 3.dp)) {
+                            Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                            Text(st.text[i], style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    st.check?.let { c -> item {
+                        Card(Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                            Text("Check: $c", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(10.dp))
+                        }
+                    } }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { at -= 1 }, enabled = at > 0) { Text("Back") }
+                    if (at in done) OutlinedButton(onClick = { done = done - at; save() }) { Text("Not done") }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = {
+                        done = done + at; save()
+                        if (at < work.size - 1) at += 1 else onDismiss()
+                    }) { Text(if (at < work.size - 1) "Done, next" else "Finish") }
+                }
+            }
+        }
+    }
 }
 
 /** Lets the user fix the drafted build order and rewrite each step's wording. */
@@ -1021,6 +1087,7 @@ private val HELP = listOf(
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
+    "Build mode" to "On the Guide tab, Build mode shows the guide one step to a screen, for the workshop: the picture large, the parts and hardware the step uses, and what to do, numbered. Done, next marks the step done and moves on; the app remembers which steps are done, so you can stop and pick up another day where you left off.",
     "Shopping list" to "On the Cut list tab, Shopping list opens a checklist of everything to buy: the sheets and lengths from the cutting plan, edge banding, and the screws, hinges and slides the guide uses. Tick each line as it goes in the trolley; the ticks stay with the project until you clear them. Share sends the list as text.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Share list to buy sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
