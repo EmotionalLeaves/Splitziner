@@ -268,4 +268,30 @@ class SmokeTest {
             assertNull(Diagnostics.lastCrash())
         }
     }
+
+    /** An OBJ file (Y up, two objects) opens as two parts standing the right way up. */
+    @Test fun objFileOpens() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File(ctx.cacheDir, "smoke_boxes.obj")
+        val sb = StringBuilder()
+        for ((k, ox) in listOf(0.0, 500.0).withIndex()) {
+            sb.append("o Box$k\n")
+            // 400 wide, 18 thick, 300 tall in Y (up in OBJ).
+            for (z in listOf(0.0, 18.0)) for (y in listOf(0.0, 300.0)) for (x in listOf(0.0, 400.0)) sb.append("v ${x + ox} $y $z\n")
+            val b = 8 * k
+            fun f(vararg i: Int) = sb.append("f " + i.joinToString(" ") { "${it + b}" } + "\n")
+            f(1, 3, 4, 2); f(5, 6, 8, 7); f(1, 2, 6, 5); f(3, 7, 8, 4); f(1, 5, 7, 3); f(2, 4, 8, 6)
+        }
+        file.writeText(sb.toString())
+        val intent = Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.fromFile(file))
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val a = vm.state.value.open!!.analysis
+            assertEquals(2, a.parts.size)
+            println("SMOKE obj ok: ${a.parts.size} parts, ${a.overallSize}")
+        }
+    }
 }
