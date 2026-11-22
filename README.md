@@ -22,7 +22,8 @@ New versions install over the old one and keep your projects.
 - **Split parts** shared as separate STL files.
 - **Cutting plan**: panels laid out on sheets and boards along bought lengths, with what to buy.
 - **Design check**: finds parts that overlap, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, long unsupported spans and a design that would tip. Tick the **tools** you own and it says which parts you cannot make with them.
-- **Fixing**: proposes changes that make a model buildable (close gaps, join pieces of one sheet, trim overlaps, stock thicknesses), shows them first, and can be undone. Share the changed model as STL.
+- **Editing**: select a part in 3D to resize, move, slide it against its neighbours, copy, square up, split into boards or delete; add new boards; start a new design from scratch. Every change can be undone.
+- **Fixing**: splits frames, boxes and channels drawn as one solid into real boards, and proposes changes that make a model buildable (close gaps, join pieces of one sheet, trim overlaps, stock thicknesses), shows them first, and can be undone. Share the changed model as STL.
 
 ## What it cannot know
 

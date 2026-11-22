@@ -98,6 +98,20 @@ class SmokeTest {
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
 
+            // Editing: move a part up 100 mm and add a board; both must be there after the model is re-read.
+            val first = open.analysis.parts.first()
+            val z0 = first.mesh.bounds.min.z
+            vm.addEdit(splitziner.edit.Edit.Move(listOf(first.id), splitziner.math.Vec3(0.0, 0.0, 100.0)))
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.size == 1 }
+            vm.addEdit(splitziner.edit.Edit.AddBox("N1", "Shelf", splitziner.math.Vec3(0.0, 0.0, 2000.0), splitziner.math.Vec3(500.0, 300.0, 18.0)))
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.size == 2 }
+            val edited = vm.state.value.open!!.analysis
+            assertEquals(z0 + 100.0, edited.parts.first { it.id == first.id }.mesh.bounds.min.z, 1e-6)
+            assertEquals(open.analysis.parts.size + 1, edited.parts.size)
+            vm.undoLastEdit()
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.size == 1 }
+            println("SMOKE editing ok: ${edited.parts.size} parts after adding one")
+
             // Back to 3D with the pull-apart offsets ready, then give it time to fail if it is going to.
             vm.ensureExplodeOffsets()
             waitFor(vm, 120_000) { vm.state.value.explodeOffsets != null }

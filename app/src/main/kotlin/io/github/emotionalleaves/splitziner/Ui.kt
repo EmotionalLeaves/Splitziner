@@ -139,7 +139,10 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.fillMaxWidth()) { Text("Import STL") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import STL") }
+            OutlinedButton(onClick = { vm.newDesign() }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
+        }
         BusyBar(state)
         Spacer(Modifier.height(8.dp))
         if (state.projects.isEmpty() && state.busyLabel == null) {
@@ -188,6 +191,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var pull by remember { mutableFloatStateOf(0f) }
     var showHelp by remember { mutableStateOf(false) }
     var editRow by remember { mutableStateOf<CutListRow?>(null) }
+    var shapePart by remember { mutableStateOf<Part?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
+    shapePart?.let { p -> ShapeDialog(p, open, onDismiss = { shapePart = null }) { e -> shapePart = null; vm.addEdit(e) } }
+    if (showAdd) AddBoardDialog(open, onDismiss = { showAdd = false }) { e -> showAdd = false; vm.addEdit(e); selectedId = (e as? splitziner.edit.Edit.AddBox)?.id }
     var showCutPlan by remember { mutableStateOf(false) }
     if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
     val context = LocalContext.current
@@ -242,8 +249,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         Text("${sel.name}  \u00b7  item ${sel.item ?: "-"}  \u00d7${sel.qty}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(sel.desc, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    TextButton(onClick = { editPart = sel }) { Text("Edit") }
+                    TextButton(onClick = { shapePart = sel }) { Text("Change") }
+                    TextButton(onClick = { editPart = sel }) { Text("Name") }
                 }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
+                if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
             }
         } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
@@ -739,6 +751,8 @@ private val HELP = listOf(
     "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
     "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
     "Check" to "The Check tab looks at the model the way someone about to build it would. It flags parts that pass through each other, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, shelves that run a long way between supports, and whether it would tip over. Problems (red) stop the build as drawn; Check items (amber) need your judgement. It works from shapes alone: it knows nothing about wood, glue, screws or loads, and its sag and balance findings are rules of thumb.",
+    "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place. New design on the home screen starts from a single board. Undo takes the last change back.",
+    "Frames and boxes drawn as one piece" to "3D programs often join a frame, an open box or a channel into one solid. Nobody can cut that from one board. The check finds these and offers Make from N boards, which splits the part into the plain boards it would be built from. Frames with a step in their thickness (a rebate) become two stacked layers, which make the same step. Rounded corners come out square.",
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about grain, defects or offcuts you already own.",
@@ -976,6 +990,135 @@ private fun ToolsDialog(owned: Set<splitziner.check.Tool>, onDismiss: () -> Unit
                         Text(t.label)
                     }
                 }
+            }
+        },
+    )
+}
+
+
+private fun num(s: String): Double? = s.trim().replace(',', '.').toDoubleOrNull()
+
+/** A length in the project's units for a text field: no trailing zeros. */
+private fun field(mm: Double, unit: Double) = String.format(java.util.Locale.ROOT, "%.3f", mm / unit).trimEnd('0').trimEnd('.')
+
+private fun newId(open: OpenProject, prefix: String): String {
+    val used = open.analysis.originalParts.map { it.id }.toSet() + open.meta.edits.flatMap { e ->
+        when (e) { is splitziner.edit.Edit.AddBox -> listOf(e.id); is splitziner.edit.Edit.Duplicate -> listOf(e.newId); else -> emptyList() }
+    }
+    var n = 1
+    while ("$prefix$n" in used) n++
+    return "$prefix$n"
+}
+
+/**
+ * Changes to one part: its size, where it is, and whole-part actions. Sizes are typed in the project's units.
+ * "Slide until it touches" moves the part the shortest way along one direction until it meets another part.
+ */
+@Composable
+private fun ShapeDialog(p: Part, open: OpenProject, onDismiss: () -> Unit, onEdit: (splitziner.edit.Edit) -> Unit) {
+    val fmt = open.analysis.format
+    val unit = if (fmt.isInch) 25.4 else 1.0
+    var t by remember { mutableStateOf(field(p.t, unit)) }
+    var w by remember { mutableStateOf(field(p.w, unit)) }
+    var l by remember { mutableStateOf(field(p.l, unit)) }
+    var dx by remember { mutableStateOf("0") }; var dy by remember { mutableStateOf("0") }; var dz by remember { mutableStateOf("0") }
+    var msg by remember { mutableStateOf<String?>(null) }
+    val boards = remember(p) { runCatching { splitziner.edit.Boards.decompose(p.mesh).first }.getOrNull() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Change ${p.name}") },
+        text = {
+            LazyColumn {
+                item {
+                    Text(p.desc, style = MaterialTheme.typography.bodySmall)
+                    Text("Size (${fmt.unitLabel}): thickness, width, length", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedTextField(t, { t = it }, label = { Text("T") }, singleLine = true, modifier = Modifier.weight(1f))
+                        OutlinedTextField(w, { w = it }, label = { Text("W") }, singleLine = true, modifier = Modifier.weight(1f))
+                        OutlinedTextField(l, { l = it }, label = { Text("L") }, singleLine = true, modifier = Modifier.weight(1f))
+                    }
+                    TextButton(onClick = {
+                        val a = num(t); val b = num(w); val c = num(l)
+                        if (a == null || b == null || c == null || a <= 0 || b <= 0 || c <= 0) msg = "Enter three sizes greater than zero"
+                        else onEdit(splitziner.edit.Edit.Resize(p.id, a * unit, b * unit, c * unit))
+                    }) { Text("Set size (about its centre)") }
+                    Text("Move by (${fmt.unitLabel}): right, back, up", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedTextField(dx, { dx = it }, label = { Text("X") }, singleLine = true, modifier = Modifier.weight(1f))
+                        OutlinedTextField(dy, { dy = it }, label = { Text("Y") }, singleLine = true, modifier = Modifier.weight(1f))
+                        OutlinedTextField(dz, { dz = it }, label = { Text("Z") }, singleLine = true, modifier = Modifier.weight(1f))
+                    }
+                    fun d(): splitziner.math.Vec3? { val a = num(dx); val b = num(dy); val c = num(dz); return if (a == null || b == null || c == null) null else splitziner.math.Vec3(a * unit, b * unit, c * unit) }
+                    Row {
+                        TextButton(onClick = { val v = d(); if (v == null) msg = "Enter three numbers (0 for no move)" else onEdit(splitziner.edit.Edit.Move(listOf(p.id), v)) }) { Text("Move") }
+                        TextButton(onClick = {
+                            val v = d()
+                            if (v == null) msg = "Enter where the copy goes, as a move"
+                            else onEdit(splitziner.edit.Edit.Duplicate(p.id, newId(open, "C"), if (v.length < 1e-9) splitziner.math.Vec3(0.0, 0.0, p.mesh.extents.z + 10.0) else v))
+                        }) { Text("Copy, moved") }
+                    }
+                    Text("Slide until it touches", style = MaterialTheme.typography.labelMedium)
+                    val others = open.analysis.parts.filter { it.id != p.id && !it.excluded }
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        for ((label, dir) in listOf("Down" to splitziner.math.Vec3(0.0, 0.0, -1.0), "Up" to splitziner.math.Vec3(0.0, 0.0, 1.0), "Left" to splitziner.math.Vec3(-1.0, 0.0, 0.0),
+                            "Right" to splitziner.math.Vec3(1.0, 0.0, 0.0), "Back" to splitziner.math.Vec3(0.0, 1.0, 0.0), "Front" to splitziner.math.Vec3(0.0, -1.0, 0.0))) {
+                            TextButton(onClick = {
+                                val gap = splitziner.check.DesignCheck.gap(listOf(p), others, dir)
+                                if (gap == null || gap > 5000) msg = "Nothing is in that direction" else if (gap < 0.01) msg = "It already touches that way" else onEdit(splitziner.edit.Edit.Move(listOf(p.id), dir * gap))
+                            }) { Text(label) }
+                        }
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        TextButton(onClick = { onEdit(splitziner.edit.Edit.SquareUp(listOf(p.id))) }) { Text("Square up") }
+                        if (boards != null) TextButton(onClick = { onEdit(splitziner.edit.Edit.SplitBoards(listOf(p.id))) }) { Text("Make from ${boards.pieces.size} boards") }
+                        TextButton(onClick = { onEdit(splitziner.edit.Edit.Delete(listOf(p.id))) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                    }
+                    msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    Text("Every change can be undone; your file is never altered.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        },
+    )
+}
+
+/** A new rectangular board. It starts on top of the model, in the middle, ready to be slid into place. */
+@Composable
+private fun AddBoardDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitziner.edit.Edit) -> Unit) {
+    val fmt = open.analysis.format
+    val unit = if (fmt.isInch) 25.4 else 1.0
+    val b = open.analysis.bounds
+    var sx by remember { mutableStateOf(field(if (fmt.isInch) 24 * 25.4 else 600.0, unit)) }
+    var sy by remember { mutableStateOf(field(if (fmt.isInch) 3.5 * 25.4 else 90.0, unit)) }
+    var sz by remember { mutableStateOf(field(if (fmt.isInch) 0.75 * 25.4 else 18.0, unit)) }
+    var name by remember { mutableStateOf("") }
+    var msg by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val x = num(sx); val y = num(sy); val z = num(sz)
+                if (x == null || y == null || z == null || x <= 0 || y <= 0 || z <= 0) { msg = "Enter three sizes greater than zero"; return@TextButton }
+                val size = splitziner.math.Vec3(x * unit, y * unit, z * unit)
+                val c = b.center
+                val min = splitziner.math.Vec3(c.x - size.x / 2, c.y - size.y / 2, b.max.z + 20.0)
+                val id = newId(open, "N")
+                onAdd(splitziner.edit.Edit.AddBox(id, name.trim().ifBlank { id }, min, size))
+            }) { Text("Add") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Add a board") },
+        text = {
+            Column {
+                Text("Size in ${fmt.unitLabel}: left-right, front-back, up-down. It appears above the model; select it and use Change > Slide to put it in place.", style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(sx, { sx = it }, label = { Text("X") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(sy, { sy = it }, label = { Text("Y") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(sz, { sz = it }, label = { Text("Z") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, singleLine = true)
+                msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },
     )

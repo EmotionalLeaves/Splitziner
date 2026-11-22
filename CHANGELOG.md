@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.14.0 - Real boards, and editing in the app
+
+Real boards, and editing in the app.
+
+- **Frames, boxes and channels drawn as one solid become real boards.** 3D programs often join a frame or an open box into one piece that nobody could cut. The check now finds these and offers **Make from N boards**. On the test desk: each leg frame becomes 4 boards instead of "a 3-inch slab with a hole", the drawer cabinet becomes 6 boards, the long rail 3. Frames with a step for a panel become two stacked layers, which make the same step. Rounded corners come out square.
+- **Fix what can be fixed does this too**, for shapes that cannot be bought or cut in one piece. Its list is now one line per change, named by the item numbers you see on the Cut list, with how much any piece is trimmed. No part loses more than a quarter in total.
+- **Change parts yourself.** On the 3D tab, tap a part and choose **Change**: set its size, move it, **slide it until it touches** the next part (up, down, left, right, back, front), copy it, square it up, make it from boards, or delete it. **Add a board** puts a new board above the model to slide into place. **Undo** takes the last change back.
+- **New design** on the home screen starts a project from a single board.
+- **The changed model keeps its parts.** "Whole model (STL)" marks each part in the file, so opening it again gives the same parts. Text STL files with several named solids are now kept as separate parts too.
+- **Cut list wording:** a stick with a notch sawn in it is now listed as a notched board, not a "solid block".
+
 ## v0.13.0 - Much larger STL files
 
 Much larger and more complex STL files.
