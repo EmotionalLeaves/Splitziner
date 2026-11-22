@@ -483,3 +483,60 @@ class SectionTest {
         assertTrue(splitziner.drawing.DrawingBuilder.views(parts).sections.isEmpty())
     }
 }
+
+class OrganicModelTest {
+    /** A lumpy closed surface with many small triangles: nothing like furniture. */
+    private fun blob(n: Int): splitziner.mesh.Mesh {
+        val v = ArrayList<Double>(); val t = ArrayList<Int>()
+        for (i in 0..n) for (j in 0 until n) {
+            val th = Math.PI * i / n; val ph = 2 * Math.PI * j / n
+            val r = 40.0 + 6 * Math.sin(5 * th) * Math.cos(3 * ph) + 3 * Math.sin(9 * ph)
+            v += r * Math.sin(th) * Math.cos(ph); v += r * Math.sin(th) * Math.sin(ph); v += r * Math.cos(th) * 1.4
+        }
+        for (i in 0 until n) for (j in 0 until n) {
+            val a = i * n + j; val b = i * n + (j + 1) % n; val c = (i + 1) * n + j; val d = (i + 1) * n + (j + 1) % n
+            t += a; t += c; t += b; t += b; t += c; t += d
+        }
+        return splitziner.mesh.Mesh(v.toDoubleArray(), t.toIntArray())
+    }
+
+    @Test fun singleOrganicBodyGoesThroughEverything() {
+        val m = blob(300)
+        val bytes = Fixtures.binaryStl(Fixtures.soup(listOf(m)))
+        val t0 = System.nanoTime()
+        val a = Pipeline.analyze(bytes, "blob.stl")
+        val t1 = System.nanoTime()
+        val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
+        val t2 = System.nanoTime()
+        val plan = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, splitziner.sheet.DrawingInfo(title = "Blob"), splitziner.drawing.DrawingSettings(), a.format, plan.parts)
+        val t3 = System.nanoTime()
+        val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
+        val t4 = System.nanoTime()
+        println("blob: ${m.triangleCount} tris, ${a.parts.size} part(s) ${a.report.method}, units ${a.report.units.fileUnits}, sheet ${r.sheet.letter} ${r.scaleText}; ms analyze ${(t1 - t0) / 1000000} views ${(t2 - t1) / 1000000} plan+draw ${(t3 - t2) / 1000000} guide ${(t4 - t3) / 1000000}; segs ${vs.views.values.map { it.visible.size / 4 }}; qa ${r.qa}")
+        java.io.File("build/preview").mkdirs()
+        java.io.File("build/preview/blob_sheet1.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[0]))
+        assertEquals(1, a.parts.size)
+        assertEquals(1, steps.size)
+        assertEquals("mm", a.report.units.designUnits)
+        assertTrue(vs.sections.isEmpty(), "a solid lump is not sectioned")
+        assertTrue(t4 - t0 < 120_000_000_000L)
+    }
+}
+
+class PlanOverrideTest {
+    @Test fun userOrderIsFollowedAndWordingSticksToItsStep() {
+        val parts = Fixtures.miniCabinet(Fixtures.INCH).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val cut = CutList.build(parts, LengthFormat("in"))
+        // Bottom, then both sides at once, then everything else in one go; the rail (P07) is left for the app to add.
+        val order = listOf(listOf("P03"), listOf("P01", "P02"), listOf("P06", "P04", "P05"))
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts, order = order)
+        assertEquals(listOf(listOf("P03"), listOf("P01", "P02"), listOf("P06", "P04", "P05"), listOf("P07")), plan.steps.map { it.partIds })
+        val key = splitziner.guide.GuideSteps.stepKey(listOf("P02", "P01"))
+        val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps, mapOf(key to splitziner.guide.StepText("Sides", listOf("Glue and clamp both sides."), "Diagonals are equal.")))
+        assertEquals("Step 2: Sides", steps[1].title)
+        assertEquals(listOf("Glue and clamp both sides."), steps[1].text)
+        assertEquals("Diagonals are equal.", steps[1].check)
+        assertEquals("Fit 2× item 1 from the left and right.", splitziner.guide.GuideSteps.build(plan.parts, plan.steps)[1].text[0])
+    }
+}

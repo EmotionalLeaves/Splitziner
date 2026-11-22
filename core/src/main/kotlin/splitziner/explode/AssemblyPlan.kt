@@ -39,7 +39,12 @@ object AssemblyPlan {
         fun vec() = Vec3.axis(k, sign.toDouble())
     }
 
-    fun plan(all: List<Part>, maxSteps: Int = 10): PlanResult {
+    /**
+     * [order], when given, is the user's own build order: part ids per step, base step first. The
+     * automatic order is then skipped; each part is still given the first direction it can slide in
+     * from past the parts of earlier steps. Parts the list does not mention are added as a last step.
+     */
+    fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
         if (n == 0) return PlanResult(all, emptyList())
@@ -139,12 +144,33 @@ object AssemblyPlan {
             raw += groups.sortedWith(compareBy<MutableList<Int>>({ !(dirOf.getValue(it[0]).k == 2 && dirOf.getValue(it[0]).sign == 1) }, { g -> g.minOf { lo[it].z } }))
         }
 
+        var userBase: List<Int>? = null
+        if (order != null) {
+            val index = parts.indices.associateBy { parts[it].id }
+            val seen = HashSet<Int>()
+            val groups = order.map { g -> g.mapNotNull { index[it] }.filter { seen.add(it) } }.filter { it.isNotEmpty() }.map { it.toMutableList() }.toMutableList()
+            val missing = parts.indices.filter { it !in seen }
+            if (missing.isNotEmpty()) groups += missing.toMutableList()
+            if (groups.isNotEmpty()) {
+                userBase = groups.removeAt(0)
+                raw.clear(); raw += groups
+                val placed = HashSet<Int>(userBase)
+                for (g in raw) {
+                    for (i in g) {
+                        val d0 = dirOf[i]
+                        dirOf[i] = (if (d0 != null && blockers(i, d0, placed).isEmpty()) d0 else dirs(i).firstOrNull { blockers(i, it, placed).isEmpty() }) ?: d0 ?: dirs(i).first()
+                    }
+                    placed += g
+                }
+            }
+        }
+
         // Re-order for building. Peeling proves the parts can come apart, but read backwards it can
         // schedule a part before the neighbours that hold it up (a top panel before the sides).
         // So the order is rebuilt forwards: always take the earliest group that can slide in past
         // what is already built, preferring parts that stand on the floor, then parts that touch
         // something already there.
-        run {
+        if (userBase == null) run {
             val placed = HashSet<Int>(); placed += base
             val pool = ArrayList(raw); raw.clear()
             fun freeDir(i: Int): Dir? {
@@ -165,7 +191,7 @@ object AssemblyPlan {
 
         // Merge neighbouring groups until the guide has a sensible number of steps.
         val target = maxOf(2, ceil(n.toDouble() / maxOf(maxSteps - 1, 1)).toInt())
-        while (raw.size > maxOf(1, maxSteps - 1)) {
+        while (userBase == null && raw.size > maxOf(1, maxSteps - 1)) {
             fun cost(k: Int): Double {
                 val a = raw[k]; val b = raw[k + 1]
                 val touch = a.any { x -> b.any { y -> touches(x, y) } }
@@ -180,8 +206,9 @@ object AssemblyPlan {
 
         val explode = HashMap<String, Vec3?>(); val group = HashMap<String, String>(); val stepOf = HashMap<String, Int>()
         val steps = ArrayList<BuildStep>()
-        explode[parts[base].id] = null; group[parts[base].id] = "S1"; stepOf[parts[base].id] = 1
-        steps += BuildStep(1, listOf(parts[base].id), emptyList(), listOfNotNull(parts[base].item))
+        val first = userBase ?: listOf(base)
+        for (i in first) { explode[parts[i].id] = null; group[parts[i].id] = "S1"; stepOf[parts[i].id] = 1 }
+        steps += BuildStep(1, first.map { parts[it].id }, emptyList(), first.mapNotNull { parts[it].item }.distinct().sorted())
         for (members in raw) {
             val st = steps.size + 1
             for (i in members) {

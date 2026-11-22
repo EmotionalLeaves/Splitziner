@@ -35,6 +35,10 @@ data class ProjectMeta(
     val hidden: String = "auto",
     /** "auto" or "none". */
     val sections: String = "auto",
+    /** The user's own build order (part ids per step, base first); null for the automatic order. */
+    val stepOrder: List<List<String>>? = null,
+    /** The user's wording per step, keyed by the parts in the step. */
+    val stepText: Map<String, splitziner.guide.StepText> = emptyMap(),
 ) {
     fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
         title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
@@ -82,6 +86,10 @@ class ProjectStore(context: Context) {
         o.put("designer", meta.designer).put("drawn", meta.drawn).put("checked", meta.checked).put("approved", meta.approved)
         o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden).put("sections", meta.sections)
         o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
+        o.put("stepOrder", meta.stepOrder?.let { order -> JSONArray(order.map { JSONArray(it) }) } ?: JSONObject.NULL)
+        val st = JSONObject()
+        for ((k, v) in meta.stepText) st.put(k, JSONObject().put("title", v.title ?: "").put("lines", JSONArray(v.lines ?: emptyList<String>())).put("check", v.check ?: ""))
+        o.put("stepText", st)
         // Write to a temporary file first so a crash never leaves a half-written project.
         val tmp = File(dir(meta.id), "project.json.tmp")
         tmp.writeText(o.toString())
@@ -106,6 +114,13 @@ class ProjectStore(context: Context) {
             date = o.optString("date"), notes = strings(o.optJSONArray("notes")) ?: emptyList(),
             tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
             sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"), sections = o.optString("sections", "auto"),
+            stepOrder = if (o.isNull("stepOrder")) null else o.optJSONArray("stepOrder")?.let { a -> (0 until a.length()).map { strings(a.getJSONArray(it)) ?: emptyList() } },
+            stepText = o.optJSONObject("stepText")?.let { n ->
+                n.keys().asSequence().associateWith { k ->
+                    val v = n.getJSONObject(k)
+                    splitziner.guide.StepText(v.optString("title").ifBlank { null }, strings(v.optJSONArray("lines"))?.ifEmpty { null }, v.optString("check").ifBlank { null })
+                }
+            } ?: emptyMap(),
         )
     }
 

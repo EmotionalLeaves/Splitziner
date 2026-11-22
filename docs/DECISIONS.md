@@ -21,3 +21,7 @@ Departures from the build spec, newest first.
 - **Exploded parts travel at least a set share of the assembly's size** (12% on the drawing, 20% in guide steps). The library's minimum clear travel moves a thin panel only a hair, which does not read as "pulled apart".
 - **Guide step pictures share one framing**: each leaves room for the whole finished object, so the picture does not jump in size from step to step.
 - **Lowercase text in the guide is drawn as small capitals**, since the stroke font has capitals only.
+- **A lone solid part is not sectioned** unless the cut finds a cavity. The library sections any view whose hidden lines outweigh its visible ones, which on a sculpted solid produces a hatched silhouette that shows nothing new.
+- **A file is read as inch-designed only on real evidence**: at least half its sizes on an inch grid, and inch roundness ahead of millimetre roundness by 0.2. The library's inch grids go down to 1/32, which random sizes hit about a third of the time, so sculpted models were being labelled inches by chance.
+- **Flat levels must cover 0.2% of the model's surface** to be dimensioned, as well as 15% of the largest level, so stray facets on curved models are ignored.
+- **Step wording is keyed by the parts in the step**, not by step number, so it follows the step when the order is changed.

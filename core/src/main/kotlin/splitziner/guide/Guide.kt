@@ -42,7 +42,11 @@ object GuideSteps {
         else -> null
     }
 
-    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<Int, StepText> = emptyMap()): List<GuideStep> {
+    /** Identifies a step by the parts in it, so the user's wording follows the step when steps are reordered. */
+    fun stepKey(partIds: List<String>): String = partIds.sorted().joinToString(",")
+
+    /** [overrides] is keyed by [stepKey]. */
+    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap()): List<GuideStep> {
         val drawn = parts.filter { !it.excluded }
         val byId = drawn.associateBy { it.id }
         // One view for every step, so the reader keeps their bearings.
@@ -78,8 +82,9 @@ object GuideSteps {
             }
             if (st.step > 1) lines += "Check it is square and seated against the parts already installed, then fasten."
             val list = count.map { (item, n) -> "Item ${item ?: "-"} ${cur.first { it.item == item }.desc}" to n }
-            val o = overrides[st.step]
-            out += GuideStep(st.step, o?.title ?: if (st.step == 1) "Step 1: base" else "Step ${st.step}", pic, o?.lines ?: lines, list, o?.check)
+            val o = overrides[stepKey(st.partIds)]
+            val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: if (st.step == 1) "Step 1: base" else "Step ${st.step}"
+            out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines, list, o?.check?.takeIf { it.isNotBlank() })
             done += st.partIds
         }
         return out

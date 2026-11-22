@@ -44,6 +44,16 @@ object UnitGuesser {
     private const val MM_TOL = 0.01      // mm
     private const val IN_TOL = 0.0045    // in, about 0.1 mm of slop
 
+    /**
+     * How much rounder the sizes must be in inches than in millimetres before a non-inch file is read
+     * as inch-designed. The inch grids go down to 1/32, which random sizes land on about a third of
+     * the time, so inches start with an unearned lead of roughly 0.1 to 0.15 that this cancels.
+     */
+    private const val INCH_DESIGN_HURDLE = 0.2
+
+    /** At least this share of the sizes must sit on an inch grid for a non-inch file to count as inch-designed. */
+    private const val MIN_INCH_ROUNDNESS = 0.5
+
     private class Candidate(val total: Double, val scale: Double, val fileUnits: String, val designUnits: String, val roundness: Double)
 
     /** Lengths a designer would have typed in: each body's extents, or one body's extents and its step heights. */
@@ -99,7 +109,10 @@ object UnitGuesser {
             val mm = score(arr, scale, MM, MM_TOL)
             val inch = score(arr, scale / 25.4, IN, IN_TOL)
             cands += Candidate(mm + prior, scale, unit, "mm", mm)
-            cands += Candidate(inch + prior, scale, unit, "in", inch)
+            // A millimetre file is called "designed in inches" only on real evidence: shapes with no
+            // round sizes at all (sculpted models) otherwise tip either way on noise.
+            // It also needs most of the sizes to agree: one lucky hit among three measurements is not a pattern.
+            if (unit == "in" || inch >= MIN_INCH_ROUNDNESS) cands += Candidate(inch + prior - (if (unit == "in") 0.0 else INCH_DESIGN_HURDLE), scale, unit, "in", inch)
         }
         if (cands.isEmpty()) return UnitGuess(1.0, "mm", "mm", 0.0, 0.0, sc0, null)
         val sorted = cands.sortedByDescending { it.total }

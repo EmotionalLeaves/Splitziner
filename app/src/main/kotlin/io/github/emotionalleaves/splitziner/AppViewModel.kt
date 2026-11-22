@@ -26,7 +26,7 @@ class OpenProject(val meta: ProjectMeta, val analysis: Analysis)
 
 /** The drawing for the open project: its sheets ready to show, and what the engine wants the user to know. */
 /** The build guide for the open project, laid out on pages. */
-class GuideState(val pages: List<PreparedSheet>, val stepCount: Int)
+class GuideState(val pages: List<PreparedSheet>, val stepCount: Int, val steps: List<splitziner.explode.BuildStep>)
 
 class DrawingState(val sheets: List<PreparedSheet>, val sheetLetter: String, val scaleText: String, val qa: List<String>)
 
@@ -63,9 +63,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var planFor: Analysis? = null
 
     /** The drafted assembly order for an analysis, worked out once and shared by the drawing and the guide. */
-    @Synchronized private fun planOf(a: Analysis): splitziner.explode.PlanResult {
-        if (planFor !== a || plan == null) { plan = splitziner.explode.AssemblyPlan.plan(a.parts); planFor = a }
+    private var planOrder: List<List<String>>? = null
+
+    @Synchronized private fun planOf(a: Analysis, order: List<List<String>>?): splitziner.explode.PlanResult {
+        if (planFor !== a || plan == null || planOrder != order) { plan = splitziner.explode.AssemblyPlan.plan(a.parts, order = order); planFor = a; planOrder = order }
         return plan!!
+    }
+
+    /** Sets the build order (part ids per step, base first), or null to go back to the automatic one. */
+    fun setStepOrder(order: List<List<String>>?) = updateDrawing { it.copy(stepOrder = order?.filter { g -> g.isNotEmpty() }) }
+
+    fun setStepText(key: String, text: splitziner.guide.StepText?) {
+        val open = _state.value.open ?: return
+        val meta = open.meta.copy(stepText = if (text == null) open.meta.stepText - key else open.meta.stepText + (key to text))
+        store.save(meta)
+        guideJob?.cancel()
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false) }
+        ensureGuide()
     }
 
     /** Builds the step-by-step guide for the open project. Safe to call whenever the Guide tab is shown. */
@@ -79,15 +93,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val result = withContext(Dispatchers.Default) {
                     val a = open.analysis
                     val t0 = System.nanoTime()
-                    val pl = planOf(a)
-                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps)
+                    val pl = planOf(a, open.meta.stepOrder)
+                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText)
                     val drawn = pl.parts.filter { !it.excluded }
                     val view = splitziner.explode.ExplodedView.pickView(drawn)
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size)
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
-                    GuideState(pages.map { PreparedSheet.of(it) }, steps.size)
+                    GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
                 }
                 _state.update { it.copy(guide = result, guideBusy = false) }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -115,7 +129,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     else DrawingBuilder.views(a.parts, sec).also { viewSet = it; viewSetFor = a; viewSetSections = sec }
                     val t1 = System.nanoTime()
                     // The exploded sheet needs the assembly plan; if planning fails the drawing still gets its first sheet.
-                    val planned = runCatching { planOf(a).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()
+                    val planned = runCatching { planOf(a, open.meta.stepOrder).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()
                     val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")
                     DrawingState(r.sheets.map { PreparedSheet.of(it) }, r.sheet.letter, r.scaleText, r.qa)

@@ -506,6 +506,7 @@ private fun sharePdf(context: Context, open: OpenProject, sheets: List<io.github
 private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifier: Modifier) {
     val context = LocalContext.current
     var page by rememberSaveable { mutableIntStateOf(0) }
+    var showEditor by remember { mutableStateOf(false) }
     LaunchedEffect(open.analysis, state.guide == null) { vm.ensureGuide() }
     val g = state.guide
     val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
@@ -529,6 +530,104 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                 OutlinedButton(onClick = { page = shown + 1 }, enabled = shown < g.pages.size - 1) { Text("Next \u2192") }
             }
         }
-        Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) { Text("Share build guide (PDF)") }
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
+            Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy, modifier = Modifier.weight(1f)) { Text("Share guide (PDF)") }
+        }
+    }
+    if (showEditor && g != null) StepEditor(open, g.steps, vm, onDismiss = { showEditor = false })
+}
+
+/** Lets the user fix the drafted build order and rewrite each step's wording. */
+@Composable
+private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildStep>, vm: AppViewModel, onDismiss: () -> Unit) {
+    var order by remember { mutableStateOf(steps.map { it.partIds }) }
+    var movePart by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var wording by remember { mutableStateOf<List<String>?>(null) }
+    val parts = open.analysis.parts.associateBy { it.id }
+    fun label(id: String) = parts[id]?.let { p -> if (p.name != p.id) p.name else "${p.id} (item ${p.item ?: "-"})" } ?: id
+    fun clean(o: List<List<String>>) = o.filter { it.isNotEmpty() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { vm.setStepOrder(order); onDismiss() }) { Text("Apply") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { vm.setStepOrder(null); onDismiss() }) { Text("Automatic") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+        title = { Text("Build steps") },
+        text = {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+                Text("Tap a part to move it to another step. Use the arrows to move a whole step. The first step is the base everything else is built on.", style = MaterialTheme.typography.bodySmall)
+                order.forEachIndexed { i, ids ->
+                    Card(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        Column(Modifier.padding(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Step ${i + 1}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                TextButton(onClick = { order = order.toMutableList().also { val t = it[i]; it[i] = it[i - 1]; it[i - 1] = t } }, enabled = i > 0) { Text("\u2191") }
+                                TextButton(onClick = { order = order.toMutableList().also { val t = it[i]; it[i] = it[i + 1]; it[i + 1] = t } }, enabled = i < order.size - 1) { Text("\u2193") }
+                                TextButton(onClick = { wording = ids }) { Text("Wording") }
+                            }
+                            for (id in ids) Text(label(id), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().clickable { movePart = i to id }.padding(vertical = 4.dp))
+                        }
+                    }
+                }
+            }
+        },
+    )
+    movePart?.let { (i, id) ->
+        fun apply(target: Int?, own: Boolean = false) {
+            val o = order.map { it.toMutableList() }.toMutableList()
+            o[i].remove(id)
+            when {
+                own -> o.add(i + 1, mutableListOf(id))
+                target != null && target >= o.size -> o.add(mutableListOf(id))
+                target != null && target >= 0 -> o[target].add(id)
+                else -> o[i].add(id)
+            }
+            order = clean(o); movePart = null
+        }
+        AlertDialog(
+            onDismissRequest = { movePart = null },
+            confirmButton = { TextButton(onClick = { movePart = null }) { Text("Cancel") } },
+            title = { Text(label(id)) },
+            text = {
+                Column {
+                    Text(parts[id]?.desc ?: "", style = MaterialTheme.typography.bodySmall)
+                    if (i > 0) TextButton(onClick = { apply(i - 1) }) { Text("Move to step $i (earlier)") }
+                    TextButton(onClick = { apply(i + 1) }) { Text("Move to step ${i + 2} (later)") }
+                    if (order[i].size > 1) TextButton(onClick = { apply(null, own = true) }) { Text("Give it a step of its own, next") }
+                }
+            },
+        )
+    }
+    wording?.let { ids ->
+        val key = splitziner.guide.GuideSteps.stepKey(ids)
+        val cur = open.meta.stepText[key]
+        var title by remember(key) { mutableStateOf(cur?.title ?: "") }
+        var lines by remember(key) { mutableStateOf(cur?.lines?.joinToString("\n") ?: "") }
+        var check by remember(key) { mutableStateOf(cur?.check ?: "") }
+        AlertDialog(
+            onDismissRequest = { wording = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    val l = lines.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    val t = splitziner.guide.StepText(title.trim().ifBlank { null }, l.ifEmpty { null }, check.trim().ifBlank { null })
+                    vm.setStepText(key, if (t.title == null && t.lines == null && t.check == null) null else t)
+                    wording = null
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { wording = null }) { Text("Cancel") } },
+            title = { Text("Step wording") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Leave a box empty to keep the app's own wording. How parts are fastened is yours to say: the app never guesses glue, screws or clamping.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(title, { title = it }, label = { Text("Step name (e.g. Sides)") }, singleLine = true)
+                    OutlinedTextField(lines, { lines = it }, label = { Text("Instructions, one per line") }, minLines = 3)
+                    OutlinedTextField(check, { check = it }, label = { Text("Check (e.g. Diagonals are equal)") }, singleLine = true)
+                }
+            },
+        )
     }
 }

@@ -76,6 +76,9 @@ object DrawingBuilder {
             val lines = map.getValue(v.name)
             if (lines.hiddenLength > SECTION_RATIO * lines.visibleLength && lines.hiddenLength > 0) {
                 val sec = runCatching { splitziner.section.SectionBuilder.build(meshes, v, "${SECTION_LETTERS[cut.size]}") }.getOrNull() ?: continue
+                // Cutting a single solid lump open shows nothing new. A lone part is sectioned only if the cut finds a cavity.
+                val hollow = sec.faces.any { (_, g) -> (0 until g.numGeometries).any { (g.getGeometryN(it) as? org.locationtech.jts.geom.Polygon)?.numInteriorRing ?: 0 > 0 } }
+                if (meshes.size == 1 && !hollow) continue
                 cut[v.name] = sec; map[v.name] = sec.lines
             }
         }

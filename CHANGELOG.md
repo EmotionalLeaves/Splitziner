@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.6.0 - Edit the build steps
+
+Edit the build steps: the guide is now yours to correct.
+
+- **Edit steps** on the Guide tab opens the build order. Move a whole step up or down with the arrows, or tap a part to move it to an earlier or later step, or give it a step of its own.
+- **Wording** on each step lets you name the step ("Sides"), write your own instructions (one per line) and add a check ("Diagonals are equal"). Leave a box empty to keep the app's wording. This is where glue, screws and clamping go; the app never guesses those.
+- **Automatic** puts the app's own order back.
+- Your order and wording are saved with the project and used in the guide PDF and the exploded sheet of the drawing.
+- When you set the order yourself, the app still works out which way each part slides in past the parts already there, so the arrows stay right.
+
+Also fixed:
+- Sculpted or organic models are no longer mislabelled as "designed in inches" by chance, no longer get pointless section cuts through solid material, and no longer pick up stray dimensions from tiny flat facets.
+
 ## v0.5.0 - Section views
 
 Section views: when the inside of your model is hidden, the drawing cuts it open.

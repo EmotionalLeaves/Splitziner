@@ -35,6 +35,9 @@ object DimPlanner {
     /** A level must cover at least this share of the largest level on its axis to earn a dimension. */
     private const val MIN_LEVEL_SHARE = 0.15
 
+    /** A level must also cover at least this share of the model's whole surface. */
+    private const val MIN_LEVEL_OF_SURFACE = 0.002
+
     /** More than this many dimensions in a stack switches it from baseline to ordinate style. */
     private const val MAX_BASELINE = 5
 
@@ -47,7 +50,9 @@ object DimPlanner {
             area[key] = (area[key] ?: 0.0) + a[t]
         }
         val max = area.values.maxOrNull() ?: 0.0
-        area.entries.filter { it.value >= MIN_LEVEL_SHARE * max }.map { it.key / 1000.0 to it.value }
+        // On sculpted shapes a "level" can be one stray facet; a real one is a visible share of the whole surface.
+        val floor = MIN_LEVEL_OF_SURFACE * scene.area
+        area.entries.filter { it.value >= MIN_LEVEL_SHARE * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
             .filter { it.first > lo[k] + 1e-6 && it.first < hi[k] - 1e-6 }
             .sortedByDescending { it.second }.take(maxPerAxis).map { it.first }
     }
