@@ -1145,7 +1145,7 @@ private val HELP = listOf(
     "Projects" to "On the first screen, each project's menu (\u22ee) can rename it, make a copy to try a variation without losing the original, or delete it. Your original model file is never changed.",
     "Build mode" to "On the Guide tab, Build mode shows the guide one step to a screen, for the workshop: the picture large, the parts and hardware the step uses, and what to do, numbered. Done, next marks the step done and moves on; the app remembers which steps are done, so you can stop and pick up another day where you left off.",
     "Shopping list" to "On the Cut list tab, Shopping list opens a checklist of everything to buy: the sheets and lengths from the cutting plan, edge banding, and the screws, hinges and slides the guide uses. Tick each line as it goes in the trolley; the ticks stay with the project until you clear them. Share sends the list as text.",
-    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Print prints it (or saves it as a PDF), Share list sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
+    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Boards can also be bought a quarter and a half longer (10 and 12 ft beside 8 ft; 3.0 and 3.6 m beside 2.4 m): each kind of board uses the length that buys least wood, and a length only partly used is bought shorter. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Print prints it (or saves it as a PDF), Share list sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )
@@ -1241,7 +1241,7 @@ private fun savedStock(context: Context, fmt: splitziner.dims.LengthFormat): spl
     val unit = if (fmt.isInch) 25.4 else 1.0; val tag = if (fmt.isInch) "in" else "mm"
     fun get(key: String, d: Double) = prefs.getString("${key}_$tag", null)?.let { num(it) }?.let { it * unit } ?: d
     val w = get("sheetW", def.sheetW); val l = get("sheetL", def.sheetL)
-    return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch)
+    return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch, longer = prefs.getBoolean("longer", true))
 }
 
 /** Prices the user has typed, per kind of stock ("sheet 3/4 in thick, 48 x 96"), remembered across projects. */
@@ -1409,12 +1409,13 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
     var boardL by remember { mutableStateOf(prefs.getString("boardL_$tag", null) ?: show(def.boardL)) }
     var kerf by remember { mutableStateOf(prefs.getString("kerf_$tag", null) ?: show(def.kerf)) }
     var rotate by remember { mutableStateOf(prefs.getBoolean("rotate", true)) }
+    var longer by remember { mutableStateOf(prefs.getBoolean("longer", true)) }
     var editing by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf(0) }
     val w = num(sheetW); val l = num(sheetL); val b = num(boardL); val k = num(kerf)
     val valid = w != null && l != null && b != null && k != null && w > 0 && l > 0 && b > 0 && k >= 0
     // The sheet's longer side is its length, whichever box it was typed in.
-    val stock = if (valid) splitziner.cutplan.StockSettings(minOf(w!!, l!!) * unit, maxOf(w, l) * unit, b!! * unit, k!! * unit, rotate, lumber = fmt.isInch) else null
+    val stock = if (valid) splitziner.cutplan.StockSettings(minOf(w!!, l!!) * unit, maxOf(w, l) * unit, b!! * unit, k!! * unit, rotate, lumber = fmt.isInch, longer = longer) else null
     class Made(val pages: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, val summary: String, val buy: List<String>)
     // Worked out again as the sizes change, away from the screen's thread; the plan is shown, not just shared.
     val made by androidx.compose.runtime.produceState<Made?>(null, stock, open.analysis) {
@@ -1450,7 +1451,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                         Row(Modifier.fillMaxWidth().clickable { editing = !editing }, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Stock", style = MaterialTheme.typography.labelLarge)
-                                Text("Sheets ${sheetW.trim()} x ${sheetL.trim()}, boards ${boardL.trim()} long, saw cut ${kerf.trim()} ($tag)" + if (!rotate) ", grain kept" else "",
+                                Text("Sheets ${sheetW.trim()} x ${sheetL.trim()}, boards ${boardL.trim()}${if (longer) " or longer" else ""} long, saw cut ${kerf.trim()} ($tag)" + if (!rotate) ", grain kept" else "",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             TextButton(onClick = { editing = !editing }) { Text(if (editing) "Done" else "Change") }
@@ -1468,8 +1469,13 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                                 androidx.compose.material3.Checkbox(checked = rotate, onCheckedChange = { rotate = it })
                                 Text("Panels may be turned to fit (untick to keep grain along the sheet)", style = MaterialTheme.typography.bodySmall)
                             }
+                            Row(Modifier.fillMaxWidth().clickable { longer = !longer }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Checkbox(checked = longer, onCheckedChange = { longer = it })
+                                val alt = stock?.copy(longer = true)?.boardLengths?.drop(1)?.joinToString(" and ") { fmt.format(it) } ?: ""
+                                Text("Boards may also be bought longer ($alt); each kind uses the length that wastes least", style = MaterialTheme.typography.bodySmall)
+                            }
                             if (!valid) Text("Enter each size as a number, for example ${show(def.sheetW)}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            TextButton(onClick = { sheetW = show(def.sheetW); sheetL = show(def.sheetL); boardL = show(def.boardL); kerf = show(def.kerf); rotate = true }) { Text("Use common sizes") }
+                            TextButton(onClick = { sheetW = show(def.sheetW); sheetL = show(def.sheetL); boardL = show(def.boardL); kerf = show(def.kerf); rotate = true; longer = true }) { Text("Use common sizes") }
                         }
                     }
                 }
@@ -1483,7 +1489,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                     shown > 0, shown < pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
                 androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = pages.isNotEmpty(), onClick = {
-                        prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
+                        prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).putBoolean("longer", longer).apply()
                         sharePdf(context, open, pages, "cutting_plan")
                     }) { Text("Share PDF") }
                     OutlinedButton(enabled = pages.isNotEmpty(), onClick = { printPdf(context, open, pages, "cutting_plan") }) { Text("Print") }

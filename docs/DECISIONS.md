@@ -101,3 +101,4 @@ Departures from the build spec, newest first.
 - A rail against a leg is screwed, never "glued face to face". Slats are screwed down; only tops (named so, or 150 mm or wider) count as visible tops that must not be screwed through.
 - A step that rests on supports fitted later has the step with those supports moved before it. Sub-assemblies are judged by their own boards, not their overall box.
 - New templates: Workbench and Bed frame. Both are built from end or side frames, with any cleats included in the frame.
+- Boards and rods may be bought in the stock length or a quarter and a half longer (8, 10 and 12 ft, kept exact; metric rounded down to 100 mm, so 2.4, 3.0 and 3.6 m). Each kind of board uses the one length that buys the least wood (ties go to fewer pieces, then the shorter length). A length only partly used is bought in the shortest length that still holds its pieces. This can be turned off in the cutting plan.

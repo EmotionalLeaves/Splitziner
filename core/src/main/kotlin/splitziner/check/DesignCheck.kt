@@ -204,8 +204,8 @@ object DesignCheck {
             val isBoard = p.kind == PartKind.BOARD
             if (!isBoard && !fitsSheet) out += Finding(Severity.PROBLEM, "Item ${p.item} is bigger than a sheet",
                 "It needs ${d(p.w)} x ${d(p.l)}; your sheets are ${d(stock.sheetW)} x ${d(stock.sheetL)}. It must be made from two pieces joined, or the design made smaller.", live.filter { it.item == p.item }.map { it.id })
-            if (isBoard && p.l > stock.boardL + 0.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is longer than your boards",
-                "It is ${d(p.l)} long; boards come in ${d(stock.boardL)}.", live.filter { it.item == p.item }.map { it.id })
+            if (isBoard && p.l > stock.boardLengths.last() + 0.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is longer than your boards",
+                "It is ${d(p.l)} long; boards come in lengths up to ${d(stock.boardLengths.last())}.", live.filter { it.item == p.item }.map { it.id })
         }
 
         // --- Tools. ---

@@ -716,7 +716,7 @@ class CutPlanTest {
         val boards = r.boards.filter { it.kind == splitziner.parts.PartKind.BOARD && abs(it.w - 3.5 * Fixtures.INCH) < 0.01 }
         assertEquals(5, boards.sumOf { b -> b.cuts.count { abs(it.second - 30.0 * Fixtures.INCH) < 0.01 } }); assertEquals(2, boards.size)
         assertEquals(rows.filter { it.kind == splitziner.parts.PartKind.BOARD }.sumOf { it.qty }, r.boards.sumOf { it.cuts.size })
-        for (b in boards) assertTrue(b.cuts.sumOf { it.second } + stock.kerf * (b.cuts.size - 1) <= stock.boardL + 1e-6)
+        for (b in boards) assertTrue(b.cuts.sumOf { it.second } + stock.kerf * (b.cuts.size - 1) <= b.length + 1e-6)
         val pages = splitziner.cutplan.CutPlanLayout.pages(r, rows, "Cabinet, storage", fmt)
         java.io.File("build/preview").mkdirs()
         pages.forEachIndexed { i, pg -> java.io.File("build/preview/cutplan%d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(pg)) }
