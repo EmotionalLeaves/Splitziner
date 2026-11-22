@@ -383,14 +383,16 @@ object DesignCheck {
         val sagging = HashSet<Int?>()
         for ((i, p) in live.withIndex()) {
             if (p.kind != PartKind.PANEL && p.kind != PartKind.BOARD) continue
-            if (p.item in sagging || touching[i].isEmpty()) continue
+            // A shelf on pins touches nothing in the model but is held at both ends.
+            val onPins = p.id in pinned
+            if (p.item in sagging || (touching[i].isEmpty() && !onPins)) continue
             // Lying flat (its thickness is vertical): how far does it run between the parts that hold it?
             val box = OrientedBounds.of(p.mesh)
             val k = (0..2).minByOrNull { box.extents[it] }!!
             if (abs(box.axes[k].z) < 0.95) continue
             val axis = if (hi[i].x - lo[i].x >= hi[i].y - lo[i].y) 0 else 1
             val a0 = lo[i][axis]; val a1 = hi[i][axis]
-            val held = touching[i].map { j -> maxOf(lo[j][axis], a0) to minOf(hi[j][axis], a1) }.filter { it.second >= it.first }.sortedBy { it.first }
+            val held = if (onPins) listOf(a0 to a0, a1 to a1) else touching[i].map { j -> maxOf(lo[j][axis], a0) to minOf(hi[j][axis], a1) }.filter { it.second >= it.first }.sortedBy { it.first }
             var span = 0.0; var reach = a0
             // Overhang past the last support counts double: a cantilever bends like a span twice as long.
             if (held.isNotEmpty()) span = 2 * (held[0].first - a0)
