@@ -34,6 +34,9 @@ object GuideSteps {
     const val PICTURE_W = 170.0
     const val PICTURE_H = 115.0
 
+    /** A step's picture frames at least this share of the finished piece's width and height. */
+    private const val MIN_FRAME = 0.55
+
     /** How an instruction describes the side a part comes in from, given the way it leaves. */
     private fun whereFrom(x: Double, y: Double, z: Double): String? = when {
         z > 0.5 -> "from above"; z < -0.5 -> "from below"
@@ -75,10 +78,19 @@ object GuideSteps {
             val base = !st.subassembly && steps.firstOrNull { !it.subassembly }?.step == st.step
             val scene = (if (st.subassembly) emptyList() else drawn.filter { it.id in done }.map { it.copy(explode = null) }) +
                 cur.map { p -> p.copy(explode = if (base) null else if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode, qty = count[p.item] ?: 1) }
+            // Framed on what is built so far, but never closer than about half the finished piece, so early steps
+            // with a few parts are big enough to read and the picture does not jump about from step to step.
+            val stepFrame = if (st.subassembly) null else {
+                val sb = ExplodedView.assembledBounds(scene, view)
+                val hw = maxOf((sb[2] - sb[0]) / 2, MIN_FRAME * (frame[2] - frame[0]) / 2); val hh = maxOf((sb[3] - sb[1]) / 2, MIN_FRAME * (frame[3] - frame[1]) / 2)
+                val cx = ((sb[0] + sb[2]) / 2).coerceIn(frame[0] + hw, maxOf(frame[0] + hw, frame[2] - hw))
+                val cy = ((sb[1] + sb[3]) / 2).coerceIn(frame[1] + hh, maxOf(frame[1] + hh, frame[3] - hh))
+                doubleArrayOf(cx - hw, cy - hh, cx + hw, cy + hh)
+            }
             val pic = ExplodedView.render(
                 scene, PICTURE_W, PICTURE_H,
                 ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4),
-                view, "step%02d".format(st.step), if (st.subassembly) null else frame,
+                view, "step%02d".format(st.step), stepFrame,
             )
             val lines = ArrayList<String>()
             for ((bench, us) in unitCount) {

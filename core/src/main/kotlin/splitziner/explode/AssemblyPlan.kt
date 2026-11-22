@@ -125,11 +125,13 @@ object AssemblyPlan {
 
         // Base: of the parts standing on the floor, the biggest. A bookcase starts from a side, not from the kick
         // board that happens to have the wider footprint; a table from a leg, a cabinet from its bottom.
-        var base = 0; var best = -1.0
-        for (i in 0 until n) if (lo[i].z <= allLo.z + tol) {
-            val size = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y) * (hi[i].z - lo[i].z)
-            if (size > best) { best = size; base = i }
-        }
+        // A part lying flat on the floor under a good share of the whole footprint (a cabinet's bottom) wins outright.
+        val modelFoot = (allHi.x - allLo.x) * (allHi.y - allLo.y)
+        val onFloor = (0 until n).filter { lo[it].z <= allLo.z + tol }
+        fun foot(i: Int) = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y)
+        fun lyingFlat(i: Int) = (hi[i].z - lo[i].z) <= minOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y)
+        val flatBase = onFloor.filter { lyingFlat(it) && foot(it) >= 0.25 * modelFoot }.maxByOrNull { foot(it) }
+        val base = flatBase ?: onFloor.maxByOrNull { foot(it) * (hi[it].z - lo[it].z) } ?: 0
 
         // Shadow of every part along each axis, shrunk a little so parts that only touch do not count as overlapping.
         // Worked out only for parts some test needs; with hundreds of parts most pairs never get that far.
