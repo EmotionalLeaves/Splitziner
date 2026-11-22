@@ -13,9 +13,12 @@ object CsvWriter {
     /** The cut list and stock summary. Starts with a byte-order mark so spreadsheet apps read it as UTF-8. */
     fun cutList(result: CutListResult, fmt: LengthFormat): String {
         val sb = StringBuilder("﻿")
-        sb.append(line("Item", "Qty", "Kind", "Description", "Thickness", "Width", "Length", "Units", "Material", "Material spec", "Part no", "Part ids"))
+        sb.append(line("Item", "Qty", "Kind", "Name", "Description", "Thickness", "Width", "Length", "Units", "Material", "Material spec", "Part no", "Part ids"))
+        val byId = result.parts.associateBy { it.id }
         for (r in result.rows) {
-            sb.append(line(r.item, r.qty, r.kind, r.description, fmt.format(r.t), fmt.format(r.w), fmt.format(r.l), fmt.unitLabel,
+            // What the parts are called, when they have names of their own ("Side", "Drawer bottom").
+            val names = r.memberIds.mapNotNull { byId[it] }.filter { it.name != it.id }.map { it.name }.distinct().joinToString(", ")
+            sb.append(line(r.item, r.qty, r.kind, names, r.description, fmt.format(r.t), fmt.format(r.w), fmt.format(r.l), fmt.unitLabel,
                 r.material, r.materialSpec, r.partNo, r.memberIds.joinToString(", ")))
         }
         if (result.stock.isNotEmpty()) {
