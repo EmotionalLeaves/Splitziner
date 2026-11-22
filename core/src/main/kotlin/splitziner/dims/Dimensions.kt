@@ -42,21 +42,31 @@ object DimPlanner {
     /** A level must also cover at least this share of the model's whole surface. */
     private const val MIN_LEVEL_OF_SURFACE = 0.002
 
+    /** On a drawing of one part, a level's share of the largest (a notch beside a whole end) and of the surface. */
+    private const val DETAIL_LEVEL_SHARE = 0.02
+    private const val DETAIL_LEVEL_OF_SURFACE = 0.0003
+
     /** More than this many dimensions in a stack switches it from baseline to ordinate style. */
     private const val MAX_BASELINE = 5
 
     /** Inner flat levels facing the positive direction of each axis, largest first. */
-    fun levels(scene: Mesh, lo: Vec3, hi: Vec3, maxPerAxis: Int): List<List<Double>> = (0..2).map { k ->
+    /**
+     * [detail]: a drawing of one part, where every step in it is a feature to make (a toe-kick notch's top faces
+     * down, its back faces the front), so faces both ways count and small ones too. On an assembly only the
+     * faces looking the positive way count (a shelf's top, not also its underside), and only big ones.
+     */
+    fun levels(scene: Mesh, lo: Vec3, hi: Vec3, maxPerAxis: Int, detail: Boolean = false): List<List<Double>> = (0..2).map { k ->
         val n = scene.faceNormals; val c = scene.faceCenters; val a = scene.faceAreas
         val area = HashMap<Long, Double>()
-        for (t in 0 until scene.triangleCount) if (n[3 * t + k] > 0.9999) {
+        for (t in 0 until scene.triangleCount) if (n[3 * t + k] > 0.9999 || (detail && n[3 * t + k] < -0.9999)) {
             val key = Math.round(c[3 * t + k] * 1000)
             area[key] = (area[key] ?: 0.0) + a[t]
         }
         val max = area.values.maxOrNull() ?: 0.0
         // On sculpted shapes a "level" can be one stray facet; a real one is a visible share of the whole surface.
-        val floor = MIN_LEVEL_OF_SURFACE * scene.area
-        area.entries.filter { it.value >= MIN_LEVEL_SHARE * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
+        val floor = (if (detail) DETAIL_LEVEL_OF_SURFACE else MIN_LEVEL_OF_SURFACE) * scene.area
+        val share = if (detail) DETAIL_LEVEL_SHARE else MIN_LEVEL_SHARE
+        area.entries.filter { it.value >= share * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
             .filter { it.first > lo[k] + 1e-6 && it.first < hi[k] - 1e-6 }
             .sortedByDescending { it.second }.take(maxPerAxis).map { it.first }
     }
@@ -101,9 +111,9 @@ object DimPlanner {
     // The view that shows a hole along each model axis as a circle.
     private val CIRCLE_VIEW = listOf(ViewDef.RIGHT, ViewDef.FRONT, ViewDef.TOP)
 
-    fun plan(scene: Mesh, views: Map<String, ViewLines>, fmt: LengthFormat, maxLevels: Int, holes: List<splitziner.features.Hole> = emptyList()): List<DimGroup> {
+    fun plan(scene: Mesh, views: Map<String, ViewLines>, fmt: LengthFormat, maxLevels: Int, holes: List<splitziner.features.Hole> = emptyList(), detail: Boolean = false): List<DimGroup> {
         val lo = scene.bounds.min; val hi = scene.bounds.max
-        val lv = levels(scene, lo, hi, maxLevels)
+        val lv = levels(scene, lo, hi, maxLevels, detail)
         val groups = LinkedHashMap<String, MutableList<DimItem>>()
         val meta = HashMap<String, Placement>()
         for (k in 0..2) {

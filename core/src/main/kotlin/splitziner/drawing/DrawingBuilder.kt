@@ -213,7 +213,7 @@ object DrawingBuilder {
         // Holes are located and called out on drawings of one part; on an assembly they would bury the views.
         val holes = if (drawn.size == 1) runCatching { HoleFinder.find(drawn[0].mesh) }.getOrDefault(emptyList()) + extraHoles else emptyList()
         val callouts = holeCallouts(holes, fmt)
-        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes)
+        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes, detail = drawn.size == 1)
         fun size(v: ViewLines) = doubleArrayOf(v.bounds[2] - v.bounds[0], v.bounds[3] - v.bounds[1])
         val (wf, hf) = size(front).let { it[0] to it[1] }
         val (wt, ht) = size(top).let { it[0] to it[1] }

@@ -961,6 +961,25 @@ class SubassemblyTest {
     }
 }
 
+class NotchDimensionTest {
+    @Test fun aToeKickNotchIsDimensionedOnItsPartDrawing() {
+        // A cabinet side with a toe-kick notch cut from its bottom front corner: the notch's top faces down and its
+        // back faces the front, so only a part drawing that counts faces both ways can dimension it.
+        val gf = splitziner.explode.Silhouette.GF
+        val outline = gf.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 560.0, 0.0, 720.0)).difference(gf.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 75.0, 0.0, 100.0)))
+        val mesh = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.RIGHT, outline, 0.0, 18.0))
+        val b = mesh.bounds
+        val detail = splitziner.dims.DimPlanner.levels(mesh, b.min, b.max, 8, detail = true)
+        val plain = splitziner.dims.DimPlanner.levels(mesh, b.min, b.max, 8)
+        val z = detail[2].map { it - b.min.z }
+        assertTrue(z.any { kotlin.math.abs(it - 100.0) < 0.5 }, "detail z levels $z")
+        val y = detail[1].map { it - b.min.y }
+        assertTrue(y.any { kotlin.math.abs(it - 75.0) < 0.5 || kotlin.math.abs(it - 485.0) < 0.5 }, "detail y levels $y")
+        // On an assembly only upward faces count, so the notch's top is not taken for a shelf.
+        assertTrue(plain[2].none { kotlin.math.abs(it - b.min.z - 100.0) < 0.5 }, "assembly z levels ${plain[2]}")
+    }
+}
+
 class FasteningTest {
     @Test fun cabinetGetsSensibleScrews() {
         val fmt = LengthFormat("in")
