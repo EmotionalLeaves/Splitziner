@@ -400,7 +400,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val meta = withContext(Dispatchers.IO) {
                     val resolver = getApplication<Application>().contentResolver
-                    var name = "model.stl"
+                    var name = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.contains('.') } ?: "model.stl"
                     runCatching {
                         resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
                             if (c.moveToFirst() && !c.isNull(0)) name = c.getString(0)
@@ -417,7 +417,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val meta = (resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened."))
                         .let { m -> if (inchLocale) m.copy(inchStyle = "fraction").also { store.save(it) } else m }
                         // OBJ files are Y-up by convention (Blender and most others write them so).
-                        .let { m -> if (name.lowercase().endsWith(".obj")) m.copy(up = "y").also { store.save(it) } else m }
+                        .let { m ->
+                            val obj = name.lowercase().endsWith(".obj") || store.source(m.id).inputStream().use { s -> val b = ByteArray(1024); val n = s.read(b); splitziner.io.ObjReader.looksLikeObj(b.copyOf(maxOf(0, n))) }
+                            if (obj) m.copy(up = "y").also { store.save(it) } else m
+                        }
                     val file = store.source(meta.id)
                     Diagnostics.log("import $name, ${file.length()} bytes")
                     val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }

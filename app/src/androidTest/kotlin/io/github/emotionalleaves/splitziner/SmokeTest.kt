@@ -291,6 +291,8 @@ class SmokeTest {
             assertNull(vm.state.value.error)
             val a = vm.state.value.open!!.analysis
             assertEquals(2, a.parts.size)
+            // Y up in the file, so the 300 mm side stands up.
+            assertEquals(300.0, a.bounds.extents.z, 0.5)
             println("SMOKE obj ok: ${a.parts.size} parts, ${a.overallSize}")
         }
     }
