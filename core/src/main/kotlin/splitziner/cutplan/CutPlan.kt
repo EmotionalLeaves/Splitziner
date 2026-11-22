@@ -75,8 +75,33 @@ object CutPlanner {
     /** A shaped part this thin compared with its width is cut from sheet; thicker ones are left to the maker. */
     private const val FLAT_SHARE = 0.3
 
-    /** Guillotine packing of [wants] (biggest first) onto as many [sw] x [sl] panels as needed. */
+    /**
+     * Guillotine packing onto as many [sw] x [sl] panels as needed, trying several piece orders and ways of
+     * splitting the offcuts and keeping the layout that needs the fewest panels, then has the emptiest last one
+     * (which may then be bought as a half or quarter sheet), then the tightest bounding box overall.
+     */
     private fun pack(wants: List<Want>, sw: Double, sl: Double, stock: StockSettings): List<Open> {
+        val orders = listOf<Comparator<Want>>(
+            compareByDescending<Want> { it.w * it.l }.thenByDescending { it.l },
+            compareByDescending<Want> { maxOf(it.w, it.l) }.thenByDescending { minOf(it.w, it.l) },
+            compareByDescending<Want> { minOf(it.w, it.l) }.thenByDescending { maxOf(it.w, it.l) },
+        )
+        var best: List<Open>? = null; var bestKey: Triple<Int, Double, Double>? = null
+        for (o in orders) for (rule in 0..2) {
+            val r = packOnce(wants.sortedWith(o), sw, sl, stock, rule)
+            if (r.isEmpty() && wants.isNotEmpty()) return r
+            val last = r.lastOrNull()
+            val lastUsed = last?.pieces?.sumOf { it.w * it.l } ?: 0.0
+            // How far the pieces reach on the last panel: a compact layout leaves a whole offcut.
+            val reach = last?.pieces?.maxOfOrNull { it.y + it.l } ?: 0.0
+            val key = Triple(r.size, lastUsed, reach)
+            if (bestKey == null || key.first < bestKey.first || (key.first == bestKey.first && (key.second < bestKey.second - 1.0 || (abs(key.second - bestKey.second) <= 1.0 && key.third < bestKey.third)))) { best = r; bestKey = key }
+        }
+        return best ?: emptyList()
+    }
+
+    /** One guillotine packing. [rule] 0 keeps the larger offcut whole, 1 always cuts across the sheet first, 2 always along it. */
+    private fun packOnce(wants: List<Want>, sw: Double, sl: Double, stock: StockSettings, rule: Int): List<Open> {
         val open = ArrayList<Open>()
         for (p in wants) {
             var best: Triple<Open, Free, Boolean>? = null; var bestScore = Double.MAX_VALUE
@@ -99,7 +124,8 @@ object CutPlanner {
             val cw = minOf(pw + stock.kerf, f.w); val cl = minOf(pl + stock.kerf, f.l)
             val restW = f.w - cw; val restL = f.l - cl
             // One straight cut frees the larger offcut whole; the other is what remains beside the piece.
-            if (restW * f.l >= restL * f.w) {
+            val alongFirst = when (rule) { 1 -> false; 2 -> true; else -> restW * f.l >= restL * f.w }
+            if (alongFirst) {
                 if (restW > 1e-6) o.free += Free(f.x + cw, f.y, restW, f.l)
                 if (restL > 1e-6) o.free += Free(f.x, f.y + cl, cw, restL)
             } else {
@@ -110,6 +136,9 @@ object CutPlanner {
         return open
     }
 
+    /** A board at least this wide (mm) of sheet thickness is ripped from a sheet in metric shops, not bought as a length. */
+    private const val SHEET_STRIP_MIN = 150.0
+
     fun plan(rows: List<CutListRow>, stock: StockSettings): CutPlanResult {
         val leftOut = ArrayList<String>()
         val sheets = ArrayList<SheetLayout>(); val boards = ArrayList<BoardLayout>()
@@ -118,11 +147,19 @@ object CutPlanner {
         // In inches, boards come from standard lumber when their thickness is a lumber thickness (3/4 or 1-1/2 in).
         // Boards of other thicknesses (a 1/2 in or 1/4 in strip) are cut as strips from sheet goods, as they are in practice.
         val lumberish = { r: CutListRow -> stock.lumber && r.kind == PartKind.BOARD && Lumber.fit(r.t, r.w) != null }
-        val flat = rows.filter { it.kind == PartKind.PANEL || (it.kind == PartKind.SHAPED && it.t < FLAT_SHARE * it.w) || (stock.lumber && it.kind == PartKind.BOARD && !lumberish(it)) }
-        for (r in rows) if (r.kind == PartKind.SHAPED && r !in flat) leftOut += "Item ${r.item} is a shaped block; it is not in the plan."
         // A thickness within a hair of a stock one (1.02 in drawn for 1 in) is that stock thickness.
         val stockT = splitziner.check.DesignCheck.stockThicknesses(if (stock.lumber) LengthFormat("in") else LengthFormat("mm"))
         fun snapT(t: Double) = stockT.firstOrNull { abs(it - t) <= maxOf(0.4, 0.03 * it) } ?: t
+        // Metric shops have no standard board widths to speak of: a board of sheet thickness is ripped from the sheet
+        // when it is wide (a drawer side, a drawer front), or when sheets of that thickness are bought anyway (a kick
+        // board from the carcass sheet). Solid timber stays as lengths, and so does anything longer than a sheet.
+        val sheetThick = rows.filter { it.kind == PartKind.PANEL }.map { key(snapT(it.t)) to it.material }.toSet()
+        val fromSheet = { r: CutListRow ->
+            !stock.lumber && r.kind == PartKind.BOARD && splitziner.material.Materials.sheetGood(r.material) && stockT.any { s -> abs(s - snapT(r.t)) < 1e-6 } && snapT(r.t) <= 25.5 &&
+                r.l <= stock.sheetL && (r.w >= SHEET_STRIP_MIN || (key(snapT(r.t)) to r.material) in sheetThick)
+        }
+        val flat = rows.filter { it.kind == PartKind.PANEL || (it.kind == PartKind.SHAPED && it.t < FLAT_SHARE * it.w) || (stock.lumber && it.kind == PartKind.BOARD && !lumberish(it)) || fromSheet(it) }
+        for (r in rows) if (r.kind == PartKind.SHAPED && r !in flat) leftOut += "Item ${r.item} is a shaped block; it is not in the plan."
         // Panels thicker than any sheet sold are glued up from boards (or bought as a butcher-block blank), not cut from sheet.
         val tooThick = flat.filter { snapT(it.t) > stockT.max() + 0.5 }
         for (r in tooThick) leftOut += "Item ${r.item} is thicker than any sheet sold: glue it up from boards, or buy it as a butcher-block panel."
@@ -146,7 +183,7 @@ object CutPlanner {
             }
         }
 
-        val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it))) || it.kind == PartKind.ROD }
+        val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it)) && !fromSheet(it)) || it.kind == PartKind.ROD }
         // Pieces that come from the same standard board are cut from the same lengths, ripped narrower where needed.
         fun stockKey(r: CutListRow): List<Any> { val lb = if (r.kind == PartKind.BOARD && stock.lumber) Lumber.fit(r.t, r.w) else null; return if (lb != null) listOf(r.kind, lb.name, r.material) else listOf(r.kind, key(r.t), key(r.w), r.material) }
         for ((_, members) in long.groupBy { stockKey(it) }.entries.sortedBy { (key(it.value[0].t)) * 100000 + key(it.value[0].w) }) {
@@ -262,9 +299,9 @@ object CutPlanLayout {
         val k = minOf(cellW / s.sheetW, cellH / s.sheetL)
         r.sheets.forEachIndexed { i, sh ->
             if (i % 2 == 0) p = page()
-            val x0 = 20.0 + (i % 2) * (cellW + 10); val y0 = 18.0
-            // Every panel at one scale, so a half sheet looks half the size of a full one.
+            // Every panel at one scale, so a half sheet looks half the size of a full one; each hangs from the top of the page.
             val sw = if (sh.w > 0) sh.w else s.sheetW; val sl = if (sh.l > 0) sh.l else s.sheetL
+            val x0 = 20.0 + (i % 2) * (cellW + 10); val y0 = maxOf(18.0, h - 24 - 16 - sl * k)
             val top = y0 + sl * k
             p.text(x0, top + 9, "Sheet ${i + 1} of ${r.sheets.size}: ${d(sh.thickness)} thick" + (if (sh.material.isBlank()) "" else ", ${sh.material}"), 3.2, bold = true)
             p.text(x0, top + 3.5, (if (sh.size == "sheet") "" else "${sh.size.replaceFirstChar { it.uppercase() }}, ") + "${d(sw)} x ${d(sl)}, ${Math.round(sh.used * 100)}% used", 2.8)
@@ -324,7 +361,20 @@ object CutPlanLayout {
             return
         }
         val big = minOf(5.0, h * 0.5, w * 0.5)
-        val sizeFits = StrokeFont.width(size, 2.4) < w - 2 && h > big + 6
+        // Number above size needs room for both with a margin; a low, wide piece takes them on one line instead.
+        val sizeFits = StrokeFont.width(size, 2.4) < w - 2 && h > big + 9
+        if (!sizeFits && h >= 4.0) {
+            // Largest lettering that fits on one line, down to a readable minimum.
+            for ((ih, sh) in listOf(minOf(4.0, h - 2.0) to 2.4, minOf(3.0, h - 1.5) to 2.0)) {
+                val line = StrokeFont.width(item, ih) + 2 + StrokeFont.width(size, sh)
+                if (line < w - 2) {
+                    val x0 = cx - line / 2
+                    p.text(x0, cy, item, ih, vAlign = VAlign.CENTER, bold = true)
+                    p.text(x0 + StrokeFont.width(item, ih) + 2, cy, size, sh, vAlign = VAlign.CENTER)
+                    return
+                }
+            }
+        }
         val sizeFitsTurned = !sizeFits && StrokeFont.width(size, 2.4) < h - 2 && w > 2 * big + 4
         if (big >= 1.8 && StrokeFont.width(item, big) < w - 1) p.text(cx, cy + (if (sizeFits) 1.8 else 0.0), item, big, HAlign.CENTER, VAlign.CENTER, bold = true)
         if (sizeFits) p.text(cx, cy - big / 2 - 0.8, size, 2.4, HAlign.CENTER, VAlign.TOP)

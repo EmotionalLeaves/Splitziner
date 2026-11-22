@@ -1501,3 +1501,20 @@ class WideDoorTest {
         }
     }
 }
+
+
+class CutPlanPackingTest {
+    @Test fun aChestsEighteenMillimetrePartsShareOneSheet() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("drawers")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("overlay" to 1.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val cut = CutList.build(parts, fmt)
+        val cp = splitziner.cutplan.CutPlanner.plan(cut.rows, splitziner.cutplan.StockSettings())
+        // Drawer sides and fronts are ripped from sheet in metric, and the 18 mm parts fit one sheet.
+        assertTrue(cp.boards.isEmpty(), cp.boards.map { it.cuts }.toString())
+        assertEquals(1, cp.sheets.count { kotlin.math.abs(it.thickness - 18.0) < 0.1 })
+        // No two pieces overlap on any sheet.
+        for (sh in cp.sheets) for ((i, a) in sh.pieces.withIndex()) for (b in sh.pieces.drop(i + 1))
+            assertTrue(a.x + a.w <= b.x + 1e-6 || b.x + b.w <= a.x + 1e-6 || a.y + a.l <= b.y + 1e-6 || b.y + b.l <= a.y + 1e-6)
+    }
+}

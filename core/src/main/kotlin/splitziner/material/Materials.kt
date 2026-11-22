@@ -32,6 +32,14 @@ object Materials {
         Material("Acrylic", 1180.0, listOf("acrylic", "perspex", "plexi")),
     )
 
+    /** Whether a material comes as sheets (plywood, MDF...); a blank material is taken as sheet goods, solid timber and metals are not. */
+    fun sheetGood(text: String): Boolean {
+        val t = text.lowercase().trim()
+        if (t.isEmpty()) return true
+        val sheet = listOf("ply", "baltic", "mdf", "medium density", "particle", "chipboard", "melamine", "osb", "oriented strand", "hardboard", "acrylic", "perspex", "plexi", "board")
+        return sheet.any { it in t }
+    }
+
     /** The typical density of what the user typed, or null if it is not one of the common materials. */
     fun density(text: String): Double? {
         val t = text.lowercase()
