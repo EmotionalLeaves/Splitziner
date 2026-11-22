@@ -120,3 +120,9 @@ Departures from the build spec, newest first.
 - In a step that adds parts to a made frame, a board is only blocked by the frame boards that lie across its path. A slat resting on a frame's cleat now goes in from above instead of being slid in sideways.
 - Bench steps use the bench picture's directions in their text, including step 1. A rail sitting on its legs is lowered onto them.
 - A step title too long for the page is set smaller rather than running off the edge.
+
+## v0.78
+- The thickest sheet taken as sold for furniture is 1 in (25.4 mm) in inches and 30 mm in metric. A panel thicker than that (a 1-1/2 in workbench top) is cut as 2 or 3 equal layers of a stock sheet thickness, preferring 3/4 in / 19 mm. Each layer is cut 1/4 in (5 mm) over size and the glued panel is trimmed together. The cutting plan, shopping list and "Before you build" all say so, and also offer buying a butcher-block or worktop panel that thick. No layer split → the old "not in the plan" note.
+- Edge banding must be at least as wide as the edge is thick; when the banded edges differ (3/4 in and a 1-1/2 in top), the line says which needs the wider banding. No banding product widths are invented.
+- Guide pictures prefer a front view more strongly (0.6 instead of 0.4). One part going in from the back no longer turns the whole guide around (the desk). A picture still drawn from behind is labelled "SEEN FROM THE BACK".
+- The first step gives the spacing of pieces that stand apart, read off the model: outside to outside, any piece between them "centred" or measured from the first, and "ends lined up" when the outer two line up.
