@@ -36,6 +36,11 @@ class ExplodeOptions(
     /** Lettering height for balloons, in mm. */
     val textHeight: Double = 3.0,
     val title: String? = null,
+    /**
+     * Parts that belong to sub-assemblies fitted whole, with how many such units the step fits. They get one
+     * "×4" tag for the units, not one per item inside them.
+     */
+    val unitCounts: Map<String, Int> = emptyMap(),
 )
 
 /** Exploded line work in view coordinates, ready to be drawn at any scale. */
@@ -268,11 +273,14 @@ object ExplodedView {
             if (o.length < 1e-9 || (opt.highlight.isNotEmpty() && p.id !in opt.highlight)) continue
             val key = keyOf(p)
             if (opt.arrows && seenArrow.add(key)) arrow(dl, geo, box, Vec2(-(o dot geo.view.x), -(o dot geo.view.up)), s, ox, oy)
-            val same = geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && partBoxes[it] != null }
-            if (opt.qtyTags && same.size > 1 && seenQty.add("$key/${p.item}")) {
+            val units = opt.unitCounts[p.id]
+            val same = if (units != null) geo.parts.indices.filter { geo.parts[it].id in opt.unitCounts && keyOf(geo.parts[it]) == key && partBoxes[it] != null }
+                else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts }
+            val n = units ?: same.size
+            if (opt.qtyTags && n > 1 && same.isNotEmpty() && seenQty.add(if (units != null) "unit/$key" else "$key/${p.item}")) {
                 val gx0 = same.minOf { partBoxes[it]!!.x0 }; val gx1 = same.maxOf { partBoxes[it]!!.x1 }
                 val gy0 = same.minOf { partBoxes[it]!!.y0 }; val gy1 = same.maxOf { partBoxes[it]!!.y1 }
-                val txt = "×${same.size}"; val h = 4.5; val tw = StrokeFont.width(txt, h)
+                val txt = "×$n"; val h = 4.5; val tw = StrokeFont.width(txt, h)
                 val spots = listOf(
                     doubleArrayOf(gx1 + 3, (gy0 + gy1) / 2), doubleArrayOf(gx0 - 3 - tw, (gy0 + gy1) / 2),
                     doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy0 - 8), doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy1 + 4 + h / 2),

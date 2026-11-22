@@ -98,7 +98,10 @@ object AssemblyPlan {
         }
         // The main build keeps a readable number of steps of its own, however many sub-assemblies there are.
         // About three things fitted per step reads well; a step that places a whole pedestal and its drawers does not.
-        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())))
+        // Drawers are made whole and hung last, with any doors and shelves on pins.
+        val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
+            unitParts.map { it.id }.filter { it.startsWith("drawer") }
+        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain)
         val unitOf = main.parts.associateBy { it.id }
         val steps = ArrayList<BuildStep>(bench)
         for (st in main.steps) {
@@ -127,7 +130,8 @@ object AssemblyPlan {
     /** Most things one step of the main build fits from one direction. */
     private const val MAX_GROUP = 5
 
-    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
+    /** [hungGiven], when not null, names the parts hung last (doors, drawers made whole, shelves on pins) instead of finding them. */
+    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
         if (n == 0) return PlanResult(all, emptyList())
@@ -211,12 +215,29 @@ object AssemblyPlan {
         val layers = ArrayList<LinkedHashMap<Int, Dir>>()
         val dirOf = HashMap<Int, Dir>()
         // Doors, drawers and adjustable shelves go in once the box is finished: taken off first, so they go on last.
-        val hungIds = runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Drawers.find(parts).flatMap { it.ids } + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
+        val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
+        val hungIds = hungGiven ?: runCatching { splitziner.check.Doors.find(parts).map { it.id } + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
+        // Each drawer comes out whole; a door or a shelf on its own.
+        val idIndex = (0 until n).associateBy { parts[it].id }
+        val hungGroups = (drawerSets.map { ids -> ids.mapNotNull { idIndex[it] }.toSet() } + hung.filter { i -> drawerSets.none { parts[i].id in it } }.map { setOf(it) })
+            .filter { it.isNotEmpty() && base !in it }.toMutableList()
+        val outDir = Dir(1, -1)
         while (remaining.isNotEmpty()) {
             val present = remaining + base
             var free = LinkedHashMap<Int, Dir>()
             for (i in remaining.sorted()) for (d in dirs(i)) if (blockers(i, d, present).isEmpty()) { free[i] = d; break }
+            // Doors, drawers and shelves on pins go in from the front, the way they really do: each group that can
+            // leave straight out of the front (its own parts aside) is taken first, all its parts together.
+            // A drawer made whole is one mesh here, and its front may overlap the carcass edges in a shadow test though
+            // it leaves straight forward on its slides: such units are trusted to come out of the front.
+            val outFront = hungGroups.filter { g -> g.all { i -> i in remaining && (hungGiven != null || blockers(i, outDir, present).all { it in g }) } }
+            if (outFront.isNotEmpty()) {
+                val take = LinkedHashMap<Int, Dir>()
+                for (g in outFront) for (i in g) take[i] = outDir
+                layers += take; remaining -= take.keys; dirOf += take; hung -= take.keys; hungGroups -= outFront.toSet()
+                continue
+            }
             val hungFree = free.filterKeys { it in hung }
             if (hungFree.isNotEmpty()) {
                 val take = LinkedHashMap(hungFree)

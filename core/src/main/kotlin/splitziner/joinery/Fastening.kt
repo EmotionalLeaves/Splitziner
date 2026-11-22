@@ -123,6 +123,12 @@ object Fastening {
         val doorIds = doors.map { it.id }.toSet() + pinned
         val drawerOf = HashMap<String, Int>()
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.ids) drawerOf[id] = k }
+        // A thin part lying flush with an edge of the part it is set into (a back panel at the back edge of a side)
+        // sits in a rabbet, a step cut along that edge, rather than in a groove.
+        fun flush(thin: Int, other: Int): Boolean {
+            val a = (0..2).minByOrNull { rel.hi[thin][it] - rel.lo[thin][it] }!!
+            return kotlin.math.abs(rel.hi[thin][a] - rel.hi[other][a]) < 1.0 || kotlin.math.abs(rel.lo[thin][a] - rel.lo[other][a]) < 1.0
+        }
         for (i in live.indices) for (j in rel.touching[i]) {
             if (!seen.add(minOf(i, j).toLong() * 100000 + maxOf(i, j))) continue
             val a = live[i]; val b = live[j]
@@ -179,7 +185,7 @@ object Fastening {
             if (!glue && !faceToFace && aroundThr < MIN_INTO && aroundThr < around && method != JoinMethod.GLUE_AND_BRADS) {
                 val grooveDepth = minOf(GROOVE_SHARE * depth, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
-                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}"
+                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}|${if (flush(ti, ii)) "rabbet" else "groove"}"
                 joints.getOrPut(step) { ArrayList() } += Joint(into, thr, 0, spec, "thin", false)
                 continue
             }
@@ -189,7 +195,7 @@ object Fastening {
                 // The groove is cut in the face it meets, as wide as the thin part is thick; the thin part grows into it.
                 val grooveDepth = minOf(GROOVE_SHARE * tThrough, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
-                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(around, fmt)}|${size(grooveDepth, fmt)}"
+                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(around, fmt)}|${size(grooveDepth, fmt)}|${if (flush(ii, ti)) "rabbet" else "groove"}"
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, spec, "thin", false)
                 continue
             }
@@ -289,6 +295,10 @@ object Fastening {
     private fun count(n: Int): String = listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").getOrElse(n) { "$n" }
 
     /** Per item, how many pocket holes to drill before assembly (in the part whose end meets the other). */
+    /** Items that get a groove or rabbet for a thin part, if the maker takes that option over a cleat. */
+    fun grooveItems(plan: FastenPlan): List<Int> =
+        plan.all.filter { it.kind == "thin" && it.size.count { c -> c == '|' } >= 1 }.mapNotNull { it.through.item }.distinct().sorted()
+
     fun pocketHoles(plan: FastenPlan): Map<Int, Int> {
         if (plan.method != JoinMethod.POCKET_SCREWS) return emptyMap()
         val out = sortedMapOf<Int, Int>()
@@ -309,7 +319,8 @@ object Fastening {
                 else "Drill the hinge cups in the back of ${key.first} with a 35 mm bit (using the hinges' template), screw on ${count(n)} hinges, then hang it and adjust it until the gaps are even. Fit its handle or knob ${HANDLE_PLACE} the hinges.")
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
-            else if (j.kind == "slides") "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer. Fit its handle or knob in the middle of the front."
+            else if (j.kind == "slides") (if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it. Fit each drawer's handle or knob in the middle of its front."
+                else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer. Fit its handle or knob in the middle of the front.")
             else if (j.kind == "housed") "Glue ${key.second} into the groove cut for it in ${key.first}$times, and clamp until dry."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
@@ -317,8 +328,10 @@ object Fastening {
             else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
             else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${count(n)} ${j.size} brads$times."
             else if (j.kind == "thin") {
-                val (w, d) = j.size.split('|').let { if (it.size == 2) it[0] to it[1] else "" to "" }
-                if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
+                val parts = j.size.split('|'); val w = if (parts.size >= 2) parts[0] else ""; val d = if (parts.size >= 2) parts[1] else ""
+                val rabbet = parts.getOrNull(2) == "rabbet"
+                if (w.isNotEmpty() && rabbet) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in ${key.first}, make ${key.second} $d bigger on that edge than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) along ${key.first} behind it."
+                else if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
                 else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }

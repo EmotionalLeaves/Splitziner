@@ -92,6 +92,7 @@ fun main(args: Array<String>) {
                 println("howto     item ${row.item}: " + splitziner.check.HowTo.steps(row, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)).joinToString(" | "))
             }
             if (System.getenv("STRETCH") != null) for (k in 0..2) println("stretch   axis $k: ${splitziner.edit.Editor.stretchPlane(a.parts, k)?.let { "at ${a.format.format(it.first)}, can shrink ${a.format.format(it.second)}" } ?: "none"}")
+            if (System.getenv("EXPL") != null) for (p in plan!!.parts) println("explode   ${p.id} item ${p.item} step ${p.step} ${p.explode}")
             if (System.getenv("STEPS") != null) for (st in plan!!.steps) println("step      ${st.step}${if (st.subassembly) " bench x${st.makeCount}" else ""}: ${st.partIds.size} parts, items ${st.items}")
             var plain = emptySet<Int>()
             time("drawing") {
@@ -130,7 +131,7 @@ fun main(args: Array<String>) {
                 val view = splitziner.explode.ExplodedView.pickView(drawn)
                 val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                 val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info(f.nameWithoutExtension, "Build guide", a.overallSize, drawn.size, hardware = fasten.hardware).let { inf ->
-                    val ba = splitziner.guide.GuideLayout.beforeAndAfter(splitziner.cutplan.EdgeBanding.estimate(a.parts).items, splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(), fasten.byStep.values.flatten().any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") }, splitziner.joinery.Fastening.pocketHoles(fasten), splitziner.drawing.PartDrawings.pinItems(a.parts).toList())
+                    val ba = splitziner.guide.GuideLayout.beforeAndAfter(splitziner.cutplan.EdgeBanding.estimate(a.parts).items, splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(), fasten.byStep.values.flatten().any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") }, splitziner.joinery.Fastening.pocketHoles(fasten), splitziner.drawing.PartDrawings.pinItems(a.parts).toList(), splitziner.joinery.Fastening.grooveItems(fasten))
                     val making = a.cutList.rows.mapNotNull { r -> val p = a.parts.first { it.id == r.memberIds[0] }
                         val st = splitziner.check.HowTo.steps(r, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)); splitziner.check.HowTo.making(st)?.let { "Item ${r.item}: ${r.description}" to it } }
                     splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second, making) }, steps, a.cutList.rows, hero)

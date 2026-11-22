@@ -93,7 +93,8 @@ object GuideSteps {
             }
             val pic = ExplodedView.render(
                 scene, PICTURE_W, PICTURE_H,
-                ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4),
+                ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4,
+                    unitCounts = unitCount.values.flatMap { us -> us.flatMap { u -> u.map { it.id to us.size } } }.toMap()),
                 view, "step%02d".format(st.step), stepFrame,
             )
             val lines = ArrayList<String>()
@@ -202,10 +203,11 @@ object GuideLayout {
      * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
      * [housedItems] items that need a groove cut; [screws] whether anything is screwed (screw holes to fill).
      */
-    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList()): Pair<List<String>, List<String>> {
+    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList(), thinItems: List<Int> = emptyList()): Pair<List<String>, List<String>> {
         fun list(i: List<Int>) = if (i.size == 1) "item ${i[0]}" else "items ${i.dropLast(1).joinToString(", ")} and ${i.last()}"
         val before = ArrayList<String>()
         before += "Cut every part to the cut list, and pencil its item number on a face that will not show."
+        if (thinItems.isNotEmpty()) before += "Thin panels are held in a groove or rabbet, or against a glued strip (a cleat): the steps say where. If you choose grooves or rabbets, cut them in ${list(thinItems)} now, while the boards are loose, and add their depth to the thin panels."
         if (pinItems.isNotEmpty()) before += "Drill the shelf-pin holes in ${list(pinItems.sorted())} (${if (pinItems.size == 1) "its drawing gives" else "their drawings give"} the rows) before anything is joined, with a jig or a drilling guide so the rows match."
         if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (${if (groovedItems.size == 1) "its drawing gives" else "their drawings give"} the sizes) before anything is joined: it is far easier on a loose board."
         if (pocketHoles.isNotEmpty()) before += "Drill the pocket holes with the jig set to each board's thickness, on faces that will not show: " +
