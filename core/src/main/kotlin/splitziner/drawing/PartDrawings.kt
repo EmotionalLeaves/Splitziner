@@ -131,15 +131,32 @@ object PartDrawings {
             "DIAMETER AND DEPTH TO SUIT THE PINS (5 MM DIAMETER IS COMMON). NOT THROUGH.")
     }
 
-    /** A general note for the assembly drawing naming the items that have no detail drawing, in ranges ("3-5, 9"). */
-    fun plainNote(items: Set<Int>): String? {
-        if (items.isEmpty()) return null
+    /** Item numbers in ranges: "3-5, 9". */
+    private fun runs(items: Set<Int>): List<String> {
         val sorted = items.sorted(); val runs = ArrayList<String>()
         var a = sorted[0]; var b = a
         for (i in sorted.drop(1)) { if (i == b + 1) b = i else { runs += if (a == b) "$a" else "$a-$b"; a = i; b = i } }
         runs += if (a == b) "$a" else "$a-$b"
+        return runs
+    }
+
+    /** A general note for the assembly drawing naming the items that have no detail drawing, in ranges ("3-5, 9"). */
+    fun plainNote(items: Set<Int>): String? {
+        if (items.isEmpty()) return null
+        val runs = runs(items)
         val which = if (items.size == 1) "ITEM ${runs[0]} IS A PLAIN SQUARE BOARD" else "ITEMS ${runs.joinToString(", ")} ARE PLAIN SQUARE BOARDS"
         return "$which: CUT TO THE SIZES IN THE LIST OF MATERIAL. NO DETAIL DRAWING."
+    }
+
+    /**
+     * The other half of [plainNote]: which items have a detail drawing and what it is numbered, so a drawing set
+     * of many sheets can be found through. Detail drawings take the assembly's number and the item's ("DESK-1-13").
+     */
+    fun detailNote(items: Set<Int>, drawingNo: String): String? {
+        if (items.isEmpty()) return null
+        val base = drawingNo.ifBlank { "DWG" }
+        if (items.size <= 6) return "DETAIL DRAWING${if (items.size == 1) "" else "S"}: " + items.sorted().joinToString(", ") { "ITEM $it ON $base-$it" } + "."
+        return "DETAIL DRAWINGS FOR ITEMS ${runs(items).joinToString(", ")}: NUMBERED $base- AND THE ITEM NUMBER (ITEM ${items.min()} ON $base-${items.min()})."
     }
 
     fun build(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat): List<DrawingResult> =
