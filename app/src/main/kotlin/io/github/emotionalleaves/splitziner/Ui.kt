@@ -70,6 +70,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -287,11 +288,11 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     if (notes > 0) Text("  \u00b7  $notes note${if (notes == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
                 }
             }
-            TextButton(onClick = { showHelp = true }) { Text("Help") }
             Box {
                 IconButton(onClick = { projectMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Project menu") }
                 DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
                     DropdownMenuItem(text = { Text("Project details") }, leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) }, onClick = { projectMenu = false; details = true })
+                    DropdownMenuItem(text = { Text("Help") }, leadingIcon = { Icon(Icons.Default.Build, contentDescription = null) }, onClick = { projectMenu = false; showHelp = true })
                     DropdownMenuItem(text = { Text("Share project") }, leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }, onClick = {
                         projectMenu = false
                         val f = vm.exportProject()
