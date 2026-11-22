@@ -6,6 +6,9 @@ package splitziner.parts
  * and a name from the file or from the maker always wins.
  */
 object Roles {
+    /** A board narrower than this (mm) is a strip (rail, upright), never a shelf, side or top. */
+    private const val NARROW = 150.0
+
     fun names(parts: List<Part>): Map<String, String> {
         val live = parts.filter { !it.excluded }
         if (live.size < 2) return emptyMap()
@@ -49,11 +52,29 @@ object Roles {
             if (upright && e.z < 0.3 * h && b.min.z > all.min.z + 0.3 * h && live.any { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 }) {
                 out[p.id] = "Apron"; continue
             }
+            // Narrow boards are not shelves or sides: a strip lying down is a rail, one standing up an upright.
+            if (dims[1] < NARROW) {
+                val kick = e.y <= t + 0.01 && b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 && b.min.y <= all.min.y + 0.25 * all.extents.y
+                out[p.id] = if (kick) "Kick board" else if (e.z >= dims[2] - 0.01) "Upright" else "Rail"
+                continue
+            }
             out[p.id] = when {
-                e.z <= t + 0.01 -> when {
-                    b.max.z >= all.max.z - 1.0 -> "Top"
-                    live.none { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && o.mesh.bounds.max.z <= b.min.z + 0.5 && o.mesh.bounds.extents.x * o.mesh.bounds.extents.y > 0.3 * e.x * e.y } -> "Bottom"
-                    else -> "Shelf"
+                e.z <= t + 0.01 -> {
+                    fun flat(o: Part) = o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y)
+                    // How much of this part another flat part above (or below) it covers, seen from above.
+                    fun overlapShare(o: Part): Double {
+                        val ob = o.mesh.bounds
+                        val ox = maxOf(0.0, minOf(ob.max.x, b.max.x) - maxOf(ob.min.x, b.min.x)); val oy = maxOf(0.0, minOf(ob.max.y, b.max.y) - maxOf(ob.min.y, b.min.y))
+                        return ox * oy / (e.x * e.y)
+                    }
+                    val coveredAbove = live.any { o -> o !== p && flat(o) && o.mesh.bounds.min.z >= b.max.z - 0.5 && overlapShare(o) > 0.5 }
+                    val coveredBelow = live.any { o -> o !== p && flat(o) && o.mesh.bounds.max.z <= b.min.z + 0.5 && overlapShare(o) > 0.3 }
+                    when {
+                        // Nothing over most of it and high up: a top (a desk's top, though a small shelf rides above it).
+                        !coveredAbove && b.min.z > all.min.z + 0.5 * h -> "Top"
+                        !coveredBelow && b.min.z < all.min.z + 0.25 * h -> "Bottom"
+                        else -> "Shelf"
+                    }
                 }
                 e.x <= t + 0.01 -> if (b.min.x <= all.min.x + 1.0 || b.max.x >= all.max.x - 1.0) "Side" else "Divider"
                 e.y <= t + 0.01 -> when {
