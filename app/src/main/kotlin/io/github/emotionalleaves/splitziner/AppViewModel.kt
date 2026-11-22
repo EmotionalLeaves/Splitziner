@@ -559,6 +559,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteProject(meta: ProjectMeta) {
         store.delete(meta.id)
+        // Its build progress and shopping ticks go with it.
+        val app = getApplication<Application>()
+        app.getSharedPreferences("build", android.content.Context.MODE_PRIVATE).edit().remove("done_${meta.id}").remove("total_${meta.id}").apply()
+        app.getSharedPreferences("shopping", android.content.Context.MODE_PRIVATE).edit().remove("ticked_${meta.id}").apply()
         _state.update { it.copy(projects = store.list(), open = if (it.open?.meta?.id == meta.id) null else it.open) }
     }
 

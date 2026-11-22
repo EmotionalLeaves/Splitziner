@@ -961,7 +961,7 @@ private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: 
     var done by remember { mutableStateOf(prefs.getStringSet(key, emptySet())!!.mapNotNull { it.toIntOrNull() }.toSet()) }
     // Opens at the first step not yet done.
     var at by remember { mutableIntStateOf((work.indices.firstOrNull { it !in done } ?: 0)) }
-    fun save() { prefs.edit().putStringSet(key, done.map { it.toString() }.toSet()).apply() }
+    fun save() { prefs.edit().putStringSet(key, done.map { it.toString() }.toSet()).putInt("total_${open.meta.id}", work.size).apply() }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             val st = work[at.coerceIn(0, work.size - 1)]
@@ -2090,8 +2090,13 @@ private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabl
                 val what = listOfNotNull(if (p.partCount > 0) "${p.partCount} part${if (p.partCount == 1) "" else "s"}" else null, p.size.ifBlank { null }).joinToString("  \u00b7  ")
                 Text(what.ifBlank { p.fileName }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val at = maxOf(p.createdAt, p.updatedAt)
-                if (at > 0) Text(android.text.format.DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString(),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                // How far the build has got in Build mode, once it has started.
+                val ctx = LocalContext.current
+                val built = remember(p.id, version) { ctx.getSharedPreferences("build", Context.MODE_PRIVATE).let { b -> (b.getStringSet("done_${p.id}", emptySet())?.size ?: 0) to b.getInt("total_${p.id}", 0) } }
+                val when0 = if (at > 0) android.text.format.DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString() else ""
+                val progress = if (built.first > 0 && built.second > 0) (if (built.first >= built.second) "built" else "${built.first} of ${built.second} steps done") else null
+                Text(listOfNotNull(when0.ifBlank { null }, progress).joinToString("  \u00b7  "), style = MaterialTheme.typography.bodySmall,
+                    color = if (progress != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}") }
