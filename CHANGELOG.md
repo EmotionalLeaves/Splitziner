@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.74.0 - Material with a new design
+
+- **Choose a material when you start a new design.** Under the preview, pick plywood, birch plywood, MDF, pine, poplar or oak, or leave it unset. Every part gets that material from the start, so the weight, the list of material and the cutting plan labels are filled in straight away. You can still change any part on the Cut list tab.
+
 ## v0.73.0 - Centre legs named
 
 - Legs set in from every outside edge, such as the two under a bed's centre rail, are now named **Centre leg** in the cut list, the drawings and the guide, so they can't be confused with the corner legs.
