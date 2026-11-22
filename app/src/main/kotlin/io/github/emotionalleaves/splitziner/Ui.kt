@@ -213,6 +213,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var editRow by remember { mutableStateOf<CutListRow?>(null) }
     var shapePart by remember { mutableStateOf<Part?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    var showSize by remember { mutableStateOf(false) }
+    if (showSize) OverallSizeDialog(open, onDismiss = { showSize = false }) { es -> showSize = false; vm.addEdits(es) }
     shapePart?.let { p -> ShapeDialog(p, open, onDismiss = { shapePart = null }) { e -> shapePart = null; vm.addEdit(e) } }
     if (showAdd) AddBoardDialog(open, onDismiss = { showAdd = false }) { e -> showAdd = false; vm.addEdit(e); selectedId = (e as? splitziner.edit.Edit.AddBox)?.id }
     var showCutPlan by remember { mutableStateOf(false) }
@@ -312,6 +314,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick = { playing = !playing; playStep = 1 }) { Text(if (playing) "Show all" else "Build steps") }
                 OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
+                OutlinedButton(onClick = { showSize = true }, enabled = state.busyLabel == null) { Text("Overall size") }
                 if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
             }
         } else if (tab == 1) {
@@ -849,6 +852,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
@@ -1126,7 +1130,15 @@ private fun ToolsDialog(owned: Set<splitziner.check.Tool>, onDismiss: () -> Unit
 }
 
 
-private fun num(s: String): Double? = s.trim().replace(',', '.').toDoubleOrNull()
+/** A number as typed: "12.5", "12,5", or a fraction such as "30-1/2", "30 1/2" or "3/4". */
+private fun num(s: String): Double? {
+    val t = s.trim().replace(',', '.')
+    t.toDoubleOrNull()?.let { return it }
+    val m = Regex("""^(\d+(?:\.\d+)?)?[\s-]*(\d+)/(\d+)$""").find(t) ?: return null
+    val whole = m.groupValues[1].toDoubleOrNull() ?: 0.0
+    val den = m.groupValues[3].toDouble(); if (den == 0.0) return null
+    return whole + m.groupValues[2].toDouble() / den
+}
 
 /** A length in the project's units for a text field: no trailing zeros. */
 private fun field(mm: Double, unit: Double) = String.format(java.util.Locale.ROOT, "%.3f", mm / unit).trimEnd('0').trimEnd('.')
@@ -1255,6 +1267,47 @@ private fun AddBoardDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (spl
 }
 
 
+/**
+ * Changes the whole model's width, depth or height. Each changed size is made by stretching the model across a
+ * plane through plain lengths of board: parts it crosses get longer or shorter, parts beyond it move.
+ */
+@Composable
+private fun OverallSizeDialog(open: OpenProject, onDismiss: () -> Unit, onApply: (List<splitziner.edit.Edit>) -> Unit) {
+    val a = open.analysis
+    val fmt = a.format
+    val unit = if (fmt.isInch) 25.4 else 1.0
+    val e = a.bounds.extents
+    val now = doubleArrayOf(e.x, e.y, e.z)
+    val vals = remember { androidx.compose.runtime.mutableStateListOf(field(e.x, unit), field(e.y, unit), field(e.z, unit)) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = {
+            val edits = ArrayList<splitziner.edit.Edit>()
+            for (k in 0..2) {
+                val v = num(vals[k]) ?: run { msg = "Enter each size as a number"; return@TextButton }
+                val delta = v * unit - now[k]
+                if (kotlin.math.abs(delta) < 0.05) continue
+                val plane = splitziner.edit.Editor.stretchPlane(a.parts, k) ?: run { msg = "The ${listOf("width", "depth", "height")[k]} cannot be changed automatically: every position across the middle cuts through a corner of some part."; return@TextButton }
+                if (delta < 0 && -delta > plane.second) { msg = "The ${listOf("width", "depth", "height")[k]} can be made at most ${fmt.format(plane.second)} ${fmt.unitLabel} smaller this way; beyond that parts would pass through each other."; return@TextButton }
+                edits += splitziner.edit.Edit.Stretch(k, plane.first, delta)
+            }
+            if (edits.isEmpty()) onDismiss() else onApply(edits)
+        }) { Text("Apply") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Overall size") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Boards keep their thickness: the parts that run across the middle get longer or shorter and the rest move with them. Undo takes it back.", style = MaterialTheme.typography.bodySmall)
+                for ((k, label) in listOf("Width (left to right)", "Depth (front to back)", "Height").withIndex())
+                    OutlinedTextField(vals[k], { vals[k] = it; msg = null }, label = { Text("$label, ${fmt.unitLabel}") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Text))
+                msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
+}
+
 /** Pick a starting design and its main sizes; the parts can be changed one by one afterwards. */
 @Composable
 private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
@@ -1272,7 +1325,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
             if (t == null) { onDismiss(); vm.newDesign(); return@TextButton }
             val mm = HashMap<String, Double>()
             for (f in t.fields) {
-                val v = values[f.key]?.trim()?.replace(',', '.')?.toDoubleOrNull()
+                val v = num(values[f.key] ?: "")
                 if (v == null || v < 0 || (!f.count && v == 0.0 && !f.key.startsWith("back"))) { error = "Enter a number for ${f.label.lowercase()}."; return@TextButton }
                 mm[f.key] = if (f.count) v else if (inch) v * 25.4 else v
             }

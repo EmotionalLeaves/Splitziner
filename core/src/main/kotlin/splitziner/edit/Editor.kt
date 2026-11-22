@@ -38,6 +38,12 @@ sealed class Edit {
      * overlap in the model is the groove. The check stops calling it a clash, and the guide and drawings say so.
      */
     data class House(val id: String, val into: String) : Edit()
+    /**
+     * Make the whole model longer (or shorter) along [axis] (0 x, 1 y, 2 z) by [by] mm at the plane [at]: every point
+     * beyond the plane moves by [by]. Parts the plane crosses grow, parts beyond it move, the rest stay as they are,
+     * so board thicknesses and joints are kept.
+     */
+    data class Stretch(val axis: Int, val at: Double, val by: Double) : Edit()
 }
 
 /** [housed] are (part, the part grooved to take it) pairs, for the parts that still exist. */
@@ -46,6 +52,26 @@ class EditResult(val parts: List<Part>, val notes: List<String>, val housed: Lis
 object Editor {
     /** At most this share of a part may be cut away by a trim; more than that is a design decision, not a tidy-up. */
     const val MAX_TRIM_SHARE = 0.25
+
+    /**
+     * Where to stretch the model along [axis]: the middle of the widest stretch between 25% and 75% of its size that
+     * no corner of any part lies in, so only plain lengths of board are cut across. Returns the plane and how much the
+     * model may be shortened there (the width of that clear stretch), or null if every position crosses a corner.
+     */
+    fun stretchPlane(parts: List<Part>, axis: Int): Pair<Double, Double>? {
+        val live = parts.filter { !it.excluded }
+        if (live.isEmpty()) return null
+        val cs = live.flatMap { p -> (0 until p.mesh.vertexCount).map { p.mesh.vertices[3 * it + axis] } }.sorted()
+        val lo = cs.first(); val hi = cs.last(); val a = lo + 0.25 * (hi - lo); val b = lo + 0.75 * (hi - lo)
+        var best: Pair<Double, Double>? = null
+        val pts = listOf(a) + cs.filter { it > a && it < b } + listOf(b)
+        for (i in 0 until pts.size - 1) {
+            val gap = pts[i + 1] - pts[i]
+            if (gap > 1.0 && (best == null || gap > best.second)) best = (pts[i] + pts[i + 1]) / 2 to gap
+        }
+        // The clear stretch may reach past 25-75% only on its own sides; shortening by its width keeps every corner where it was relative to its neighbours.
+        return best?.let { (at, gap) -> at to gap * 0.9 }
+    }
 
     fun box(min: Vec3, size: Vec3): Mesh {
         val a = min; val b = min + size
@@ -147,6 +173,14 @@ object Editor {
                     is Edit.Duplicate -> cur.firstOrNull { it.id == e.id }?.let { cur + Part(e.newId, it.name, MeshOps.translated(it.mesh, e.d), material = it.material) } ?: cur
                     is Edit.Merge -> merge(cur, e, notes)
                     is Edit.House -> { housed += e.id to e.into; cur }
+                    is Edit.Stretch -> cur.map { p ->
+                        val m = p.mesh
+                        if (m.bounds.max[e.axis] <= e.at) p else {
+                            val v = m.vertices.copyOf()
+                            for (i in 0 until m.vertexCount) if (v[3 * i + e.axis] > e.at) v[3 * i + e.axis] += e.by
+                            fresh(p, Mesh(v, m.triangles))
+                        }
+                    }
                     is Edit.CutBack -> {
                         val a = cur.firstOrNull { it.id == e.id }; val b = cur.firstOrNull { it.id == e.by }
                         val r = if (a != null && b != null) cutBack(a, b) else null

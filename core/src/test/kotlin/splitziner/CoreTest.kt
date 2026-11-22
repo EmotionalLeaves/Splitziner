@@ -1108,3 +1108,22 @@ class HousingTest {
         assertTrue(notes[0].contains("10 DEEP X 6 WIDE X 600 LONG"), notes[0])
     }
 }
+
+class StretchTest {
+    @Test fun makingABookcaseWiderLengthensShelvesAndMovesTheFarSide() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("shelves")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val (at, room) = splitziner.edit.Editor.stretchPlane(parts, 0)!!
+        assertTrue(room > 100)
+        val wider = splitziner.edit.Editor.apply(parts, listOf(splitziner.edit.Edit.Stretch(0, at, 150.0))).parts
+        val cut = CutList.build(wider, fmt)
+        // Width 800 -> 950; sides still 18 thick; shelves 764 -> 914 long.
+        assertEquals(950.0, wider.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents.x, 1e-6)
+        assertTrue(cut.rows.any { abs(it.l - 914.0) < 1e-6 }, cut.rows.map { it.description }.toString())
+        assertTrue(cut.rows.all { abs(it.t - 18.0) < 1e-6 || abs(it.t - 6.0) < 1e-6 })
+        // Shorter by more than the clear stretch is refused by the dialog; within it, the shelves shrink.
+        val narrower = splitziner.edit.Editor.apply(parts, listOf(splitziner.edit.Edit.Stretch(0, at, -100.0))).parts
+        assertEquals(700.0, narrower.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents.x, 1e-6)
+    }
+}
