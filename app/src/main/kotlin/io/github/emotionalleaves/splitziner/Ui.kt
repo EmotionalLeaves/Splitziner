@@ -271,8 +271,11 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             LaunchedEffect(playing, a) { if (playing && playPlan == null) playPlan = vm.planFor3D() }
             val pp = playPlan
             val stage = if (playing && pp != null) {
-                val now = pp.steps.firstOrNull { it.step == playStep }?.partIds?.toSet().orEmpty()
-                pp.parts.associate { p -> val s0 = p.step ?: Int.MAX_VALUE; p.id to when { p.id in now -> 2; s0 < playStep -> 1; else -> 0 } }
+                val cur = pp.steps.firstOrNull { it.step == playStep }
+                val now = cur?.partIds?.toSet().orEmpty()
+                // A bench step is made away from the model; the rest is shown faint so it is clear where it will go.
+                if (cur?.subassembly == true) pp.parts.associate { p -> p.id to if (p.id in now) 2 else 1 }
+                else pp.parts.associate { p -> val s0 = p.step ?: Int.MAX_VALUE; p.id to when { p.id in now -> 2; s0 < playStep -> 1; else -> 0 } }
             } else null
             ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), offsets = state.explodeOffsets, explode = if (playing) 0f else pull, stage = stage)
             if (playing) {
@@ -288,7 +291,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     OutlinedButton(onClick = { playStep = (playStep + 1).coerceAtMost(last) }, enabled = playStep < last) { Text("\u2192") }
                 }
             }
-            if (a.parts.count { !it.excluded } > 1) {
+            if (a.parts.count { !it.excluded } > 1 && !playing) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Pull apart", style = MaterialTheme.typography.bodySmall)
                     Slider(value = pull, onValueChange = { pull = it; if (it > 0f) vm.ensureExplodeOffsets() }, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
