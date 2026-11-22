@@ -15,12 +15,13 @@ object EdgeBanding {
     /** Bought with this much extra for trimming the ends. */
     private const val ALLOWANCE = 1.1
 
-    class Estimate(val lengthMm: Double, val items: List<Int>)
+    /** [thickness]: how thick each banded item's edges are (mm), which sets how wide the banding must be. */
+    class Estimate(val lengthMm: Double, val items: List<Int>, val thickness: Map<Int, Double> = emptyMap())
 
     fun estimate(parts: List<Part>): Estimate {
         val live = parts.filter { !it.excluded }
         val lo = live.map { it.mesh.bounds.min }; val hi = live.map { it.mesh.bounds.max }
-        var total = 0.0; val items = sortedSetOf<Int>()
+        var total = 0.0; val items = sortedSetOf<Int>(); val thick = HashMap<Int, Double>()
         for ((i, p) in live.withIndex()) {
             if (p.kind != PartKind.PANEL) continue
             val e = doubleArrayOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y, hi[i].z - lo[i].z)
@@ -44,10 +45,10 @@ object EdgeBanding {
                     if (lo[j][k] > hi[i][k] - 0.1 || hi[j][k] < lo[i][k] + 0.1) continue
                     covered += maxOf(0.0, minOf(hi[i][along], hi[j][along]) - maxOf(lo[i][along], lo[j][along]))
                 }
-                if (covered < 0.5 * e[along]) { total += e[along]; p.item?.let { items += it } }
+                if (covered < 0.5 * e[along]) { total += e[along]; p.item?.let { items += it; thick[it] = e[k] } }
             }
         }
-        return Estimate(total * ALLOWANCE, items.toList())
+        return Estimate(total * ALLOWANCE, items.toList(), thick)
     }
 
     /** The shopping line, or null when no panel edge shows. */
@@ -61,6 +62,14 @@ object EdgeBanding {
             items.size <= 8 -> " of items ${items.dropLast(1).joinToString(", ")} and ${items.last()}"
             else -> ""
         }
-        return "Edge banding, if the sheets are plywood or particleboard: about $len for the edges that show$which (not the back or underneath; includes a little extra for trimming)"
+        // Banding is sold in widths a little over the common sheet thickness; a thicker edge (a glued-up top) needs wider.
+        val t = est.thickness.values.groupBy { Math.round(it * 2) / 2.0 }.keys.sorted()
+        val wide = if (t.size <= 1) "" else {
+            val tf = if (fmt.isInch) LengthFormat("in", inchStyle = "fraction", fractionDenominator = 8) else fmt
+            val u = if (fmt.isInch) " in" else " mm"
+            val big = est.thickness.filter { Math.round(it.value * 2) / 2.0 == t.last() }.keys.sorted()
+            "; it must be at least as wide as the edge is thick: ${tf.format(t.first())}$u, and ${tf.format(t.last())}$u for item${if (big.size > 1) "s" else ""} ${big.joinToString(", ")}"
+        }
+        return "Edge banding, if the sheets are plywood or particleboard: about $len for the edges that show$which (not the back or underneath; includes a little extra for trimming)$wide"
     }
 }
