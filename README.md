@@ -12,17 +12,17 @@ New versions install over the old one and keep your projects.
 
 ## What it does
 
-- **Imports** binary and ASCII STL files, from the file picker or "Open with".
+- **Imports** binary and ASCII STL files and Wavefront OBJ files, from the file picker or "Open with".
 - **Separates the file into parts**, whatever order the triangles are in, removes bodies the exporter stored more than once, and repairs small surface gaps.
 - **Guesses the units** (STL has none) and lets you correct them, and which way is up (many programs save with Y up); shows sizes in millimetres, decimal inches or fractional inches.
 - **3D view** with each part in its own colour, tap to select, a slider that pulls the model apart, and **Build steps**, which plays the build one step at a time.
-- **Cut list**: identical parts grouped and counted, described as panels, boards, rods or shaped pieces, with a total length to buy per board size. Set materials (common ones in one tap) for a weight estimate. Share it as CSV.
-- **Engineering drawings** as a vector PDF: front, top and side views with hidden-line removal, automatic section views when the inside is hidden, dimensions from one datum corner, a title block, revision block, notes and a list of material; an exploded view with item balloons; and a detail drawing for every shaped, notched or drilled part (plain square boards are given by the list of material). Also as PNG or DXF.
-- **Build guide** as a PDF: a drafted build order with one picture per step, which you can reorder and reword, saying how each joint is made (screws, pocket screws, dowels or brads, grooves for thin parts) and listing the hardware to buy.
+- **Cut list**: identical parts grouped and counted, described as panels, boards, rods or shaped pieces, with a total length to buy per board size. Set materials (common ones in one tap) for a weight estimate. Share it as CSV, as a shopping list (wood, edge banding, hardware) or as full-size CNC profiles (DXF).
+- **Engineering drawings** as a vector PDF: front, top and side views with hidden-line removal, automatic section views when the inside is hidden, dimensions from one datum corner, a title block, revision block, notes and a list of material; an exploded view with item balloons; and a detail drawing for every shaped, notched or drilled part (plain square boards are given by the list of material). Also as PNG or DXF, plus full-size paper templates of shaped parts to print, tape together and trace.
+- **Build guide** as a PDF: what to do before you start and after you finish, then a drafted build order with one picture per step, which you can reorder and reword, saying how each joint is made (screws, pocket screws, dowels or brads, grooves for thin parts) and listing the hardware to buy.
 - **Split parts** shared as separate STL files.
 - **Cutting plan**: panels laid out on sheets (or half and quarter sheets) and boards along bought lengths, with what to buy, as standard lumber in inch projects.
 - **Design check**: finds parts that overlap, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, long unsupported spans and a design that would tip. Tick the **tools** you own and it says which parts you cannot make with them.
-- **Editing**: select a part in 3D to resize, move, slide it against its neighbours, copy, square up, split into boards or delete; add new boards; start a new design from a bookcase, cabinet, table, bench or open box at your sizes, or from one board. Every change can be undone.
+- **Editing**: select a part in 3D to resize, move, slide it against its neighbours, copy, square up, split into boards or delete; add new boards; make the whole piece wider, deeper or taller; start a new design from a bookcase, cabinet, desk, table, bench or open box at your sizes, or from one board. Every change is listed and any one can be taken back.
 - **Fixing**: splits frames, boxes and channels drawn as one solid into real boards, and proposes changes that make a model buildable (close gaps, join pieces of one sheet, trim overlaps, stock thicknesses), shows them first, and can be undone. Share the changed model as STL.
 
 ## What it cannot know
