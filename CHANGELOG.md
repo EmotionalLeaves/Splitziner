@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.4.0 - Leaning parts go in the right way
+
+- Leaning parts: a bench's back slats now go on from the front, in front of their supports, instead of "from the back" through them.
+
 ## v1.3.0 - Stronger leg joints
 
 - Workbenches and tables with thick legs: the aprons and rails are pocket-screwed into the legs from their hidden faces, instead of long counterbored screws driven through the legs into the rails' end grain. That's 32 fewer plugs on the workbench template.

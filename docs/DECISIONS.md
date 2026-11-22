@@ -294,3 +294,7 @@ Departures from the build spec, newest first.
 - A board rail (no thicker than 1 in) meeting a leg too thick to screw through end-on is pocket-screwed from its hidden face into the leg instead of counterbored: a long screw through a leg into a rail's end grain holds poorly. Counterbores stay for thick-to-thick joints (a trestle's post on its foot).
 - Brads: the shortest sold is taken when it is within 10% of the ideal length, so a 6 mm back panel gets 5/8 in (15 mm) brads instead of "glue only".
 - Parts that touch without sharing a face or overlapping more than 3.5 mm (a square-cut end against a sloping face) are screwed through the part met end-on.
+
+## v1.4
+- What blocks a part's way in, for a leaning or notched part, is now its material clipped to the space ahead of the moving part (each triangle cut at that plane), not whole triangles: a leaning back support's long faces reach both sides, so a back slat in front of it goes in from the front, not through it from behind.
+- Test models moved to `scripts/models/` (gen.py writes the first set; gen2-9 add the rest), and `scripts/guide-diff.sh` compares every model's guide text between a commit and the working tree, to catch unintended changes.

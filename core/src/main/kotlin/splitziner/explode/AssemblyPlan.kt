@@ -658,14 +658,27 @@ object AssemblyPlan {
         fun aheadShadow(j: Int, i: Int, d: Dir): Geometry {
             val m = parts[j].mesh; val v = m.vertices; val t = m.triangles
             val edge = if (d.sign > 0) hi[i][d.k] - tol else lo[i][d.k] + tol
-            val keep = ArrayList<Int>()
+            // Each triangle clipped to the half of space ahead of i's leading face (a big face of a leaning board
+            // reaches both sides of it), the pieces fanned back into triangles.
+            val nv = ArrayList<Double>(); val nt = ArrayList<Int>()
+            fun ahead(c: Double) = if (d.sign > 0) c >= edge else c <= edge
             for (f in 0 until m.triangleCount) {
-                val ahead = (0..2).all { q -> val c = v[3 * t[3 * f + q] + d.k]; if (d.sign > 0) c >= edge else c <= edge }
-                if (ahead) for (q in 0..2) keep += t[3 * f + q]
+                val pts = (0..2).map { q -> val vi = t[3 * f + q]; Vec3(v[3 * vi], v[3 * vi + 1], v[3 * vi + 2]) }
+                val poly = ArrayList<Vec3>()
+                for (q in 0..2) {
+                    val p0 = pts[q]; val p1 = pts[(q + 1) % 3]
+                    val a0 = ahead(p0[d.k]); val a1 = ahead(p1[d.k])
+                    if (a0) poly += p0
+                    if (a0 != a1) { val s0 = (edge - p0[d.k]) / (p1[d.k] - p0[d.k]); poly += p0 + (p1 - p0) * s0 }
+                }
+                if (poly.size < 3) continue
+                val base = nv.size / 3
+                for (p in poly) { nv += p.x; nv += p.y; nv += p.z }
+                for (q in 1 until poly.size - 1) { nt += base; nt += base + q; nt += base + q + 1 }
             }
-            if (keep.isEmpty()) return Silhouette.GF.createPolygon()
+            if (nt.isEmpty()) return Silhouette.GF.createPolygon()
             val view = ViewDef("axis${d.k}", Vec3.axis(d.k), Vec3.axis((d.k + 1) % 3))
-            return runCatching { Silhouette.outline(splitziner.mesh.Mesh(v, keep.toIntArray()), view).buffer(-tol) }.getOrElse { shadow(d.k, j) }
+            return runCatching { Silhouette.outline(splitziner.mesh.Mesh(nv.toDoubleArray(), nt.toIntArray()), view).buffer(-tol) }.getOrElse { shadow(d.k, j) }
         }
         fun allBlockers(i: Int, d: Dir): IntArray = blockCache.getOrPut(i.toLong() * 8 + d.k * 2 + (if (d.sign > 0) 1 else 0)) {
             val out = ArrayList<Int>()
