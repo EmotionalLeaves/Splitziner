@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.43.0 - Every tab in view, to-buy summary, new icon
+
+- **Every tab is always in view.** The six tabs (3D, Parts, Cut list, Drawing, Guide, Check) now sit in one fixed row, so none is hidden off the edge on a narrow phone.
+- **Cut list opens with what to buy:** the stock from the cutting plan, the cost if you've entered prices, and the estimated weight. Each item shows its name, its size in plain words with units, and whether a material is set.
+- **Drawings and guide pages sit in a frame like paper on a desk,** with a clearer previous/next bar.
+- **New design shows a live picture** of the bookcase, cabinet or chest as you type its sizes.
+- **New app icon:** a box with its lid lifted off, in drafting blue and amber, with a version for themed icons.
+- Buttons no longer wrap onto two lines on small screens ("Share parts", "Share model").
+- Fixes v0.42.0, whose device test failed because tabs scrolled off the screen. Includes all of v0.42.0's new look.
+
 ## v0.42.0 - A professional new look
 
 - **A cleaner, more professional look.** New drafting-blue and amber colours in light and dark mode. The project screen has a proper app bar (back, project name with its size and part count, Help, and a menu with Project details, Share project, Units and Which way is up) and a single row of tabs that scrolls sideways, so the model gets more of the screen.
