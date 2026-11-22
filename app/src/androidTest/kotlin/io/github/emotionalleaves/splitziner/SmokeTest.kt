@@ -308,6 +308,30 @@ class SmokeTest {
         }
     }
 
+    /** A 3MF file (a zip with XML inside, two objects) opens as two parts, not as a project file. */
+    @Test fun threeMfFileOpens() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File(ctx.cacheDir, "smoke_boxes.3mf")
+        fun box(id: Int, w: Double, d: Double, h: Double): String {
+            val v = listOf(0.0, h).flatMap { z -> listOf(0.0, d).flatMap { y -> listOf(0.0, w).map { x -> "<vertex x=\"$x\" y=\"$y\" z=\"$z\"/>" } } }
+            val f = listOf(listOf(0, 2, 1), listOf(1, 2, 3), listOf(4, 5, 6), listOf(5, 7, 6), listOf(0, 1, 4), listOf(1, 5, 4), listOf(2, 6, 3), listOf(3, 6, 7), listOf(0, 4, 2), listOf(2, 4, 6), listOf(1, 3, 5), listOf(3, 7, 5))
+            return "<object id=\"$id\" type=\"model\"><mesh><vertices>${v.joinToString("")}</vertices><triangles>${f.joinToString("") { "<triangle v1=\"${it[0]}\" v2=\"${it[1]}\" v3=\"${it[2]}\"/>" }}</triangles></mesh></object>"
+        }
+        val xml = "<?xml version=\"1.0\"?><model unit=\"millimeter\"><resources>${box(1, 400.0, 18.0, 300.0)}${box(2, 400.0, 18.0, 300.0)}</resources><build><item objectid=\"1\"/><item objectid=\"2\" transform=\"1 0 0 0 1 0 0 0 1 500 0 0\"/></build></model>"
+        java.util.zip.ZipOutputStream(file.outputStream()).use { z -> z.putNextEntry(java.util.zip.ZipEntry("3D/3dmodel.model")); z.write(xml.toByteArray()); z.closeEntry() }
+        val intent = Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.fromFile(file))
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val a = vm.state.value.open!!.analysis
+            assertEquals(2, a.parts.size)
+            assertEquals(300.0, a.bounds.extents.z, 0.5)
+            println("SMOKE 3mf ok: ${a.parts.size} parts, ${a.overallSize}")
+        }
+    }
+
     /** An OBJ file (Y up, two objects) opens as two parts standing the right way up. */
     @Test fun objFileOpens() {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
