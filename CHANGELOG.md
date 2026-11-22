@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.26.0 - Full-size templates, before and after
+
+Full-size paper templates, and a guide that covers before and after the build.
+
+- **Full-size templates.** On the Drawing tab, **Full-size templates** makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages.
+  - Print at 100% and check the 1 in line on each page with a rule.
+  - Trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood.
+  - Plain rectangles, even with rounded corners or a notch, are left to their drawings.
+- **Before you build / When it is together.** The guide has a new page after the cover:
+  - Before: cut and label every part, cut any grooves while the boards are loose, band the edges that show, sand faces that will be hard to reach later, and dry-fit each step.
+  - After: fill screw holes, sand and finish.
+- The shopping list is now worked out off the main thread, so a big model doesn't freeze the screen while it's made.
+
 ## v0.25.0 - Shopping list, changes list, OBJ
 
 A shopping list for the store, every change undoable, and OBJ files.
