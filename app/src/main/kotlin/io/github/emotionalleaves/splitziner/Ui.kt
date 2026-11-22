@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -293,6 +294,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         val f = vm.exportProject()
                         if (f == null) Toast.makeText(context, "Could not save the project", Toast.LENGTH_LONG).show()
                         else shareFile(context, f, "application/zip", "Share project")
+                    })
+                    DropdownMenuItem(text = { Text("Share build pack") }, leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }, onClick = {
+                        projectMenu = false
+                        shareBuildPack(context, open, vm, scope)
                     })
                     DropdownMenuItem(text = { Text("Units") }, onClick = { projectMenu = false; showUnits = true })
                     DropdownMenuItem(text = { Text("Which way is up") }, onClick = { projectMenu = false; showUp = true })
@@ -1813,4 +1818,46 @@ private fun SheetThumb(sheet: io.github.emotionalleaves.splitziner.render.Prepar
             }
         }
     }
+}
+
+
+/**
+ * Everything needed to build it, in one zip to send or keep: the drawings and the build guide as PDFs, the
+ * cutting plan, the cut list (CSV) and the shopping list. Drawings and guide are worked out first if they are not yet.
+ */
+private fun shareBuildPack(context: Context, open: OpenProject, vm: AppViewModel, scope: kotlinx.coroutines.CoroutineScope) {
+    Toast.makeText(context, "Making the build pack\u2026", Toast.LENGTH_SHORT).show()
+    scope.launch {
+        val file = runCatching {
+            vm.ensureDrawing(); vm.ensureGuide()
+            // Wait for both to be ready (they work in the background).
+            val st = vm.state.first { s -> s.open?.meta?.id != open.meta.id || (s.drawing != null && !s.drawingBusy && s.guide != null && !s.guideBusy) }
+            val d = st.drawing; val g = st.guide
+            if (d == null || g == null) error("The project was closed")
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { makeBuildPack(context, open, vm, d, g) }
+        }.onFailure { Diagnostics.logError("build pack", it) }.getOrNull()
+        if (file == null) { Toast.makeText(context, "Could not make the build pack", Toast.LENGTH_LONG).show(); return@launch }
+        shareFile(context, file, "application/zip", "Share build pack")
+    }
+}
+
+/** The build pack's zip: drawings, guide and cutting plan as PDFs, the cut list and the shopping list. */
+internal fun makeBuildPack(context: Context, open: OpenProject, vm: AppViewModel, d: DrawingState, g: GuideState): File {
+                val base = baseName(open)
+                val a = open.analysis; val fmt = a.format
+                val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+                val stock = savedStock(context, fmt)
+                val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, stock)
+                val cutPages = splitziner.cutplan.CutPlanLayout.pages(plan, a.cutList.rows, open.meta.title.ifBlank { open.meta.name }, fmt,
+                    extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull())).map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }
+                val files = listOf(
+                    PdfExporter.write(context, d.sheets, "${base}_drawings.pdf"),
+                    PdfExporter.write(context, g.pages, "${base}_build_guide.pdf"),
+                    PdfExporter.write(context, cutPages, "${base}_cutting_plan.pdf"),
+                    File(dir, "${base}_cut_list.csv").apply { writeText(CsvWriter.cutList(a.cutList, fmt)) },
+                    File(dir, "${base}_shopping_list.txt").apply { writeText(shoppingText(context, open, vm, stock)) },
+                )
+                val zip = File(dir, "${base}_build_pack.zip")
+                java.util.zip.ZipOutputStream(zip.outputStream()).use { z -> for (f in files) { z.putNextEntry(java.util.zip.ZipEntry(f.name)); f.inputStream().use { it.copyTo(z) }; z.closeEntry() } }
+                return zip
 }

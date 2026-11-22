@@ -112,6 +112,11 @@ class SmokeTest {
             assertTrue(guide.stepCount >= 2)
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
+            // The build pack: every output in one zip.
+            val pack = makeBuildPack(ctx, vm.state.value.open!!, vm, vm.state.value.drawing!!, guide)
+            val names = java.util.zip.ZipFile(pack).use { z -> z.entries().toList().map { it.name } }
+            assertEquals(5, names.size)
+            println("SMOKE build pack ${pack.length()} bytes: $names")
 
             // Dialogs people use, photographed for review: the cutting plan and the tools list.
             runCatching {
