@@ -1145,3 +1145,17 @@ class ObjTest {
         assertTrue(a.parts.all { abs(abs(it.mesh.volume) - 1000.0) < 1e-6 }, a.parts.map { it.mesh.volume }.toString())
     }
 }
+
+class FullSizeTest {
+    @Test fun anLBracketGetsTemplatesAndPlainBoardsDoNot() {
+        val fmt = LengthFormat("mm")
+        // An L bracket 300 x 300, arms 60 wide, 18 thick: two overlapping boxes made into one solid outline.
+        val l = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("p", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)),
+            org.locationtech.jts.io.WKTReader().read("POLYGON ((0 0, 300 0, 300 60, 60 60, 60 300, 0 300, 0 0))"), 0.0, 18.0))
+        val parts = listOf(Part("P01", "L", l), Part("P02", "Board", Fixtures.box(400.0, 700.0, 0.0, 60.0, 0.0, 18.0)))
+        val cut = CutList.build(parts, fmt)
+        val r = splitziner.drawing.FullSize.build(cut.parts, cut.rows, fmt)
+        assertEquals(1, r.items.size)
+        assertTrue(r.pages.size in 1..4, "${r.pages.size}")
+    }
+}

@@ -97,6 +97,11 @@ fun main(args: Array<String>) {
                 File(out, "profiles.dxf").writeText(pr.dxf)
                 println("profiles  ${pr.profiles} flat items, left out ${pr.leftOut}")
             }
+            time("fullsize") {
+                val fs = splitziner.drawing.FullSize.build(a.parts, a.cutList.rows, a.format)
+                fs.pages.forEachIndexed { i, d -> File(out, "fullsize%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
+                println("fullsize  ${fs.pages.size} pages for items ${fs.items}, too big ${fs.tooBig}")
+            }
             time("details") {
                 val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format, plain, a.housed)
                 println("details   ${items.size} drawn, ${plain.size} plain items left to the list")

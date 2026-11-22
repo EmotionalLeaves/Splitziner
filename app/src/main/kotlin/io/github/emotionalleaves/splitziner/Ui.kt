@@ -615,6 +615,11 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = ready) { Text("Share PDF") }
             OutlinedButton(onClick = { if (d != null) shareImage(context, open, d, shown) }, enabled = ready) { Text("Image") }
             OutlinedButton(onClick = { if (d != null) shareDxf(context, open, d) }, enabled = ready) { Text("DXF") }
+            OutlinedButton(onClick = {
+                val fs = runCatching { splitziner.drawing.FullSize.build(open.analysis.parts, open.analysis.cutList.rows, open.analysis.format) }.getOrNull()
+                if (fs == null || fs.pages.isEmpty()) Toast.makeText(context, if (fs?.tooBig?.isNotEmpty() == true) "Item ${fs.tooBig.joinToString(", ")} is too big to print full size; mark it out from its drawing" else "No part is shaped enough to need a full-size template", Toast.LENGTH_LONG).show()
+                else sharePdf(context, open, fs.pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "full_size_templates")
+            }) { Text("Full-size templates") }
         }
     }
     if (showInfo) TitleBlockDialog(open.meta, onDismiss = { showInfo = false }) { m -> showInfo = false; vm.updateDrawing { m } }
@@ -861,6 +866,7 @@ private val HELP = listOf(
     "Changes" to "On the 3D tab, Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
     "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
+    "Full-size templates" to "On the Drawing tab, Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
