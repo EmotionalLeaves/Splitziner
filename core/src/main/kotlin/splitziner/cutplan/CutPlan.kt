@@ -286,7 +286,10 @@ object CutPlanner {
 
         val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it)) && (!fromSheet(it) || it.item in bounced)) || it.kind == PartKind.ROD }
         // Pieces that come from the same standard board are cut from the same lengths, ripped narrower where needed.
-        fun stockKey(r: CutListRow): List<Any> { val lb = if (r.kind == PartKind.BOARD && stock.lumber) Lumber.fit(r.t, r.w) else null; return if (lb != null) listOf(r.kind, lb.name, r.material) else listOf(r.kind, key(r.t), key(r.w), r.material) }
+        // Metric timber is sold in whole millimetres: a board drawn 19.05 thick (3/4 in) is a 19 mm board, so it joins
+        // the other 19 mm boards rather than standing apart as "19.1".
+        fun mmT(t: Double) = if (stock.lumber) t else snapT(t)
+        fun stockKey(r: CutListRow): List<Any> { val lb = if (r.kind == PartKind.BOARD && stock.lumber) Lumber.fit(r.t, r.w) else null; return if (lb != null) listOf(r.kind, lb.name, r.material) else listOf(r.kind, key(mmT(r.t)), key(r.w), r.material) }
         for ((_, members) in long.groupBy { stockKey(it) }.entries.sortedBy { (key(it.value[0].t)) * 100000 + key(it.value[0].w) }) {
             val first = members[0]
             val lb = if (first.kind == PartKind.BOARD && stock.lumber) Lumber.fit(first.t, first.w) else null
@@ -319,7 +322,7 @@ object CutPlanner {
                 val own = stock.boardLengths.firstOrNull { it >= used - 1e-6 } ?: len
                 val off = maxOf(0.0, left[i] - (len - own))
                 boards += if (lb != null) BoardLayout(first.kind, lb.t, lb.w, first.material, cuts, off, lb.name, lb.w, if (members.any { lb.w - it.w > 0.8 }) widest else null, own)
-                else BoardLayout(first.kind, first.t, first.w, first.material, cuts, off, length = own)
+                else BoardLayout(first.kind, mmT(first.t), first.w, first.material, cuts, off, length = own)
             }
         }
         return CutPlanResult(stock, sheets, boards, leftOut, layered, edgeGlued, downsized)
