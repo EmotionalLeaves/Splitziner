@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.25.0 - Shopping list, changes list, OBJ
+
+A shopping list for the store, every change undoable, and OBJ files.
+
+- **Shopping list.** On the Cut list tab, **Shopping list** shares plain text you can keep on your phone at the store: sheets and lumber to buy, edge banding, and the screws, brackets and glue the guide calls for.
+- **Changes.** On the 3D tab, **Changes (N)** lists every change made to the model in plain words, oldest first, including the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it. **Take all back** goes back to the file as it was.
+- **OBJ files.** Import (and Open with) now takes Wavefront OBJ as well as STL. Each object or group in the file becomes a part. OBJ files start Y-up, the way most programs save them; change it under Which way is up.
+- **Fractions in the cutting plan** sizes ("1/8" for the saw cut). The cutting plan in the app now names standard lumber (1x4, 2x6) in inch projects, as the drawings and CLI already did.
+
 ## v0.24.0 - Overall size, fractions and a desk template
 
 Resize the whole piece, fractions by default, and a desk to start from.
