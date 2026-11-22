@@ -358,7 +358,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     if (details) runCatching {
                         val t2 = System.nanoTime()
                         val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, baseInfo, open.meta.drawingSettings(), a.format, plain, a.housed)
-                        for ((row, d) in items) { sheets += d.sheets; labels += d.sheets.map { "Item ${row.item}: ${row.description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
+                        for ((row, d) in items) { sheets += d.sheets; labels += d.sheets.map { "Item ${row.item}: " + (if (row.name.isNotBlank()) "${row.name}, " else "") + row.description.lowercase() }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
                         Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms, ${plain.size} plain items left to the list")
                     }.onFailure { Diagnostics.logError("part drawings", it) }
                     DrawingState(sheets.map { PreparedSheet.of(it) }, labels, r.sheet.letter, r.scaleText, qa, sheets)
