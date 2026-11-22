@@ -110,6 +110,12 @@ class SmokeTest {
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
 
+            // Dialogs people use, photographed for review: the cutting plan and the tools list.
+            runCatching {
+                tap("Cut list"); tap("Cutting plan"); shot("c06_cutplan"); tap("Cancel")
+                tap("Check"); waitFor(vm, 120_000) { vm.state.value.check != null }; tap("Tools"); shot("c07_tools"); tap("Cancel")
+            }.onFailure { println("SMOKE dialog shots failed: ${it.message}") }
+
             // Editing: move a part up 100 mm and add a board; both must be there after the model is re-read.
             val first = open.analysis.parts.first()
             val z0 = first.mesh.bounds.min.z
