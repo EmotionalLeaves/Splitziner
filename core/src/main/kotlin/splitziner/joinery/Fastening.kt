@@ -62,6 +62,12 @@ object Fastening {
     /** Wood left under a counterbore for the screw to pass: 1-1/2 in, the thickness of ordinary framing stock. */
     private const val COUNTERBORE_LEAVE = 38.0
 
+    /** The deepest counterbore asked for: a 3/8 in bit bores cleanly to about 2 in (a 3-1/2 in leg). */
+    private const val COUNTERBORE_MAX = 52.0
+
+    /** Side rails longer than this (4 ft) make a frame too big to carry assembled: they get knock-down fittings. */
+    private const val BED_RAIL_MIN = 1200.0
+
     /** Joints shorter than this (mm) are too small to fasten; they are glued. */
     private const val SMALLEST = 20.0
 
@@ -207,7 +213,24 @@ object Fastening {
                 if (sz.isNotEmpty()) totals["$sz brads"] = (totals["$sz brads"] ?: 0) + n
                 continue
             }
-            if (gap > 2.0) continue                     // they overlap rather than abut: a joint the check reports
+            // Parts set at an angle (a bench's leaned-back slats on their back supports) overlap as boxes but may
+            // meet face to face in their own frame: measured along one part's own axes, they abut there.
+            if (gap > 2.0) {
+                val tilt = tiltedContact(a, b) ?: continue
+                val (tA, tB, len) = tilt
+                val (thr, into, tT, dep) = if (tA <= tB) listOf(a, b, tA, tB) else listOf(b, a, tB, tA)
+                thr as Part; into as Part; tT as Double; dep as Double
+                val sameUnit1 = unit(a) == unit(b) && benchOf.containsKey(a.id) && benchOf.containsKey(b.id)
+                val st1 = if (sameUnit1) maxOf(stepOf[a.id] ?: 0, stepOf[b.id] ?: 0) else maxOf(mainOf(a), mainOf(b))
+                if (len < SMALLEST) { joints.getOrPut(st1) { ArrayList() } += Joint(thr, into, 0, "", "", true); continue }
+                val brad = method == JoinMethod.GLUE_AND_BRADS || tT < THIN
+                val sz = pick(tT + minOf(1.5 * tT, dep - 3.0), fmt, brad)?.let { if (brad) it else gauged(it, tT, fmt) } ?: ""
+                val n = maxOf(2, ceil(len / SPACING).toInt())
+                val kd = if (brad) "brads" else "screws"
+                joints.getOrPut(st1) { ArrayList() } += Joint(thr, into, n, sz, kd, sz.isEmpty())
+                if (sz.isNotEmpty()) totals["$sz $kd"] = (totals["$sz $kd"] ?: 0) + n
+                continue
+            }
             val dims = (0..2).filter { it != k }.map { ax -> maxOf(0.0, minOf(hi[i][ax], hi[j][ax]) - maxOf(lo[i][ax], lo[j][ax])) }
             val length = dims.max()
             // Fastened through the part that is thinner along the meeting direction.
@@ -245,6 +268,25 @@ object Fastening {
                     totals["closet rod sockets"] = (totals["closet rod sockets"] ?: 0) + 1
                     continue
                 }
+            }
+            // A bed's long side rails hook onto its legs or posts with bed rail fasteners, so the bed comes apart to
+            // move: a glued and screwed bed frame will not go through a door.
+            // The hooked plate goes on the end of the rail that meets the other end-on; the slotted plate on the
+            // leg, post or long rail it hooks onto. Only in a bed (slats) with a long side rail.
+            if (live.any { it.name == "Slat" } && live.any { it.name == "Side rail" && it.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) } > BED_RAIL_MIN }) {
+                fun endOn(p: Part) = (0..2).maxByOrNull { p.mesh.bounds.extents[it] }!! == k
+                val hook = listOf(a, b).firstOrNull { endOn(it) && it.name.endsWith("rail") }
+                val plate = if (hook === a) b else if (hook === b) a else null
+                if (hook != null && plate != null && !endOn(plate) && (hook.name == "Side rail" || plate.name == "Side rail" || hook.name == "Centre rail") && (plate.name.endsWith("eg") || plate.name == "Post" || plate.name == "Side rail" || (plate.name == "End rail" && hook.name == "Centre rail"))) {
+                    joints.getOrPut(step) { ArrayList() } += Joint(plate, hook, 1, "", "bedrail", false)
+                    totals["pairs of bed rail fasteners"] = (totals["pairs of bed rail fasteners"] ?: 0) + 1
+                    continue
+                }
+                // A rail hooked onto a side rail also lies against the leg in that corner: nothing fixes it there,
+                // or the bed would not come apart.
+                val r0 = listOf(a, b).firstOrNull { it.name.endsWith("rail") }; val o0 = if (r0 === a) b else if (r0 === b) a else null
+                if (r0 != null && o0 != null && (o0.name.endsWith("eg") || o0.name == "Post") && live.any { s0 -> s0.name == "Side rail" && s0 !== r0 && unit(s0) == unit(o0) &&
+                        s0.mesh.bounds.let { x -> val y = r0.mesh.bounds; (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } } }) continue
             }
             // Cabinets built whole and set side by side are clamped flush and screwed through one side into the next,
             // with screws shorter than the two sides together; no glue, so they can come apart to move.
@@ -308,7 +350,8 @@ object Fastening {
                     continue
                 }
             }
-            val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            // Slats (a bench seat's, a bed's) are screwed down into what they rest on, never bracketed from below.
+            val topDown = k == 2 && thr.name != "Slat" && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
             // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
             // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.
             if (topDown && (0..2).minOf { ax -> rel.hi[idx.getValue(into.id)][ax] - rel.lo[idx.getValue(into.id)][ax] } < 9.0) continue
@@ -400,7 +443,8 @@ object Fastening {
                     val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
                     if (!brads && tThrough + MIN_BITE > longest) {
                         val cs = pick(COUNTERBORE_LEAVE + minOf(1.5 * COUNTERBORE_LEAVE, depth - 3.0), fmt, false)
-                        if (cs == null || tThrough - COUNTERBORE_LEAVE < 3.0) {
+                        // A counterbore deeper than 2 in (a screw down through a 5-1/2 in rail) is no longer practical.
+                        if (cs == null || tThrough - COUNTERBORE_LEAVE < 3.0 || tThrough - COUNTERBORE_LEAVE > COUNTERBORE_MAX) {
                             joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "corner", false)
                             totals["corner brackets, with short screws"] = (totals["corner brackets, with short screws"] ?: 0) + count
                             continue
@@ -606,6 +650,29 @@ object Fastening {
         return names.dropLast(1).joinToString(", ") + " and " + names.last()
     }
 
+    /**
+     * Where two parts at an angle to the world meet face to face in the frame of one of them: each part's thickness
+     * across the contact and the contact's longest side, or null when they do not abut.
+     */
+    private fun tiltedContact(a: Part, b: Part): Triple<Double, Double, Double>? {
+        for (frame in listOf(a, b)) {
+            val axes = runCatching { splitziner.mesh.OrientedBounds.of(frame.mesh).axes }.getOrNull() ?: continue
+            // Only a frame that is not the world's own (the box test already ran there).
+            if (axes.all { ax -> maxOf(kotlin.math.abs(ax.x), kotlin.math.abs(ax.y), kotlin.math.abs(ax.z)) > 0.999 }) continue
+            fun span(p: Part, ax: splitziner.math.Vec3): Pair<Double, Double> {
+                val v = p.mesh.vertices; var lo = Double.MAX_VALUE; var hi = -Double.MAX_VALUE
+                for (i in 0 until p.mesh.vertexCount) { val d = v[3 * i] * ax.x + v[3 * i + 1] * ax.y + v[3 * i + 2] * ax.z; if (d < lo) lo = d; if (d > hi) hi = d }
+                return lo to hi
+            }
+            val sa = axes.map { span(a, it) }; val sb = axes.map { span(b, it) }
+            val over = (0..2).map { k -> minOf(sa[k].second, sb[k].second) - maxOf(sa[k].first, sb[k].first) }
+            val k = (0..2).minByOrNull { over[it] }!!
+            if (over[k] > 2.0 || over[k] < -0.5 || (0..2).any { it != k && over[it] <= 1.0 }) continue
+            return Triple(sa[k].second - sa[k].first, sb[k].second - sb[k].first, (0..2).filter { it != k }.maxOf { over[it] })
+        }
+        return null
+    }
+
     /** What the chosen method drives into an edge, for "too thin to take …". */
     private fun fixings(plan: FastenPlan) = when (plan.method) {
         JoinMethod.GLUE_AND_BRADS -> "brads"
@@ -709,6 +776,7 @@ object Fastening {
                 val ats = g.map { it.at }.distinct()
                 "Screw a closet rod socket (a cup or flange sized for the rod) to the inside of ${key.first} at each end of ${key.second}, its centre ${ats.first()}${if (ats.size > 1) " on each side" else ""}; open sockets let the rod lift out. Cut the rod a little short if the sockets need it, then drop it in."
             }
+            else if (j.kind == "bedrail") "Hang ${key.second} on ${key.first} with bed rail fasteners, one pair at each end$times: let the slotted plate into a shallow recess in ${key.first} and screw it in, screw the hooked plate to the end of ${key.second} at the same height, then hook the rail on and tap it down. No glue, so the bed comes apart to move."
             else if (j.kind == "mitre") {
                 val names = joinedNames(g.flatMap { listOf(itemName(it.through), itemName(it.into)) }.distinct())
                 val corners = if (g.size == 1) "the mitred corner" else "the ${count(g.size)} mitred corners"
@@ -751,7 +819,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

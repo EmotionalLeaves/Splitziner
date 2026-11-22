@@ -256,3 +256,9 @@ Departures from the build spec, newest first.
 - Doors set in a face frame opening are inset doors: they hang on inset face-frame hinges (cup hinges with face-frame plates, or butt hinges), shimmed with 1/16 in (2 mm) card for even gaps.
 - Drawer slides behind a face frame whose stiles stand proud of the inside of the sides get a spacer strip as thick as the overhang, so the slide clears the frame.
 - Narrow boards lying flat between two sides, level with their tops, are stretchers (a base cabinet's front and back strips under the worktop).
+
+## v0.96
+- Beds come apart: in a piece with slats and a side rail over 4 ft long, rails that meet a leg, post or side rail end-on hang on bed rail fasteners (hooked plate on the rail's end, slotted plate let into the other), no glue; a rail so hooked is not also screwed to the leg in that corner. A centre rail hooks onto the end rails the same way.
+- Parts set at an angle (leaned-back slats) are checked for face contact in their own frame, so they get fixings instead of "then fasten".
+- Slats are screwed down into what they rest on, never bracketed from below.
+- Counterbores stop at 2 in deep; deeper than that the joint falls back to brackets.

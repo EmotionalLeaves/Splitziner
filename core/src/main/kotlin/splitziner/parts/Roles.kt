@@ -92,7 +92,7 @@ object Roles {
                 if (backer != null && live.count { o -> o.id in legs && touches(p, o) } >= 2) { out[p.id] = "Cleat"; continue }
             }
             // Square-ish in section and long: a leg standing up, a rail or apron lying down.
-            if (dims[1] < 2.5 * t && dims[2] > 4 * dims[1]) {
+            if (dims[1] < 2.5 * t && (dims[2] > 4 * dims[1] || (dims[2] > 3 * dims[1] && live.count { o -> o.id in legs && touches(p, o) } >= 2))) {
                 // Round in section and lying down: a rod (a wardrobe's hanging rod, a towel rail's bar).
                 val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
                 if (e.z < dims[2] - 0.01 && fill in 0.70..0.82 && dims[1] < 1.1 * t) { out[p.id] = "Rod"; continue }

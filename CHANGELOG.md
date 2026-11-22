@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.96.0 - Beds that come apart
+
+- Beds now come apart: side and end rails hang on bed rail fasteners (with how to fit them) instead of being glued and screwed, so a big bed can go through a door. The shopping list counts the pairs.
+- Parts set at an angle, like a garden bench's leaned-back slats, now get proper screw instructions.
+- Bench seat slats are screwed down, not bracketed from below.
+- No more 4 in deep counterbores: past 2 in the guide uses brackets.
+
 ## v0.95.0 - Face-frame cabinets
 
 - Face-frame cabinets: the rail between a drawer and the doors is now built into the face frame, inset doors hang on inset face-frame hinges with card shims for even gaps, and drawer slides get spacer strips so they clear the frame (the step says how thick).

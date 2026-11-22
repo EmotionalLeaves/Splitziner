@@ -1723,3 +1723,18 @@ class HutchTest {
         assertTrue(f.all.any { it.through.id == top.id && it.kind == "under" })
     }
 }
+
+class BedKnockDownTest {
+    @Test fun bedRailsHookOnSoTheBedComesApart() {
+        val t = splitziner.edit.Templates.byKey("bed")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(ms, bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "bed.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.count { it.kind == "bedrail" } >= 4, f.all.map { it.kind }.toString())
+        // Nothing glues or screws an end rail to a leg of the side frames.
+        assertTrue(f.all.none { j -> setOf(j.through.name, j.into.name) == setOf("End rail", "Leg") }, f.all.map { "${it.through.name}-${it.into.name}:${it.kind}" }.toString())
+        assertTrue(f.hardware.any { it.contains("bed rail fasteners") })
+    }
+}
