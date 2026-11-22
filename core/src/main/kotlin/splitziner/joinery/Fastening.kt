@@ -465,7 +465,9 @@ object Fastening {
             return whole + frac
         }
         fun kindRank(k: String) = when { k == HANDLE -> 6; k.contains("slides") || k.contains("hinges") || k == "shelf pins" -> 5; k.contains("bracket") -> 4; k.contains("pocket") -> 0; k.endsWith("screws") -> 1; k.contains("dowel") -> 2; k.endsWith("brads") -> 3; else -> 4 }
-        val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}" else "$n × $k" } + listOf("Wood glue") +
+        val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}"
+            // Gauge and length read as sold, after the count: "26 screws, #8 x 1-1/2 in", not "26 × #8 x 1-1/2 in screws".
+            else Regex("""^((?:#\d+|\d+(?:\.\d+)?) x .+) screws$""").find(k)?.let { m -> "$n screws, ${m.groupValues[1]}" } ?: "$n × $k" } + listOf("Wood glue") +
             (if ((method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) && totals.keys.any { it.endsWith("screws") || it.contains("brackets") || it.endsWith("brads") }) listOf("Buy about 10% extra fasteners") else emptyList())
         return FastenPlan(method, joints, hardware, every)
     }
