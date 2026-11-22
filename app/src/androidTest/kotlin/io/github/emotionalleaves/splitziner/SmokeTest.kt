@@ -116,6 +116,7 @@ class SmokeTest {
             // Dialogs people use, photographed for review: the cutting plan and the tools list.
             runCatching {
                 tap("Cut list"); tap("Cutting plan"); shot("c06_cutplan"); tap("Cancel")
+                tap("Prices"); shot("c08_prices"); tap("Cancel")
                 tap("Check"); waitFor(vm, 120_000) { vm.state.value.check != null }; tap("Tools"); shot("c07_tools"); tap("Cancel")
             }.onFailure { println("SMOKE dialog shots failed: ${it.message}") }
 

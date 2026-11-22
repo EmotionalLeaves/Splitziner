@@ -174,24 +174,32 @@ object CutPlanner {
     }
 
     /** What to buy, one line per kind of stock. */
-    fun shoppingList(r: CutPlanResult, fmt: LengthFormat): List<String> {
-        val out = ArrayList<String>()
+    /** One kind of stock to buy: how many, and what one of them is ("sheet 3/4 in thick, 48 x 96"), which also keys its price. */
+    class Buy(val count: Int, val one: String, val line: String)
+
+    fun shoppingItems(r: CutPlanResult, fmt: LengthFormat): List<Buy> {
+        val out = ArrayList<Buy>()
         fun mat(m: String) = if (m.isBlank()) "" else " ($m)"
         // Sheet thicknesses as sold: 3/8 in, not .37.
         val tf = if (fmt.isInch) fmt.copy(inchStyle = "fraction", fractionDenominator = 32) else fmt
         for ((k, v) in r.sheets.groupBy { Triple(it.thickness, it.material, it.size) }) {
             val (w, l) = v[0].let { if (it.w > 0) it.w to it.l else r.stock.sheetW to r.stock.sheetL }
-            out += "${v.size} ${k.third}${if (v.size == 1) "" else "s"} ${tf.format(k.first)}${if (fmt.isInch) " in" else " mm"} thick, ${fmt.format(w)} x ${fmt.format(l)}${mat(k.second)}"
+            val what = "${tf.format(k.first)}${if (fmt.isInch) " in" else " mm"} thick, ${fmt.format(w)} x ${fmt.format(l)}${mat(k.second)}"
+            out += Buy(v.size, "${k.third} $what", "${v.size} ${k.third}${if (v.size == 1) "" else "s"} $what")
         }
         for ((k, v) in r.boards.groupBy { listOf(it.kind, it.stockName ?: "${it.t}x${it.w}", it.material) }) {
             val b = v[0]
             val section = if (b.kind == PartKind.ROD) "rod ${fmt.format((b.t + b.w) / 2)} dia"
-                else if (b.stockName != null) "${b.stockName} (actual ${fmt.format(b.t)} x ${fmt.format(b.w)})" + if (b.ripTo != null) ", some pieces ripped narrower" else ""
+                else if (b.stockName != null) "${b.stockName} (actual ${fmt.format(b.t)} x ${fmt.format(b.w)})"
                 else "${fmt.format(b.t)} x ${fmt.format(b.w)}"
-            out += "${v.size} length${if (v.size == 1) "" else "s"} of $section, ${fmt.format(r.stock.boardL)} long${mat(k[2] as String)}"
+            val rip = if (b.stockName != null && b.ripTo != null) ", some pieces ripped narrower" else ""
+            out += Buy(v.size, "length of $section, ${fmt.format(r.stock.boardL)} long${mat(k[2] as String)}",
+                "${v.size} length${if (v.size == 1) "" else "s"} of $section$rip, ${fmt.format(r.stock.boardL)} long${mat(k[2] as String)}")
         }
         return out
     }
+
+    fun shoppingList(r: CutPlanResult, fmt: LengthFormat): List<String> = shoppingItems(r, fmt).map { it.line }
 }
 
 /** Draws the plan on pages: what to buy, then each sheet to scale, then each length as a bar. */

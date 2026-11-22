@@ -221,6 +221,9 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     shapePart?.let { p -> ShapeDialog(p, open, onDismiss = { shapePart = null }) { e -> shapePart = null; vm.addEdit(e) } }
     if (showAdd) AddBoardDialog(open, onDismiss = { showAdd = false }) { e -> showAdd = false; vm.addEdit(e); selectedId = (e as? splitziner.edit.Edit.AddBox)?.id }
     var showCutPlan by remember { mutableStateOf(false) }
+    var showPrices by remember { mutableStateOf(false) }
+    var priceVersion by remember { mutableIntStateOf(0) }
+    if (showPrices) PricesDialog(open, onDismiss = { showPrices = false; priceVersion++ })
     if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -342,6 +345,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         } else {
             // Roughly what it weighs, from the materials the user has set; typical densities, so only an estimate.
             val wt = remember(a.cutList.rows) { splitziner.material.Materials.weight(a.parts, a.cutList.rows) }
+            val cost = remember(a, priceVersion) { runCatching { woodCost(context, splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, a.format)), a.format)) }.getOrNull() }
+            if (cost != null && cost.first > 0) Text("Wood costs about ${money(cost.first)}" + if (cost.second > 0) " (${cost.second} kind${if (cost.second == 1) "" else "s"} of stock not priced)" else "", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
             Text(
                 if (wt.unknownItems.size == a.cutList.rows.size) "Set a material (tap an item) to get a weight estimate."
                 else "Weighs about ${splitziner.material.Materials.format(wt.kg, a.format.isInch)} (typical densities)" +
@@ -378,6 +383,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
                 OutlinedButton(onClick = { shareCsv(context, open) }) { Text("Share CSV") }
                 OutlinedButton(onClick = { shareShopping(context, open, vm, scope) }) { Text("Shopping list") }
+                OutlinedButton(onClick = { showPrices = true }) { Text("Prices") }
                 OutlinedButton(onClick = { shareProfiles(context, open) }) { Text("CNC profiles") }
             }
         }
@@ -867,6 +873,7 @@ private val HELP = listOf(
     "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
     "Full-size templates" to "On the Drawing tab, Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
+    "Prices" to "On the Cut list tab, Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
@@ -980,11 +987,52 @@ private fun savedStock(context: Context, fmt: splitziner.dims.LengthFormat): spl
     return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch)
 }
 
+/** Prices the user has typed, per kind of stock ("sheet 3/4 in thick, 48 x 96"), remembered across projects. */
+private fun prices(context: Context) = context.getSharedPreferences("prices", Context.MODE_PRIVATE)
+private fun priceOf(context: Context, one: String): Double? = prices(context).getString(one, null)?.let { num(it) }
+
+/** The wood's cost from the prices typed so far, and how many kinds of stock still have no price. */
+private fun woodCost(context: Context, items: List<splitziner.cutplan.CutPlanner.Buy>): Pair<Double, Int> {
+    var sum = 0.0; var missing = 0
+    for (b in items) { val p = priceOf(context, b.one); if (p == null) missing++ else sum += p * b.count }
+    return sum to missing
+}
+
+private fun money(v: Double) = java.text.NumberFormat.getCurrencyInstance().format(v)
+
+/** Type what each kind of stock costs where you buy it; the cut list and shopping list then add it up. */
+@Composable
+private fun PricesDialog(open: OpenProject, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val items = remember(open.analysis) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(open.analysis.cutList.rows, savedStock(context, open.analysis.format)), open.analysis.format) }.getOrDefault(emptyList()) }
+    val vals = remember { androidx.compose.runtime.mutableStateListOf(*items.map { b -> prices(context).getString(b.one, "") ?: "" }.toTypedArray()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = {
+            val e = prices(context).edit()
+            items.forEachIndexed { i, b -> val v = vals[i].trim(); if (v.isEmpty()) e.remove(b.one) else if (num(v) != null) e.putString(b.one, v) }
+            e.apply(); onDismiss()
+        }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Prices") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 460.dp)) {
+                item { Text("What one of each costs where you buy it. Prices are remembered for your other projects.", style = MaterialTheme.typography.bodySmall) }
+                items(items.size) { i ->
+                    OutlinedTextField(vals[i], { vals[i] = it }, label = { Text("1 ${items[i].one}  (need ${items[i].count})", maxLines = 2) }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal), modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                }
+                if (items.isEmpty()) item { Text("Nothing here is cut from sheets or lengths.") }
+            }
+        },
+    )
+}
+
 /** Everything to buy, as plain text to take to the store: stock, hardware, edge banding. Worked out off the main thread. */
 private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel, scope: kotlinx.coroutines.CoroutineScope) {
     val stock = savedStock(context, open.analysis.format)
     scope.launch {
-        val text = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { shoppingText(open, vm, stock) } }
+        val text = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { shoppingText(context, open, vm, stock) } }
             .onFailure { Diagnostics.logError("shopping list", it) }.getOrNull()
         if (text == null) { Toast.makeText(context, "Could not make the shopping list", Toast.LENGTH_LONG).show(); return@launch }
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "Shopping list").putExtra(Intent.EXTRA_TEXT, text)
@@ -992,16 +1040,21 @@ private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel,
     }
 }
 
-private fun shoppingText(open: OpenProject, vm: AppViewModel, stock: splitziner.cutplan.StockSettings): String {
+private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, stock: splitziner.cutplan.StockSettings): String {
     run {
         val a = open.analysis; val fmt = a.format
         val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, stock)
         val sb = StringBuilder("Shopping list: ${open.meta.title.ifBlank { open.meta.name }}\n\nWood\n")
-        for (b in splitziner.cutplan.CutPlanner.shoppingList(plan, fmt)) sb.append("• ").append(b).append('\n')
+        for (b in splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt)) {
+            val p = priceOf(context, b.one)
+            sb.append("• ").append(b.line).append(if (p != null) "  — ${money(p * b.count)}" else "").append('\n')
+        }
         for (b in plan.leftOut) sb.append("• ").append(b).append('\n')
         runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull()?.let { sb.append("• ").append(it).append('\n') }
         val hardware = vm.hardwareFor(open)
         if (hardware.isNotEmpty()) { sb.append("\nHardware (${vm.methodFor(open.meta).label.lowercase()})\n"); for (h in hardware) sb.append("• ").append(h).append('\n') }
+        val (cost, missing) = woodCost(context, splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt))
+        if (cost > 0) sb.append("\nWood comes to about ${money(cost)}" + (if (missing > 0) ", not counting $missing item${if (missing == 1) "" else "s"} with no price yet" else "") + ".\n")
         sb.append("\nSizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying.")
         return sb.toString()
     }
