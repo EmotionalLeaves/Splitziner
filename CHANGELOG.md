@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.95.0 - Face-frame cabinets
+
+- Face-frame cabinets: the rail between a drawer and the doors is now built into the face frame, inset doors hang on inset face-frame hinges with card shims for even gaps, and drawer slides get spacer strips so they clear the frame (the step says how thick).
+- A base cabinet's top strips are called stretchers.
+
 ## v0.94.0 - Mitres and hutches
 
 - Mitres: picture frames and mitred boxes are recognised. The cut list says "ENDS CUT AT 45° (MITRE)" or "(BEVEL)", the drawing says which way to set the saw and that length is point to point, and the guide glues the corners properly: a band clamp for flat frames, the tape-and-fold method for boxes, then brads, splines or V-nails. No more "mark the notches with a jigsaw" or paper templates for angled ends (splayed legs fixed too).

@@ -413,7 +413,7 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
+                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "dowels" -> j.size; "thin", "edge", "housed" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"
                     else -> "${j.size} ${j.kind}"

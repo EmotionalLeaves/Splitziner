@@ -475,7 +475,11 @@ object Fastening {
             val floorRef = live.filter { it.id !in allDrawerIds && it.mesh.bounds.max.z <= bLo.z + 0.5 && it.mesh.bounds.min.x < bHi.x && it.mesh.bounds.max.x > bLo.x &&
                 it.mesh.bounds.min.y < bHi.y && it.mesh.bounds.max.y > bLo.y }.maxByOrNull { it.mesh.bounds.max.z }
             val u = if (fmt.isInch) " in" else " mm"
-            val at = side?.let { c -> "${fmt.format((bLo.z + bHi.z) / 2 - (floorRef?.mesh?.bounds?.max?.z ?: c.mesh.bounds.min.z))}$u|${fmt.format(maxOf(0.0, bLo.y - c.mesh.bounds.min.y))}$u" } ?: ""
+            // A face frame standing proud of the inside of the side: the slide needs a spacer strip behind it to clear the stile.
+            val spacer = side?.let { c -> live.filter { st -> st.name == "Stile" && st.mesh.bounds.max.y <= c.mesh.bounds.min.y + 1.0 && st.mesh.bounds.min.x < c.mesh.bounds.max.x && st.mesh.bounds.max.x > c.mesh.bounds.min.x }
+                .maxOfOrNull { it.mesh.bounds.max.x - c.mesh.bounds.max.x } }?.takeIf { it > 3.0 }
+            val at = side?.let { c -> "${fmt.format((bLo.z + bHi.z) / 2 - (floorRef?.mesh?.bounds?.max?.z ?: c.mesh.bounds.min.z))}$u|${fmt.format(maxOf(0.0, bLo.y - c.mesh.bounds.min.y))}$u" +
+                (spacer?.let { "|${fmt.format(it)}$u" } ?: "") } ?: ""
             joints.getOrPut(ps.filter { it.id in dr.boxIds }.maxOfOrNull { mainOf(it) } ?: step) { ArrayList() }.add(0, Joint(box, front ?: box, 1, len, "slides", false, at, floorRef ?: side))
             totals["pair of $len drawer slides"] = (totals["pair of $len drawer slides"] ?: 0) + 1
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
@@ -488,8 +492,13 @@ object Fastening {
             // 3 in (75 mm) from the top and bottom, a common cabinetmakers' rule, any others evenly between.
             val end = if (fmt.isInch) "3 in" else "75 mm"
             val at = "${if (!dr.paired) "" else if (dr.hingeLeft) "left" else "right"}|$end"
-            joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, "hinges", "hinges", false, at))
-            totals["concealed (cup) hinges"] = (totals["concealed (cup) hinges"] ?: 0) + n
+            // Set into an opening in a face frame (an inset door): its hinges are made for that.
+            val pb = p.mesh.bounds
+            val inset = live.any { o -> (o.name == "Stile" || o.name == "Face frame rail") && o.mesh.bounds.let { ob -> ob.min.y < pb.max.y - 1.0 && ob.max.y > pb.min.y + 1.0 &&
+                ob.min.z < pb.max.z && ob.max.z > pb.min.z && (kotlin.math.abs(ob.max.x - pb.min.x) < 6.0 || kotlin.math.abs(ob.min.x - pb.max.x) < 6.0) } }
+            joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, if (inset) "inset hinges" else "hinges", "hinges", false, at))
+            val hk = if (inset) "inset face-frame hinges" else "concealed (cup) hinges"
+            totals[hk] = (totals[hk] ?: 0) + n
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
         }
         // Adjustable shelves rest on pins, put in when the shelf goes in.
@@ -661,7 +670,10 @@ object Fastening {
                 val end = g.first().at.substringAfter('|', "")
                 val edge = when { sides.isEmpty() -> "on the side you want it hinged, "; sides.distinct().size == 1 -> "on its ${sides[0]}-hand edge (seen from the front), "; else -> "on its outer edge, so the pair opens from the middle, " }
                 val place = if (end.isEmpty()) "" else " The top and bottom hinges go about $end from the ends" + (if (per > 2) ", the others evenly between" else "") + "."
-                if (g.size > 1) "Drill the hinge cups in the back of each ${key.first} ${edge}with a 35 mm bit (using the hinges' template), screw on ${count(per)} hinges each, then hang them and adjust them until the gaps are even.$place Fit each one's handle or knob ${HANDLE_PLACE} its hinges."
+                val gap = if (j.at.contains(" in")) "1/16 in" else "2 mm"
+                if (j.size == "inset hinges") (if (g.size > 1) "Hang each ${key.first} in its opening in the face frame on ${count(per)} inset face-frame hinges (cup hinges with face-frame plates, or butt hinges let into the stile), ${edge.trimEnd(' ', ',')}. Shim it with $gap card all round so the gaps are even, then fix the hinges and take the shims out.$place Fit each one's handle or knob ${HANDLE_PLACE} its hinges."
+                    else "Hang ${key.first} in its opening in the face frame on ${count(n)} inset face-frame hinges (cup hinges with face-frame plates, or butt hinges let into the stile), ${edge.trimEnd(' ', ',')}. Shim it with $gap card all round so the gaps are even, then fix the hinges and take the shims out.$place Fit its handle or knob ${HANDLE_PLACE} the hinges.")
+                else if (g.size > 1) "Drill the hinge cups in the back of each ${key.first} ${edge}with a 35 mm bit (using the hinges' template), screw on ${count(per)} hinges each, then hang them and adjust them until the gaps are even.$place Fit each one's handle or knob ${HANDLE_PLACE} its hinges."
                 else "Drill the hinge cups in the back of ${key.first} ${edge}with a 35 mm bit (using the hinges' template), screw on ${count(n)} hinges, then hang it and adjust it until the gaps are even.$place Fit its handle or knob ${HANDLE_PLACE} the hinges."
             }
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
@@ -680,8 +692,10 @@ object Fastening {
                     if (ups.size == 1) " Draw a level line inside the cabinet on each side of the opening, ${ups[0]} $from; the centre of the slide's cabinet half goes on it$back. Centre the drawer halves on the drawer's sides, flush with its front."
                     else " Draw level lines inside the cabinet on each side of the openings, ${ups.dropLast(1).joinToString(", ")} and ${ups.last()} $from, one for each row of drawers from the bottom; the centre of each slide's cabinet half goes on its line$back. Centre the drawer halves on the drawers' sides, flush with their fronts."
                 }
-                if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it.$mark" + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
-                else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer.$mark" + (if (handle) " Fit its handle or knob in the middle of the front." else "")
+                val sp = g.map { it.at.split('|').getOrNull(2) }.firstOrNull { !it.isNullOrEmpty() }
+                val spacerNote = if (sp == null) "" else " The face frame stands $sp proud of the inside of the cabinet: first screw a strip $sp thick (a spacer) to each side where the slide goes, so the slide clears the frame, and mount the slide on it."
+                (if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it.$mark" + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
+                else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer.$mark" + (if (handle) " Fit its handle or knob in the middle of the front." else "")) + spacerNote
             }
             else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")

@@ -250,3 +250,9 @@ Departures from the build spec, newest first.
 - A case standing on the top of the piece below, with nothing passing through that top (a desk hutch), is built whole on the bench ("the hutch"), its back panel last, then set on from above and screwed up through the desk top from underneath.
 - A top counts as open (no screws through its face) while less than half of it is covered by what stands on it.
 - A board laid on top of what is already built, with nothing beside it at its level, goes on from above.
+
+## v0.95
+- A rail flush between two stiles is part of the face frame even with an opening behind it (the rail between a drawer and the doors).
+- Doors set in a face frame opening are inset doors: they hang on inset face-frame hinges (cup hinges with face-frame plates, or butt hinges), shimmed with 1/16 in (2 mm) card for even gaps.
+- Drawer slides behind a face frame whose stiles stand proud of the inside of the sides get a spacer strip as thick as the overhang, so the slide clears the frame.
+- Narrow boards lying flat between two sides, level with their tops, are stretchers (a base cabinet's front and back strips under the worktop).

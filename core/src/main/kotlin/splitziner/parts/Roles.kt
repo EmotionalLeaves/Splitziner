@@ -54,6 +54,17 @@ object Roles {
             if (behind == 0) continue
             out[p.id] = if (e.z > e.x) "Stile" else "Face frame rail"
         }
+        // A rail between two stiles, flush with their faces, belongs to the frame even with an opening behind it
+        // (the rail between a drawer and the doors below it).
+        val stiles = live.filter { out[it.id] == "Stile" }
+        if (stiles.size >= 2) for (p in live) {
+            if (p.id in out) continue
+            val b = p.mesh.bounds; val e = b.extents
+            if (e.y > 0.7 * minOf(e.x, e.z) || e.x < 4 * e.z) continue
+            val ends = stiles.filter { st -> val sb = st.mesh.bounds; kotlin.math.abs(sb.min.y - b.min.y) < 1.0 && kotlin.math.abs(sb.max.y - b.max.y) < 1.0 &&
+                sb.min.z <= b.min.z + 0.5 && sb.max.z >= b.max.z - 0.5 && (kotlin.math.abs(sb.max.x - b.min.x) < 1.0 || kotlin.math.abs(sb.min.x - b.max.x) < 1.0) }
+            if (ends.size == 2) out[p.id] = "Face frame rail"
+        }
         val legBox = live.filter { o -> o.id !in out && o.mesh.bounds.extents.let { oe -> val od = listOf(oe.x, oe.y, oe.z).sorted()
             od[1] < 2.5 * od[0] && oe.z >= od[2] - 0.01 && oe.z > 1.5 * od[1] && o.mesh.bounds.min.z <= all.min.z + 1.0 } }.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) } ?: all
         for (p in live) {
@@ -118,7 +129,11 @@ object Roles {
             // Narrow boards are not shelves or sides: a strip lying down is a rail, one standing up an upright.
             if (dims[1] < NARROW) {
                 val kick = e.y <= t + 0.01 && b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 && b.min.y <= all.min.y + 0.25 * all.extents.y
-                out[p.id] = if (kick) "Kick board" else if (e.z >= dims[2] - 0.01) "Upright" else "Rail"
+                // Lying flat across the top of a case between its sides (a base cabinet's front and back strips
+                // under the worktop): stretchers.
+                val sides = live.filter { o -> o !== p && touches(p, o) && o.mesh.bounds.extents.let { oe -> oe.x <= minOf(oe.y, oe.z) && oe.z > 0.3 * h } }
+                val stretcher = e.z <= t + 0.01 && sides.size >= 2 && sides.all { o -> kotlin.math.abs(o.mesh.bounds.max.z - b.max.z) < 1.0 }
+                out[p.id] = if (kick) "Kick board" else if (e.z >= dims[2] - 0.01) "Upright" else if (stretcher) "Stretcher" else "Rail"
                 continue
             }
             out[p.id] = when {
