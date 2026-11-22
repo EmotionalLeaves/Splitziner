@@ -46,7 +46,7 @@ object GuideSteps {
     fun stepKey(partIds: List<String>): String = partIds.sorted().joinToString(",")
 
     /** [overrides] is keyed by [stepKey]. */
-    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap()): List<GuideStep> {
+    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap(), fasten: splitziner.joinery.FastenPlan? = null): List<GuideStep> {
         val drawn = parts.filter { !it.excluded }
         val byId = drawn.associateBy { it.id }
         // One view for every step, so the reader keeps their bearings.
@@ -101,10 +101,16 @@ object GuideSteps {
                 val line = "$verb ${if (n > 1) "$n× " else ""}$what${if (still) "" else where}."
                 if (still) lines.add(0, line) else lines += line
             }
+            // How the step is held together, when the joining method is known; otherwise the general reminder.
+            val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" })
             if (st.subassembly) {
-                lines += "Check it is flat and square (equal diagonals), then fasten."
+                lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
+                lines += how
                 if (st.makeCount > 1) lines += "Make ${st.makeCount} of these, all the same."
-            } else if (!base) lines += "Check it is square and seated against the parts already installed, then fasten."
+            } else if (!base || how.isNotEmpty()) {
+                if (!base) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
+                lines += how
+            }
             val list = unitCount.map { (bench, us) -> "Sub-assembly from step $bench" to us.size } +
                 count.map { (item, n) -> "Item ${item ?: "-"} ${loose.first { it.item == item }.desc}" to n }
             val o = overrides[stepKey(st.partIds)]
@@ -133,7 +139,7 @@ object GuideLayout {
     private const val WHITE = 0xFFFFFFFF.toInt()
     const val DRAFT_NOTICE = "Assembly order and materials are drafts generated from the 3D model. Confirm them before building."
 
-    class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false)
+    class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false, val hardware: List<String> = emptyList())
 
     private class Pages(val w: Double, val h: Double, val title: String) {
         val list = ArrayList<DisplayList>()
@@ -193,6 +199,7 @@ object GuideLayout {
         y = notice(p, 25.0, y, w - 50, DRAFT_NOTICE)
         val columns = ArrayList<Pair<String, List<String>>>()
         if (info.tools.isNotEmpty()) columns += "TOOLS NEEDED" to info.tools
+        if (info.hardware.isNotEmpty()) columns += "HARDWARE" to info.hardware
         columns += "MATERIALS" to rows.map { "${it.qty} x ${it.description}" + if (it.material.isNotBlank()) " (${it.material})" else "" }
         val colW = (w - 50 - (columns.size - 1) * 8) / columns.size
         val top = y

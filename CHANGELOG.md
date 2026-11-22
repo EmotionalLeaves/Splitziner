@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.16.0 - Joining and hardware
+
+The guide now says how to fix each joint, and what hardware to buy.
+
+- **Joining.** On the Guide tab, tap **Joining** and pick screws, pocket screws, glue and dowels, or glue and brads. It starts with what your ticked tools allow.
+- **Every step says what holds it**, joint by joint: "Drill pilot holes through item 11 and screw it to item 13 with 4 2-1/2 in screws (2 joints)."
+  - Tops are fixed from underneath with corner brackets, never through the top.
+  - Pieces laid face to face are glued, clamped and pinned.
+  - A part too thin to take a screw is glued into a groove or against a cleat, and the step says so.
+- **Hardware list on the cover:** how many of each fastener and length, plus glue.
+- How it chooses: a screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. These are workshop rules of thumb, not a strength calculation.
+
 ## v0.15.0 - Sub-assemblies, and every part labelled
 
 A build guide that builds like a person would, and drawings that label every part.

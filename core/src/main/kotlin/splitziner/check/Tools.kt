@@ -4,7 +4,8 @@ package splitziner.check
 enum class Tool(val label: String) {
     HAND_SAW("Hand saw"), CIRCULAR_SAW("Circular saw"), TABLE_SAW("Table saw"), MITER_SAW("Mitre saw"),
     JIGSAW("Jigsaw"), BAND_SAW("Band saw"), ROUTER("Router"), DRILL("Drill"), DRILL_PRESS("Drill press"),
-    SANDER("Sander"), PLANER("Thickness planer"), CNC("CNC router"), PRINTER("3D printer");
+    SANDER("Sander"), PLANER("Thickness planer"), CNC("CNC router"), PRINTER("3D printer"),
+    POCKET_JIG("Pocket-hole jig"), BRAD_NAILER("Brad nailer"), DOWEL_JIG("Dowel jig"), CLAMPS("Clamps");
 
     companion object {
         fun parse(names: Collection<String>): Set<Tool> = names.mapNotNull { n -> entries.firstOrNull { it.name == n } }.toSet()

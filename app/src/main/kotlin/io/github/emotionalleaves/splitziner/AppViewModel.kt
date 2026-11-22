@@ -224,6 +224,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun undoLastEdit() = update { it.copy(edits = it.edits.dropLast(1)) }
     fun undoAllEdits() = update { it.copy(edits = emptyList()) }
 
+    /** The joining method: the one chosen for this project, else what the tools allow. */
+    fun methodFor(meta: ProjectMeta) = splitziner.joinery.JoinMethod.parse(meta.joinMethod) ?: splitziner.joinery.JoinMethod.defaultFor(toolsFor(meta))
+
+    fun setJoinMethod(m: splitziner.joinery.JoinMethod) {
+        val open = _state.value.open ?: return
+        val meta = open.meta.copy(joinMethod = m.name)
+        store.save(meta)
+        guideJob?.cancel()
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false) }
+        ensureGuide()
+    }
+
     fun ensureCheck() {
         val open = _state.value.open ?: return
         if (_state.value.check != null || _state.value.checkBusy) return
@@ -258,13 +270,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val a = open.analysis
                     val t0 = System.nanoTime()
                     val pl = planOf(a, open.meta.stepOrder)
-                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText)
+                    val method = methodFor(open.meta)
+                    val fasten = runCatching { splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format) }.onFailure { Diagnostics.logError("fastening", it) }.getOrNull()
+                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText, fasten)
                     val drawn = pl.parts.filter { !it.excluded }
                     val view = splitziner.explode.ExplodedView.pickView(drawn)
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                     // The cover lists the tools the parts call for, named from the maker's own tools once they have chosen them.
                     val tools = runCatching { (_state.value.check ?: splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta))).toolsNeeded }.getOrDefault(emptyList())
-                    val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } })
+                    val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
+                        hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it })
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)

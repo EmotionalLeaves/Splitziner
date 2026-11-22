@@ -39,6 +39,8 @@ data class ProjectMeta(
     val stepOrder: List<List<String>>? = null,
     /** Names of the tools the maker has for this project; null until they have said. */
     val tools: List<String>? = null,
+    /** How parts are joined (a [splitziner.joinery.JoinMethod] name); null follows the tools. */
+    val joinMethod: String? = null,
     /** Changes made to the model in the app, replayed on the original file each time it is read. */
     val edits: List<splitziner.edit.Edit> = emptyList(),
     /** The user's wording per step, keyed by the parts in the step. */
@@ -92,6 +94,7 @@ class ProjectStore(context: Context) {
         o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden).put("sections", meta.sections)
         o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
         o.put("tools", meta.tools?.let { JSONArray(it) } ?: JSONObject.NULL)
+        o.put("joinMethod", meta.joinMethod ?: JSONObject.NULL)
         o.put("edits", JSONArray(meta.edits.map { EditJson.write(it) }))
         o.put("stepOrder", meta.stepOrder?.let { order -> JSONArray(order.map { JSONArray(it) }) } ?: JSONObject.NULL)
         val st = JSONObject()
@@ -121,6 +124,7 @@ class ProjectStore(context: Context) {
             date = o.optString("date"), notes = strings(o.optJSONArray("notes")) ?: emptyList(),
             tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
             tools = if (o.isNull("tools")) null else strings(o.optJSONArray("tools")),
+            joinMethod = if (o.isNull("joinMethod")) null else o.optString("joinMethod"),
             edits = o.optJSONArray("edits")?.let { a -> (0 until a.length()).mapNotNull { EditJson.read(a.getJSONObject(it)) } } ?: emptyList(),
             sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"), sections = o.optString("sections", "auto"),
             stepOrder = if (o.isNull("stepOrder")) null else o.optJSONArray("stepOrder")?.let { a -> (0 until a.length()).map { strings(a.getJSONArray(it)) ?: emptyList() } },

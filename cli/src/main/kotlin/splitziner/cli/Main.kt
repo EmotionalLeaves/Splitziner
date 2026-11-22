@@ -85,11 +85,15 @@ fun main(args: Array<String>) {
             }
             time("guide") {
                 val pl = plan!!
-                val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap())
+                val method = splitziner.joinery.JoinMethod.defaultFor(tools)
+                val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format)
+                println("hardware  ${method.label}: ${fasten.hardware}")
+                if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
+                val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap(), fasten)
                 val drawn = pl.parts.filter { !it.excluded }
                 val view = splitziner.explode.ExplodedView.pickView(drawn)
                 val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
-                val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info(f.nameWithoutExtension, "Build guide", a.overallSize, drawn.size), steps, a.cutList.rows, hero)
+                val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info(f.nameWithoutExtension, "Build guide", a.overallSize, drawn.size, hardware = fasten.hardware), steps, a.cutList.rows, hero)
                 pages.forEachIndexed { i, d -> File(out, "guide%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("guide     ${steps.size} steps, ${pages.size} pages")
             }

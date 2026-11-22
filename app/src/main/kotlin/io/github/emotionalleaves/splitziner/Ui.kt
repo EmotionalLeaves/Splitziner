@@ -616,6 +616,32 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     val context = LocalContext.current
     var page by rememberSaveable { mutableIntStateOf(0) }
     var showEditor by remember { mutableStateOf(false) }
+    var showJoin by remember { mutableStateOf(false) }
+    if (showJoin) {
+        val current = vm.methodFor(open.meta)
+        val owned = vm.toolsFor(open.meta)
+        AlertDialog(
+            onDismissRequest = { showJoin = false },
+            confirmButton = { TextButton(onClick = { showJoin = false }) { Text("Close") } },
+            title = { Text("How parts are joined") },
+            text = {
+                Column {
+                    Text("The guide says, joint by joint, what to fix with and how many, and lists the hardware to buy. Fastener sizes and spacing are workshop rules of thumb.", style = MaterialTheme.typography.bodySmall)
+                    for (m in splitziner.joinery.JoinMethod.entries) {
+                        val missing = if (owned == null) emptyList() else m.needs.filter { it !in owned }
+                        Row(Modifier.fillMaxWidth().clickable { showJoin = false; vm.setJoinMethod(m) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = m == current, onClick = null)
+                            Column(Modifier.padding(start = 8.dp)) {
+                                Text(m.label)
+                                Text(if (missing.isEmpty()) "Needs: ${m.needs.joinToString(", ") { it.label.lowercase() }}" else "You have not ticked: ${missing.joinToString(", ") { it.label.lowercase() }}",
+                                    style = MaterialTheme.typography.bodySmall, color = if (missing.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            },
+        )
+    }
     LaunchedEffect(open.analysis, state.guide == null) { vm.ensureGuide() }
     val g = state.guide
     val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
@@ -641,6 +667,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
+            OutlinedButton(onClick = { showJoin = true }, enabled = !state.guideBusy) { Text("Joining") }
             Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy, modifier = Modifier.weight(1f)) { Text("Share guide (PDF)") }
         }
     }
@@ -754,6 +781,7 @@ private val HELP = listOf(
     "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place. New design on the home screen starts from a single board. Undo takes the last change back.",
     "Frames and boxes drawn as one piece" to "3D programs often join a frame, an open box or a channel into one solid. Nobody can cut that from one board. The check finds these and offers Make from N boards, which splits the part into the plain boards it would be built from. Frames with a step in their thickness (a rebate) become two stacked layers, which make the same step. Rounded corners come out square.",
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
+    "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about grain, defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
