@@ -11,7 +11,7 @@ import splitziner.mesh.Mesh
 object Templates {
     /** A size the user can set, with its default in millimetres. */
     /** [mm] is the metric default; [inch] the default in inches, chosen as stock sizes (3/4 in board, 1/4 in back). */
-    class Field(val key: String, val label: String, val mm: Double, val inch: Double = mm / 25.4, val count: Boolean = false)
+    class Field(val key: String, val label: String, val mm: Double, val inch: Double = mm / 25.4, val count: Boolean = false, val toggle: Boolean = false)
 
     class Template(val key: String, val name: String, val blurb: String, val fields: List<Field>, val build: (Map<String, Double>) -> List<Mesh>)
 
@@ -21,7 +21,7 @@ object Templates {
         Template("shelves", "Bookcase", "Two sides, a top and bottom between them, evenly spaced shelves (fixed or on pins), a back panel and a kick board.", listOf(
             Field("w", "Width", 800.0, 32.0), Field("h", "Height", 1800.0, 72.0), Field("d", "Depth", 300.0, 12.0),
             Field("t", "Board thickness", 18.0, 0.75), Field("n", "Shelves", 4.0, 4.0, count = true), Field("back", "Back thickness (0 for none)", 6.0, 0.25),
-            Field("pins", "Shelves on pins (0 = fixed, 1 = adjustable)", 0.0, 0.0, count = true),
+            Field("pins", "Adjustable shelves, on pins", 0.0, 0.0, count = true, toggle = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val back = v.getValue("back")
             val n = v.getValue("n").toInt().coerceIn(0, 20)
@@ -40,7 +40,7 @@ object Templates {
         },
         Template("cabinet", "Cabinet", "A box with sides, top, bottom, one shelf, a back and doors (0, 1 or 2), set in the opening or over the front: a cupboard.", listOf(
             Field("w", "Width", 600.0, 24.0), Field("h", "Height", 720.0, 30.0), Field("d", "Depth", 560.0, 24.0), Field("t", "Board thickness", 18.0, 0.75), Field("back", "Back thickness (0 for none)", 6.0, 0.25),
-            Field("doors", "Doors (0, 1 or 2)", 0.0, 0.0, count = true), Field("overlay", "Doors over the front (0 = set in, 1 = over)", 0.0, 0.0, count = true),
+            Field("doors", "Doors (0, 1 or 2)", 0.0, 0.0, count = true), Field("overlay", "Doors over the front, not set in", 0.0, 0.0, count = true, toggle = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val back = v.getValue("back")
             val doors = (v["doors"] ?: 0.0).toInt().coerceIn(0, 2)
@@ -111,6 +111,7 @@ object Templates {
         Template("drawers", "Chest of drawers", "A carcass with a kick board and a stack of drawers on slides, each with a front set in front of the opening. The drawer boxes leave 1/2 in (12.7 mm) each side for ball-bearing slides.", listOf(
             Field("w", "Width", 800.0, 32.0), Field("h", "Height", 900.0, 36.0), Field("d", "Depth", 450.0, 18.0),
             Field("t", "Board thickness", 18.0, 0.75), Field("n", "Drawers", 4.0, 4.0, count = true), Field("dt", "Drawer box thickness", 12.0, 0.5),
+            Field("overlay", "Fronts over the sides, not between them", 0.0, 0.0, count = true, toggle = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val dt = v.getValue("dt")
             val n = v.getValue("n").toInt().coerceIn(1, 8)
@@ -127,8 +128,10 @@ object Templates {
                 out += box(bx0, 0.0, zb, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, zb, bx1 - bx0, dt, bh)
                 out += box(bx0, dt, zb, dt, y1 - 2 * dt, bh); out += box(bx1 - dt, dt, zb, dt, y1 - 2 * dt, bh)
                 out += box(bx0 + dt, dt, zb, bx1 - bx0 - 2 * dt, y1 - 2 * dt, 6.0)
-                // Its front, in front of the carcass, 2 mm in from the sides and 2 mm from the fronts above and below.
-                out += box(t + 2.0, -t, z0 + k * oh + 2.0, inner - 4.0, t, oh - 4.0)
+                // Its front, in front of the carcass, 2 mm in from the sides (or over them, 2 mm in from the outside)
+                // and 2 mm from the fronts above and below.
+                if ((v["overlay"] ?: 0.0) >= 0.5) out += box(2.0, -t, z0 + k * oh + 2.0, w - 4.0, t, oh - 4.0)
+                else out += box(t + 2.0, -t, z0 + k * oh + 2.0, inner - 4.0, t, oh - 4.0)
             }
             out
         },

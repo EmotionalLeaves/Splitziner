@@ -1605,7 +1605,10 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall)
-                    for (f in template.fields) OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },
+                    for (f in template.fields) if (f.toggle) Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
+                        Text(f.label, style = MaterialTheme.typography.bodyMedium)
+                    } else OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },
                         label = { Text(if (f.count) f.label else "${f.label} ($unit)") }, singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
                 }

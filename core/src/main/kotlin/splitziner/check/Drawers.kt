@@ -32,11 +32,14 @@ object Drawers {
             if (b in used) continue
             val e = ext(b)
             if (e.z > 0.3 * minOf(e.x, e.y) || e.z > 25.0) continue
+            // How far past the bottom a wall may reach sideways: a front lying in front of it may cover the
+            // carcass sides as well (an overlay front), the rest only a wall's thickness or so.
+            fun reach(w: Int) = if (ext(w).y <= thin(w) + 0.01 && hi[w].y <= lo[b].y + 0.5) 80.0 else 30.0
             // Walls standing on or around this bottom, within its footprint (give or take a wall's thickness).
             val walls0 = live.indices.filter { w ->
                 w != b && w !in used && ext(w).z > 2 * e.z && ext(w).z >= minOf(ext(w).x, ext(w).y) &&
                     lo[w].z >= lo[b].z - 30 && lo[w].z <= hi[b].z + 1 &&
-                    lo[w].x >= lo[b].x - 30 && hi[w].x <= hi[b].x + 30 && lo[w].y >= lo[b].y - 30 && hi[w].y <= hi[b].y + 30 &&
+                    lo[w].x >= lo[b].x - reach(w) && hi[w].x <= hi[b].x + reach(w) && lo[w].y >= lo[b].y - 30 && hi[w].y <= hi[b].y + 30 &&
                     thin(w) < 30
             }
             // A part much taller than the rest (the carcass's back panel behind the bottom drawer) is not a wall.

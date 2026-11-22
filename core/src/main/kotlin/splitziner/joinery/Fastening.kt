@@ -120,10 +120,14 @@ object Fastening {
         val pinned = runCatching { splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList())
         // An adjustable shelf may touch the back panel, but it only rests on its pins.
         val doorIds = doors.map { it.id }.toSet() + pinned
+        val drawerOf = HashMap<String, Int>()
+        runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.ids) drawerOf[id] = k }
         for (i in live.indices) for (j in rel.touching[i]) {
             if (!seen.add(minOf(i, j).toLong() * 100000 + maxOf(i, j))) continue
             val a = live[i]; val b = live[j]
             if (a.id in doorIds || b.id in doorIds) continue
+            // A drawer's front may rest against the carcass edges when shut; it is never fixed to them.
+            if ((drawerOf[a.id] ?: -1) != (drawerOf[b.id] ?: -1)) continue
             val lo = rel.lo; val hi = rel.hi
             // The direction they meet along: where their boxes only just meet; the contact is the overlap on the other two.
             val k = (0..2).minByOrNull { ax -> minOf(hi[i][ax], hi[j][ax]) - maxOf(lo[i][ax], lo[j][ax]) }!!

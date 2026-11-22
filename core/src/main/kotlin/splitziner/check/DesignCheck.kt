@@ -365,15 +365,14 @@ object DesignCheck {
                 "Its sides stand on their own with no back panel. Pushed from the side, a case like this leans over like a parallelogram unless something holds it square. A back of 1/4 in (6 mm) sheet fixed all round, a diagonal brace, or a wide rail glued and screwed at the top and bottom of the back stops it.")
         }
         // Drawers need room at their sides for slides or runners.
-        for (dr in runCatching { Drawers.find(live) }.getOrDefault(emptyList())) {
-            val its = live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted()
-            val each = minOf(dr.left, dr.right)
-            if (each < Drawers.SLIDE_GAP) {
-                val (u2, k) = if (fmt.isInch) "1/2 in" to 12.7 else "12.5 mm" to 12.5
-                out += Finding(Severity.CHECK, "No room for drawer slides (items ${its.joinToString(", ")})",
-                    "Items ${its.joinToString(", ")} look like a drawer box, with ${d(dr.left)} $u on the left and ${d(dr.right)} $u on the right. Ball-bearing slides, the usual kind, need about $u2 each side, so the box would be ${d(2 * k - dr.left - dr.right)} $u narrower. Wooden runners or a drawer that slides on its bottom need only a little play. Decide which before cutting the drawer parts.",
-                    dr.ids)
-            }
+        // Identical drawers with the same room are told once.
+        val tight = drawers.filter { minOf(it.left, it.right) < Drawers.SLIDE_GAP }
+        for ((key, drs) in tight.groupBy { dr -> Triple(live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted(), Math.round(dr.left * 10), Math.round(dr.right * 10)) }) {
+            val its = key.first; val dr = drs[0]; val n = drs.size
+            val (u2, k) = if (fmt.isInch) "1/2 in" to 12.7 else "12.5 mm" to 12.5
+            out += Finding(Severity.CHECK, "No room for drawer slides (items ${its.joinToString(", ")}${if (n > 1) ", $n drawers" else ""})",
+                "Items ${its.joinToString(", ")} look like ${if (n == 1) "a drawer box" else "$n drawer boxes"}, with ${d(dr.left)} $u on the left and ${d(dr.right)} $u on the right. Ball-bearing slides, the usual kind, need about $u2 each side, so ${if (n == 1) "the box" else "each box"} would be ${d(2 * k - dr.left - dr.right)} $u narrower. Wooden runners or a drawer that slides on its bottom need only a little play. Decide which before cutting the drawer parts.",
+                drs.flatMap { it.ids })
         }
         val sagging = HashSet<Int?>()
         for ((i, p) in live.withIndex()) {

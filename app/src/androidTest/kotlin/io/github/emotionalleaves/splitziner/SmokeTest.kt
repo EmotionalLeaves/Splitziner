@@ -262,7 +262,7 @@ class SmokeTest {
             println("SMOKE project round trip ok: ${after.meta.edits.size} changes kept")
             // Tap the middle of the 3D view to select a part, then open its Change dialog.
             runCatching {
-                Thread.sleep(1500)
+                tap("3D"); Thread.sleep(1500)
                 rule.onRoot().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.45f, height * 0.42f)) }
                 rule.waitUntil(10_000) { rule.onAllNodesWithText("Change").fetchSemanticsNodes().isNotEmpty() }
                 tap("Change"); shot("n04_change_part"); tap("Close")
