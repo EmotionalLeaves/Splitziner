@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
         val f = File(file ?: error("no input file"))
         val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
         // --only P01,P05: keep just those parts, to look at one corner of a model.
-        val a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
+        var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
         val r = a.report
@@ -64,6 +64,8 @@ fun main(args: Array<String>) {
             val ms = plan.parts.filter { !it.excluded }.map { it.mesh }
             File(out, "fixed.stl").outputStream().use { splitziner.io.StlWriter.writeParts(ms, it) }
             println("wrote     ${File(out, "fixed.stl")} (${ms.sumOf { it.triangleCount }} triangles in ${ms.size} parts, millimetres)")
+            // As the app does: the changes replayed on the file, so parts keep the ids that say where they came from.
+            a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, edits = plan.edits))
         }
         if (full) {
             // The same steps the app takes, written as SVG so they can be looked at.

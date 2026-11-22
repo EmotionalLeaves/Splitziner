@@ -55,37 +55,73 @@ object GuideSteps {
         val frame = ExplodedView.assembledBounds(drawn, view)
         val done = LinkedHashSet<String>()
         val out = ArrayList<GuideStep>()
+        // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
+        // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
+        val unitOf = drawn.groupBy { it.id.substringBefore('.') }.filter { it.value.size >= 2 }
+        fun kind(ms: List<Part>) = ms.mapNotNull { it.item }.sorted()
+        val benchOf = HashMap<List<Int>, Int>()
+        for (st in steps) if (st.subassembly) benchOf[kind(st.partIds.mapNotNull { byId[it] })] = st.step
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
+            // In a main step, each made sub-assembly counts as one thing to fit.
+            val units = if (st.subassembly) emptyMap() else cur.groupBy { it.id.substringBefore('.') }.filter { (root, _) -> root in unitOf && benchOf.containsKey(kind(unitOf.getValue(root))) }
+            val loose = cur.filter { it.id.substringBefore('.') !in units }
             val count = LinkedHashMap<Int?, Int>()
-            for (p in cur) count[p.item] = (count[p.item] ?: 0) + 1
+            for (p in loose) count[p.item] = (count[p.item] ?: 0) + 1
+            val unitCount = LinkedHashMap<Int, MutableList<List<Part>>>()
+            for ((root, ms) in units) unitCount.getOrPut(benchOf.getValue(kind(unitOf.getValue(root)))) { ArrayList() } += ms
             // This step's parts pulled out, earlier parts in place and greyed, later parts left out.
-            val scene = drawn.filter { it.id in done }.map { it.copy(explode = null) } +
-                cur.map { p -> p.copy(explode = if (st.step > 1) p.explode else null, qty = count[p.item] ?: 1) }
+            // A sub-assembly is made on the bench: only its own parts, framed to fill the picture.
+            val base = !st.subassembly && steps.firstOrNull { !it.subassembly }?.step == st.step
+            val scene = (if (st.subassembly) emptyList() else drawn.filter { it.id in done }.map { it.copy(explode = null) }) +
+                cur.map { p -> p.copy(explode = if (base) null else if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode, qty = count[p.item] ?: 1) }
             val pic = ExplodedView.render(
                 scene, PICTURE_W, PICTURE_H,
-                ExplodeOptions(balloons = true, arrows = st.step > 1, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4),
-                view, "step%02d".format(st.step), frame,
+                ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4),
+                view, "step%02d".format(st.step), if (st.subassembly) null else frame,
             )
             val lines = ArrayList<String>()
+            for ((bench, us) in unitCount) {
+                val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
+                val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
+                lines += "${if (base) "Place" else "Fit"} ${if (us.size > 1) "both" else "the"} sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
+            }
             for ((item, n) in count) {
                 val sides = ArrayList<String>()
-                for (p in cur) if (p.item == item) p.explode?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
+                for (p in loose) if (p.item == item) p.explode?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
                 val where = when {
                     st.step == 1 || sides.isEmpty() -> ""
                     sides.size == 2 && sides.all { it.startsWith("from the ") } -> " from the ${sides[0].removePrefix("from the ")} and ${sides[1].removePrefix("from the ")}"
                     else -> " " + sides.joinToString(", ")
                 }
-                val verb = if (st.step == 1) "Place" else "Fit"
+                // On the bench, the part that does not move is laid down first and the others joined to it.
+                val still = st.subassembly && cur.any { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null }
+                val verb = if (base) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
                 val what = if (item != null) "item $item" else "the part"
-                lines += "$verb ${if (n > 1) "$n× " else ""}$what$where."
+                val line = "$verb ${if (n > 1) "$n× " else ""}$what${if (still) "" else where}."
+                if (still) lines.add(0, line) else lines += line
             }
-            if (st.step > 1) lines += "Check it is square and seated against the parts already installed, then fasten."
-            val list = count.map { (item, n) -> "Item ${item ?: "-"} ${cur.first { it.item == item }.desc}" to n }
+            if (st.subassembly) {
+                lines += "Check it is flat and square (equal diagonals), then fasten."
+                if (st.makeCount > 1) lines += "Make ${st.makeCount} of these, all the same."
+            } else if (!base) lines += "Check it is square and seated against the parts already installed, then fasten."
+            val list = unitCount.map { (bench, us) -> "Sub-assembly from step $bench" to us.size } +
+                count.map { (item, n) -> "Item ${item ?: "-"} ${loose.first { it.item == item }.desc}" to n }
             val o = overrides[stepKey(st.partIds)]
-            val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: if (st.step == 1) "Step 1: base" else "Step ${st.step}"
-            out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines, list, o?.check?.takeIf { it.isNotBlank() })
-            done += st.partIds
+            val auto = when {
+                st.subassembly -> {
+                    val its = count.keys.filterNotNull().sorted()  // a bench step has no units, so count holds all its parts
+                    val names = if (its.size == 1) "item ${its[0]}" else "items ${its.dropLast(1).joinToString(", ")} and ${its.last()}"
+                    "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
+                }
+                base -> "Step ${st.step}: base"
+                else -> "Step ${st.step}"
+            }
+            val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
+            // The list says how many of each part the whole step needs, all copies of the sub-assembly included.
+            val need = if (st.makeCount > 1) list.map { (k, v) -> k to v * st.makeCount } else list
+            out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines, need, o?.check?.takeIf { it.isNotBlank() })
+            if (!st.subassembly) done += st.partIds
         }
         return out
     }
@@ -196,9 +232,17 @@ object GuideLayout {
             var ly = picTop
             p.text(12.0 + picW + 6, ly, "PARTS FOR THIS STEP", 3.0, vAlign = VAlign.TOP, bold = true); ly -= 6
             for ((name, n) in s.parts) ly = para(p, 12.0 + picW + 6, ly, "$n× $name", 2.9, listW)
-            var ty = picBottom - 3
-            s.text.forEachIndexed { i, line -> ty = para(p, 12.0, ty, "${i + 1}. $line", 3.2, fullW) }
-            if (s.check != null) { ty -= 2; para(p, 12.0, ty, "CHECK: ${s.check}", 3.2, fullW, bold = true) }
+            // The instructions start below whichever is longer, the picture or the parts list, and carry
+            // on overleaf if the page runs out.
+            var ty = minOf(picBottom, ly - 2) - 3
+            fun room(text: String, size: Double, bold: Boolean = false) {
+                val need = wrapMixed(text, size, fullW).size * size * 1.5
+                if (ty - need < 14) { p = pages.new(); ty = h - 22; p.text(12.0, ty, "${s.title} (continued)", 4.0, vAlign = VAlign.TOP, bold = true); ty -= 9; slot = 2 }
+                ty = para(p, 12.0, ty, text, size, fullW, bold)
+            }
+            s.text.forEachIndexed { i, line -> room("${i + 1}. $line", 3.2) }
+            if (s.check != null) { ty -= 2; room("CHECK: ${s.check}", 3.2, bold = true) }
+            if (slot == 2 && !wantsFull) { cursor = ty - 6; slot = 1; continue }
             if (wantsFull) slot = 2 else { slot++; cursor = topY - blockH - 4; if (slot == 1) p.line(12.0, cursor + 2, w - 12, cursor + 2, LineStyle.THIN) }
         }
 

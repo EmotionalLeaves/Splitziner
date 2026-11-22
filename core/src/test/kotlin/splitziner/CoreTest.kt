@@ -935,3 +935,27 @@ class BoardsTest {
         assertEquals(4, after.size, plan.done.toString())
     }
 }
+
+class SubassemblyTest {
+    @Test fun framesAreMadeOnTheBenchFirst() {
+        // A table: two leg frames, each drawn as one solid and split into boards, and a top resting on them.
+        val gf = splitziner.explode.Silhouette.GF
+        fun frame(x: Double): splitziner.mesh.Mesh {
+            val ring = gf.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 600.0, 0.0, 700.0)).difference(gf.toGeometry(org.locationtech.jts.geom.Envelope(40.0, 560.0, 40.0, 660.0)))
+            return splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.RIGHT, ring, x, x + 40.0))
+        }
+        val top = Fixtures.box(0.0, 1200.0, 0.0, 600.0, 700.0, 720.0)
+        val ps = listOf(Part("P01", "P", frame(0.0)), Part("P02", "P", frame(1160.0)), Part("P03", "P", top))
+        val split = splitziner.edit.Editor.apply(ps, listOf(splitziner.edit.Edit.SplitBoards(listOf("P01", "P02")))).parts
+        assertEquals(9, split.size)
+        val cut = CutList.build(split, LengthFormat("mm"))
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        // One bench step makes both frames; the main build then places them whole, and the top goes on last.
+        assertTrue(plan.steps[0].subassembly); assertEquals(2, plan.steps[0].makeCount)
+        assertEquals(1, plan.steps.count { it.subassembly })
+        assertTrue(plan.steps.last().partIds == listOf("P03"), plan.steps.map { it.partIds }.toString())
+        val guide = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
+        assertTrue(guide[0].title.startsWith("Step 1: make 2 by joining items"), guide[0].title)
+        assertTrue(guide[0].text[0].startsWith("Lay down"), guide[0].text.toString())
+    }
+}

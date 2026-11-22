@@ -3,6 +3,7 @@ package splitziner.explode
 import org.locationtech.jts.geom.Geometry
 import splitziner.math.Vec3
 import splitziner.mesh.DisjointSet
+import splitziner.mesh.MeshOps
 import splitziner.parts.Part
 import splitziner.view.ViewDef
 import kotlin.math.ceil
@@ -17,6 +18,12 @@ data class BuildStep(
     val title: String = "",
     val text: List<String> = emptyList(),
     val check: String? = null,
+    /** A step made on the bench before the main build: joining the boards of one sub-assembly (a frame, a box). */
+    val subassembly: Boolean = false,
+    /** How far each part is pulled out in this step's picture, where it differs from the part's own. */
+    val explodeOf: Map<String, Vec3?> = emptyMap(),
+    /** For a sub-assembly step: how many identical ones to make. */
+    val makeCount: Int = 1,
 )
 
 class PlanResult(val parts: List<Part>, val steps: List<BuildStep>)
@@ -46,7 +53,57 @@ object AssemblyPlan {
      */
     private fun byAxisX(lo: List<Vec3>, n: Int) = (0 until n).sortedBy { lo[it].x }
 
+    /**
+     * Parts that came from one part of the drawing (split into boards: ids "P02", "P02.2", ...) are a
+     * sub-assembly. Each kind is made first, on the bench, as its own step; the main build then places
+     * each sub-assembly whole. Without sub-assemblies, or with the user's own order, this is [planCore].
+     */
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
+        val live = all.filter { !it.excluded }
+        val units = live.groupBy { it.id.substringBefore('.') }
+        val subs = units.filter { it.value.size >= 2 }
+        if (order != null || subs.isEmpty()) return planCore(all, maxSteps, order)
+        // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
+        val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
+        val bench = ArrayList<BuildStep>()
+        val benchExplode = HashMap<String, Vec3?>()
+        for (kind in kinds) {
+            val ids = ArrayList<String>()
+            for (u in kind) {
+                val inner = planCore(u, maxSteps = 2)
+                for (p in inner.parts) benchExplode[p.id] = p.explode
+                ids += u.map { it.id }
+            }
+            val first = kind.first()
+            bench += BuildStep(bench.size + 1, first.map { it.id }, emptyList(), first.mapNotNull { it.item }.distinct().sorted(),
+                subassembly = true, explodeOf = first.associate { it.id to benchExplode[it.id] }, makeCount = kind.size)
+        }
+        // The main build, with each sub-assembly as one rigid unit.
+        val unitParts = units.map { (root, ms) ->
+            if (ms.size == 1) ms[0] else Part(root, root, MeshOps.concatenate(ms.map { it.mesh }), item = ms[0].item)
+        }
+        // The main build keeps a readable number of steps of its own, however many sub-assemblies there are.
+        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size))
+        val unitOf = main.parts.associateBy { it.id }
+        val steps = ArrayList<BuildStep>(bench)
+        for (st in main.steps) {
+            val ids = st.partIds.flatMap { id -> units[id]?.map { it.id } ?: listOf(id) }
+            steps += st.copy(step = steps.size + 1, partIds = ids, items = ids.mapNotNull { id -> live.first { it.id == id }.item }.distinct().sorted())
+        }
+        val firstMain = bench.size + 1
+        val out = all.map { p ->
+            if (p.excluded) p else {
+                val u = unitOf[p.id.substringBefore('.')]
+                p.copy(explode = u?.explode, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
+            }
+        }
+        return PlanResult(out, steps)
+    }
+
+    /** Fewest steps the main build is squeezed into when sub-assemblies take their own steps. */
+    private const val MIN_MAIN_STEPS = 8
+
+    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
         if (n == 0) return PlanResult(all, emptyList())
@@ -202,8 +259,14 @@ object AssemblyPlan {
             // Parts that stand on the floor go first; then parts that touch what is built; then anything that fits.
             fun grounded(g: List<Int>) = g.any { i -> lo[i].z <= allLo.z + tol } && g.any { i -> placed.any { touches(i, it) } }
             fun supported(g: List<Int>) = g.any { i -> placed.any { touches(i, it) } }
+            fun onFloor(g: List<Int>) = g.any { i -> lo[i].z <= allLo.z + tol }
+            // Everything a part rests on (touching it from below) must already be in place, or come with it.
+            fun below(i: Int) = adj[i].filter { j -> hi[j].z <= lo[i].z + tol }
+            fun restsOnBuilt(g: List<Int>) = g.all { i -> lo[i].z <= allLo.z + tol || below(i).all { it in placed || it in g } }
             while (pool.isNotEmpty()) {
-                val pick = pool.firstOrNull { feasible(it) && grounded(it) } ?: pool.firstOrNull { feasible(it) && supported(it) }
+                // Standing parts first (a second leg frame before the top that spans both), then parts whose supports are all built.
+                val pick = pool.firstOrNull { feasible(it) && grounded(it) } ?: pool.firstOrNull { feasible(it) && onFloor(it) }
+                    ?: pool.firstOrNull { feasible(it) && supported(it) && restsOnBuilt(it) } ?: pool.firstOrNull { feasible(it) && supported(it) }
                     ?: pool.firstOrNull { feasible(it) } ?: pool.first()
                 for (i in pick) freeDir(i)?.let { dirOf[i] = it }
                 raw += pick; pool.remove(pick); placed += pick
