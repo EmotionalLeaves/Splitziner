@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.89.0 - Dados kept, readable names
+
+- **Dados and rabbets**: if your model lets shelves or a back panel into the sides (the way dado joints are usually drawn), "Fix" now keeps them as housing joints and the guide says to glue them in. Before, it trimmed them back to butt joints. The side's drawing shows the grooves.
+- **Readable names**: a project imported from "kitchen_run.stl" is called "Kitchen run".
+
 ## v0.88.0 - Dowels, spacing, metric boards
 
 - **Dowels** are suggested only where they work (an end or edge into a face). Slats on cleats and thin backs are screwed or pinned instead.
