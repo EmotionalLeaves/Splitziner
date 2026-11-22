@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.28.0 - Drawers, nightstand, turning parts
+
+Drawers that work like drawers, a nightstand to start from, and turning parts.
+
+- **Drawers.** The app now recognises a drawer box (an open box sitting in an opening):
+  - The guide builds it on the bench ("Step 1: make the drawer box from items 4, 6 and 7") and later says "Slide the drawer from step 1 in", with a line on fitting the slides.
+  - The hardware and shopping lists include a pair of slides of the right length for each drawer (14 in for a 15-3/8 in deep box).
+  - The check no longer calls a drawer "unconnected" just because its slides aren't in the model, and it warns when there isn't room for slides at the sides.
+- **Nightstand template:** carcass, a drawer on slides with the 1/2 in clearance slides need, a false front and an open shelf.
+- **Turn a part.** The Change dialog can turn a part a quarter turn: flat, tipped front to back, or tipped sideways. It stays on the same floor.
+- Back panels no longer count toward edge banding, since they face the wall.
+
 ## v0.27.0 - Faster big models, drawer checks
 
 Faster on big models, drawer checks, and dialogs that speak your units.
