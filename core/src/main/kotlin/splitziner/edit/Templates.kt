@@ -76,6 +76,23 @@ object Templates {
             Field("w", "Length", 1200.0, 48.0), Field("d", "Width", 350.0, 14.0), Field("h", "Height", 450.0, 18.0), Field("t", "Top thickness", 30.0, 1.5),
             Field("leg", "Leg size", 60.0, 3.5), Field("apron", "Apron depth", 80.0, 3.5), Field("at", "Apron thickness", 19.0, 0.75),
         )) { v -> table(v) },
+        Template("workbench", "Workbench", "A sturdy table for the workshop: a thick top on four legs with aprons, and stretchers low down carrying a shelf.", listOf(
+            Field("w", "Length", 1500.0, 60.0), Field("d", "Width", 600.0, 24.0), Field("h", "Height", 900.0, 36.0), Field("t", "Top thickness", 38.0, 1.5),
+            Field("leg", "Leg size", 70.0, 3.5), Field("apron", "Apron depth", 90.0, 3.5), Field("at", "Apron thickness", 19.0, 0.75),
+            Field("low", "Shelf stretchers, height off the floor", 150.0, 6.0), Field("sd", "Stretcher depth", 64.0, 2.5), Field("st", "Shelf thickness", 18.0, 0.75),
+        )) { v ->
+            val out = ArrayList(table(v + ("over" to 0.0)))
+            val w = v.getValue("w"); val d = v.getValue("d"); val leg = v.getValue("leg"); val at = v.getValue("at")
+            val low = v.getValue("low"); val sd = v.getValue("sd"); val st = v.getValue("st")
+            val inset = (leg - at) / 2
+            // Stretchers between the legs low down, on the same lines as the aprons, and a shelf resting on the long ones.
+            out += box(leg, inset, low, w - 2 * leg, at, sd)
+            out += box(leg, d - leg + inset, low, w - 2 * leg, at, sd)
+            out += box(inset, leg, low, at, d - 2 * leg, sd)
+            out += box(w - leg + inset, leg, low, at, d - 2 * leg, sd)
+            out += box(leg, inset, low + sd, w - 2 * leg, d - leg + inset + at - inset, st)
+            out
+        },
         Template("desk", "Desk", "A top on two panel ends, braced by a modesty panel set in from the back.", listOf(
             Field("w", "Width", 1400.0, 60.0), Field("d", "Depth", 700.0, 28.0), Field("h", "Height", 750.0, 30.0),
             Field("t", "Top thickness", 25.0, 1.0), Field("st", "Panel thickness", 18.0, 0.75), Field("m", "Modesty panel height", 300.0, 12.0),

@@ -85,14 +85,15 @@ object AssemblyPlan {
         fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }
         val rails = live.filter { it.name == "Apron" || it.name == "Rail" }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
         val legIds = legs.map { it.id }.toSet()
-        val pick = rails.groupBy { it.first.item to longAxis(it.first) }.values.filter { g ->
-            val ls = g.flatMap { it.second.map { l -> l.id } }
-            ls.size == legIds.size && ls.toSet() == legIds
-        }.minByOrNull { g -> g[0].first.mesh.bounds.extents.let { maxOf(it.x, it.y) } } ?: return emptyList()
-        return pick.map { (r, ls) ->
-            val pair = ls.map { it.id }.toSet()
-            // Other rails between the same two legs (a stretcher low down) belong to the same frame.
-            listOf(r.id) + ls.map { it.id } + rails.filter { it.first !== r && it.second.map { l -> l.id }.toSet() == pair }.map { it.first.id }
+        // Rails one way whose leg pairs cover every leg once: an apron and a stretcher between the same two legs
+        // are one pair, so a frame can have both.
+        val pick = rails.groupBy { longAxis(it.first) }.values.mapNotNull { g ->
+            val pairs = g.map { it.second.map { l -> l.id }.toSet() }.distinct()
+            val ls = pairs.flatten()
+            if (ls.size == legIds.size && ls.toSet() == legIds && pairs.size >= 2) pairs to g else null
+        }.minByOrNull { (_, g) -> g[0].first.mesh.bounds.extents.let { maxOf(it.x, it.y) } } ?: return emptyList()
+        return pick.first.map { pair ->
+            pair.toList() + rails.filter { it.second.map { l -> l.id }.toSet() == pair }.map { it.first.id }
         }
     }
 

@@ -189,6 +189,15 @@ object Fastening {
             val openTop = rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
                 minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
             val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            // A shelf resting on stretchers and only butting the legs at its ends is fixed to the stretchers, not the legs.
+            if (k != 2 && (thr.name == "Leg" || into.name == "Leg")) {
+                val board = if (thr.name == "Leg") into else thr
+                val bi = idx.getValue(board.id)
+                val flatBoard = (hi[bi].z - lo[bi].z) <= minOf(hi[bi].x - lo[bi].x, hi[bi].y - lo[bi].y)
+                val restsOn = rel.lo.indices.any { n -> n != bi && kotlin.math.abs(hi[n].z - lo[bi].z) < 1.0 &&
+                    minOf(hi[n].x, hi[bi].x) > maxOf(lo[n].x, lo[bi].x) && minOf(hi[n].y, hi[bi].y) > maxOf(lo[n].y, lo[bi].y) }
+                if (flatBoard && restsOn) continue
+            }
             // A leg's end under a top held by aprons needs nothing of its own: the aprons carry the top.
             if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name == "Rail") && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
             if (topDown && !glue) {

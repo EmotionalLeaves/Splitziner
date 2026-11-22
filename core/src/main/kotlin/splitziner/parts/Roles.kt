@@ -69,10 +69,13 @@ object Roles {
                     }
                     val coveredAbove = live.any { o -> o !== p && flat(o) && o.mesh.bounds.min.z >= b.max.z - 0.5 && overlapShare(o) > 0.5 }
                     val coveredBelow = live.any { o -> o !== p && flat(o) && o.mesh.bounds.max.z <= b.min.z + 0.5 && overlapShare(o) > 0.3 }
+                    // A bottom closes a case between its sides; a low board on a frame of legs is a shelf.
+                    fun touches(o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= b.max[k] + 1.0 && b.min[k] <= o.mesh.bounds.max[k] + 1.0 }
+                    val betweenPanels = live.any { o -> o !== p && touches(o) && o.mesh.bounds.extents.let { oe -> oe.x <= minOf(oe.y, oe.z) && oe.z > 0.5 * h && oe.y >= NARROW } }
                     when {
                         // Nothing over most of it and high up: a top (a desk's top, though a small shelf rides above it).
                         !coveredAbove && b.min.z > all.min.z + 0.5 * h -> "Top"
-                        !coveredBelow && b.min.z < all.min.z + 0.25 * h -> "Bottom"
+                        !coveredBelow && b.min.z < all.min.z + 0.25 * h && betweenPanels -> "Bottom"
                         else -> "Shelf"
                     }
                 }
