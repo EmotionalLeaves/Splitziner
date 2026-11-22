@@ -128,6 +128,7 @@ fun main(args: Array<String>) {
                 println("hardware  ${method.label}: ${fasten.hardware}")
                 if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
                 val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap(), fasten)
+                if (System.getenv("GUIDETEXT") != null) for (st in steps) { println("title     ${st.title}"); st.parts.forEach { (w, n) -> println("needs     ${n}x $w") }; st.text.forEach { println("line      $it") }; st.check?.let { println("check     $it") } }
                 val drawn = pl.parts.filter { !it.excluded }
                 val view = splitziner.explode.ExplodedView.pickView(drawn)
                 val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")

@@ -344,6 +344,9 @@ object Fastening {
         return FastenPlan(method, joints, hardware, every)
     }
 
+    /** A count before a size: "two 2-1/2 in", and past twelve "24 × 5/8 in", so "24 5/8 in" is never read as one size. */
+    private fun sized(n: Int, size: String): String = if (n <= 12 || size.isEmpty() || !size[0].isDigit()) "${count(n)} $size" else "$n × $size"
+
     /** Counts as words up to twelve ("two 2-1/2 in screws"), so a count never runs into a size. */
     private fun count(n: Int): String = listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").getOrElse(n) { "$n" }
 
@@ -383,6 +386,17 @@ object Fastening {
         return out
     }
 
+    /** "item 2 (front)" and "item 2 (back)" as "item 2 (front and back)"; different items as "item 1, item 2 and item 3". */
+    private fun joinedNames(names: List<String>): String {
+        if (names.size == 1) return names[0]
+        val m = names.map { Regex("""^(.*?) \((.*)\)$""").find(it) }
+        if (m.all { it != null } && m.map { it!!.groupValues[1] }.distinct().size == 1) {
+            val inner = m.map { it!!.groupValues[2] }
+            return "${m[0]!!.groupValues[1]} (" + inner.dropLast(1).joinToString(", ") + " and " + inner.last() + ")"
+        }
+        return names.dropLast(1).joinToString(", ") + " and " + names.last()
+    }
+
     /** The lines a step gets instead of "then fasten". */
     fun lines(plan: FastenPlan, step: Int, itemName: (Part) -> String, maxLines: Int = 4): List<String> {
         val js = plan.byStep[step].orEmpty()
@@ -392,8 +406,7 @@ object Fastening {
         val cut = js.filter { it.kind == "thin" && it.size.split('|').size >= 2 }
         for ((key, g) in cut.groupBy { itemName(it.into) to it.size }) {
             val parts = key.second.split('|'); val w = parts[0]; val d = parts[1]; val rabbet = parts.getOrNull(2) == "rabbet"
-            val hosts = g.map { itemName(it.through) }.distinct()
-            val where = if (hosts.size == 1) hosts[0] else hosts.dropLast(1).joinToString(", ") + " and " + hosts.last()
+            val where = joinedNames(g.map { itemName(it.through) }.distinct())
             val times = if (g.size > 1) " (${g.size} joints)" else ""
             val thin = key.first.replaceFirstChar { it.uppercase() }
             // Told in full the first time; later steps that set the same part the same way only say so.
@@ -429,14 +442,14 @@ object Fastening {
                 if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it." + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
                 else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer." + (if (handle) " Fit its handle or knob in the middle of the front." else "")
             }
-            else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${count(n / g.size)} ${j.size} screws through ${key.first}. Fit each handle or knob in the middle of its front."
-                else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${count(n)} ${j.size} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
+            else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
+                else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
             else if (j.kind == "housed") "Glue ${key.second} into the groove cut for it in ${key.first}$times, and clamp until dry."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; ${if (g.size > 1) "the joints are" else "the joint is"} too small for fasteners."
             else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times."
             else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
-            else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${count(n)} ${j.size} brads$times."
+            else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${sized(n, j.size)} brads$times."
             else if (j.kind == "thin") {
                 val parts = j.size.split('|'); val w = if (parts.size >= 2) parts[0] else ""; val d = if (parts.size >= 2) parts[1] else ""
                 val rabbet = parts.getOrNull(2) == "rabbet"
@@ -447,11 +460,11 @@ object Fastening {
             }
             else when (plan.method) {
                 // Pocket holes go in the part whose end or edge meets the other's face, on a side that will not show.
-                JoinMethod.POCKET_SCREWS -> "Fix ${key.second} to ${key.first} with ${count(n)} ${j.size} pocket screws through the pocket holes in its end$times."
-                JoinMethod.DOWELS -> "Glue and dowel ${key.first} to ${key.second}: ${count(n)} ${j.size}$times. Clamp until dry."
-                JoinMethod.GLUE_AND_BRADS -> "Glue ${key.first} to ${key.second} and pin with ${count(n)} ${j.size} brads$times."
-                JoinMethod.SCREWS -> if (j.kind == "brads") "Glue ${key.first} to ${key.second} and fix with ${count(n)} ${j.size} brads or small screws$times."
-                    else "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${count(n)} ${j.size} screws$times."
+                JoinMethod.POCKET_SCREWS -> "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through the pocket holes in its end$times."
+                JoinMethod.DOWELS -> "Glue and dowel ${key.first} to ${key.second}: ${sized(n, j.size)}$times. Clamp until dry."
+                JoinMethod.GLUE_AND_BRADS -> "Glue ${key.first} to ${key.second} and pin with ${sized(n, j.size)} brads$times."
+                JoinMethod.SCREWS -> if (j.kind == "brads") "Glue ${key.first} to ${key.second} and fix with ${sized(n, j.size)} brads or small screws$times."
+                    else "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."
             }
         }
         if (groups.size > room) {
