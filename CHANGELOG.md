@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.42.0 - A professional new look
+
+- **A cleaner, more professional look.** New drafting-blue and amber colours in light and dark mode. The project screen has a proper app bar (back, project name with its size and part count, Help, and a menu with Project details, Share project, Units and Which way is up) and a single row of tabs that scrolls sideways, so the model gets more of the screen.
+- **New home screen.** Import and New design up top, then your projects as cards showing part count, finished size and when you last used them. Delete is in each card's menu. Check for updates and the diagnostic report are in the menu at the top. First launch explains how it works in three steps.
+- **Item numbers in circles,** like the balloons on the drawings, in the Parts and Cut list tabs and on the selected part.
+- **Check tab** opens with a coloured verdict (red for problems, amber for things to check, green when it's clear). Each finding has a coloured edge for its severity.
+- **The square check is said once,** in "Before you build", instead of in every step.
+- Includes v0.41.0 (drawing scales, sections for hidden parts).
+
 ## v0.41.0 - Drawings at proper scales, sections for hidden parts
 
 - **Drawings at proper scales.** Inch drawings now step full, 1/2, 1/4, 1/8, 1/16; metric drawings step 1/2, 1/5, 1/10, 1/20. Before, a cabinet jumped straight from 1/4 to 1/10 and came out as a postage stamp on a big sheet. Each assembly's largest view is now at least 80 mm across.
