@@ -126,3 +126,16 @@ Departures from the build spec, newest first.
 - Edge banding must be at least as wide as the edge is thick; when the banded edges differ (3/4 in and a 1-1/2 in top), the line says which needs the wider banding. No banding product widths are invented.
 - Guide pictures prefer a front view more strongly (0.6 instead of 0.4). One part going in from the back no longer turns the whole guide around (the desk). A picture still drawn from behind is labelled "SEEN FROM THE BACK".
 - The first step gives the spacing of pieces that stand apart, read off the model: outside to outside, any piece between them "centred" or measured from the first, and "ends lined up" when the outer two line up.
+
+## v0.79
+- The guide says where a part sits when touching other parts doesn't fix its place. Distances are read off the model, along the two directions across the face where it meets the longer part it is fixed to:
+  - from the end(s)
+  - up from the bottom or down from the top edge
+  - from the front, back, left or right edge
+  - "Centre … on the width of …" when it is centred
+- Skipped:
+  - flush edges
+  - a part held between two others along that direction (a cleat between legs)
+  - items whose even spacing the step already gives
+- Bench steps measure against the longest touching part of the unit. Build steps measure against a part already built or a different item going in with it. The first step, which only sets things out, gets none.
+- The shelf-spacing line is named from the parts going in ("the shelves (item 3)"), not from every part of that item.
