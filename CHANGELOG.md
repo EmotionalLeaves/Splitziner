@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.45.0 - Share build pack
+
+- **Share build pack.** Project menu (⋮) → Share build pack puts everything you need in one zip: the drawings and the build guide as PDFs, the cutting plan PDF, the cut list (CSV) and the shopping list. It's ready to send to a printer, a friend or yourself.
+- **Calmer 3D colours.** Parts are shown in muted timber and slate tones, so the shape reads first. The selected part still shows in bright amber.
+- **Build steps in 3D** use the same previous/next bar as the drawings and the guide.
+- Includes v0.44.0 (project pictures, check at a glance).
+
 ## v0.44.0 - Project pictures and a check at a glance
 
 - **Pictures on project cards.** The home screen shows a small drawing of each model next to its name, size and part count, so you can tell your projects apart at a glance.
