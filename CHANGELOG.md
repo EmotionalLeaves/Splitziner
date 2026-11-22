@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.24.0 - Overall size, fractions and a desk template
+
+Resize the whole piece, fractions by default, and a desk to start from.
+
+- **Overall size.** On the 3D tab, **Overall size** makes the whole piece wider, deeper or taller (or smaller). The app finds a line across the middle that crosses only plain lengths of board. Those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Undo takes it back. This works on templates and on imported models: the test desk can be resized all three ways.
+- **Fractions.** New inch projects show 3-1/2 and 22-5/8 rather than 3.50 and 22.63. Change it under Units. You can type sizes as fractions too: "30-1/2", "30 1/2" or "3/4".
+- **Desk template:** a top on two panel ends, braced by a modesty panel. The table template's overhang is now a round 1 in.
+- **Sag fix in one tap.** A shelf the check thinks may sag now offers the thinnest stock thickness that keeps it within the rule.
+- **Fewer leftover overlaps.** Fix what can be fixed now settles every hairline overlap on large models. On the test desk only one is left.
+
 ## v0.23.0 - Housing joints and edge banding
 
 Grooves as real joints, and the desk comes out with no problems left.
