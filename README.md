@@ -1,6 +1,6 @@
 # Splitziner
 
-Splitziner is an Android app that opens an STL file of a whole assembly (a cabinet, a shelf, an enclosure), separates it into its individual parts, and tells you what each one is: a cut list with stock sizes and quantities today, with dimensioned drawings, exploded views and a step-by-step build guide on the way. Everything runs on the phone, offline.
+Splitziner is an Android app that opens an STL file of a whole assembly (a cabinet, a shelf, an enclosure), separates it into its individual parts, and produces what you need to build it: a cut list, dimensioned engineering drawings, an exploded view and a step-by-step build guide. Everything runs on the phone, offline.
 
 ## How to install
 
@@ -10,16 +10,20 @@ Splitziner is an Android app that opens an STL file of a whole assembly (a cabin
 
 New versions install over the old one and keep your projects.
 
-## What it does now
+## What it does
 
-- Imports binary and ASCII STL files, from the file picker or "Open with".
-- Separates the file into parts, removes bodies the exporter stored more than once, and repairs small surface gaps.
-- Guesses the file's units (STL has none) and lets you correct them.
-- Builds a cut list: identical parts grouped and counted, described as panels, boards, rods or shaped pieces, with a total length to buy per board size. Share it as a CSV.
+- **Imports** binary and ASCII STL files, from the file picker or "Open with".
+- **Separates the file into parts**, whatever order the triangles are in, removes bodies the exporter stored more than once, and repairs small surface gaps.
+- **Guesses the units** (STL has none) and lets you correct them; shows sizes in millimetres, decimal inches or fractional inches.
+- **3D view** with each part in its own colour, tap to select, and a slider that pulls the model apart.
+- **Cut list**: identical parts grouped and counted, described as panels, boards, rods or shaped pieces, with a total length to buy per board size. Share it as CSV.
+- **Engineering drawings** as a vector PDF: front, top and side views with hidden-line removal, automatic section views when the inside is hidden, dimensions from one datum corner, a title block, revision block, notes and a list of material; an exploded view with item balloons; and a detail drawing for every part. Also as PNG or DXF.
+- **Build guide** as a PDF: a drafted build order with one picture per step, which you can reorder and reword.
+- **Split parts** shared as separate STL files.
 
 ## What it cannot know
 
-An STL holds only triangles. Round features are approximate, materials and tolerances are yours to enter, and two boards that were fused into one solid in your 3D program stay one part.
+An STL holds only triangles. Round features are approximate, materials and tolerances are yours to enter, and two boards that were fused into one solid in your 3D program stay one part. The build order is worked out from the shapes alone: it checks that each part can slide into place, and knows nothing about glue, clamps or screws. The drawings follow a standard format but nobody has checked them; the in-app **Help** says what to trust and what to verify.
 
 ## Reporting a problem
 

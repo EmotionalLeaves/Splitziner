@@ -642,3 +642,44 @@ class ExportTest {
         assertEquals(7, stl); assertTrue("parts.csv" in names && "README.txt" in names)
     }
 }
+
+class HoleTest {
+    @Test fun findsThroughAndBlindHoles() {
+        val m = Fixtures.holedBoard(listOf(null, 10.0, null))
+        assertTrue(m.isWatertight)
+        val holes = splitziner.features.HoleFinder.find(m).sortedBy { it.start.x }
+        assertEquals(3, holes.size)
+        for (h in holes) { assertEquals(8.0, h.diameter, 1e-6); assertEquals(2, h.principalAxis); assertEquals(20.0, h.start.y, 1e-6) }
+        assertEquals(listOf(true, false, true), holes.map { it.through })
+        assertEquals(18.0, holes[0].depth!!, 1e-9); assertEquals(10.0, holes[1].depth!!, 1e-9)
+        assertEquals(60.0, holes[1].start.x, 1e-6); assertEquals(18.0, holes[1].start.z, 1e-9); assertEquals(-1.0, holes[1].axis.z, 1e-9)
+    }
+
+    @Test fun solidShapesHaveNoHoles() {
+        // A rod is round but is not a hole; a box and a bracket have no round rims at all.
+        assertEquals(0, splitziner.features.HoleFinder.find(Fixtures.cylinder(10.0, 0.0, 50.0)).size)
+        assertEquals(0, splitziner.features.HoleFinder.find(Fixtures.box(0.0, 10.0, 0.0, 20.0, 0.0, 30.0)).size)
+        assertEquals(0, splitziner.features.HoleFinder.find(Fixtures.lBracket()).size)
+        // Eight-sided holes count as round; a square hole (four sides) does not.
+        assertEquals(1, splitziner.features.HoleFinder.find(Fixtures.holedBoard(listOf(null), sides = 8)).size)
+        assertEquals(0, splitziner.features.HoleFinder.find(Fixtures.holedBoard(listOf(null), sides = 4)).size)
+    }
+
+    @Test fun drawingLocatesAndCallsOutHoles() {
+        val fmt = LengthFormat("mm")
+        val m = Fixtures.holedBoard(listOf(null, 10.0, null, null))
+        val cut = CutList.build(listOf(Part("P01", "P", m)), fmt)
+        val vs = splitziner.drawing.DrawingBuilder.views(cut.parts)
+        val r = splitziner.drawing.DrawingBuilder.build(cut.parts, cut.rows, vs, splitziner.sheet.DrawingInfo(title = "Rail, drilled", drawingNo = "RL-1"), splitziner.drawing.DrawingSettings(), fmt)
+        java.io.File("build/preview").mkdirs(); java.io.File("build/preview/holes.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[0]))
+        val texts = r.sheets[0].prims.filterIsInstance<splitziner.sheet.Text>().map { it.text }
+        println("holes: ${r.sheet.letter} ${r.scaleText} qa=${r.qa}")
+        assertEquals("BOARD 18 X 40 X 160, 4 HOLES", cut.rows[0].description)
+        assertTrue(r.qa.isEmpty(), r.qa.toString())
+        assertTrue(texts.any { it == "3X ${fmt.format(8.0)} DIA THRU" }, texts.toString())
+        assertTrue(texts.any { it == "${fmt.format(8.0)} DIA ${fmt.format(10.0)} DEEP" })
+        // Hole centres are dimensioned from the datum corner: 20, 60, 100, 140 along the board and 20 across it.
+        for (v in listOf(20.0, 60.0, 100.0, 140.0)) assertTrue(texts.contains(fmt.format(v)), "missing ${fmt.format(v)} in $texts")
+        assertTrue(r.sheets[0].prims.any { it is splitziner.sheet.Segments && it.style == splitziner.sheet.LineStyle.CENTER })
+    }
+}

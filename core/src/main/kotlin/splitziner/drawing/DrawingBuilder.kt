@@ -4,6 +4,8 @@ import splitziner.dims.DimDrawer
 import splitziner.dims.DimGroup
 import splitziner.dims.DimPlanner
 import splitziner.dims.LengthFormat
+import splitziner.features.Hole
+import splitziner.features.HoleFinder
 import splitziner.mesh.Mesh
 import splitziner.mesh.MeshOps
 import splitziner.parts.CutListRow
@@ -87,7 +89,37 @@ object DrawingBuilder {
 
     private class Margins(val left: Double, val right: Double, val top: Double, val bottom: Double)
 
-    private fun margins(view: String, groups: List<DimGroup>, th: Double, sections: Map<String, splitziner.section.SectionGeometry> = emptyMap()): Margins {
+    /** A note pointing at a hole, or at one of several alike: "4X 6.0 DIA THRU". */
+    class HoleCallout(val view: String, val text: String, val holes: List<Hole>)
+
+    /** No more than this many different hole sizes are called out on one view. */
+    private const val MAX_CALLOUTS = 4
+
+    /** Paper radius below which a hole gets a plain cross instead of a centre-line cross. */
+    private const val SMALL_HOLE_MM = 1.5
+
+    fun holeCallouts(holes: List<Hole>, fmt: LengthFormat): List<HoleCallout> {
+        val views = listOf("right", "front", "top")
+        return holes.filter { it.principalAxis != null }.groupBy {
+            val size = fmt.format(it.diameter) + " DIA" + when {
+                it.through -> " THRU"
+                it.depth != null -> " ${fmt.format(it.depth)} DEEP"
+                else -> ""
+            }
+            views[it.principalAxis!!] to size
+        }.entries.sortedByDescending { it.value.size }.map { (key, list) -> HoleCallout(key.first, (if (list.size > 1) "${list.size}X " else "") + key.second, list) }
+    }
+
+    private fun rowHeight(th: Double) = 1.9 * th
+
+    private fun margins(view: String, groups: List<DimGroup>, th: Double, sections: Map<String, splitziner.section.SectionGeometry> = emptyMap(), callouts: List<HoleCallout> = emptyList()): Margins {
+        val notes = callouts.filter { it.view == view }.take(MAX_CALLOUTS)
+        if (notes.isNotEmpty()) {
+            val m = margins(view, groups, th, sections)
+            // Hole notes sit clear of the dimensions: beside the top view, above the other two.
+            return if (view == "top") Margins(m.left, m.right + 12 + notes.maxOf { splitziner.sheet.StrokeFont.width(it.text, th) }, m.top, m.bottom)
+            else Margins(m.left, m.right, m.top + 5 + rowHeight(th) * notes.size, m.bottom)
+        }
         fun need(side: String) = groups.filter { it.view == view && it.side == side }.maxOfOrNull { DimDrawer.margin(it, th) } ?: 6.0
         var left = need("left"); var right = need("right"); var top = need("top"); var bottom = need("bottom")
         // "SECTION A-A" sits under a sectioned view.
@@ -128,7 +160,10 @@ object DrawingBuilder {
                 else -> single && v.hiddenLength <= v.visibleLength
             }
         }
-        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims)
+        // Holes are located and called out on drawings of one part; on an assembly they would bury the views.
+        val holes = if (drawn.size == 1) runCatching { HoleFinder.find(drawn[0].mesh) }.getOrDefault(emptyList()) else emptyList()
+        val callouts = holeCallouts(holes, fmt)
+        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes)
         fun size(v: ViewLines) = doubleArrayOf(v.bounds[2] - v.bounds[0], v.bounds[3] - v.bounds[1])
         val (wf, hf) = size(front).let { it[0] to it[1] }
         val (wt, ht) = size(top).let { it[0] to it[1] }
@@ -139,7 +174,7 @@ object DrawingBuilder {
 
         fun place(sheet: SheetSize, s: Double, listH: Double): Placed {
             val th = Lettering.of(sheet, settings.strictLettering).dims
-            val f = margins("front", groups, th, vs.sections); val t = margins("top", groups, th, vs.sections); val r = margins("right", groups, th, vs.sections)
+            val f = margins("front", groups, th, vs.sections, callouts); val t = margins("top", groups, th, vs.sections, callouts); val r = margins("right", groups, th, vs.sections, callouts)
             val bandTop = sheet.fieldY0 + Furniture.TITLE_HEIGHT + listH
             // Third-angle layout: top view above the front view, right view to its right.
             val ax0 = sheet.fieldX0 + 2 + CALL + maxOf(f.left, t.left)
@@ -242,6 +277,94 @@ object DrawingBuilder {
                     dl.text(x - 8 - 3 - 3.5, y, sec.letter, L.sectionLetter * 0.8, splitziner.sheet.HAlign.RIGHT, splitziner.sheet.VAlign.CENTER, bold = true, tag = "section")
                 }
             }
+        }
+
+        // Holes: centre lines in every view, and a note with the size where the hole shows as a circle.
+        if (holes.isNotEmpty()) {
+            for ((name, lines) in vs.views) {
+                val o = origin.getValue(name); val b = lines.bounds; val def = defs.getValue(name)
+                fun paper(p: splitziner.math.Vec3): DoubleArray { val q = def.project(p); return doubleArrayOf(o[0] + (q.x - b[0]) * s, o[1] + (q.y - b[1]) * s) }
+                for (h in holes) {
+                    if (h.principalAxis == null) continue
+                    val along = kotlin.math.abs(h.axis dot def.n)
+                    if (along > Hole.ALIGNED) {
+                        val c = paper(h.center); val rp = h.diameter / 2 * s
+                        val ext = rp + if (rp < SMALL_HOLE_MM) 1.2 else minOf(4.0, maxOf(2.0, 0.4 * rp))
+                        val style = if (rp < SMALL_HOLE_MM) LineStyle.THIN else LineStyle.CENTER
+                        dl.line(c[0] - ext, c[1], c[0] + ext, c[1], style); dl.line(c[0], c[1] - ext, c[0], c[1] + ext, style)
+                    } else if (along < 0.02 && h.depth != null) {
+                        val a = paper(h.start); val e = paper(h.end)
+                        val len = Math.hypot(e[0] - a[0], e[1] - a[1])
+                        if (len > 1e-6) { val ux = (e[0] - a[0]) / len * 3; val uy = (e[1] - a[1]) / len * 3; dl.line(a[0] - ux, a[1] - uy, e[0] + ux, e[1] + uy, LineStyle.CENTER) }
+                    }
+                }
+                val notes = callouts.filter { it.view == name }
+                if (notes.size > MAX_CALLOUTS) qa += "${notes.size - MAX_CALLOUTS} more hole size(s) in the $name view are not called out"
+                val base = margins(name, groups, th, vs.sections)
+                val x1 = o[0] + (b[2] - b[0]) * s; val y1 = o[1] + (b[3] - b[1]) * s
+                // Every hole this view shows as a circle: a leader must not run across any of them.
+                val circles = holes.filter { it.principalAxis != null && kotlin.math.abs(it.axis dot def.n) > Hole.ALIGNED }.map { val c = paper(it.center); doubleArrayOf(c[0], c[1], it.diameter / 2 * s) }
+                fun clear(cx: Double, cy: Double, ex: Double, ey: Double): Boolean {
+                    val dx = ex - cx; val dy = ey - cy; val l2 = dx * dx + dy * dy
+                    for (k in circles) {
+                        if (Math.hypot(k[0] - cx, k[1] - cy) < 1e-6) continue
+                        val t = (((k[0] - cx) * dx + (k[1] - cy) * dy) / l2).coerceIn(0.0, 1.0)
+                        if (Math.hypot(cx + t * dx - k[0], cy + t * dy - k[1]) < k[2] + 1.5) return false
+                    }
+                    return true
+                }
+                val usedRows = ArrayList<Double>()
+                notes.take(MAX_CALLOUTS).forEachIndexed { i, note ->
+                    val tw = splitziner.sheet.StrokeFont.width(note.text, th)
+                    fun textBox(ex: Double, ey: Double) = splitziner.sheet.Box(ex + 4, ey - th / 2, ex + 4 + tw, ey + th / 2, "dim")
+                    fun free(ex: Double, ey: Double): Boolean {
+                        val t = textBox(ex, ey)
+                        return t.x1 <= sheet.fieldX1 - 2 && t.y1 <= sheet.fieldY1 - 2 && t.y0 >= sheet.fieldY0 + 2 && dl.overlapArea(t) <= 0.0
+                    }
+                    // Candidate ends for the leader, best first. The note keeps its place; the leader looks for a hole it can reach cleanly.
+                    var pick: DoubleArray? = null
+                    var fallback: DoubleArray? = null
+                    if (name == "top") {
+                        val ex = x1 + base.right + 4
+                        for (h in note.holes.sortedByDescending { paper(it.center)[0] }.take(6)) {
+                            val c = paper(h.center); val rp = h.diameter / 2 * s
+                            for (j in 1..60) for (sgn in doubleArrayOf(1.0, -1.0)) {
+                                // Never straight along the row of centres: start a little above or below it.
+                                val ey = c[1] + sgn * (1.5 + j * rowHeight(th) / 2)
+                                if (usedRows.any { kotlin.math.abs(it - ey) < rowHeight(th) }) continue
+                                if (fallback == null) fallback = doubleArrayOf(c[0], c[1], rp, ex, ey)
+                                if (pick == null && clear(c[0], c[1], ex, ey) && free(ex, ey)) pick = doubleArrayOf(c[0], c[1], rp, ex, ey)
+                            }
+                            if (pick != null) break
+                        }
+                    } else {
+                        val ey = y1 + base.top + 3 + rowHeight(th) * i + th / 2
+                        for (h in note.holes.sortedByDescending { paper(it.center)[1] }.take(6)) {
+                            val c = paper(h.center); val rp = h.diameter / 2 * s
+                            // About 60 degrees from the horizontal to begin with, then steeper or shallower as needed.
+                            val want = c[0] + (ey - c[1]) * 0.58
+                            for (j in 0..40) for (sgn in doubleArrayOf(1.0, -1.0)) {
+                                val ex = want + sgn * j * 3.0
+                                if (fallback == null) fallback = doubleArrayOf(c[0], c[1], rp, minOf(ex, sheet.fieldX1 - 6 - tw - 4), ey)
+                                if (pick == null && ex > o[0] - 10 && clear(c[0], c[1], ex, ey) && free(ex, ey)) pick = doubleArrayOf(c[0], c[1], rp, ex, ey)
+                            }
+                            if (pick != null) break
+                        }
+                    }
+                    val q = pick ?: fallback ?: return@forEachIndexed
+                    if (pick == null) dl.qa += "A hole note could not be placed clear of other items"
+                    val ex = q[3]; val ey = q[4]
+                    usedRows += ey
+                    val dx = ex - q[0]; val dy = ey - q[1]; val len = Math.hypot(dx, dy)
+                    if (len > q[2] + 1) {
+                        val tx = q[0] + dx / len * q[2]; val ty = q[1] + dy / len * q[2]
+                        dl.polyline(doubleArrayOf(tx, ty, ex, ey, ex + 3, ey)); dl.arrow(tx, ty, -dx, -dy)
+                    }
+                    dl.text(ex + 4, ey, note.text, th, splitziner.sheet.HAlign.LEFT, splitziner.sheet.VAlign.CENTER, tag = "dim")
+                }
+            }
+            val angled = holes.count { it.principalAxis == null }
+            if (angled > 0) qa += "$angled hole(s) drilled at an angle are drawn but not dimensioned"
         }
 
         val lo = vs.scene.bounds.min

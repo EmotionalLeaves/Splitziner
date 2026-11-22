@@ -75,8 +75,13 @@ object PartDescriber {
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
-            val notch = if (fill < NOTCH_FILL) ", NOTCHED" else ""
-            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}$notch")
+            // What is missing from the plain board: round holes are named as holes, anything else as a notch.
+            val holes = runCatching { splitziner.features.HoleFinder.find(m) }.getOrDefault(emptyList())
+            val drilled = holes.sumOf { Math.PI * it.diameter * it.diameter / 4 * (it.depth ?: 0.0) }
+            val missing = t * w * l - vol
+            val notch = if (fill < NOTCH_FILL && drilled < 0.9 * missing) ", NOTCHED" else ""
+            val holeText = when (holes.size) { 0 -> ""; 1 -> ", 1 HOLE"; else -> ", ${holes.size} HOLES" }
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}$notch$holeText")
         }
         val desc = if (t < 0.3 * w) "SHAPED, ${d(t)} THK, CUT FROM ${d(w)} X ${d(l)}" else "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}"
         return PartDescription(PartKind.SHAPED, t, w, l, fill, desc)

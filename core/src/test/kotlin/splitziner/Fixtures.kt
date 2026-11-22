@@ -125,4 +125,40 @@ object Fixtures {
         for (t in 0 until n) { repeat(3) { buf.putFloat(0f) }; for (k in 0 until 9) buf.putFloat(raw.soup[9 * t + k].toFloat()); buf.putShort(0) }
         return buf.array()
     }
+
+    /**
+     * A board made of square cells in a row along X, each with one round hole down from the top:
+     * through when its depth is null, otherwise that deep with a flat bottom.
+     */
+    fun holedBoard(depths: List<Double?>, cell: Double = 40.0, t: Double = 18.0, r: Double = 4.0, sides: Int = 32): Mesh {
+        val tri = ArrayList<Double>()
+        fun add(a: Vec3, b: Vec3, c: Vec3) { for (p in listOf(a, b, c)) { tri += p.x; tri += p.y; tri += p.z } }
+        fun quad(a: Vec3, b: Vec3, c: Vec3, d: Vec3) { add(a, b, c); add(a, c, d) }
+        depths.forEachIndexed { i, depth ->
+            val x0 = i * cell; val cx = x0 + cell / 2; val cy = cell / 2
+            // Rim corners start at 45 degrees so each cell corner sees its own quarter of the rim.
+            fun rim(k: Int, z: Double) = Vec3(cx + r * cos(2 * PI * k / sides), cy + r * sin(2 * PI * k / sides), z)
+            val corners = listOf(Vec3(x0 + cell, cell, 0.0), Vec3(x0, cell, 0.0), Vec3(x0, 0.0, 0.0), Vec3(x0 + cell, 0.0, 0.0))
+            // A square face with the hole cut out: each corner fans to its quarter of the rim.
+            fun ringFace(z: Double) {
+                for (q in 0..3) {
+                    val c = corners[q].copy(z = z)
+                    for (k in q * sides / 4 until (q + 1) * sides / 4) add(c, rim(k, z), rim(k + 1, z))
+                    add(c, rim((q + 1) * sides / 4, z), corners[(q + 1) % 4].copy(z = z))
+                }
+            }
+            ringFace(t)
+            val bottom = if (depth == null) 0.0 else t - depth
+            if (depth == null) ringFace(0.0) else {
+                quad(corners[0], corners[1], corners[2], corners[3])
+                for (k in 0 until sides) add(Vec3(cx, cy, bottom), rim(k, bottom), rim(k + 1, bottom))
+            }
+            for (k in 0 until sides) quad(rim(k, bottom), rim(k + 1, bottom), rim(k + 1, t), rim(k, t))
+            quad(Vec3(x0, 0.0, 0.0), Vec3(x0 + cell, 0.0, 0.0), Vec3(x0 + cell, 0.0, t), Vec3(x0, 0.0, t))
+            quad(Vec3(x0, cell, 0.0), Vec3(x0 + cell, cell, 0.0), Vec3(x0 + cell, cell, t), Vec3(x0, cell, t))
+            if (i == 0) quad(Vec3(x0, 0.0, 0.0), Vec3(x0, cell, 0.0), Vec3(x0, cell, t), Vec3(x0, 0.0, t))
+            if (i == depths.size - 1) quad(Vec3(x0 + cell, 0.0, 0.0), Vec3(x0 + cell, cell, 0.0), Vec3(x0 + cell, cell, t), Vec3(x0 + cell, 0.0, t))
+        }
+        return splitziner.mesh.MeshOps.fixWinding(splitziner.mesh.MeshOps.fromSoup(tri.toDoubleArray(), 1e-6))
+    }
 }

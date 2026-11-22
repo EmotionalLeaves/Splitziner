@@ -12,7 +12,11 @@ import splitziner.view.ViewLines
 import kotlin.math.abs
 
 /** One dimension: a model coordinate on an axis, and the text to show (its distance from the datum). */
-class DimItem(val coord: Double, val text: String, val kind: String)
+class DimItem(
+    val coord: Double, val text: String, val kind: String,
+    /** View coordinates the extension line starts from, for features that are not an edge (a hole's centre). */
+    val anchor: DoubleArray? = null,
+)
 
 /** Dimensions that share a view, a direction and a side, drawn as one stack. */
 class DimGroup(
@@ -91,25 +95,47 @@ object DimPlanner {
         listOf(Placement("front", false, "left"), Placement("right", false, "right")),
     )
 
-    fun plan(scene: Mesh, views: Map<String, ViewLines>, fmt: LengthFormat, maxLevels: Int): List<DimGroup> {
+    /** At most this many hole positions are dimensioned per axis; a pegboard would otherwise bury the view. */
+    const val MAX_HOLE_DIMS = 12
+
+    // The view that shows a hole along each model axis as a circle.
+    private val CIRCLE_VIEW = listOf(ViewDef.RIGHT, ViewDef.FRONT, ViewDef.TOP)
+
+    fun plan(scene: Mesh, views: Map<String, ViewLines>, fmt: LengthFormat, maxLevels: Int, holes: List<splitziner.features.Hole> = emptyList()): List<DimGroup> {
         val lo = scene.bounds.min; val hi = scene.bounds.max
         val lv = levels(scene, lo, hi, maxLevels)
         val groups = LinkedHashMap<String, MutableList<DimItem>>()
         val meta = HashMap<String, Placement>()
         for (k in 0..2) {
             val used = HashSet<String>()
-            fun add(pl: Placement, coord: Double, kind: String) {
+            fun add(pl: Placement, coord: Double, kind: String, anchor: DoubleArray? = null): Boolean {
                 val text = fmt.format(abs(coord - lo[k]))
                 // One dimension per displayed value: 36.000 and 36.004 would both read 36.00.
-                if (!used.add(text)) return
+                if (!used.add(text)) return false
                 val key = "${pl.view}/${pl.horizontal}/$k"
-                groups.getOrPut(key) { ArrayList() } += DimItem(coord, text, kind); meta[key] = pl
+                groups.getOrPut(key) { ArrayList() } += DimItem(coord, text, kind, anchor); meta[key] = pl
+                return true
             }
             used += fmt.format(0.0)
             add(PLACES[k][0], hi[k], "overall")
             for (c in lv[k]) {
                 val pl = PLACES[k].firstOrNull { p -> views[p.view]?.let { hasEdgeAt(it, p.horizontal, c) } == true } ?: continue
                 add(pl, c, "face")
+            }
+            // Where to drill: each hole's centre, in the view that shows the hole as a circle.
+            var holeDims = 0
+            for (d in 0..2) {
+                if (d == k) continue
+                val view = CIRCLE_VIEW[d]
+                val pl = PLACES[k].firstOrNull { it.view == view.name } ?: continue
+                val low = pl.side == "bottom" || pl.side == "left"
+                // Of several holes in line, the one nearest the dimension's side carries the extension line.
+                val here = holes.filter { it.principalAxis == d }.map { it to view.project(it.center) }
+                    .sortedBy { (_, p) -> (if (pl.horizontal) p.y else p.x) * (if (low) 1 else -1) }
+                for ((h, p) in here) {
+                    if (holeDims >= MAX_HOLE_DIMS) break
+                    if (add(pl, h.center[k], "hole", doubleArrayOf(p.x, p.y))) holeDims++
+                }
             }
         }
         return groups.map { (key, items) ->
@@ -157,12 +183,13 @@ object DimDrawer {
         }
         val edge = if (g.horizontal) (if (low) box[1] else box[3]) else (if (low) box[0] else box[2])
         val d0 = anchorPaper(datum)
+        fun anchorOf(it: DimItem): DoubleArray = it.anchor?.let { a -> toPaper(a[0], a[1]) } ?: anchorPaper(it.coord)
 
         if (g.style == "ordinate") {
             val reach = edge + sign * (FIRST + 2)
             val all = listOf(DimItem(datum, "0", "datum")) + g.items
             // Labels too close together are pushed apart, each by half the shortfall, until they fit.
-            val pos = all.map { val p = anchorPaper(it.coord); if (g.horizontal) p[0] else p[1] }.toDoubleArray()
+            val pos = all.map { val p = anchorOf(it); if (g.horizontal) p[0] else p[1] }.toDoubleArray()
             val order = pos.indices.sortedBy { pos[it] }
             val gap = 1.6 * th
             repeat(60) {
@@ -174,7 +201,7 @@ object DimDrawer {
                 if (!moved) return@repeat
             }
             all.forEachIndexed { i, it ->
-                val p = anchorPaper(it.coord)
+                val p = anchorOf(it)
                 if (g.horizontal) {
                     val jog = edge + sign * (FIRST - 4)
                     dl.polyline(doubleArrayOf(p[0], p[1] + sign * EXT_GAP, p[0], jog, pos[i], jog + sign * 2, pos[i], reach))
@@ -191,7 +218,7 @@ object DimDrawer {
         val step = pitch(g, th)
         g.items.forEachIndexed { i, it ->
             val off = edge + sign * (FIRST + step * i)
-            val p = anchorPaper(it.coord)
+            val p = anchorOf(it)
             val tw = StrokeFont.width(it.text, th)
             if (g.horizontal) {
                 dl.line(p[0], p[1] + sign * EXT_GAP, p[0], off + sign * EXT_OVER)

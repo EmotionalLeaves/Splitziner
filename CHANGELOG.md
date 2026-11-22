@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0 - Holes on the drawings
+
+Drawings now tell you where to drill.
+
+- **Holes are found and dimensioned.** Each part's own drawing shows its round holes with centre lines, a size note such as **3X 8 DIA THRU** or **8 DIA 10 DEEP**, and every hole centre measured from the same corner as the other dimensions.
+- **The cut list names them.** A drilled board now reads "BOARD 18 X 40 X 160, 4 HOLES" instead of "NOTCHED".
+- **What it can't tell:** threads, countersinks and what a hole is for. Holes drilled at an angle are drawn but not dimensioned, and a chamfered rim measures at the chamfer's outer edge. Diameters come from the facets in the STL, so check critical ones against your design. Help has a new **Holes** entry.
+- The README now describes everything the app does.
+
 ## v0.8.0 - More ways to share
 
 More ways to get your work out of the app.
