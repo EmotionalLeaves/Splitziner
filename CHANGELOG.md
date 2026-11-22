@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.91.0 - Clearer hardware lists
+
+- **Clearer hardware lists**: screws read as you'd ask for them: "26 screws, #8 x 1-1/2 in" (or "4 x 40 mm").
+- Every template was stress-tested with random sizes and options; no problems found.
+
 ## v0.90.0 - Dados on the drawings
 
 - **Dados on the drawings**: a side with dados and rabbets now has them drawn on its detail sheet, each placed by a dimension. The notes say where each groove is and which edge each rabbet runs along.
