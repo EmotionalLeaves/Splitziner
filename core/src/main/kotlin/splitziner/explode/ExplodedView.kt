@@ -145,12 +145,16 @@ object ExplodedView {
                     if (across) floor = maxOf(floor, offs[j].length + GAP * 0.5 * maxOf(size, sj[1] - sj[0]))
                 }
                 var l = maxOf(l0, floor)
-                val step = maxOf(0.08 * size, 0.5)
+                // A thin part pulled off its face (a door) may need to travel well past its own thickness to clear
+                // what is behind it, so the reach and the step follow its largest size too.
+                val biggest = maxOf(b.extents.x, b.extents.y, b.extents.z)
+                val step = maxOf(0.08 * size, 0.5, 0.02 * biggest)
                 val clearance = GAP * maxOf(size, 5.0) * 0.5
                 val grown = outlines[i].buffer(clearance)
                 val d2 = Vec2(d dot view.x, d dot view.up)
                 // Travel grows until the part's outline, with clearance, misses everything already placed.
-                while (l < l0 + 12 * maxOf(size, 10.0)) {
+                val start = l
+                while (l < start + maxOf(12 * maxOf(size, 10.0), 1.5 * biggest)) {
                     val shifted = Silhouette.translated(grown, d2.x * l, d2.y * l)
                     if (!hits(shifted)) break
                     l += step
