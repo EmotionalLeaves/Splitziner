@@ -11,13 +11,14 @@ object Drawers {
     /** Ball-bearing slides, the common kind, need 1/2 in (12.7 mm) each side; this a little less, for tolerance. */
     const val SLIDE_GAP = 12.0
 
-    class Drawer(val ids: List<String>, val left: Double, val right: Double)
+    /** [boxIds] are the box itself, without a false front wider than it; the slides fit the box. */
+    class Drawer(val ids: List<String>, val left: Double, val right: Double, val boxIds: List<String> = ids)
 
     /** The longest standard slide (2 in or 50 mm steps) that fits a drawer [depth] mm deep, as sold: "14 in", "350 mm". */
     fun slideLength(depth: Double, inch: Boolean): String? =
         if (inch) (10..28 step 2).lastOrNull { it * 25.4 <= depth + 1 }?.let { "$it in" } else (250..700 step 50).lastOrNull { it <= depth + 1 }?.let { "$it mm" }
 
-    fun depthOf(parts: List<Part>, d: Drawer): Double = parts.filter { it.id in d.ids }.let { ps -> ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y } }
+    fun depthOf(parts: List<Part>, d: Drawer): Double = parts.filter { it.id in d.boxIds }.let { ps -> ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y } }
 
     fun find(parts: List<Part>): List<Drawer> {
         val live = parts.filter { !it.excluded }
@@ -32,16 +33,23 @@ object Drawers {
             val e = ext(b)
             if (e.z > 0.3 * minOf(e.x, e.y) || e.z > 25.0) continue
             // Walls standing on or around this bottom, within its footprint (give or take a wall's thickness).
-            val walls = live.indices.filter { w ->
+            val walls0 = live.indices.filter { w ->
                 w != b && w !in used && ext(w).z > 2 * e.z && ext(w).z >= minOf(ext(w).x, ext(w).y) &&
                     lo[w].z >= lo[b].z - 30 && lo[w].z <= hi[b].z + 1 &&
                     lo[w].x >= lo[b].x - 30 && hi[w].x <= hi[b].x + 30 && lo[w].y >= lo[b].y - 30 && hi[w].y <= hi[b].y + 30 &&
                     thin(w) < 30
             }
+            // A part much taller than the rest (the carcass's back panel behind the bottom drawer) is not a wall.
+            val tops = walls0.map { hi[it].z - lo[b].z }.sorted()
+            val walls = if (tops.isEmpty()) walls0 else walls0.filter { hi[it].z - lo[b].z <= 1.5 * tops[tops.size / 2] + 10.0 }
             if (walls.size < 3) continue
             val all = walls + b
-            val bl = Vec3(all.minOf { lo[it].x }, all.minOf { lo[it].y }, all.minOf { lo[it].z })
-            val bh = Vec3(all.maxOf { hi[it].x }, all.maxOf { hi[it].y }, all.maxOf { hi[it].z })
+            // A false front: thin front to back, in front of the rest and wider than the box. Slides and the room
+            // for them are measured from the box behind it.
+            val fronts = walls.filter { w -> ext(w).y <= thin(w) + 0.01 && (all - w).let { os -> ext(w).x > os.maxOf { o -> hi[o].x } - os.minOf { o -> lo[o].x } + 1.0 && os.all { o -> lo[o].y >= hi[w].y - 0.5 } } }
+            val box = all - fronts.toSet()
+            val bl = Vec3(box.minOf { lo[it].x }, all.minOf { lo[it].y }, all.minOf { lo[it].z })
+            val bh = Vec3(box.maxOf { hi[it].x }, all.maxOf { hi[it].y }, all.maxOf { hi[it].z })
             // Walls on at least three sides: left and right, plus front or back.
             val sides = walls.map { w -> when {
                 ext(w).x <= thin(w) + 0.01 && lo[w].x <= bl.x + 30 -> "L"; ext(w).x <= thin(w) + 0.01 && hi[w].x >= bh.x - 30 -> "R"
@@ -59,7 +67,7 @@ object Drawers {
             val l = beside(true) ?: continue; val r = beside(false) ?: continue
             if (l > 100 || r > 100) continue
             used += set
-            out += Drawer(all.map { live[it].id }, maxOf(0.0, l), maxOf(0.0, r))
+            out += Drawer(all.map { live[it].id }, maxOf(0.0, l), maxOf(0.0, r), box.map { live[it].id })
         }
         return out
     }

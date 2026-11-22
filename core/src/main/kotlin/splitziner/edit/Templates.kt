@@ -108,6 +108,30 @@ object Templates {
             out += box(t + 2.0, -t, h - t - dh + 2.0, inner - 4.0, t, dh - 4.0)
             out
         },
+        Template("drawers", "Chest of drawers", "A carcass with a kick board and a stack of drawers on slides, each with a front set in front of the opening. The drawer boxes leave 1/2 in (12.7 mm) each side for ball-bearing slides.", listOf(
+            Field("w", "Width", 800.0, 32.0), Field("h", "Height", 900.0, 36.0), Field("d", "Depth", 450.0, 18.0),
+            Field("t", "Board thickness", 18.0, 0.75), Field("n", "Drawers", 4.0, 4.0, count = true), Field("dt", "Drawer box thickness", 12.0, 0.5),
+        )) { v ->
+            val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val dt = v.getValue("dt")
+            val n = v.getValue("n").toInt().coerceIn(1, 8)
+            val inner = w - 2 * t; val back = 6.0; val dIn = d - back; val kick = 50.0
+            val out = arrayListOf(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h),
+                box(t, 0.0, kick, inner, dIn, t), box(t, 0.0, h - t, inner, dIn, t), box(t, 0.0, 0.0, inner, t, kick),
+                box(t, d - back, kick, inner, back, h - kick))
+            // The space between bottom and top shared equally; each drawer box 6 mm clear of its share above and
+            // below, 12.7 mm each side for slides, and 10 mm short of the back.
+            val z0 = kick + t; val oh = (h - t - z0) / n
+            val slide = 12.7; val bx0 = t + slide; val bx1 = w - t - slide; val y1 = dIn - 10.0
+            for (k in 0 until n) {
+                val zb = z0 + k * oh + 6.0; val bh = oh - 12.0
+                out += box(bx0, 0.0, zb, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, zb, bx1 - bx0, dt, bh)
+                out += box(bx0, dt, zb, dt, y1 - 2 * dt, bh); out += box(bx1 - dt, dt, zb, dt, y1 - 2 * dt, bh)
+                out += box(bx0 + dt, dt, zb, bx1 - bx0 - 2 * dt, y1 - 2 * dt, 6.0)
+                // Its front, in front of the carcass, 2 mm in from the sides and 2 mm from the fronts above and below.
+                out += box(t + 2.0, -t, z0 + k * oh + 2.0, inner - 4.0, t, oh - 4.0)
+            }
+            out
+        },
         Template("box", "Open box", "A bottom with four sides around it: a crate, planter or drawer box.", listOf(
             Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 300.0, 12.0), Field("h", "Height", 200.0, 8.0), Field("t", "Side thickness", 12.0, 0.5), Field("bt", "Bottom thickness", 6.0, 0.25),
         )) { v ->

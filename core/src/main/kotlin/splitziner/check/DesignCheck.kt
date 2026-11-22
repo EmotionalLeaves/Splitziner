@@ -273,12 +273,13 @@ object DesignCheck {
             for (dr in drawers) for (g in rel.groups) if (g.any { live[it].id in dr.ids }) onSlides += g
             for (dr in drawers) dr.ids.mapNotNull { idx[it] }.forEach { onSlides += it }
         }
-        for (dr in drawers) {
-            val its = live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted()
+        // Identical drawers (same items, same depth) are told once.
+        for ((key, drs) in drawers.groupBy { dr -> live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted() to Math.round(Drawers.depthOf(live, dr)) }) {
+            val its = key.first; val dr = drs[0]; val n = drs.size
             val depth = Drawers.depthOf(live, dr)
             val slide = Drawers.slideLength(depth, fmt.isInch)
-            out += Finding(Severity.NOTE, "Drawer on slides (items ${its.joinToString(", ")})",
-                "Items ${its.joinToString(", ")} make a drawer. It runs on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit its depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", dr.ids)
+            out += Finding(Severity.NOTE, (if (n == 1) "Drawer" else "$n drawers") + " on slides (items ${its.joinToString(", ")})",
+                "Items ${its.joinToString(", ")} make ${if (n == 1) "a drawer. It runs" else "$n drawers, all the same. Each runs"} on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit the box's depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", drs.flatMap { it.ids })
         }
         // Doors hang on hinges, which are hardware too.
         val doors = runCatching { Doors.find(live) }.getOrDefault(emptyList())

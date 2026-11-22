@@ -1374,3 +1374,22 @@ class AddPinnedShelfTest {
         assertEquals(listOf("S1"), splitziner.check.ShelfPins.find(withShelf))
     }
 }
+
+class ChestOfDrawersTest {
+    @Test fun everyDrawerIsFoundAndHung() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("drawers")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val drawers = splitziner.check.Drawers.find(parts)
+        println("CHEST " + drawers.map { d -> d.ids.joinToString(",") + " z=" + parts.filter { it.id in d.ids }.minOf { it.mesh.bounds.min.z } })
+        assertEquals(4, drawers.size)
+        assertTrue(drawers.all { it.ids.size == 6 }, drawers.map { it.ids }.toString())
+        val cut = CutList.build(parts, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.problems == 0, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title + ": " + it.detail }.toString())
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val hw = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt).hardware
+        assertTrue(hw.any { it.startsWith("4 pairs of") && it.contains("drawer slides") }, hw.toString())
+        assertTrue(hw.any { it == "4 × handles or knobs, with their screws" }, hw.toString())
+    }
+}

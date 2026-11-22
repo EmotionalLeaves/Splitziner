@@ -276,20 +276,20 @@ class SmokeTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             lateinit var vm: AppViewModel
             scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
-            for ((key, values) in listOf("cabinet" to mapOf("doors" to 2.0, "overlay" to 1.0), "shelves" to mapOf("pins" to 1.0))) {
+            for ((key, values) in listOf("cabinet" to mapOf("doors" to 2.0, "overlay" to 1.0), "shelves" to mapOf("pins" to 1.0), "drawers" to emptyMap())) {
                 val t = splitziner.edit.Templates.byKey(key)
                 vm.newDesign(key, splitziner.edit.Templates.defaults(t, false) + values)
                 waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null && vm.state.value.open!!.meta.name.isNotEmpty()) || vm.state.value.error != null }
                 assertNull(vm.state.value.error)
                 val a = vm.state.value.open!!.analysis
-                val doors = splitziner.check.Doors.find(a.parts).size; val pins = splitziner.check.ShelfPins.find(a.parts).size
+                val doors = splitziner.check.Doors.find(a.parts).size; val pins = splitziner.check.ShelfPins.find(a.parts).size; val drawers = splitziner.check.Drawers.find(a.parts).size
                 val hw = vm.hardwareFor(vm.state.value.open!!)
-                println("SMOKE $key doors=$doors pinned shelves=$pins hardware=$hw")
+                println("SMOKE $key doors=$doors pinned shelves=$pins drawers=$drawers hardware=$hw")
                 rule.waitUntil(30_000) { rule.onAllNodesWithText("Guide").fetchSemanticsNodes().isNotEmpty() }
                 rule.onAllNodesWithText("Guide").onFirst().performClick(); rule.waitForIdle()
                 waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
-                shot("d0${if (key == "cabinet") 1 else 2}_${key}_guide")
-                if (key == "cabinet") assertEquals(2, doors) else assertEquals(4, pins)
+                shot("d0${listOf("cabinet", "shelves", "drawers").indexOf(key) + 1}_${key}_guide")
+                when (key) { "cabinet" -> assertEquals(2, doors); "shelves" -> assertEquals(4, pins); else -> assertEquals(4, drawers) }
                 vm.closeProject(); rule.waitForIdle()
             }
             assertNull(Diagnostics.lastCrash())

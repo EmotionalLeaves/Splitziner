@@ -140,7 +140,9 @@ object GuideSteps {
                 lines += how
                 if (st.makeCount > 1) lines += "Make ${st.makeCount} of these, all the same."
             } else if (!base || how.isNotEmpty()) {
-                if (!base) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
+                // Doors, drawers and shelves on pins are hung, not fixed: their own lines say how to line them up.
+                val hung = fasten?.byStep?.get(st.step).orEmpty().let { js -> js.isNotEmpty() && js.all { it.kind in setOf("hinges", "slides", "pins") } }
+                if (!base && !hung) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
                 lines += how
             }
             val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
