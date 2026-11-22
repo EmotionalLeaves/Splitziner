@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.48.0 - Tables built from end frames, no floating steps, tops fixed from underneath
+
+- **Tables and benches are built the way a woodworker would.** First you make the two end frames (two legs and the short apron) on the bench. Then you stand them up and join them with the long aprons, and the top goes on last. Before, step 1 left a single leg standing alone.
+- **Nothing is left floating.** A part that stands on the floor but touches nothing built yet, such as a desk's second side, now goes in with the step that joins it.
+- **Visible tops are never screwed through.** A table or desk top is fixed from underneath with brackets. Leg ends under a top held by aprons are no longer counted as joints.
+- **Drawings use the space beside the list of material**, so views come down lower on the sheet instead of crowding upward.
+- Bench pictures lift a frame's top rail straight up, so it no longer looks like it crosses the leg.
+- A desk's back panel under the top is named **Modesty panel**.
+- The hardware list says to buy extra fasteners only when there are fasteners to buy.
+
 ## v0.47.0 - Rabbet and groove cuts per part, cleaner exploded views and cutting plans
 
 - **Making the parts** now lists each rabbet and groove to cut in each item for the thin panels it holds (back panel, drawer bottoms), with how many on each piece. Item headings show the part's name.
