@@ -264,10 +264,12 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     shapePart?.let { p -> ShapeDialog(p, open, onDismiss = { shapePart = null }) { e -> shapePart = null; vm.addEdit(e) } }
     if (showAdd) AddBoardDialog(open, onDismiss = { showAdd = false }) { e -> showAdd = false; vm.addEdit(e); selectedId = (e as? splitziner.edit.Edit.AddBox)?.id }
     var showCutPlan by remember { mutableStateOf(false) }
+    var showShopping by remember { mutableStateOf(false) }
     var showPrices by remember { mutableStateOf(false) }
     var priceVersion by remember { mutableIntStateOf(0) }
     if (showPrices) PricesDialog(open, onDismiss = { showPrices = false; priceVersion++ })
     if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
+    if (showShopping) ShoppingDialog(open, vm, onDismiss = { showShopping = false })
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
@@ -499,7 +501,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
-                OutlinedButton(onClick = { shareShopping(context, open, vm, scope) }) { Text("Shopping list") }
+                OutlinedButton(onClick = { showShopping = true }) { Text("Shopping list") }
                 // Less used shares and settings sit behind one button, so the list keeps the screen.
                 Box {
                     var more by remember { mutableStateOf(false) }
@@ -1019,6 +1021,7 @@ private val HELP = listOf(
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
+    "Shopping list" to "On the Cut list tab, Shopping list opens a checklist of everything to buy: the sheets and lengths from the cutting plan, edge banding, and the screws, hinges and slides the guide uses. Tick each line as it goes in the trolley; the ticks stay with the project until you clear them. Share sends the list as text.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Share list to buy sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
@@ -1188,6 +1191,81 @@ private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, 
         if (cost > 0) sb.append("\nWood comes to about ${money(cost)}" + (if (missing > 0) ", not counting $missing item${if (missing == 1) "" else "s"} with no price yet" else "") + ".\n")
         sb.append("\nSizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying.")
         return sb.toString()
+    }
+}
+
+private class ShopLine(val text: String, val cost: String?)
+private class ShopLists(val wood: List<ShopLine>, val hardware: List<ShopLine>, val total: String?)
+
+/**
+ * The shopping list as a checklist to take to the store: wood, edge banding and hardware, each ticked off as it
+ * goes in the trolley. Ticks are kept with the project; prices typed under Prices are added up.
+ */
+@Composable
+private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val fmt = open.analysis.format
+    val lists by androidx.compose.runtime.produceState<ShopLists?>(null, open.analysis) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            runCatching {
+                val plan = splitziner.cutplan.CutPlanner.plan(open.analysis.cutList.rows, savedStock(context, fmt))
+                val buy = splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt)
+                val wood = buy.map { b -> ShopLine(b.line, priceOf(context, b.one)?.let { money(it * b.count) }) } +
+                    plan.leftOut.map { ShopLine(it, null) } +
+                    listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()).map { ShopLine(it, null) }
+                val (cost, missing) = woodCost(context, buy)
+                ShopLists(wood, vm.hardwareFor(open).map { ShopLine(it, null) },
+                    if (cost > 0) "Wood about ${money(cost)}" + (if (missing > 0) ", $missing without a price" else "") else null)
+            }.onFailure { Diagnostics.logError("shopping list", it) }.getOrNull()
+        }
+    }
+    val prefs = remember { context.getSharedPreferences("shopping", Context.MODE_PRIVATE) }
+    val key = "ticked_${open.meta.id}"
+    var ticked by remember { mutableStateOf(prefs.getStringSet(key, emptySet())!!.toSet()) }
+    fun toggle(t: String) { ticked = if (t in ticked) ticked - t else ticked + t; prefs.edit().putStringSet(key, ticked).apply() }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                val all = lists?.let { it.wood + it.hardware }.orEmpty()
+                val done = all.count { it.text in ticked }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    Column(Modifier.weight(1f)) {
+                        Text("Shopping list", style = MaterialTheme.typography.titleLarge)
+                        Text(if (lists == null) "Working it out\u2026" else "$done of ${all.size} ticked" + (lists?.total?.let { "  \u00b7  $it" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (all.isNotEmpty()) LinearProgressIndicator(progress = { done.toFloat() / all.size }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                LazyColumn(Modifier.weight(1f)) {
+                    val l = lists
+                    if (l == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                    else {
+                        for ((head, lines) in listOf("Wood" to l.wood, "Hardware (${vm.methodFor(open.meta).label.lowercase()})" to l.hardware)) {
+                            if (lines.isEmpty()) continue
+                            item { Text(head, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)) }
+                            items(lines) { line ->
+                                val on = line.text in ticked
+                                Row(Modifier.fillMaxWidth().clickable { toggle(line.text) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    androidx.compose.material3.Checkbox(checked = on, onCheckedChange = { toggle(line.text) })
+                                    Text(line.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                                        color = if (on) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
+                                        textDecoration = if (on) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
+                                    line.cost?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 6.dp)) }
+                                }
+                            }
+                        }
+                        item { Text("Sizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying. Stock sizes come from the cutting plan.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp)) }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { shareShopping(context, open, vm, scope) }, enabled = lists != null) { Text("Share") }
+                    if (ticked.isNotEmpty()) OutlinedButton(onClick = { ticked = emptySet(); prefs.edit().remove(key).apply() }) { Text("Clear ticks") }
+                }
+            }
+        }
     }
 }
 

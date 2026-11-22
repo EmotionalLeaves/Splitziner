@@ -127,6 +127,15 @@ class SmokeTest {
                 println("SMOKE cutting plan shown")
                 shot("c06_cutplan")
                 rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
+                // The shopping list is a checklist: tick the first line and see the count move.
+                tap("Shopping list")
+                rule.waitUntil(60_000) { rule.onAllNodesWithText("0 of ", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                rule.onAllNodes(androidx.compose.ui.test.isToggleable()).onFirst().performClick(); rule.waitForIdle()
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("1 of ", substring = true).fetchSemanticsNodes().isNotEmpty() && rule.onAllNodesWithText("ticked", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                println("SMOKE shopping list ticks")
+                shot("c09_shopping")
+                tap("Clear ticks")
+                rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
                 tap("More\u2026"); tap("Prices"); shot("c08_prices"); tap("Cancel")
                 tap("Check"); waitFor(vm, 120_000) { vm.state.value.check != null }; tap("Tools"); shot("c07_tools"); tap("Cancel")
             }.onFailure { println("SMOKE dialog shots failed: ${it.message}") }
