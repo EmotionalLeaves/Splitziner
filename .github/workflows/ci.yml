@@ -169,9 +169,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 3072
           script: |
             adb logcat -c
-            ./gradlew --no-daemon :app:connectedDebugAndroidTest > device-output.txt 2>&1; echo $? > device-exit.txt
+            ./gradlew --no-daemon :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true > device-output.txt 2>&1; echo $? > device-exit.txt
             tail -60 device-output.txt
             adb logcat -d > logcat.txt || true
+            mkdir -p shots; adb pull /sdcard/Android/data/io.github.emotionalleaves.splitziner/files/shots shots/ || true
             exit $(cat device-exit.txt)
       - name: Report the result on the commit
         if: always() && github.event_name == 'push'
@@ -200,5 +201,6 @@ jobs:
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
             logcat.txt
+            shots
           if-no-files-found: ignore
 

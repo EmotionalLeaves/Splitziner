@@ -46,6 +46,16 @@ class SmokeTest {
         box(18.0, 882.0, 0.0, 18.0, 18.0, 108.0),
     ))
 
+    /** Saves what the screen shows, for looking at after the run (CI copies these off the emulator). */
+    private fun shot(name: String) {
+        rule.waitForIdle()
+        Thread.sleep(600)
+        val inst = InstrumentationRegistry.getInstrumentation()
+        val bmp = inst.uiAutomation.takeScreenshot() ?: return
+        val dir = File(inst.targetContext.getExternalFilesDir(null), "shots").apply { mkdirs() }
+        File(dir, "$name.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     /** Waits for [cond]; on timeout fails with the app's own log, which says what it was doing. */
     private fun waitFor(vm: AppViewModel, ms: Long, cond: () -> Boolean) {
         try { rule.waitUntil(ms) { cond() } } catch (e: Throwable) {
@@ -78,11 +88,12 @@ class SmokeTest {
             if (rule.onAllNodesWithText("Cancel").fetchSemanticsNodes().isNotEmpty()) tap("Cancel")
 
             // The 3D view first: let it draw some frames on the graphics thread.
-            tap("3D"); Thread.sleep(3000)
-            tap("Parts"); tap("Cut list")
+            tap("3D"); Thread.sleep(3000); shot("c01_3d")
+            tap("Parts"); shot("c02_parts"); tap("Cut list"); shot("c03_cutlist")
             tap("Drawing")
             waitFor(vm, 240_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
+            shot("c04_drawing")
             // Assembly sheet, exploded sheet, and one detail sheet per item.
             assertTrue("sheets: ${drawing.sheets.size}", drawing.sheets.size >= 2 + open.analysis.cutList.rows.size)
             val pdf = PdfExporter.write(ctx, drawing.sheets, "smoke_drawing.pdf")
@@ -94,6 +105,7 @@ class SmokeTest {
             tap("Guide")
             waitFor(vm, 240_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             val guide = vm.state.value.guide!!
+            shot("c05_guide")
             assertTrue(guide.stepCount >= 2)
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
@@ -147,12 +159,14 @@ class SmokeTest {
 
             tap("Check")
             waitFor(vm, 240_000) { vm.state.value.check != null }
+            shot("d01_check")
             val before = vm.state.value.check!!.problems
             assertTrue("problems before: $before", before >= 5)
 
             vm.planFixes()
             waitFor(vm, 240_000) { vm.state.value.fixPlan != null || vm.state.value.error != null }
             val plan = vm.state.value.fixPlan!!
+            shot("d02_fixes")
             assertTrue("changes: ${plan.edits.size}", plan.edits.size >= 5)
             // The proposal is on screen; accept it the way a person would.
             tap("Apply ${plan.edits.size} changes")
@@ -169,7 +183,7 @@ class SmokeTest {
             assertTrue(PdfExporter.write(ctx, drawing.sheets, "smoke_desk.pdf").length() > 20_000)
             tap("Guide")
             waitFor(vm, 300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
-            tap("3D"); Thread.sleep(3000)
+            tap("3D"); Thread.sleep(3000); shot("d03_3d")
             println("SMOKE desk sheets=${drawing.sheets.size} guide pages=${vm.state.value.guide!!.pages.size}")
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
             assertNull(Diagnostics.lastCrash())
