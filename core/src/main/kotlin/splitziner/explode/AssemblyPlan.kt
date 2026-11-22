@@ -403,6 +403,7 @@ object AssemblyPlan {
         }
         fun blockers(i: Int, d: Dir, among: Set<Int>): List<Int> = allBlockers(i, d).filter { it in among }
 
+        val floorZ = lo.minOf { it.z }
         fun dirs(i: Int): List<Dir> {
             val e = hi[i] - lo[i]
             val k0 = if (e.x <= e.y && e.x <= e.z) 0 else if (e.y <= e.z) 1 else 2
@@ -411,7 +412,8 @@ object AssemblyPlan {
             for (d in listOf(Dir(k0, s0), Dir(k0, -s0), Dir(2, 1), Dir(1, -1), Dir(0, -1), Dir(0, 1), Dir(1, 1))) {
                 if (d !in out && !(d.k == 2 && d.sign == -1)) out += d
             }
-            return out + Dir(2, -1)
+            // Nothing standing on the floor goes in from below it.
+            return if (lo[i].z <= floorZ + 1.0) out else out + Dir(2, -1)
         }
 
         fun reachable(set: Set<Int>): Set<Int> {
