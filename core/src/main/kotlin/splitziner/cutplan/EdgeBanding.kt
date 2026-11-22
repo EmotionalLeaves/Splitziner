@@ -23,7 +23,8 @@ object EdgeBanding {
         val lo = live.map { it.mesh.bounds.min }; val hi = live.map { it.mesh.bounds.max }
         var total = 0.0; val items = sortedSetOf<Int>(); val thick = HashMap<Int, Double>()
         for ((i, p) in live.withIndex()) {
-            if (p.kind != PartKind.PANEL) continue
+            // Solid wood shows no layers at its edges: nothing to band.
+            if (p.kind != PartKind.PANEL || splitziner.material.Materials.wood(p.material)) continue
             val e = doubleArrayOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y, hi[i].z - lo[i].z)
             // Only a plain box lined up with the axes: its box is its shape.
             if (abs(p.mesh.volume) < 0.9 * e[0] * e[1] * e[2]) continue

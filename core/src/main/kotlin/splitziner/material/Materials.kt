@@ -32,6 +32,13 @@ object Materials {
         Material("Acrylic", 1180.0, listOf("acrylic", "perspex", "plexi")),
     )
 
+    /** Whether it is solid timber (oak, pine...), as opposed to a sheet good, metal or plastic. */
+    fun wood(text: String): Boolean {
+        val t = text.lowercase()
+        val woods = listOf("pine", "fir", "spruce", "cedar", "poplar", "oak", "maple", "ash", "birch", "walnut", "cherry", "beech", "hemlock", "larch", "teak", "mahogany", "sapele", "elm", "alder", "hickory", "timber", "wood", "lumber")
+        return !sheetGood(t) && woods.any { Regex("""\b$it""").containsMatchIn(t) }
+    }
+
     /** Whether a material comes as sheets (plywood, MDF...); a blank material is taken as sheet goods, solid timber and metals are not. */
     fun sheetGood(text: String): Boolean {
         val t = text.lowercase().trim()

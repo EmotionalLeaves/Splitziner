@@ -534,7 +534,9 @@ object Fastening {
             else if (j.kind == "housed") "Glue ${key.second} into the groove cut for it in ${key.first}$times, and clamp until dry."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; ${if (g.size > 1) "the joints are" else "the joint is"} too small for fasteners."
-            else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times."
+            else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times." +
+                // Solid wood moves across its grain with the seasons; a top fixed tight splits or bows.
+                (if (g.any { it.through.material.isNotBlank() && !splitziner.material.Materials.sheetGood(it.through.material) }) " As the top is solid wood, use brackets with slotted holes, or tabletop fasteners, and leave the screws a little loose across the grain so it can move with the seasons." else "")
             else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
             else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${sized(n, j.size)} brads$times."
             else if (j.kind == "thin") {

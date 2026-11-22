@@ -1606,3 +1606,18 @@ class PlacingTest {
         assertTrue(lines.none { it.contains("cleat") && it.contains("end") }, "the legs place the cleat along the rail")
     }
 }
+
+class EdgeGluedPanelTest {
+    @Test fun oakTopIsGluedUpFromBoards() {
+        val row = splitziner.parts.CutListRow(1, 1, "", "PANEL", "Oak", "", "", splitziner.parts.PartKind.PANEL, 25.4, 762.0, 1524.0, listOf("P01"), name = "Top")
+        val r = splitziner.cutplan.CutPlanner.plan(listOf(row), splitziner.cutplan.StockSettings.INCH)
+        assertTrue(r.sheets.isEmpty(), "no sheet of oak")
+        assertEquals(6, r.edgeGlued[1])
+        assertEquals(6, r.boards.sumOf { b -> b.cuts.count { it.first == 1 } })
+        assertTrue(r.boards.all { it.stockName == "5/4x6" }, r.boards.map { it.stockName }.toString())
+        assertTrue(splitziner.cutplan.CutPlanner.gluingSteps(listOf(row), splitziner.dims.LengthFormat("in", "fraction")).single().startsWith("Glue up item 1 (top) edge to edge from 6 boards"))
+        // Plywood stays a sheet; a thin "oak" back is veneered plywood.
+        assertEquals(null, splitziner.cutplan.CutPlanner.edgeGlue(row.copy(material = "Oak plywood"), true))
+        assertEquals(null, splitziner.cutplan.CutPlanner.edgeGlue(row.copy(t = 6.35), true))
+    }
+}

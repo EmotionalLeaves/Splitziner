@@ -154,3 +154,15 @@ Departures from the build spec, newest first.
   - A pair meeting in the middle hang from their outer edges.
   - A single door's hinge side is the maker's choice, and the line says so. Before, every door was quietly marked "hinged left".
   - The end hinges go about 3 in (75 mm) from the top and bottom, a common cabinetmakers' rule, with any others evenly between.
+
+## v0.82
+- The material chosen for an item now goes with each of its parts, so joining, banding and the guide can tell solid wood from sheet goods.
+- Solid wood panels (oak, pine… at least 5/8 in or 15 mm thick) are not planned on a 4 × 8 sheet: solid timber isn't sold that way.
+  - They are glued up edge to edge from boards no wider than a 1x6 (5-1/2 in actual), which keeps them flat. The count allows about 1/8 in lost per jointed edge. In metric, equal strips no wider than 150 mm, plus 5 mm for planing.
+  - Boards are cut 1 in (25 mm) long and the panel cut to size once dry.
+  - "Before you build" gives the usual glue-up practice: alternate growth rings, joint the edges, clamp above and below.
+  - The plan's notes also offer buying an edge-glued panel.
+  - Thinner "oak" (a 1/4 in back) is taken to be veneered plywood and stays on a sheet.
+- Edge banding skips solid-wood panels: their edges show no layers.
+- A top of solid wood fixed with brackets gets the seasonal-movement advice: slotted brackets or tabletop fasteners, with the screws a little loose across the grain.
+- Pins instead of rabbets: with screws chosen, an edge too thin for a screw but thick enough for a brad (a 1/2 in drawer side) is glued and pinned, as drawer boxes usually are.

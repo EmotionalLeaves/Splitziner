@@ -44,6 +44,9 @@ fun main(args: Array<String>) {
         val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style))
         // --only P01,P05: keep just those parts, to look at one corner of a model.
         var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
+        // MATERIAL=Oak sets every item's material, as the app's new-design chips do.
+        System.getenv("MATERIAL")?.let { m -> a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style,
+            itemOverrides = a.cutList.rows.associate { r -> splitziner.parts.CutList.itemKey(r.kind, r.t, r.w, r.l) to splitziner.parts.ItemOverride(material = m) })) }
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
         val r = a.report

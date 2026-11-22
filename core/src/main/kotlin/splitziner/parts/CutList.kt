@@ -150,7 +150,9 @@ object CutList {
         }
         val outParts = parts.map { p ->
             val x = itemOf[p.id] ?: return@map p
-            p.copy(kind = x.third.kind, t = x.third.t, w = x.third.w, l = x.third.l, fill = x.third.fill, desc = x.third.desc, item = x.first, qty = x.second)
+            // The material chosen for its item goes with each part, so joining and the guide can tell solid wood from sheet.
+            p.copy(kind = x.third.kind, t = x.third.t, w = x.third.w, l = x.third.l, fill = x.third.fill, desc = x.third.desc, item = x.first, qty = x.second,
+                material = rows[x.first - 1].material.ifBlank { p.material })
         }
         // Boards and rods are bought by length: total it per cross-section.
         val stock = rows.filter { it.kind == PartKind.BOARD || it.kind == PartKind.ROD }
