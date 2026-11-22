@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.82.0 - Solid wood, glued up
+
+- **Solid wood done right**: choose oak, pine or another timber and wide panels are planned as boards glued edge to edge, not as a 4 × 8 sheet of oak (which isn't sold). The cutting plan buys the boards, and "Before you build" explains the glue-up. Solid wood skips edge banding.
+- **Tops that can move**: a solid wood top on brackets gets the advice to use slotted brackets or tabletop fasteners, so it doesn't split as the seasons change.
+- **Drawer boxes**: 1/2 in sides are glued and pinned with brads instead of being sent to a rabbet.
+- The material you pick now reaches every part, so instructions follow it.
+
 ## v0.81.0 - Screws as sold, pilot holes, hinge sides
 
 - **Screws as you'd buy them**: gauge and length ("#8 x 1-1/2 in", "4 x 40 mm"), chosen from the thickness of the board they go through.
