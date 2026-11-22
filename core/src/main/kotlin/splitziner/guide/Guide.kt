@@ -38,6 +38,40 @@ object GuideSteps {
     private const val MIN_FRAME = 0.55
 
     /** How an instruction describes the side a part comes in from, given the way it leaves. */
+    /**
+     * Where a part goes along a longer one it is fixed to, when nothing else puts it there: "Set item 5 (leg) 3/4 in
+     * in from each end of item 2 (side rail)". Read off the model along the longer part's length and up its height;
+     * flush ends need no words, and a part held between two others (a cleat between the legs) is placed by them.
+     */
+    fun placing(cur: List<Part>, fmt: splitziner.dims.LengthFormat, label: (Part) -> String): List<String> {
+        val out = LinkedHashMap<String, MutableList<Double>>()
+        val u = if (fmt.isInch) " in" else " mm"
+        fun b(p: Part) = p.mesh.bounds
+        fun touch(a: Part, c: Part) = (0..2).all { k -> b(a).min[k] <= b(c).max[k] + 0.5 && b(c).min[k] <= b(a).max[k] + 0.5 }
+        for (s in cur) {
+            // The longest part it touches that is longer than it along its own length.
+            val host = cur.filter { it !== s && touch(it, s) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
+            val len = (0..2).maxByOrNull { k -> b(host).extents[k] }!!
+            for (k in listOf(len, 2).distinct()) {
+                if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
+                val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
+                if (lo < -0.5 || hi < -0.5 || lo < 1.0 || hi < 1.0) continue
+                // Held on both sides along this axis by other parts: they place it.
+                val others = cur.filter { it !== s && it !== host && touch(it, s) }
+                if (others.any { o -> b(o).max[k] <= b(s).min[k] + 0.5 } && others.any { o -> b(o).min[k] >= b(s).max[k] - 0.5 }) continue
+                val near = minOf(lo, hi)
+                val where = if (k == 2) (if (lo <= hi) "up from the bottom edge" else "down from the top edge") else "from ${if (cur.count { it.item == s.item } > 1) "each end" else "the end"}"
+                out.getOrPut("${label(s)}|$where|${label(host)}") { ArrayList() } += near
+            }
+        }
+        return out.entries.map { (key, ds) ->
+            val (what, where, of) = key.split('|')
+            val d = ds.distinct().map { Math.round(it * 2) / 2.0 }.distinct()
+            if (d.size == 1) "Set ${if (ds.size > 1) "each $what" else what} ${fmt.format(d[0])}$u $where of $of."
+            else "Set ${ds.size}× $what ${d.joinToString(" and ") { fmt.format(it) + u }} $where of $of, as drawn."
+        }
+    }
+
     private fun whereFrom(x: Double, y: Double, z: Double): String? = when {
         z > 0.5 -> "from above"; z < -0.5 -> "from below"
         y < -0.5 -> "from the front"; y > 0.5 -> "from the back"
@@ -172,7 +206,8 @@ object GuideSteps {
                 if (gap != null) {
                     gapTold += item
                     val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
-                    val nm = like.filter { it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
+                    // Named from the parts going in now (the shelves), not every part of the item (its bottom and top too).
+                    val nm = cur.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
                     val what = if (nm != null) "the ${if (nm.endsWith("helf")) nm.dropLast(1) + "ves" else if (nm.endsWith("s")) nm else nm + "s"} (item $item)" else "the item $item parts"
                     lines += "Space $what $g apart, evenly; a spacer block cut to $g keeps every gap the same."
                 }
@@ -218,6 +253,7 @@ object GuideSteps {
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
             if (st.subassembly) {
+                if (fmt != null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
                 lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
                 lines += how
                 if (st.makeCount > 1) lines += "Make ${st.makeCount} of these, all the same."
