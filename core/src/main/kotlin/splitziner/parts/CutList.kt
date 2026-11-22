@@ -3,6 +3,7 @@ package splitziner.parts
 import splitziner.dims.LengthFormat
 import splitziner.mesh.Mesh
 import splitziner.mesh.OrientedBounds
+import splitziner.math.Vec3
 import splitziner.section.Slicer
 import kotlin.math.PI
 import kotlin.math.abs
@@ -46,6 +47,33 @@ object PartDescriber {
     /** Under this a board has a notch or hole worth mentioning. */
     private const val NOTCH_FILL = 0.995
 
+    /**
+     * For a long straight stick whose two end faces are flat but not square to its length: the angles (degrees) the
+     * ends lean off square across its thickness and across its width. Null for square ends or anything else.
+     */
+    fun angledEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
+        val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val order = e.indices.sortedBy { e[it] }
+        val a0 = obb.axes[order[0]]; val a1 = obb.axes[order[1]]; val a2 = obb.axes[order[2]]
+        if (e[order[2]] < 3 * e[order[1]]) return null
+        val n = m.faceNormals; val area = m.faceAreas
+        var endArea = 0.0; var sideArea = 0.0
+        val angles = ArrayList<Pair<Double, Double>>()
+        for (t in 0 until m.triangleCount) {
+            val v = Vec3(n[3 * t], n[3 * t + 1], n[3 * t + 2])
+            val along = abs(v dot a2)
+            if (along > 0.5) {
+                endArea += area[t]
+                angles += Math.toDegrees(kotlin.math.atan(abs(v dot a0) / along)) to Math.toDegrees(kotlin.math.atan(abs(v dot a1) / along))
+            } else if (along < 0.2) sideArea += area[t] else return null
+        }
+        if (angles.isEmpty() || endArea <= 0) return null
+        val x0 = angles.maxOf { it.first }; val x1 = angles.maxOf { it.second }
+        // Square ends, or ends not flat (a tenon, a rounded end): not this.
+        if (maxOf(x0, x1) < 1.0 || angles.any { abs(it.first - x0) > 1.0 || abs(it.second - x1) > 1.0 }) return null
+        return x0 to x1
+    }
+
     fun describe(m: Mesh, fmt: LengthFormat): PartDescription {
         val ext = m.extents
         val obb = OrientedBounds.of(m)
@@ -84,6 +112,14 @@ object PartDescriber {
         if (dia != null) {
             t = dia; w = dia
             return PartDescription(PartKind.ROD, t, w, l, fill, "ROD ⌀${d(dia)} X ${d(l)} LG")
+        }
+        // A stick whose ends are sawn at an angle (a splayed leg cut level top and bottom): its ends are named, with
+        // the angle off square each way, so the maker sets the saw; it is not "notched".
+        angledEnds(m, obb)?.let { (a1, a2) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            fun deg(v: Double) = (Math.round(v * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
+            val ends = if (a1 >= 0.5 && a2 >= 0.5) "ENDS CUT AT ${deg(a1)} AND ${deg(a2)} (COMPOUND)" else "ENDS CUT AT ${deg(maxOf(a1, a2))}"
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, $ends")
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD

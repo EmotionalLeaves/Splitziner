@@ -54,13 +54,16 @@ object Roles {
             if (behind == 0) continue
             out[p.id] = if (e.z > e.x) "Stile" else "Face frame rail"
         }
+        val legBox = live.filter { o -> o.id !in out && o.mesh.bounds.extents.let { oe -> val od = listOf(oe.x, oe.y, oe.z).sorted()
+            od[1] < 2.5 * od[0] && oe.z >= od[2] - 0.01 && oe.z > 1.5 * od[1] && o.mesh.bounds.min.z <= all.min.z + 1.0 } }.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) } ?: all
         for (p in live) {
             if (p.id in out) continue
             val e = p.mesh.bounds.extents; val dims = listOf(e.x, e.y, e.z).sorted()
             if (dims[1] < 2.5 * dims[0] && e.z >= dims[2] - 0.01 && e.z > 1.5 * dims[1] && p.mesh.bounds.min.z <= all.min.z + 1.0) {
                 // One standing away from every outside edge (under a bed's centre rail) is a centre leg.
+                // Measured against the other legs, not an overhanging top (a round table's legs stand well in from its edge).
                 val b = p.mesh.bounds; val m = 2 * dims[1]
-                val inside = b.min.x > all.min.x + m && b.max.x < all.max.x - m && b.min.y > all.min.y + m && b.max.y < all.max.y - m
+                val inside = b.min.x > legBox.min.x + m && b.max.x < legBox.max.x - m && b.min.y > legBox.min.y + m && b.max.y < legBox.max.y - m
                 out[p.id] = if (inside) "Centre leg" else "Leg"; legs += p.id
             }
         }

@@ -50,7 +50,7 @@ object PartDrawings {
             if (row.kind != splitziner.parts.PartKind.BOARD && row.kind != splitziner.parts.PartKind.PANEL) return@filter false
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
-            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE")
+            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT")
         }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
     }
 
@@ -152,6 +152,12 @@ object PartDrawings {
      * The other half of [plainNote]: which items have a detail drawing and what it is numbered, so a drawing set
      * of many sheets can be found through. Detail drawings take the assembly's number and the item's ("DESK-1-13").
      */
+    /** The end cuts of a stick sawn off square (a splayed leg), as the saw is set: from the cut list's description. */
+    private fun angleNotes(row: CutListRow): List<String> {
+        val m = Regex("""ENDS CUT AT (.*)$""").find(row.description) ?: return emptyList()
+        return listOf("BOTH ENDS CUT AT ${m.groupValues[1]} OFF SQUARE, PARALLEL TO EACH OTHER. ${if (m.groupValues[1].contains("COMPOUND")) "SET BOTH THE MITRE AND THE BEVEL." else "SET THE MITRE ONLY."} LENGTH IS MEASURED ALONG THE LONG EDGE.")
+    }
+
     fun detailNote(items: Set<Int>, drawingNo: String): String? {
         if (items.isEmpty()) return null
         val base = drawingNo.ifBlank { "DWG" }
@@ -200,7 +206,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + angleNotes(row) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))
