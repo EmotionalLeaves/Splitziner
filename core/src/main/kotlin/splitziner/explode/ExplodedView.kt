@@ -382,6 +382,14 @@ object ExplodedView {
         val gx0 = views.minOf { it.x0 }; val gy0 = views.minOf { it.y0 }; val gx1 = views.maxOf { it.x1 }; val gy1 = views.maxOf { it.y1 }
         val cx = (gx0 + gx1) / 2; val cy = (gy0 + gy1) / 2
         val rx = (gx1 - gx0) / 2 + r + 6; val ry = (gy1 - gy0) / 2 + r + 6
+        // Leaders already drawn: a new one that crosses one reads as pointing at the wrong part.
+        val leaders = ArrayList<DoubleArray>()
+        fun crosses(ax: Double, ay: Double, bx: Double, by: Double): Int = leaders.count { l ->
+            fun side(px: Double, py: Double, qx: Double, qy: Double, rx: Double, ry: Double) = (qx - px) * (ry - py) - (qy - py) * (rx - px)
+            val d1 = side(ax, ay, bx, by, l[0], l[1]); val d2 = side(ax, ay, bx, by, l[2], l[3])
+            val d3 = side(l[0], l[1], l[2], l[3], ax, ay); val d4 = side(l[0], l[1], l[2], l[3], bx, by)
+            d1 * d2 < 0 && d3 * d4 < 0
+        }
         for (t in targets.sortedBy { atan2(it.y - cy, it.x - cx) }) {
             val a0 = atan2(t.y - cy, t.x - cx)
             var bestC: Vec2? = null; var bestCost = Double.MAX_VALUE; var bestTie = Double.MAX_VALUE
@@ -391,7 +399,7 @@ object ExplodedView {
                 val bb = Box(c.x - r - 1, c.y - r - 1, c.x + r + 1 + extra, c.y + r + 1, "balloon")
                 val outside = if (bb.x0 < 0 || bb.y0 < 0 || bb.x1 > dl.widthMm || bb.y1 > dl.heightMm) 50.0 else 0.0
                 val cost = dl.overlapArea(bb, setOf("view")) + views.sumOf { it.overlap(bb) } * 0.2 + outside +
-                    (if (dl.segmentFree(c.x, c.y, t.x, t.y, setOf("view"))) 0.0 else 25.0)
+                    (if (dl.segmentFree(c.x, c.y, t.x, t.y, setOf("view"))) 0.0 else 25.0) + 30.0 * crosses(c.x, c.y, t.x, t.y)
                 val tie = grow + abs(da) * 10
                 if (cost < bestCost || (cost == bestCost && tie < bestTie)) { bestCost = cost; bestTie = tie; bestC = c }
                 if (cost == 0.0) break@search
@@ -399,6 +407,7 @@ object ExplodedView {
             val c = bestC!!
             val dx = t.x - c.x; val dy = t.y - c.y; val len = sqrt(dx * dx + dy * dy).let { if (it > 0) it else 1.0 }
             dl.line(c.x + dx / len * r, c.y + dy / len * r, t.x, t.y)
+            leaders += doubleArrayOf(c.x, c.y, t.x, t.y)
             dl.dot(t.x, t.y, 0.7)
             dl.circle(c.x, c.y, r)
             dl.text(c.x, c.y, "${t.item}", th, HAlign.CENTER, VAlign.CENTER)
