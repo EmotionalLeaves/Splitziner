@@ -47,7 +47,7 @@ object Templates {
         },
         Template("table", "Table", "A top on four square legs joined by aprons set in from the edge.", listOf(
             Field("w", "Length", 1400.0, 60.0), Field("d", "Width", 800.0, 32.0), Field("h", "Height", 750.0, 30.0), Field("t", "Top thickness", 25.0, 1.0),
-            Field("leg", "Leg size", 70.0, 3.5), Field("apron", "Apron depth", 90.0, 3.5), Field("at", "Apron thickness", 19.0, 0.75),
+            Field("leg", "Leg size", 70.0, 3.5), Field("apron", "Apron depth", 90.0, 3.5), Field("at", "Apron thickness", 19.0, 0.75), Field("over", "Top overhang", 30.0, 1.0),
         )) { v -> table(v) },
         Template("bench", "Bench", "A low table: top, four legs and aprons.", listOf(
             Field("w", "Length", 1200.0, 48.0), Field("d", "Width", 350.0, 14.0), Field("h", "Height", 450.0, 18.0), Field("t", "Top thickness", 30.0, 1.5),
@@ -65,7 +65,7 @@ object Templates {
         val apronThick = v.getValue("at")
         val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val leg = v.getValue("leg"); val ap = v.getValue("apron")
         // Legs set in from the top's edge by a little overhang, aprons centred on the legs' faces.
-        val over = minOf(30.0, 0.05 * minOf(w, d)); val lh = h - t
+        val over = v["over"] ?: minOf(30.0, 0.05 * minOf(w, d)); val lh = h - t
         val out = ArrayList<Mesh>()
         out += box(0.0, 0.0, lh, w, d, t)
         for ((x, y) in listOf(over to over, w - over - leg to over, over to d - over - leg, w - over - leg to d - over - leg)) out += box(x, y, 0.0, leg, leg, lh)

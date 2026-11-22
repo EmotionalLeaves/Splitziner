@@ -381,7 +381,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             if (c.moveToFirst() && !c.isNull(0)) name = c.getString(0)
                         }
                     }
-                    val meta = resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened.")
+                    // Woodworkers in inch countries read 3-1/2, not 3.50: new projects there start in fractions.
+                    val meta = (resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened."))
+                        .let { m -> if (inchLocale) m.copy(inchStyle = "fraction").also { store.save(it) } else m }
                     val file = store.source(meta.id)
                     Diagnostics.log("import $name, ${file.length()} bytes")
                     val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }
@@ -419,7 +421,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val name = t?.name ?: "New design"
                     val bytes = java.io.ByteArrayOutputStream().also { splitziner.io.StlWriter.writeParts(meshes, it) }.toByteArray()
                     val m = store.create("$name.stl", bytes.inputStream())
-                    m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm").also { store.save(it) }
+                    m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm", inchStyle = if (inch) "fraction" else m.inchStyle).also { store.save(it) }
                 }
                 analyze(meta, deleteOnFailure = true)
             } catch (e: Throwable) { fail("new design", e) }

@@ -9,13 +9,14 @@ import kotlin.system.exitProcess
 /** Runs the engine on a file and writes what it found; the way to check the engine without a phone. */
 fun main(args: Array<String>) {
     if (args.isEmpty()) { System.err.println("usage: <file.stl> [--out <dir>] [--units mm|cm|in|m] [--display mm|in]"); exitProcess(1) }
-    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null
+    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null; var style = "decimal"
     var i = 0
     while (i < args.size) {
         when (args[i]) {
             "--out" -> out = File(args[++i])
             "--units" -> units = args[++i]
             "--display" -> display = args[++i]
+            "--fraction" -> style = "fraction"
             "--full" -> full = true
             "--only" -> only = args[++i].split(',').toSet()
             "--boards" -> boards = true
@@ -34,9 +35,9 @@ fun main(args: Array<String>) {
             file = tmp.path; if (units == null) units = "mm"
         }
         val f = File(file ?: error("no input file"))
-        val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
+        val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style))
         // --only P01,P05: keep just those parts, to look at one corner of a model.
-        var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
+        var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
         val r = a.report
@@ -72,7 +73,7 @@ fun main(args: Array<String>) {
             File(out, "fixed.stl").outputStream().use { splitziner.io.StlWriter.writeParts(ms, it) }
             println("wrote     ${File(out, "fixed.stl")} (${ms.sumOf { it.triangleCount }} triangles in ${ms.size} parts, millimetres)")
             // As the app does: the changes replayed on the file, so parts keep the ids that say where they came from.
-            a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, edits = plan.edits))
+            a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, edits = plan.edits))
         }
         if (full) {
             // The same steps the app takes, written as SVG so they can be looked at.
