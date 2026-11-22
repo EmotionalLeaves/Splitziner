@@ -58,6 +58,8 @@ object GuideSteps {
         val frame = ExplodedView.assembledBounds(drawn, view)
         val done = LinkedHashSet<String>()
         val out = ArrayList<GuideStep>()
+        // " (side)" after an item number, when its parts share a name of their own.
+        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name }.distinct().singleOrNull()?.let { " (${it.lowercase()})" } ?: ""
         // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
         // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
         val keyOf = splitziner.explode.AssemblyPlan.unitKeys(drawn)
@@ -99,8 +101,9 @@ object GuideSteps {
                 val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
                 val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
                 val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
-                lines += if (drawer) "Slide ${if (us.size > 1) "both drawers" else "the drawer"} from step $bench in$where."
-                    else "${if (base) "Place" else "Fit"} ${if (us.size > 1) "both" else "the"} sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
+                val all = when (us.size) { 1 -> "the"; 2 -> "both"; else -> "all ${us.size}" }
+                lines += if (drawer) "Slide ${if (us.size > 1) "$all drawers" else "the drawer"} from step $bench in$where."
+                    else "${if (base) "Place" else "Fit"} $all sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
@@ -115,7 +118,7 @@ object GuideSteps {
                 // On the bench, the part that does not move is laid down first and the others joined to it.
                 val still = st.subassembly && cur.any { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null }
                 val verb = if (base) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
-                val what = if (item != null) "item $item" else "the part"
+                val what = if (item != null) "item $item" + named(loose.filter { it.item == item }) else "the part"
                 val one = "${if (n > 1) "$n× " else ""}$what"
                 if (still) lines.add(0, "$verb $one.") else fits += Triple(verb, where, one)
             }
@@ -127,14 +130,14 @@ object GuideSteps {
                 lines += if (run.size == 1) "${fits[i].first} ${run[0]}${fits[i].second}."
                 else {
                     // "items 3, 4 and 7" rather than "item 3, item 4 and item 7"; counts keep their own words.
-                    val names = run.map { r -> Regex("""^(\d+)× item (\S+)$""").find(r)?.let { m -> "${m.groupValues[2]} (${m.groupValues[1]}×)" } ?: r.removePrefix("item ") }
+                    val names = run.map { r -> Regex("""^(\d+)× item (\S+)(?: \((.*)\))?$""").find(r)?.let { m -> "${m.groupValues[2]} (${if (m.groupValues[3].isNotEmpty()) "${m.groupValues[3]}, " else ""}${m.groupValues[1]}×)" } ?: r.removePrefix("item ") }
                     val joined = names.dropLast(1).joinToString(", ") + " and " + names.last()
                     "${fits[i].first} items $joined${fits[i].second}, in that order."
                 }
                 i = j + 1
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
-            val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" })
+            val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
             if (st.subassembly) {
                 lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
                 lines += how
@@ -146,7 +149,7 @@ object GuideSteps {
                 lines += how
             }
             val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
-                count.map { (item, n) -> "Item ${item ?: "-"} ${loose.first { it.item == item }.desc}" to n }
+                count.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })} ${loose.first { it.item == item }.desc}" to n }
             val o = overrides[stepKey(st.partIds)]
             val auto = when {
                 st.subassembly -> {
