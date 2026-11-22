@@ -146,7 +146,13 @@ object HiddenLine {
     fun compute(meshes: List<Mesh>, scene: Mesh, view: ViewDef): ViewLines {
         val vis = ArrayList<DoubleArray>(); val hid = ArrayList<DoubleArray>()
         val scale = scene.scale
-        for (m in meshes) { val s = split(m, scene, view, scale); vis += project(s.visible, view); hid += project(s.hidden, view) }
+        // Each part is tested on its own against the shared, read-only scene, so on a phone's several cores
+        // the parts are worked through side by side. The scene's search tree is built once, first.
+        scene.bvh
+        meshes.forEach { it.topology; it.faceNormals }
+        val splits = if (meshes.size < 16) meshes.map { split(it, scene, view, scale) }
+            else meshes.parallelStream().map { split(it, scene, view, scale) }.collect(java.util.stream.Collectors.toList())
+        for (s in splits) { vis += project(s.visible, view); hid += project(s.hidden, view) }
         val tol = 1e-5 * scale
         val v = LineMerge.merge(concat(vis), tol)
         // A visible line takes precedence over a hidden one lying under it.
