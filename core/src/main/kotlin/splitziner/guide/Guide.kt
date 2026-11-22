@@ -86,6 +86,8 @@ object GuideSteps {
                 val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
                 lines += "${if (base) "Place" else "Fit"} ${if (us.size > 1) "both" else "the"} sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
             }
+            // Consecutive parts that go in the same way are named in one instruction, in order.
+            val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
             for ((item, n) in count) {
                 val sides = ArrayList<String>()
                 for (p in loose) if (p.item == item) p.explode?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
@@ -98,8 +100,22 @@ object GuideSteps {
                 val still = st.subassembly && cur.any { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null }
                 val verb = if (base) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
                 val what = if (item != null) "item $item" else "the part"
-                val line = "$verb ${if (n > 1) "$n× " else ""}$what${if (still) "" else where}."
-                if (still) lines.add(0, line) else lines += line
+                val one = "${if (n > 1) "$n× " else ""}$what"
+                if (still) lines.add(0, "$verb $one.") else fits += Triple(verb, where, one)
+            }
+            var i = 0
+            while (i < fits.size) {
+                var j = i
+                while (j + 1 < fits.size && fits[j + 1].first == fits[i].first && fits[j + 1].second == fits[i].second) j++
+                val run = fits.subList(i, j + 1).map { it.third }
+                lines += if (run.size == 1) "${fits[i].first} ${run[0]}${fits[i].second}."
+                else {
+                    // "items 3, 4 and 7" rather than "item 3, item 4 and item 7"; counts keep their own words.
+                    val names = run.map { it.removePrefix("item ") }
+                    val joined = names.dropLast(1).joinToString(", ") + " and " + names.last()
+                    "${fits[i].first} items $joined${fits[i].second}, in that order."
+                }
+                i = j + 1
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" })
@@ -153,10 +169,19 @@ object GuideLayout {
         }
     }
 
-    private fun para(p: DisplayList, x: Double, y: Double, text: String, h: Double, width: Double, bold: Boolean = false): Double {
+    /** Writes wrapped text; lines after the first are set in by [hang] mm so a list item reads as one block. */
+    private fun para(p: DisplayList, x: Double, y: Double, text: String, h: Double, width: Double, bold: Boolean = false, hang: Double = 0.0): Double {
         var yy = y
-        for (ln in wrapMixed(text, h, width)) { p.text(x, yy, ln, h, vAlign = VAlign.TOP, bold = bold); yy -= h * 1.5 }
+        val lines = wrapHanging(text, h, width, hang)
+        lines.forEachIndexed { i, ln -> p.text(if (i == 0) x else x + hang, yy, ln, h, vAlign = VAlign.TOP, bold = bold); yy -= h * 1.5 }
         return yy
+    }
+
+    private fun wrapHanging(text: String, h: Double, width: Double, hang: Double): List<String> {
+        if (hang <= 0) return wrapMixed(text, h, width)
+        val first = wrapMixed(text, h, width).firstOrNull() ?: return emptyList()
+        val rest = text.trim().removePrefix(first).trim()
+        return listOf(first) + if (rest.isEmpty()) emptyList() else wrapMixed(rest, h, width - hang)
     }
 
     private fun wrapMixed(text: String, h: Double, width: Double): List<String> {
@@ -220,7 +245,7 @@ object GuideLayout {
         val usable = h - 17 - 8 - 14
         fun textHeight(s: GuideStep, width: Double): Double =
             s.text.sumOf { wrapMixed("0. $it", 3.2, width).size * 4.8 } + (if (s.check != null) wrapMixed("CHECK: ${s.check}", 3.2, width).size * 4.8 + 2 else 0.0)
-        fun listHeight(s: GuideStep, width: Double): Double = 6 + s.parts.sumOf { wrapMixed("${it.second}× ${it.first}", 2.9, width).size * 4.35 }
+        fun listHeight(s: GuideStep, width: Double): Double = 6 + s.parts.sumOf { wrapHanging("${it.second}× ${it.first}", 2.9, width, 5.0).size * 4.35 + 1 }
         var slot = 2
         var cursor = 0.0
         for (s in steps) {
@@ -234,14 +259,34 @@ object GuideLayout {
             val topY = cursor
             p.text(12.0, topY, s.title, 4.5, vAlign = VAlign.TOP, bold = true)
             val picTop = topY - 8
-            val picBottom = topY - blockH + th + 6
-            p.prims += Image(12.0, picBottom, 12.0 + picW, picTop, s.picture)
-            var ly = picTop
-            p.text(12.0 + picW + 6, ly, "PARTS FOR THIS STEP", 3.0, vAlign = VAlign.TOP, bold = true); ly -= 6
-            for ((name, n) in s.parts) ly = para(p, 12.0 + picW + 6, ly, "$n× $name", 2.9, listW)
-            // The instructions start below whichever is longer, the picture or the parts list, and carry
-            // on overleaf if the page runs out.
-            var ty = minOf(picBottom, ly - 2) - 3
+            val ty0: Double
+            if (wantsFull) {
+                // A step with a page to itself: the picture across the full width, the parts in two columns under it.
+                val colW = (fullW - 8) / 2
+                val half = (s.parts.size + 1) / 2
+                val listH = 6 + maxOf(s.parts.take(half).sumOf { wrapHanging("${it.second}× ${it.first}", 2.9, colW, 5.0).size * 4.35 + 1 },
+                    s.parts.drop(half).sumOf { wrapHanging("${it.second}× ${it.first}", 2.9, colW, 5.0).size * 4.35 + 1 })
+                val picH = maxOf(minPic, minOf(fullW * GuideSteps.PICTURE_H / GuideSteps.PICTURE_W, usable - 10 - listH - th - 8))
+                p.prims += Image(12.0, picTop - picH, 12.0 + fullW, picTop, s.picture)
+                var ly = picTop - picH - 4
+                p.text(12.0, ly, "PARTS FOR THIS STEP", 3.0, vAlign = VAlign.TOP, bold = true); ly -= 6
+                var l1 = ly; var l2 = ly
+                s.parts.forEachIndexed { i, (name, n) ->
+                    if (i < half) l1 = para(p, 12.0, l1, "$n× $name", 2.9, colW, hang = 5.0) - 1
+                    else l2 = para(p, 12.0 + colW + 8, l2, "$n× $name", 2.9, colW, hang = 5.0) - 1
+                }
+                ty0 = minOf(l1, l2) - 3
+            } else {
+                // The picture keeps its own proportions; it is never stretched taller than it is drawn, which only left a gap.
+                val picBottom = picTop - minOf(blockH - th - 14, picW * GuideSteps.PICTURE_H / GuideSteps.PICTURE_W)
+                p.prims += Image(12.0, picBottom, 12.0 + picW, picTop, s.picture)
+                var ly = picTop
+                p.text(12.0 + picW + 6, ly, "PARTS FOR THIS STEP", 3.0, vAlign = VAlign.TOP, bold = true); ly -= 6
+                for ((name, n) in s.parts) ly = para(p, 12.0 + picW + 6, ly, "$n× $name", 2.9, listW, hang = 5.0) - 1
+                ty0 = minOf(picBottom, ly - 2) - 3
+            }
+            // The instructions start below the picture and parts list, and carry on overleaf if the page runs out.
+            var ty = ty0
             fun room(text: String, size: Double, bold: Boolean = false) {
                 val need = wrapMixed(text, size, fullW).size * size * 1.5
                 if (ty - need < 14) { p = pages.new(); ty = h - 22; p.text(12.0, ty, "${s.title} (continued)", 4.0, vAlign = VAlign.TOP, bold = true); ty -= 9; slot = 2 }
