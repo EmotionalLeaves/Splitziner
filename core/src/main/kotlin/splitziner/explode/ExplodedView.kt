@@ -118,13 +118,33 @@ object ExplodedView {
         val groups = LinkedHashMap<String, MutableList<Int>>()
         for ((i, p) in parts.withIndex()) if (p.explode != null && p.explode.length >= 1e-9) groups.getOrPut(keyOf(p)) { ArrayList() } += i
         // Groups are placed in build order, so each new part clears everything installed before it.
+        fun span(b: org.locationtech.jts.geom.Envelope?, a: splitziner.math.Aabb, d: Vec3): DoubleArray {
+            var lo = Double.MAX_VALUE; var hi = -Double.MAX_VALUE
+            for (k in 0 until 8) { val c = Vec3(if (k and 1 == 0) a.min.x else a.max.x, if (k and 2 == 0) a.min.y else a.max.y, if (k and 4 == 0) a.min.z else a.max.z) dot d; lo = minOf(lo, c); hi = maxOf(hi, c) }
+            return doubleArrayOf(lo, hi)
+        }
         for (idx in groups.values.sortedBy { g -> g.minOf { parts[it].step ?: Int.MAX_VALUE } }) {
             var need = 0.0
             for (i in idx) {
                 val v = parts[i].explode!!; val l0 = v.length; val d = v / l0
                 val b = parts[i].mesh.bounds
                 val size = (abs(d.x) * b.extents.x + abs(d.y) * b.extents.y + abs(d.z) * b.extents.z).let { if (it > 0) it else 1.0 }
-                var l = l0
+                // A part that sits in front of one already pulled out the same way stays in front of it:
+                // an applied drawer front is drawn ahead of its box, not tucked between the box and the case.
+                var floor = 0.0
+                val si = span(null, b, d)
+                for (j in parts.indices) {
+                    if (j in idx || offs[j].length < 1e-9) continue
+                    val dj = offs[j].normalized(); if ((dj dot d) < 0.99) continue
+                    val bj = parts[j].mesh.bounds; val sj = span(null, bj, d)
+                    if (si[0] < sj[1] - 0.5) continue
+                    // Overlapping across the direction of travel, so one is really behind the other.
+                    var across = true
+                    for (k in 0..2) if (abs(d[k]) < 0.5 && (b.max[k] <= bj.min[k] + 0.5 || bj.max[k] <= b.min[k] + 0.5)) across = false
+                    // With a gap in proportion to what it sits on, so the two read as separate parts.
+                    if (across) floor = maxOf(floor, offs[j].length + GAP * 0.5 * maxOf(size, sj[1] - sj[0]))
+                }
+                var l = maxOf(l0, floor)
                 val step = maxOf(0.08 * size, 0.5)
                 val clearance = GAP * maxOf(size, 5.0) * 0.5
                 val grown = outlines[i].buffer(clearance)

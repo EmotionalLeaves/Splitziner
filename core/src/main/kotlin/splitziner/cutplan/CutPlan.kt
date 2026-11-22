@@ -396,9 +396,26 @@ object CutPlanLayout {
                 }
             }
         }
-        val sizeFitsTurned = !sizeFits && StrokeFont.width(size, 2.4) < h - 2 && w > 2 * big + 4
+        // A tall, narrow piece: the number above its size, the size turned to run along the piece.
+        val sizeLen = StrokeFont.width(size, 2.4)
+        if (!sizeFits && w > 4.0 && big >= 1.8 && StrokeFont.width(item, big) < w - 1 && sizeLen + big + 4 < h) {
+            val top = cy + (big + 2 + sizeLen) / 2
+            p.text(cx, top - big / 2, item, big, HAlign.CENTER, VAlign.CENTER, bold = true)
+            p.text(cx, top - big - 2 - sizeLen / 2, size, 2.4, HAlign.CENTER, VAlign.CENTER, rotationDeg = 90.0)
+            return
+        }
+        val sizeFitsTurned = false
+        if (!(big >= 1.8 && StrokeFont.width(item, big) < w - 1)) {
+            // A narrow strip (a kick board, a rail) still says which item it is: along its length when the
+            // lettering fits across it, else small beside it with a short leader, so no piece goes unnamed.
+            // Upright, never turned: a turned 8 reads as a sign, not a number.
+            val small = listOf(2.6, 2.2, 1.8, 1.5).firstOrNull { StrokeFont.width(item, it) < w - 0.5 && it < h - 1 }
+            if (small != null) p.text(cx, cy, item, small, HAlign.CENTER, VAlign.CENTER, bold = true)
+            else if (h >= 1.0) { p.line(x + w, cy, x + w + 2.0, cy, LineStyle.THIN); p.text(x + w + 2.4, cy, item, 2.2, vAlign = VAlign.CENTER, bold = true) }
+            return
+        }
         if (big >= 1.8 && StrokeFont.width(item, big) < w - 1) p.text(cx, cy + (if (sizeFits) 1.8 else 0.0), item, big, HAlign.CENTER, VAlign.CENTER, bold = true)
         if (sizeFits) p.text(cx, cy - big / 2 - 0.8, size, 2.4, HAlign.CENTER, VAlign.TOP)
-        else if (sizeFitsTurned) p.text(x + w - 1.5, cy, size, 2.4, HAlign.CENTER, VAlign.TOP, rotationDeg = 90.0)
+        else if (sizeFitsTurned) p.text(x + w - 1.5, cy, size, 2.4, HAlign.CENTER, VAlign.BOTTOM, rotationDeg = 90.0)
     }
 }

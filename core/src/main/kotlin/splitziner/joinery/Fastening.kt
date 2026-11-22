@@ -357,8 +357,8 @@ object Fastening {
             val where = if (hosts.size == 1) hosts[0] else hosts.dropLast(1).joinToString(", ") + " and " + hosts.last()
             val times = if (g.size > 1) " (${g.size} joints)" else ""
             val thin = key.first.replaceFirstChar { it.uppercase() }
-            out += if (rabbet) "$thin is too thin to screw into$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in $where, make ${key.first} $d bigger on those edges than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) behind it instead."
-                else "$thin is too thin to screw into$times. Cut a groove $w wide and $d deep in $where for its edges, make ${key.first} $d bigger on those edges than the cut list says, and glue it in. Or glue a small strip (a cleat) beside it instead."
+            out += if (rabbet) "$thin is too thin to take screws at its edge$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in $where, make ${key.first} $d bigger on those edges than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) behind it instead."
+                else "$thin is too thin to take screws at its edge$times. Cut a groove $w wide and $d deep in $where for its edges, make ${key.first} $d bigger on those edges than the cut list says, and glue it in. Or glue a small strip (a cleat) beside it instead."
         }
         // Joints of the same kind between the same items are told once.
         val groups = (js - cut.toSet()).groupBy { Triple(itemName(it.through), itemName(it.into), it.size + it.glueOnly) }
@@ -385,8 +385,8 @@ object Fastening {
             else if (j.kind == "thin") {
                 val parts = j.size.split('|'); val w = if (parts.size >= 2) parts[0] else ""; val d = if (parts.size >= 2) parts[1] else ""
                 val rabbet = parts.getOrNull(2) == "rabbet"
-                if (w.isNotEmpty() && rabbet) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in ${key.first}, make ${key.second} $d bigger on that edge than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) along ${key.first} behind it."
-                else if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
+                if (w.isNotEmpty() && rabbet) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to take screws at its edge$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in ${key.first}, make ${key.second} $d bigger on that edge than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) along ${key.first} behind it."
+                else if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to take screws at its edge$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
                 else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
