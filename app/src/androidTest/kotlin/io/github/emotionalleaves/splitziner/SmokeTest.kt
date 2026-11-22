@@ -17,6 +17,9 @@ import io.github.emotionalleaves.splitziner.render.PdfExporter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -243,6 +246,13 @@ class SmokeTest {
             waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.isNotEmpty() }
             assertEquals(w0 + 152.4, vm.state.value.open!!.analysis.bounds.extents.x, 0.01)
             println("SMOKE overall size ok: ${vm.state.value.open!!.analysis.overallSize}")
+            // Tap the middle of the 3D view to select a part, then open its Change dialog.
+            runCatching {
+                Thread.sleep(1500)
+                rule.onRoot().performTouchInput { click(androidx.compose.ui.geometry.Offset(width * 0.45f, height * 0.42f)) }
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Change").fetchSemanticsNodes().isNotEmpty() }
+                tap("Change"); shot("n04_change_part"); tap("Close")
+            }.onFailure { println("SMOKE change dialog shot failed: ${it.message}") }
             assertNull(Diagnostics.lastCrash())
         }
     }

@@ -963,7 +963,7 @@ private fun savedStock(context: Context, fmt: splitziner.dims.LengthFormat): spl
     val prefs = context.getSharedPreferences("cutplan", Context.MODE_PRIVATE)
     val def = splitziner.cutplan.StockSettings.defaultFor(fmt)
     val unit = if (fmt.isInch) 25.4 else 1.0; val tag = if (fmt.isInch) "in" else "mm"
-    fun get(key: String, d: Double) = prefs.getString("${key}_$tag", null)?.trim()?.toDoubleOrNull()?.let { it * unit } ?: d
+    fun get(key: String, d: Double) = prefs.getString("${key}_$tag", null)?.let { num(it) }?.let { it * unit } ?: d
     val w = get("sheetW", def.sheetW); val l = get("sheetL", def.sheetL)
     return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch)
 }
@@ -1008,7 +1008,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = {
-                val w = sheetW.trim().toDoubleOrNull(); val l = sheetL.trim().toDoubleOrNull(); val b = boardL.trim().toDoubleOrNull(); val k = kerf.trim().toDoubleOrNull()
+                val w = num(sheetW); val l = num(sheetL); val b = num(boardL); val k = num(kerf)
                 if (w == null || l == null || b == null || k == null || w <= 0 || l <= 0 || b <= 0 || k < 0) { error = "Enter each size as a number, for example ${show(def.sheetW)}"; return@TextButton }
                 prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
                 try {
