@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.20.0 - Drawings you can cut from
+
+Drawings a maker can cut from, and a shorter guide.
+
+- **Panels with rounded edges draw properly.** A top with a rounded-over (bullnose) edge used to lose its outline in the side views, and on its own sheet. Those lines are back.
+- **Cut-outs and corners on detail sheets.** A flat part's sheet now says the corner radius and where each opening is and how big: "OPENING A: ROUND-ENDED, 6.00 X 2.00 THRU, ITS BOX STARTING 36.00 FROM LEFT EDGE AND 36.83 FROM BOTTOM EDGE."
+- **A pictorial view on sheet 1**, in the largest empty corner, so the three flat views are easy to read. Left off assemblies over 150 parts to keep drawing quick.
+- **Views stay clear of the notes.** When a note would sit on top of a dimension, the drawing moves to a bigger sheet.
+- **Shorter guide.** Two boards from one drawn part are fitted in the main build, not given a bench step of their own. A step never places more than five things from one side, so a pedestal and its drawers are no longer one crowded step.
+- When there is no groove, the guide says why: no router or table saw ticked, or the part is too thin to groove.
+
 ## v0.19.0 - Grooves, edge joints and smaller sheets
 
 Joints you can actually make, and a shopping list that doesn't buy eight full sheets.
