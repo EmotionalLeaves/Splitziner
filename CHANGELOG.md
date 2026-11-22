@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.44.0 - Project pictures and a check at a glance
+
+- **Pictures on project cards.** The home screen shows a small drawing of each model next to its name, size and part count, so you can tell your projects apart at a glance.
+- **The check runs as soon as a project opens.** A red dot on the Check tab tells you there are problems without opening it.
+- **Guide cover:** a long finished size (fractions in inches) now goes on its own line instead of running into the hardware list.
+- Tidier progress bar while the app works.
+- Includes v0.43.0 (every tab in view, to-buy summary, new icon).
+
 ## v0.43.0 - Every tab in view, to-buy summary, new icon
 
 - **Every tab is always in view.** The six tabs (3D, Parts, Cut list, Drawing, Guide, Check) now sit in one fixed row, so none is hidden off the edge on a narrow phone.
