@@ -205,3 +205,7 @@ Departures from the build spec, newest first.
   - A long, thick "Top" bigger than a sheet suggests a ready-made worktop.
 - A door with doors on both sides (a row of cabinets) is still a door if an upright stands behind one of its edges. Doors hang together in one step, up to 12.
 - Boards alike that lie end to end in line (stretchers across a run of cabinets) are not slats.
+
+## v0.87
+- Modules must be boxes that meet only side to side (two panels back to back). Bays that share an upright (a library whose shelves run into the next bay's side) are one piece of furniture.
+- The device tests now open a 69-part kitchen run (four cabinets, eight doors, four drawers, one worktop), build its guide and export it as a PDF, so complicated projects are checked on a phone on every release.
