@@ -83,7 +83,9 @@ object AssemblyPlan {
         if (legs.size < 4 || legs.size % 2 != 0) return emptyList()
         fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
         fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }
-        val rails = live.filter { it.name == "Apron" || it.name == "Rail" }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
+        // Rails on edge only: a board lying flat across two legs (a slat) is not part of a frame.
+        fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
+        val rails = live.filter { (it.name == "Apron" || it.name == "Rail") && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
         val legIds = legs.map { it.id }.toSet()
         // Rails one way whose leg pairs cover every leg once: an apron and a stretcher between the same two legs
         // are one pair, so a frame can have both.
@@ -93,7 +95,10 @@ object AssemblyPlan {
             if (ls.size == legIds.size && ls.toSet() == legIds && pairs.size >= 2) pairs to g else null
         }.minByOrNull { (_, g) -> g[0].first.mesh.bounds.extents.let { maxOf(it.x, it.y) } } ?: return emptyList()
         return pick.first.map { pair ->
-            pair.toList() + rails.filter { it.second.map { l -> l.id }.toSet() == pair }.map { it.first.id }
+            val frameRails = rails.filter { it.second.map { l -> l.id }.toSet() == pair }.map { it.first }
+            // A cleat screwed along one of the frame's rails is made with it on the bench.
+            val cleats = live.filter { c -> c.name == "Cleat" && frameRails.any { r -> touch(c, r) } }
+            pair.toList() + frameRails.map { it.id } + cleats.map { it.id }
         }
     }
 
@@ -146,7 +151,7 @@ object AssemblyPlan {
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
             unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts)
-        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts)
+        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts, subs)
         val unitOf = main.parts.associate { it.id to it.copy(step = it.step?.let { s0 -> renumber[s0] ?: s0 }) }
         val steps = ArrayList<BuildStep>(bench)
         for (st in mainSteps) {
@@ -168,12 +173,42 @@ object AssemblyPlan {
      * second end frame) cannot be fastened yet: it goes in with the step after it, which joins it to the rest.
      * Returns the steps and, per old step number, the new one.
      */
-    private fun mergeFloating(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
-        val (a0, r0) = backLast(steps, units)
+    private fun mergeFloating(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>> = emptyMap()): Pair<List<BuildStep>, Map<Int, Int>> {
+        val (s0, rs) = supportsFirst(steps, units, members)
+        val (a00, r00) = backLast(s0, units)
+        val r0 = rs.mapValues { (_, v) -> r00[v] ?: v }; val a0 = a00
         val (a, ra1) = mergeFloating0(a0, units)
         val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
         val (b, rb) = mergeAlike(a, units)
         return b to ra.mapValues { (_, v) -> rb[v] ?: v }
+    }
+
+    /**
+     * Nothing is set on a support that is not there yet: a step whose parts rest on parts fitted later (slats on
+     * cleats the planner slid in from the side afterwards) has the step with those supports moved before it.
+     */
+    private fun supportsFirst(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>> = emptyMap()): Pair<List<BuildStep>, Map<Int, Int>> {
+        val byId = units.associateBy { it.id }
+        // A sub-assembly is judged by its own boards, not its overall box (a frame's cleat, not its rail's top).
+        fun boxes(id: String) = members[id]?.map { it.mesh.bounds } ?: listOfNotNull(byId[id]?.mesh?.bounds)
+        fun restsOn(top: String, under: String): Boolean = boxes(top).any { a -> boxes(under).any { b ->
+            kotlin.math.abs(b.max.z - a.min.z) < 1.0 && minOf(a.max.x, b.max.x) > maxOf(a.min.x, b.min.x) + 1.0 && minOf(a.max.y, b.max.y) > maxOf(a.min.y, b.min.y) + 1.0 } }
+        val list = steps.toMutableList()
+        var guard = 0
+        loop@ while (guard++ < 20) {
+            for (i in list.indices) {
+                if (list[i].subassembly) continue
+                val j = (i + 1 until list.size).firstOrNull { j -> !list[j].subassembly && list[j].partIds.any { u -> list[i].partIds.any { t -> restsOn(t, u) } } } ?: continue
+                // Only when the supports themselves rest on nothing fitted in between.
+                if (list[j].partIds.any { u -> (i until j).any { k -> list[k].partIds.any { t -> restsOn(u, t) } } }) continue
+                val moved = list.removeAt(j); list.add(i, moved)
+                continue@loop
+            }
+            break
+        }
+        if (list.map { it.step } == steps.map { it.step }) return list to steps.associate { it.step to it.step }
+        val renumber = HashMap<Int, Int>()
+        return list.mapIndexed { n, st -> renumber[st.step] = n + 1; st.copy(step = n + 1) } to renumber
     }
 
     /**

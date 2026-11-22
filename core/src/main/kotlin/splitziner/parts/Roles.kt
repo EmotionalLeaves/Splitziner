@@ -36,21 +36,45 @@ object Roles {
         }
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
         val h = all.extents.z
+        // Legs first: square posts standing on the floor, at least twice as tall as they are thick (a bed's legs are
+        // short). Rails are then known by the legs they join.
+        val legs = HashSet<String>()
+        for (p in live) {
+            if (p.id in out) continue
+            val e = p.mesh.bounds.extents; val dims = listOf(e.x, e.y, e.z).sorted()
+            if (dims[1] < 2.5 * dims[0] && e.z >= dims[2] - 0.01 && e.z > 1.5 * dims[1] && p.mesh.bounds.min.z <= all.min.z + 1.0) { out[p.id] = "Leg"; legs += p.id }
+        }
+        fun touches(a: Part, o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 1.0 && a.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 1.0 }
         for (p in live) {
             if (p.id in out) continue
             val b = p.mesh.bounds; val e = b.extents
             val dims = listOf(e.x, e.y, e.z).sorted()
             val t = dims[0]
+            // A strip fixed face-on along a bigger board, most of its length (a ledger under slats or a shelf): a cleat.
+            if (dims[1] < NARROW) {
+                val thinAx = (0..2).minByOrNull { e[it] }!!; val longAx = (0..2).maxByOrNull { e[it] }!!
+                val backer = live.firstOrNull { o -> o !== p && touches(p, o) && o.mesh.bounds.extents.let { oe -> oe[longAx] >= e[longAx] - 1.0 && oe[3 - thinAx - longAx] > 1.5 * e[3 - thinAx - longAx] } &&
+                    (kotlin.math.abs(o.mesh.bounds.max[thinAx] - b.min[thinAx]) < 1.0 || kotlin.math.abs(o.mesh.bounds.min[thinAx] - b.max[thinAx]) < 1.0) }
+                if (backer != null && live.count { o -> o.id in legs && touches(p, o) } >= 2) { out[p.id] = "Cleat"; continue }
+            }
             // Square-ish in section and long: a leg standing up, a rail or apron lying down.
             if (dims[1] < 2.5 * t && dims[2] > 4 * dims[1]) {
                 out[p.id] = if (e.z >= dims[2] - 0.01 && b.min.z <= all.min.z + 1.0) "Leg" else if (e.z >= dims[2] - 0.01) "Post" else "Rail"
                 continue
             }
             if (dims[1] < 2 * t) continue
+            // An upright board off the floor joining two or more legs: a rail (a bed's side rail), unless it is an apron.
+            val onEdge = (e.x <= t + 0.01 || e.y <= t + 0.01) && e.z < dims[2] - 0.01
+            val joinsLegs = legs.isNotEmpty() && b.min.z > all.min.z + 1.0 && live.count { o -> o.id in legs && touches(p, o) } >= 2
             // A shallow upright board high up, right under a flat part: a table's apron or a desk's rail.
             val upright = e.x <= t + 0.01 || e.y <= t + 0.01
             if (upright && e.z < 0.3 * h && b.min.z > all.min.z + 0.3 * h && live.any { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 }) {
                 out[p.id] = "Apron"; continue
+            }
+            if (onEdge && joinsLegs) { out[p.id] = "Rail"; continue }
+            // Several narrow boards alike, lying flat side by side: slats (a bed's, a bench seat's).
+            if (dims[1] < NARROW && e.z <= t + 0.01 && live.count { o -> o.mesh.bounds.extents.let { oe -> kotlin.math.abs(oe.x - e.x) < 0.5 && kotlin.math.abs(oe.y - e.y) < 0.5 && kotlin.math.abs(oe.z - e.z) < 0.5 } } >= 4) {
+                out[p.id] = "Slat"; continue
             }
             // Narrow boards are not shelves or sides: a strip lying down is a rail, one standing up an upright.
             if (dims[1] < NARROW) {

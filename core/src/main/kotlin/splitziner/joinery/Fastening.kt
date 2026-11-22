@@ -182,21 +182,40 @@ object Fastening {
             // Two pieces lying face to face (a laminated frame, a panel on a panel) are glued and clamped;
             // a few fasteners only hold them while the glue sets.
             // A back panel on a shelf's edge is not: that strip is too narrow to clamp a face to.
-            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0
+            // Nor is a rail against a leg: that is a structural joint, screwed.
+            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0 && thr.name != "Leg" && into.name != "Leg"
             // A top resting on its supports is never fixed through its visible face: brackets go underneath.
             // Nor is a top with nothing above it (a table top on its aprons): screw heads in it would be on show.
             val ti0 = idx.getValue(thr.id)
-            val openTop = rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
+            // Slats under a mattress are not on show: only a top (named so, or a wide board) counts.
+            val wideTop = thr.name == "Top" || minOf(hi[ti0].x - lo[ti0].x, hi[ti0].y - lo[ti0].y) >= 150.0
+            val openTop = wideTop && thr.name != "Slat" && rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
                 minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
             val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
-            // A shelf resting on stretchers and only butting the legs at its ends is fixed to the stretchers, not the legs.
-            if (k != 2 && (thr.name == "Leg" || into.name == "Leg")) {
-                val board = if (thr.name == "Leg") into else thr
-                val bi = idx.getValue(board.id)
-                val flatBoard = (hi[bi].z - lo[bi].z) <= minOf(hi[bi].x - lo[bi].x, hi[bi].y - lo[bi].y)
-                val restsOn = rel.lo.indices.any { n -> n != bi && kotlin.math.abs(hi[n].z - lo[bi].z) < 1.0 &&
-                    minOf(hi[n].x, hi[bi].x) > maxOf(lo[n].x, lo[bi].x) && minOf(hi[n].y, hi[bi].y) > maxOf(lo[n].y, lo[bi].y) }
-                if (flatBoard && restsOn) continue
+            // A cleat is screwed along the board it carries; where its ends butt legs, nothing more is needed.
+            run {
+                val cleat = if (thr.name == "Cleat") thr else if (into.name == "Cleat") into else null
+                if (cleat != null) { val ci = idx.getValue(cleat.id); val longAx = (0..2).maxByOrNull { hi[ci][it] - lo[ci][it] }!!; if (longAx == k) continue }
+            }
+            // A board lying on supports near both its ends (a shelf on stretchers, slats on cleats) is fixed down to
+            // them; where its ends only butt the legs or rails beside it, nothing is driven in sideways.
+            if (k != 2) {
+                fun restsAtBothEnds(bi: Int): Boolean {
+                    if ((hi[bi].z - lo[bi].z) > minOf(hi[bi].x - lo[bi].x, hi[bi].y - lo[bi].y)) return false
+                    val ax = if (hi[bi].x - lo[bi].x >= hi[bi].y - lo[bi].y) 0 else 1
+                    val len = hi[bi][ax] - lo[bi][ax]
+                    val under = rel.lo.indices.filter { n -> n != bi && kotlin.math.abs(hi[n].z - lo[bi].z) < 1.0 &&
+                        minOf(hi[n].x, hi[bi].x) > maxOf(lo[n].x, lo[bi].x) && minOf(hi[n].y, hi[bi].y) > maxOf(lo[n].y, lo[bi].y) }
+                    // Held under each end by separate pieces (slats on two cleats), or along both long edges
+                    // (a shelf on front and back stretchers); a cabinet bottom on one kick board is neither.
+                    val ends = under.filter { n -> hi[n][ax] - lo[n][ax] < 0.5 * len }
+                    val byEnds = ends.any { n -> lo[n][ax] <= lo[bi][ax] + 0.15 * len } && ends.any { n -> hi[n][ax] >= hi[bi][ax] - 0.15 * len }
+                    val ax2 = 1 - ax; val wid = hi[bi][ax2] - lo[bi][ax2]
+                    val a = under.firstOrNull { n -> lo[n][ax2] <= lo[bi][ax2] + 0.25 * wid }; val b = under.firstOrNull { n -> hi[n][ax2] >= hi[bi][ax2] - 0.25 * wid && n != a }
+                    return byEnds || (a != null && b != null)
+                }
+                val ii0 = idx.getValue(into.id)
+                if (k == 0 || k == 1) { if (restsAtBothEnds(ti0) && (hi[ti0].z - lo[ti0].z) < (hi[ii0].z - lo[ii0].z)) continue; if (restsAtBothEnds(ii0) && (hi[ii0].z - lo[ii0].z) < (hi[ti0].z - lo[ti0].z)) continue }
             }
             // A leg's end under a top held by aprons needs nothing of its own: the aprons carry the top.
             if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name == "Rail") && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue

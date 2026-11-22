@@ -158,6 +158,36 @@ object Templates {
             }
             out
         },
+        Template("bed", "Bed frame", "A platform bed: side and end rails round the mattress, legs in the corners, slats on cleats, and a centre rail on two more legs so the slats never span more than half the width.", listOf(
+            Field("mw", "Mattress width", 1525.0, 60.0), Field("ml", "Mattress length", 2030.0, 80.0), Field("h", "Height to the top of the rails", 350.0, 14.0),
+            Field("rd", "Rail depth", 184.0, 7.25), Field("rt", "Rail thickness", 19.0, 0.75), Field("leg", "Leg size", 89.0, 3.5),
+            Field("sw", "Slat width", 89.0, 3.5), Field("st", "Slat thickness", 19.0, 0.75), Field("gap", "Gap between slats", 75.0, 3.0),
+        )) { v ->
+            val mw = v.getValue("mw"); val ml = v.getValue("ml"); val h = v.getValue("h"); val rd = v.getValue("rd"); val rt = v.getValue("rt")
+            val leg = v.getValue("leg"); val sw = v.getValue("sw"); val st = v.getValue("st"); val gap = v.getValue("gap")
+            val out = ArrayList<Mesh>()
+            val w = mw + 2 * rt; val l = ml + 2 * rt
+            // The mattress sits a little down inside the rails, on slats whose tops are this far below the rails' tops.
+            val sink = minOf(25.0, rd / 4)
+            val slatTop = h - sink; val cleat = 2 * rt
+            out += box(0.0, 0.0, h - rd, rt, l, rd); out += box(w - rt, 0.0, h - rd, rt, l, rd)        // side rails, full length
+            out += box(rt, 0.0, h - rd, mw, rt, rd); out += box(rt, l - rt, h - rd, mw, rt, rd)       // end rails between them
+            val legTop = slatTop - st
+            for ((x, y) in listOf(rt to rt, w - rt - leg to rt, rt to l - rt - leg, w - rt - leg to l - rt - leg)) out += box(x, y, 0.0, leg, leg, legTop)
+            // Cleats along the side rails between the legs carry the slats' ends.
+            out += box(rt, rt + leg, legTop - cleat, rt, ml - 2 * leg, cleat); out += box(w - 2 * rt, rt + leg, legTop - cleat, rt, ml - 2 * leg, cleat)
+            // A centre rail on edge, end rail to end rail, on two legs of its own.
+            val cr = 2 * rt; val crDepth = minOf(rd, 140.0)
+            val cx = w / 2 - cr / 2
+            out += box(cx, rt, legTop - crDepth, cr, ml, crDepth)
+            for (y in listOf(rt + ml / 3 - leg / 2, rt + 2 * ml / 3 - leg / 2)) out += box(w / 2 - leg / 2, y, 0.0, leg, leg, legTop - crDepth)
+            // Slats across, evenly spread between the legs.
+            val run = ml - 2 * leg
+            val n = maxOf(2, Math.floor((run + gap) / (sw + gap)).toInt())
+            val pitch = if (n > 1) (run - sw) / (n - 1) else 0.0
+            for (i in 0 until n) out += box(rt, rt + leg + i * pitch, legTop, mw, sw, st)
+            out
+        },
         Template("box", "Open box", "A bottom with four sides around it: a crate, planter or drawer box.", listOf(
             Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 300.0, 12.0), Field("h", "Height", 200.0, 8.0), Field("t", "Side thickness", 12.0, 0.5), Field("bt", "Bottom thickness", 6.0, 0.25),
         )) { v ->

@@ -470,7 +470,7 @@ object DesignCheck {
                 val depth = minOf(maxX - minX + ext.x / gx, maxY - minY + ext.y / gy, maxZ - minZ + ext.z / gz)
                 clashes += Clash(i, j, depth); touching[i] += j; touching[j] += i
                 memo?.map?.put(key, doubleArrayOf(depth, 1.0))
-            } else if (near(live[i], bvh[j]) || near(live[j], bvh[i])) { touching[i] += j; touching[j] += i; memo?.map?.put(key, doubleArrayOf(-1.0, 1.0)) }
+            } else if (facesMeet(bvh[i], bvh[j], a, b) || near(live[i], bvh[j]) || near(live[j], bvh[i])) { touching[i] += j; touching[j] += i; memo?.map?.put(key, doubleArrayOf(-1.0, 1.0)) }
             else memo?.map?.put(key, doubleArrayOf(-1.0, 0.0))
             }
         }
@@ -532,6 +532,25 @@ object DesignCheck {
     }
 
     /** True when some point of [a]'s surface lies within [TOUCH] of the other part's surface. */
+    /**
+     * Two faces lying against each other where their boxes cross (a slat across the middle of a rail): the shared
+     * box is a thin slab, and just either side of it one part is inside and the other is. [near] samples each
+     * part's own faces at their corners and middles, which a crossing in the middle of both can fall between.
+     */
+    private fun facesMeet(bi: Bvh, bj: Bvh, a: Vec3, b: Vec3): Boolean {
+        val ext = b - a
+        val k = (0..2).firstOrNull { ax -> ext[ax] <= 2 * TOUCH && (0..2).filter { it != ax }.all { ext[it] > 1.0 } } ?: return false
+        val (u, v) = (0..2).filter { it != k }
+        val mid = (a[k] + b[k]) / 2
+        for (iu in 0 until 4) for (iv in 0 until 4) {
+            val pu = a[u] + ext[u] * (iu + 0.5) / 4; val pv = a[v] + ext[v] * (iv + 0.5) / 4
+            fun at(off: Double): Vec3 { val arr = DoubleArray(3); arr[k] = mid + off; arr[u] = pu; arr[v] = pv; return Vec3(arr[0], arr[1], arr[2]) }
+            val lo = at(-TOUCH); val hi = at(TOUCH)
+            if ((inside(bi, lo) && inside(bj, hi)) || (inside(bj, lo) && inside(bi, hi))) return true
+        }
+        return false
+    }
+
     private fun near(a: Part, other: Bvh): Boolean {
         val m = a.mesh
         val c = m.faceCenters; val nr = m.faceNormals

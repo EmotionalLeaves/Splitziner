@@ -92,3 +92,12 @@ Departures from the build spec, newest first.
 - Consecutive steps that fit one more of the same item the same way are one step (up to 5 parts). Like parts in one step move together in pictures, with one arrow and a count.
 - A thin part's rabbet or groove is explained in full the first time; later steps refer back to that step.
 - In-app outputs: the cutting plan is shown full screen and redrawn as stock sizes change. The shopping list is a checklist whose ticks are kept per project. Build mode shows one step per screen, and the steps marked done are kept per project. Advice such as "buy 10% extra" is a note, not a line to tick.
+
+## v0.59–0.61: legs, slats and cleats
+- Parts touch when their faces meet anywhere, including across the middle of both faces (a slat over a centre rail). Before, contact was only found near the parts' own corners and face middles.
+- Legs are square posts standing on the floor, at least 1.5 times as tall as they are thick, so a bed's short legs count. Legs are named before the rest, so that rails can be recognised by the legs they join.
+- Four or more identical narrow boards lying flat are slats. A narrow strip fixed face-on along a bigger board and butting two legs is a cleat. Only the joint along its length is fastened; its ends need nothing.
+- A board resting on separate supports under both ends, or along both long edges, is fixed down to them. Where its ends only butt legs or rails, nothing is driven in sideways. A cabinet bottom on a single kick board is neither, so it is screwed as before.
+- A rail against a leg is screwed, never "glued face to face". Slats are screwed down; only tops (named so, or 150 mm or wider) count as visible tops that must not be screwed through.
+- A step that rests on supports fitted later has the step with those supports moved before it. Sub-assemblies are judged by their own boards, not their overall box.
+- New templates: Workbench and Bed frame. Both are built from end or side frames, with any cleats included in the frame.
