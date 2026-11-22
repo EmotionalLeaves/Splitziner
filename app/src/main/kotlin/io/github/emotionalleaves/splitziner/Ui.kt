@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +55,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.emotionalleaves.splitziner.gl.ModelView
+import io.github.emotionalleaves.splitziner.render.PdfExporter
+import io.github.emotionalleaves.splitziner.render.SheetPreview
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import splitziner.export.CsvWriter
 import splitziner.parts.CutListRow
 import splitziner.parts.ItemOverride
@@ -186,8 +193,12 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TabButton("3D", tab == 0, Modifier.weight(1f)) { tab = 0 }
             TabButton("Parts", tab == 1, Modifier.weight(1f)) { tab = 1 }
-            TabButton("Cut list", tab == 2, Modifier.weight(1f)) { tab = 2 }
+            TabButton("Cuts", tab == 2, Modifier.weight(1f)) { tab = 2 }
+            TabButton("Drawing", tab == 3, Modifier.weight(1.4f)) { tab = 3 }
         }
+        if (tab == 3) {
+            DrawingTab(open, state, vm, Modifier.weight(1f))
+        } else
         if (tab == 0) {
             val sel = a.parts.firstOrNull { it.id == selectedId }
             ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp))
@@ -372,5 +383,109 @@ private fun shareCsv(context: Context, open: OpenProject) {
     } catch (e: Exception) {
         Diagnostics.logError("share csv", e)
         Toast.makeText(context, "Could not share the file", Toast.LENGTH_LONG).show()
+    }
+}
+
+
+@Composable
+private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modifier: Modifier) {
+    val context = LocalContext.current
+    var showInfo by remember { mutableStateOf(false) }
+    var showQa by remember { mutableStateOf(false) }
+    LaunchedEffect(open.analysis) { vm.ensureDrawing() }
+    val d = state.drawing
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { showInfo = true }) { Text("Title block") }
+            if (d != null) {
+                Text("Sheet ${d.sheetLetter}, ${d.scaleText}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                if (d.qa.isNotEmpty()) TextButton(onClick = { showQa = true }) { Text("${d.qa.size} note${if (d.qa.size == 1) "" else "s"}") }
+            } else Spacer(Modifier.weight(1f))
+        }
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
+            if (d != null && d.sheets.isNotEmpty()) SheetPreview(d.sheets[0], Modifier.fillMaxSize())
+            if (state.drawingBusy) {
+                Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
+                    Text("Working out which edges are visible\u2026", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+        }
+        Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
+        Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = d != null && !state.drawingBusy, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) { Text("Share drawing (PDF)") }
+    }
+    if (showInfo) TitleBlockDialog(open.meta, onDismiss = { showInfo = false }) { m -> showInfo = false; vm.updateDrawing { m } }
+    if (showQa && d != null) {
+        AlertDialog(
+            onDismissRequest = { showQa = false },
+            confirmButton = { TextButton(onClick = { showQa = false }) { Text("OK") } },
+            title = { Text("About this drawing") },
+            text = { Column { for (q in d.qa) Text("\u2022 $q", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp)) } },
+        )
+    }
+}
+
+private val TOLERANCE_PRESETS: List<Pair<String, List<String>?>> = listOf(
+    "Not specified" to null,
+    "Woodworking (fractions \u00b11/16)" to listOf("FRACTIONS \u00b11/16", "ANGLES \u00b11\u00b0"),
+    "Machined, inch (.XX \u00b1.01)" to listOf(".XX \u00b1.01  .XXX \u00b1.005", "ANGLES \u00b10.5\u00b0"),
+    "Machined, mm (X.X \u00b10.2)" to listOf("X.X \u00b10.2  X.XX \u00b10.1", "ANGLES \u00b10.5\u00b0"),
+    "Standard sample (.XX \u00b1.02)" to listOf(".XX \u00b1.02  .XXX \u00b1.005", "ANGLES \u00b11\u00b0", "FRACTIONS \u00b11/16"),
+)
+
+@Composable
+private fun TitleBlockDialog(meta: ProjectMeta, onDismiss: () -> Unit, onApply: (ProjectMeta) -> Unit) {
+    var m by remember { mutableStateOf(meta) }
+    var notes by remember { mutableStateOf(meta.notes.joinToString("\n")) }
+    var revError by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                // I, O, Q and X are never used as revision letters: they are too easily misread.
+                if (!splitziner.sheet.DrawingInfo.revisionAllowed(m.rev)) revError = true
+                else onApply(m.copy(notes = notes.lines().map { it.trim() }.filter { it.isNotEmpty() }))
+            }) { Text("Apply") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Title block") },
+        text = {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(m.title, { m = m.copy(title = it) }, label = { Text("Title") }, singleLine = true, supportingText = { Text("Noun first, then details: CABINET, STORAGE, BIN") })
+                OutlinedTextField(m.drawingNo, { m = m.copy(drawingNo = it) }, label = { Text("Drawing number") }, singleLine = true)
+                OutlinedTextField(m.rev, { m = m.copy(rev = it); revError = false }, label = { Text("Revision") }, singleLine = true, isError = revError,
+                    supportingText = { if (revError) Text("The letters I, O, Q and X are not used for revisions.") })
+                OutlinedTextField(m.organisation, { m = m.copy(organisation = it) }, label = { Text("Organisation (optional)") }, singleLine = true)
+                OutlinedTextField(m.designer, { m = m.copy(designer = it) }, label = { Text("Designer") }, singleLine = true)
+                OutlinedTextField(m.drawn, { m = m.copy(drawn = it) }, label = { Text("Drawn by") }, singleLine = true)
+                OutlinedTextField(m.checked, { m = m.copy(checked = it) }, label = { Text("Checked by") }, singleLine = true)
+                OutlinedTextField(m.approved, { m = m.copy(approved = it) }, label = { Text("Approved by") }, singleLine = true)
+                OutlinedTextField(m.date, { m = m.copy(date = it) }, label = { Text("Date") }, singleLine = true)
+                OutlinedTextField(notes, { notes = it }, label = { Text("Extra notes, one per line") }, minLines = 2)
+                Text("Tolerances", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                Text("The app never picks tolerances for you.", style = MaterialTheme.typography.bodySmall)
+                for ((label, lines) in TOLERANCE_PRESETS) Choice(label, lines, m.tolerance) { m = m.copy(tolerance = it) }
+                Text("Sheet size", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                for ((label, v) in listOf("Choose for me" to "auto", "A (8.5 \u00d7 11 in)" to "A", "B (11 \u00d7 17 in)" to "B", "C (17 \u00d7 22 in)" to "C", "D (22 \u00d7 34 in)" to "D", "E (34 \u00d7 44 in)" to "E")) {
+                    Choice(label, v, m.sheet) { m = m.copy(sheet = it) }
+                }
+                Text("Hidden edges (dashed lines)", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                for ((label, v) in listOf("Choose for me" to "auto", "Always show" to "on", "Never show" to "off")) Choice(label, v, m.hidden) { m = m.copy(hidden = it) }
+            }
+        },
+    )
+}
+
+private fun sharePdf(context: Context, open: OpenProject, d: DrawingState) {
+    try {
+        val base = open.meta.drawingNo.ifBlank { open.meta.name }.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
+        val file = PdfExporter.write(context, d.sheets, "${base}_drawing.pdf")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val send = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(send, "Share drawing"))
+    } catch (e: Throwable) {
+        Diagnostics.logError("share pdf", e)
+        Toast.makeText(context, "Could not make the PDF", Toast.LENGTH_LONG).show()
     }
 }

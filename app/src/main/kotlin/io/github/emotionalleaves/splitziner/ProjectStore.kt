@@ -23,7 +23,25 @@ data class ProjectMeta(
     val partNames: Map<String, String> = emptyMap(),
     val items: Map<String, ItemOverride> = emptyMap(),
     val partCount: Int = 0,
+    // Title block and drawing choices:
+    val title: String = "", val drawingNo: String = "", val rev: String = "-", val organisation: String = "",
+    val designer: String = "", val drawn: String = "", val checked: String = "", val approved: String = "",
+    val date: String = "", val notes: List<String> = emptyList(),
+    /** Null until the user picks or types tolerances. */
+    val tolerance: List<String>? = null,
+    /** "auto" or a sheet letter. */
+    val sheet: String = "auto",
+    /** "auto", "on" or "off". */
+    val hidden: String = "auto",
 ) {
+    fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
+        title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
+        designer = designer, drawn = drawn, checked = checked, approved = approved, date = date, notes = notes,
+        toleranceLines = tolerance, softwareVersion = version, sourceFile = fileName,
+    )
+
+    fun drawingSettings() = splitziner.drawing.DrawingSettings(sheet = sheet, hidden = hidden)
+
     fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames)
 }
 
@@ -42,7 +60,8 @@ class ProjectStore(context: Context) {
         val id = UUID.randomUUID().toString()
         dir(id).mkdirs()
         source(id).writeBytes(bytes)
-        val meta = ProjectMeta(id, fileName.substringBeforeLast('.'), fileName, System.currentTimeMillis())
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val meta = ProjectMeta(id, fileName.substringBeforeLast('.'), fileName, System.currentTimeMillis(), date = today)
         save(meta)
         return meta
     }
@@ -57,6 +76,10 @@ class ProjectStore(context: Context) {
         val items = JSONObject()
         for ((k, v) in meta.items) items.put(k, JSONObject().put("material", v.material).put("materialSpec", v.materialSpec).put("partNo", v.partNo))
         o.put("items", items)
+        o.put("title", meta.title).put("drawingNo", meta.drawingNo).put("rev", meta.rev).put("organisation", meta.organisation)
+        o.put("designer", meta.designer).put("drawn", meta.drawn).put("checked", meta.checked).put("approved", meta.approved)
+        o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden)
+        o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
         // Write to a temporary file first so a crash never leaves a half-written project.
         val tmp = File(dir(meta.id), "project.json.tmp")
         tmp.writeText(o.toString())
@@ -76,8 +99,15 @@ class ProjectStore(context: Context) {
         return ProjectMeta(
             o.getString("id"), o.getString("name"), o.getString("fileName"), o.getLong("createdAt"),
             strOrNull("fileUnits"), strOrNull("displayUnits"), o.optString("inchStyle", "decimal"), excluded, names, items, o.optInt("partCount"),
+            title = o.optString("title"), drawingNo = o.optString("drawingNo"), rev = o.optString("rev", "-"), organisation = o.optString("organisation"),
+            designer = o.optString("designer"), drawn = o.optString("drawn"), checked = o.optString("checked"), approved = o.optString("approved"),
+            date = o.optString("date"), notes = strings(o.optJSONArray("notes")) ?: emptyList(),
+            tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
+            sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"),
         )
     }
+
+    private fun strings(a: JSONArray?): List<String>? = a?.let { arr -> (0 until arr.length()).map { arr.getString(it) } }
 
     fun delete(id: String) { dir(id).deleteRecursively() }
 }

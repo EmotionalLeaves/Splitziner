@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 - Engineering drawing
+
+The first engineering drawing: a real sheet with views, dimensions and a title block, exported as PDF.
+
+- **New Drawing tab.** The app draws your model from the front, top and right side, lined up the way a drafter would, on a bordered sheet with zone marks.
+- **Dimensions are added automatically**: overall width, depth and height, plus the main levels such as shelf heights, all measured from the lower-left-front corner, in the units you chose.
+- **List of material on the sheet**, straight from the cut list, with item numbers, quantities, descriptions and the materials you entered.
+- **Title block and revision block.** Tap **Title block** to fill in the title, drawing number, revision, names, date and extra notes. Tolerances stay "not specified" until you pick a preset; the app never chooses them for you.
+- **Sheet size and scale are picked for you** (sizes A to E, standard scales such as 1/2, 1/4, 1/10), or pin a sheet size yourself.
+- **Share drawing (PDF)** makes a sharp vector PDF you can print or send. Pinch to zoom the preview, double-tap to fit.
+- If the engine had to simplify something (for example leaving out dashed hidden lines on a busy view), a **notes** button on the tab tells you.
+
+Not here yet: section views for models whose inside is hidden, the exploded view and the build guide.
+
 ## v0.2.0 - 3D view
 
 See your model in 3D, with every part in its own colour.

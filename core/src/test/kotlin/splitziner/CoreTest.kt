@@ -270,3 +270,64 @@ class ViewTest {
         assertEquals(12 * 18, g.triangles.size); assertEquals(12 * 6, g.lines.size)
     }
 }
+
+class DrawingTest {
+    private fun partsOf(meshes: List<splitziner.mesh.Mesh>) = meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+    private val out = java.io.File("build/preview").apply { mkdirs() }
+
+    @Test fun cubeFrontViewIsASquare() {
+        val cube = Fixtures.box(0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+        val v = splitziner.view.HiddenLine.compute(listOf(cube), cube, splitziner.view.ViewDef.FRONT)
+        assertEquals(4, v.visible.size / 4)
+        assertEquals(40.0, v.visibleLength, 1e-6)
+        assertEquals(0, v.hidden.size)
+    }
+
+    @Test fun stackedBoxesShareOneLine() {
+        val a = Fixtures.box(0.0, 10.0, 0.0, 10.0, 0.0, 10.0); val b = Fixtures.box(0.0, 10.0, 0.0, 10.0, 10.0, 20.0)
+        val scene = MeshOps.concatenate(listOf(a, b))
+        val v = splitziner.view.HiddenLine.compute(listOf(a, b), scene, splitziner.view.ViewDef.FRONT)
+        // Outline 10 x 20 (perimeter 60) plus one shared line of 10: not two.
+        assertEquals(70.0, v.visibleLength, 1e-6)
+    }
+
+    @Test fun strokeFontIsStable() {
+        val w = splitziner.sheet.StrokeFont.width("SECTION A-A", 4.83)
+        assertEquals(w, splitziner.sheet.StrokeFont.width("SECTION A-A", 4.83), 0.0)
+        assertTrue(w > 20 && w < 45, "width $w")
+    }
+
+    @Test fun blockGetsThreeDimensions() {
+        val block = Fixtures.box(0.0, 100.0, 0.0, 60.0, 0.0, 40.0)
+        val parts = partsOf(listOf(block))
+        val vs = splitziner.drawing.DrawingBuilder.views(parts)
+        val g = splitziner.dims.DimPlanner.plan(vs.scene, vs.views, LengthFormat("mm"), 5)
+        assertEquals(listOf("front/bottom/100", "right/bottom/60", "front/left/40"), g.map { "${it.view}/${it.side}/${it.items.single().text}" })
+    }
+
+    @Test fun cabinetSheet() {
+        val parts = partsOf(Fixtures.miniCabinet(Fixtures.INCH))
+        val fmt = LengthFormat("in")
+        val cut = CutList.build(parts, fmt)
+        val vs = splitziner.drawing.DrawingBuilder.views(cut.parts)
+        val info = splitziner.sheet.DrawingInfo(title = "Cabinet, storage", drawingNo = "CAB-001", designer = "J. Ledbetter", date = "2026-11-21", softwareVersion = "test", sourceFile = "cabinet.stl")
+        val r = splitziner.drawing.DrawingBuilder.build(cut.parts, cut.rows, vs, info, splitziner.drawing.DrawingSettings(), fmt)
+        val svg = splitziner.export.SvgWriter.write(r.sheets[0])
+        java.io.File(out, "cabinet_sheet1.svg").writeText(svg)
+        println("cabinet: sheet ${r.sheet.letter} scale ${r.scaleText} qa ${r.qa}")
+        assertEquals(svg, splitziner.export.SvgWriter.write(r.sheets[0]))
+        for (word in listOf("NASA", "GSFC", "GODDARD")) assertFalse(svg.contains(word))
+        assertTrue(r.scale in splitziner.drawing.DrawingBuilder.SCALES.toList())
+    }
+
+    @Test fun steppedBlockSheet() {
+        val block = MeshOps.concatenate(listOf(Fixtures.box(0.0, 100.0, 0.0, 60.0, 0.0, 20.0), Fixtures.box(0.0, 50.0, 0.0, 60.0, 20.0, 40.0)))
+        val parts = partsOf(listOf(block))
+        val fmt = LengthFormat("mm")
+        val cut = CutList.build(parts, fmt)
+        val vs = splitziner.drawing.DrawingBuilder.views(cut.parts)
+        val r = splitziner.drawing.DrawingBuilder.build(cut.parts, cut.rows, vs, splitziner.sheet.DrawingInfo(title = "Block, stepped", drawingNo = "BLK-1"), splitziner.drawing.DrawingSettings(), fmt)
+        java.io.File(out, "block_sheet1.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[0]))
+        println("block: sheet ${r.sheet.letter} scale ${r.scaleText} qa ${r.qa}")
+    }
+}
