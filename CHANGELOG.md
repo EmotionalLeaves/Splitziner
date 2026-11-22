@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.77.0 - Dowels as sold, better first steps
+
+- **Dowels sized as sold**, with diameter and length (3/8 x 1-1/2 in, or 8 x 40 mm), and a "Before you build" note on marking and drilling them with a jig.
+- **Glue and brads** joints also check for edges too thin to take a brad (a 1/4 in back): those go in a rabbet or against a cleat. The wording names the fixing you chose.
+- **A better first step**: pieces that stand on their own next to the first one (a table's second end frame, a bed's side and centre frames, a desk's two sides) are all set out together. The step says to prop or clamp them until the next step joins them.
+- **Fewer, clearer steps**: two of the same part fitted from opposite sides is one step ("from the front and back"). Bed slats go in from above instead of sliding in sideways.
+- Sub-assembly steps now say which way each board goes on, matching the picture.
+- Long step titles are set smaller instead of running off the page.
+
 ## v0.76.0 - No fitting from below the floor
 
 - **Build order:** a part that stands on the floor is never "fitted from below". In the bed frame, the centre frame now goes in with the second side frame and the first slats, then the end rails, then the remaining slats.
