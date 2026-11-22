@@ -80,3 +80,15 @@ Departures from the build spec, newest first.
 - A part hidden in all three principal views (doors' clearance gaps ignored, 3 mm) makes the right view a full section, so it can be located.
 - Part names (Side, Top, Shelf, Rail...) are guesses from position and shape; a name from the file or the user always wins. Narrow boards (under 150 mm) are never shelves, sides or tops.
 - UI: fixed colours (drafting blue, amber) instead of wallpaper colours, so screenshots and guides look the same everywhere; all six tabs in one fixed row (smaller lettering under 380 dp) rather than a scrolling row that hid Guide and Check.
+
+## v0.47–0.53: build order like a woodworker's, outputs to use in the shop
+- Exploded views keep front-to-back order along a shared pull direction. A part in front of another that moves the same way (an applied front before its box) goes at least as far, plus a gap of 1/8 of the box's depth.
+- Cutting plans never turn digits (a sideways 8 reads as ∞). A strip too narrow for its number gets a small upright number, or one beside it with a short leader.
+- Drawing views may come down beside the list of material, to just above the title block, when they stay clear of the list's left edge.
+- Tables and benches on legs are built from end frames: two legs and the rails between them that pair every leg once, taking the shortest such rails (the ends). The frames are made on the bench, then joined by the long rails.
+- A step that stands something on the floor touching nothing yet built goes in with the next step, which joins it. Hung parts are never merged this way.
+- A top with nothing above it is never screwed through its face; it is fixed from underneath with brackets. A leg's end under a top that aprons carry gets no joint of its own.
+- Thin back panels go on after the shelves they cover (within 25 mm), so the case is squared with the back. They move past only steps that don't come in from behind, and they stay before hung doors, drawers and pin shelves.
+- Consecutive steps that fit one more of the same item the same way are one step (up to 5 parts). Like parts in one step move together in pictures, with one arrow and a count.
+- A thin part's rabbet or groove is explained in full the first time; later steps refer back to that step.
+- In-app outputs: the cutting plan is shown full screen and redrawn as stock sizes change. The shopping list is a checklist whose ticks are kept per project. Build mode shows one step per screen, and the steps marked done are kept per project. Advice such as "buy 10% extra" is a note, not a line to tick.
