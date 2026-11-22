@@ -176,8 +176,8 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
                 Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f).height(48.dp)) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Import")
                 }
-                OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f).height(48.dp)) {
-                    Icon(Icons.Default.Create, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New design")
+                OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f).height(48.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp)) {
+                    Icon(Icons.Default.Create, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New design", maxLines = 1, softWrap = false)
                 }
             }
             Text("STL, OBJ or 3MF files, or a project shared from the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
@@ -322,10 +322,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             },
         )
         BusyBar(state)
-        // One row of tabs that scrolls sideways on a narrow screen.
-        androidx.compose.material3.PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp, containerColor = MaterialTheme.colorScheme.surface) {
+        // One row of tabs, all six always in view: compact labels without the usual side padding fit a narrow phone.
+        androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.surface) {
             listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label ->
-                androidx.compose.material3.Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1) })
+                androidx.compose.material3.Tab(selected = tab == i, onClick = { tab = i }, selectedContentColor = MaterialTheme.colorScheme.primary, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
+                    Text(label, style = if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 380) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                        maxLines = 1, softWrap = false, modifier = Modifier.padding(vertical = 14.dp))
+                }
             }
         }
         Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -420,9 +423,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     HorizontalDivider()
                 }
             }
+            Text("Share parts sends each part as its own STL in a zip; Share model sends the whole model as one STL.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(onClick = { shareParts(context, open) }, modifier = Modifier.weight(1f)) { Text("Parts (ZIP of STLs)") }
-                OutlinedButton(onClick = { shareModel(context, open) }, modifier = Modifier.weight(1f)) { Text("Whole model (STL)") }
+                Button(onClick = { shareParts(context, open) }, modifier = Modifier.weight(1f)) { Text("Share parts", maxLines = 1) }
+                OutlinedButton(onClick = { shareModel(context, open) }, modifier = Modifier.weight(1f)) { Text("Share model", maxLines = 1) }
             }
         } else {
             // Roughly what it weighs, from the materials the user has set; typical densities, so only an estimate.
