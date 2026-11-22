@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.15.0 - Sub-assemblies, and every part labelled
+
+A build guide that builds like a person would, and drawings that label every part.
+
+- **Sub-assemblies first.** Frames, boxes and other pieces made of several boards are now built on the bench in their own steps ("Step 1: make 2 by joining items 11, 13 and 23"), with the first board laid down and the rest joined to it. Later steps fit them whole: "Fit both sub-assemblies from step 8 from the front."
+- **A more sensible order.** Parts that stand on the floor go in before parts that rest on them, so a second leg frame is stood up before the top that spans both.
+- **Long steps no longer overlap.** A step with a long parts list starts its instructions below the list and carries on to the next page if needed.
+- **Every part is labelled on the drawings.** When the main exploded view cannot show a part (inside a cabinet, or crowded out), further exploded sheets show the build steps it belongs to, with earlier parts in grey for context.
+- **The list of material always exists.** When it was too long for the first sheet, the drawing used to say "see separate parts list" and none was made. It now has sheets of its own, and the first sheet says which.
+
 ## v0.14.0 - Real boards, and editing in the app
 
 Real boards, and editing in the app.
