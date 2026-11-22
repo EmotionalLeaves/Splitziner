@@ -1222,3 +1222,15 @@ class GrainTest {
         assertTrue(r.sheets.flatMap { it.pieces }.none { it.rotated })
     }
 }
+
+class ClearanceTest {
+    @Test fun gapsToNeighboursOnEachSide() {
+        val a = Part("A", "A", Fixtures.box(0.0, 100.0, 0.0, 100.0, 0.0, 18.0))
+        val left = Part("L", "L", Fixtures.box(-30.0, -12.0, 0.0, 100.0, 0.0, 18.0))
+        val above = Part("U", "U", Fixtures.box(0.0, 100.0, 0.0, 100.0, 25.0, 43.0))
+        val c = splitziner.check.DesignCheck.clearances(a, listOf(a, left, above)).associateBy { it.direction }
+        assertEquals(12.0, c.getValue("left").gap, 1e-6)
+        assertEquals(7.0, c.getValue("above").gap, 1e-6)
+        assertNull(c["right"])
+    }
+}

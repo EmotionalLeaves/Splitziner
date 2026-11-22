@@ -430,6 +430,30 @@ object DesignCheck {
     }
 
     /** How far [group] can travel along [d] before it meets one of [others] (mm); null if nothing is in the way. */
+    /** The nearest part in each of the six directions from [p], and the clear space to it (mm): for reading fits in 3D. */
+    class Clearance(val direction: String, val gap: Double, val item: Int?, val id: String)
+
+    fun clearances(p: Part, parts: List<Part>, maxGap: Double = 600.0): List<Clearance> {
+        val a = p.mesh.bounds
+        val out = ArrayList<Clearance>()
+        val dirs = listOf("left" to Vec3(-1.0, 0.0, 0.0), "right" to Vec3(1.0, 0.0, 0.0), "front" to Vec3(0.0, -1.0, 0.0), "back" to Vec3(0.0, 1.0, 0.0), "below" to Vec3(0.0, 0.0, -1.0), "above" to Vec3(0.0, 0.0, 1.0))
+        for ((name, d) in dirs) {
+            val k = if (d.x != 0.0) 0 else if (d.y != 0.0) 1 else 2
+            val cands = parts.filter { q -> q.id != p.id && !q.excluded }.filter { q ->
+                val b = q.mesh.bounds
+                (0..2).all { ax -> ax == k || (b.min[ax] < a.max[ax] && b.max[ax] > a.min[ax]) } &&
+                    (if (d[k] > 0) b.min[k] >= a.max[k] - 1.0 && b.min[k] - a.max[k] <= maxGap else b.max[k] <= a.min[k] + 1.0 && a.min[k] - b.max[k] <= maxGap)
+            }
+            var best: Clearance? = null
+            for (q in cands.sortedBy { q -> if (d[k] > 0) q.mesh.bounds.min[k] else -q.mesh.bounds.max[k] }.take(6)) {
+                val g = gap(listOf(p), listOf(q), d) ?: continue
+                if (g <= maxGap && (best == null || g < best.gap)) best = Clearance(name, g, q.item, q.id)
+            }
+            best?.let { out += it }
+        }
+        return out
+    }
+
     fun gap(group: List<Part>, others: List<Part>, d: Vec3): Double? {
         val bvh = others.map { Bvh(it.mesh) }
         var best: Double? = null

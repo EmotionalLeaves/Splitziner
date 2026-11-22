@@ -318,6 +318,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     Column(Modifier.weight(1f)) {
                         Text("${sel.name}  \u00b7  item ${sel.item ?: "-"}  \u00d7${sel.qty}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(sel.desc, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // The clear space to the nearest part on each side, to read fits and gaps.
+                        val clear by androidx.compose.runtime.produceState<List<splitziner.check.DesignCheck.Clearance>?>(null, sel.id, a) {
+                            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { runCatching { splitziner.check.DesignCheck.clearances(sel, a.parts) }.getOrDefault(emptyList()) }
+                        }
+                        clear?.filter { it.gap > 0.05 }?.takeIf { it.isNotEmpty() }?.let { cs ->
+                            Text("Gap " + cs.joinToString(", ") { c -> "${c.direction} ${a.format.format(c.gap)}${c.item?.let { " to item $it" } ?: ""}" }, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                     TextButton(onClick = { shapePart = sel }) { Text("Change") }
                     TextButton(onClick = { editPart = sel }) { Text("Name") }
