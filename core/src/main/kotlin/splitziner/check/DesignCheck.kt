@@ -321,8 +321,12 @@ object DesignCheck {
             span = maxOf(span, 2 * (a1 - reach))
             if (span > SAG_RATIO * p.t) {
                 sagging += p.item
-                out += Finding(Severity.CHECK, "Item ${p.item} may sag", "It lies flat and runs about ${d(span)} $u between supports at ${d(p.t)} thick: ${Math.round(span / p.t)} times its thickness. As a rule of thumb a loaded shelf wants support at least every ${SAG_RATIO.toInt()} thicknesses. The app cannot tell how much it will carry.",
-                    live.filter { it.item == p.item }.map { it.id })
+                // The thinnest stock board that brings the span within the rule, offered as a one-tap change.
+                val need = stockThicknesses(fmt).filter { it * SAG_RATIO >= span && it > p.t }.minOrNull()
+                val ids = live.filter { it.item == p.item }.map { it.id }
+                out += Finding(Severity.CHECK, "Item ${p.item} may sag", "It lies flat and runs about ${d(span)} $u between supports at ${d(p.t)} thick: ${Math.round(span / p.t)} times its thickness. As a rule of thumb a loaded shelf wants support at least every ${SAG_RATIO.toInt()} thicknesses. The app cannot tell how much it will carry." +
+                    (if (need != null) " Making it ${d(need)} $u thick, or adding a support in the middle, keeps it within the rule." else " Add a support in the middle."),
+                    ids, if (need != null) listOf(Fix(FixKind.SET_THICKNESS, "Make it ${d(need)} $u thick", ids, need)) else emptyList())
             }
         }
         val leaky = live.filter { !it.watertight }
