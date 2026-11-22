@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.54.0 - Professional drawing sets for big models
+
+- **The list of material goes on small sheets.** When it doesn't fit on the drawing, it now continues on the smallest sheet that holds it, usually letter or A4, instead of a few lines in the corner of a huge sheet.
+- **Long, narrow parts are drawn bigger.** A part such as a 68 in apron that is 3 in deep now gets a scale where its narrow side can be read, so notches show up.
+- **Boards split from a solid get proper names** (Rail, Shelf, Upright…) instead of the id of the part they came from, such as "P04".
+- **Making the parts** puts all the thin parts that need the same size of groove in one line ("For item 33, item 49 and item 28, if you set them in a groove: …").
+- Suggested fixes no longer offer to "cut back" a part when that would remove more than a quarter of it.
+
 ## v0.53.0 - Build mode and shopping list polish
 
 - **Build mode:** steps without a title of their own now show their first instruction as the title (for example "Fit item 1 (side) from the left") instead of "Fit the parts". The parts each step needs are listed in ordinary type.
