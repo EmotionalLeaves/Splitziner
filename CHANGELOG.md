@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.34.0 - Add shelves and dividers
+
+Add shelves and dividers in one go.
+
+- **Add a shelf or divider.** On the 3D tab, More… → **Add a shelf or divider**:
+  - **Shelf:** type the height of its top. It spans between the sides on either side of the middle, as deep as they reach, stopping at a back panel.
+  - **Divider:** type where its centre goes. It stands between the shelf (or top and bottom) above and below it.
+  - If there's no room (nothing to hold it on both sides, or something in the way), it says so instead of adding a part that would float or overlap.
+
 ## v0.33.0 - Safety and stiffness checks
 
 Safety and stiffness checks.
