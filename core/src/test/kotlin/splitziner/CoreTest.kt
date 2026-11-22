@@ -1258,3 +1258,13 @@ class ShelfAtTest {
         assertNull(splitziner.edit.Editor.shelfAt(parts, (720.0 - 18) / 2 + 18, 18.0))
     }
 }
+
+class DividerAtTest {
+    @Test fun aDividerStandsBetweenBottomAndShelf() {
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val (min, size) = splitziner.edit.Editor.dividerAt(parts, 300.0, 18.0, 150.0)!!
+        assertEquals(291.0, min.x, 1e-6); assertEquals(18.0, size.x, 1e-6)
+        assertEquals(18.0, min.z, 1e-6); assertEquals((720.0 - 18) / 2 - 18, size.z, 1e-6)
+    }
+}

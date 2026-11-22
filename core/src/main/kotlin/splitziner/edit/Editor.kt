@@ -80,27 +80,38 @@ object Editor {
      * middle of the model when null), as deep as both reach front to back. Null when there are no uprights both
      * sides at that height, or the space is already taken.
      */
-    fun shelfAt(parts: List<Part>, z: Double, t: Double, x: Double? = null): Pair<Vec3, Vec3>? {
+    fun shelfAt(parts: List<Part>, z: Double, t: Double, x: Double? = null): Pair<Vec3, Vec3>? = fillAt(parts, 2, 0, z, t, x)
+
+    /** An upright divider [t] mm thick centred at [x], between the shelves (or top and bottom) above and below the middle. */
+    fun dividerAt(parts: List<Part>, x: Double, t: Double, z: Double? = null): Pair<Vec3, Vec3>? = fillAt(parts, 0, 2, x + t / 2, t, z)
+
+    /**
+     * A board thin along axis [a], its far face at [pos] along [a], spanning along axis [b] between the nearest parts
+     * either side of [at] (the middle when null) that are thin along [b], and front to back (Y) as far as both reach.
+     */
+    private fun fillAt(parts: List<Part>, a: Int, b: Int, pos: Double, t: Double, at: Double?): Pair<Vec3, Vec3>? {
         val live = parts.filter { !it.excluded }
         if (live.isEmpty()) return null
         val all = live.map { it.mesh.bounds }
-        val cx = x ?: (all.minOf { it.min.x } + all.maxOf { it.max.x }) / 2
-        val z0 = z - t
-        val uprights = live.indices.filter { i -> val e = all[i].extents; e.x < 0.3 * minOf(e.y, e.z) && all[i].min.z <= z0 && all[i].max.z >= z }
-        val left = uprights.filter { all[it].max.x <= cx }.maxByOrNull { all[it].max.x } ?: return null
-        val right = uprights.filter { all[it].min.x >= cx }.minByOrNull { all[it].min.x } ?: return null
-        val x0 = all[left].max.x; val x1 = all[right].min.x
-        var y0 = maxOf(all[left].min.y, all[right].min.y); var y1 = minOf(all[left].max.y, all[right].max.y)
-        // A back panel behind, or a rail in front, at this height: the shelf stops at it.
+        fun lo(i: Int, k: Int) = all[i].min[k]
+        fun hi(i: Int, k: Int) = all[i].max[k]
+        val c = at ?: (all.minOf { it.min[b] } + all.maxOf { it.max[b] }) / 2
+        val p0 = pos - t
+        val supports = live.indices.filter { i -> val e = all[i].extents; e[b] < 0.3 * minOf(e[(b + 1) % 3], e[(b + 2) % 3]) && lo(i, a) <= p0 && hi(i, a) >= pos }
+        val s0 = supports.filter { hi(it, b) <= c }.maxByOrNull { hi(it, b) } ?: return null
+        val s1 = supports.filter { lo(it, b) >= c }.minByOrNull { lo(it, b) } ?: return null
+        val b0 = hi(s0, b); val b1 = lo(s1, b)
+        var y0 = maxOf(lo(s0, 1), lo(s1, 1)); var y1 = minOf(hi(s0, 1), hi(s1, 1))
         val mid = (y0 + y1) / 2
-        for (b in all) if (b.min.x < x1 - 0.5 && b.max.x > x0 + 0.5 && b.min.z < z - 0.5 && b.max.z > z0 + 0.5 && b.extents.y < 0.2 * (y1 - y0)) {
-            if (b.min.y >= mid) y1 = minOf(y1, b.min.y) else if (b.max.y <= mid) y0 = maxOf(y0, b.max.y)
+        for (bb in all) if (bb.min[b] < b1 - 0.5 && bb.max[b] > b0 + 0.5 && bb.min[a] < pos - 0.5 && bb.max[a] > p0 + 0.5 && bb.extents.y < 0.2 * (y1 - y0)) {
+            if (bb.min.y >= mid) y1 = minOf(y1, bb.min.y) else if (bb.max.y <= mid) y0 = maxOf(y0, bb.max.y)
         }
-        if (x1 - x0 < 50.0 || y1 - y0 < 50.0) return null
-        // Nothing may already be in the way.
-        val clash = all.any { b -> b.min.x < x1 - 0.5 && b.max.x > x0 + 0.5 && b.min.y < y1 - 0.5 && b.max.y > y0 + 0.5 && b.min.z < z - 0.5 && b.max.z > z0 + 0.5 }
+        if (b1 - b0 < 50.0 || y1 - y0 < 50.0) return null
+        val clash = all.any { bb -> bb.min[b] < b1 - 0.5 && bb.max[b] > b0 + 0.5 && bb.min.y < y1 - 0.5 && bb.max.y > y0 + 0.5 && bb.min[a] < pos - 0.5 && bb.max[a] > p0 + 0.5 }
         if (clash) return null
-        return Vec3(x0, y0, z0) to Vec3(x1 - x0, y1 - y0, t)
+        val mn = DoubleArray(3); val sz = DoubleArray(3)
+        mn[a] = p0; sz[a] = t; mn[b] = b0; sz[b] = b1 - b0; mn[1] = y0; sz[1] = y1 - y0
+        return Vec3(mn[0], mn[1], mn[2]) to Vec3(sz[0], sz[1], sz[2])
     }
 
     fun box(min: Vec3, size: Vec3): Mesh {
