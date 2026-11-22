@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.22.0 - Build steps in 3D and CNC profiles
+
+Watch it go together, and send parts to a CNC.
+
+- **Build steps in 3D.** On the 3D tab, tap **Build steps**. The model then appears one step at a time with the arrows: this step's parts in colour, what's already built in grey, later parts hidden. You can still turn and zoom it as usual. **Show all** goes back.
+- **CNC profiles.** On the Cut list tab, **CNC profiles** shares a DXF with every flat item's real outline at full size in millimetres, openings included, labelled with how many to cut and how thick. Outsides and openings are on separate layers. Blocks and rods are left out, and the app says which.
+- **Bigger step pictures.** Early steps used to draw a few parts tiny, in a frame sized for the finished piece. Each picture now frames what is built so far, but never less than about half the finished piece, so it doesn't jump around.
+- **A more natural starting part.** The build starts from a cabinet's bottom when it lies flat on the floor, otherwise from the biggest part standing there: a bookcase's side, not its kick board.
+- **3D view buttons** (Front, Top, Right, 3D) are smaller and sit down the edge, off the model.
+
 ## v0.21.0 - Templates, materials and weight
 
 Start from a real piece of furniture, and know what it weighs.
