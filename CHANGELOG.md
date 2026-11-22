@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.65.0 - Best board lengths
+
+- **Less wood to buy.** Boards can now be bought in 8, 10 or 12 ft lengths (2.4, 3.0 or 3.6 m), and each kind of board uses whichever length wastes least. A length that's only partly used is bought shorter.
+  - Bed frame slats: 5 × 12 ft + 1 × 8 ft instead of 11 × 8 ft.
+  - Table legs: one 10 ft 4x4 instead of two 8 ft ones.
+  - To use a single length only, turn this off under **Stock** in the cutting plan.
+- The cutting plan's bars are drawn to their real lengths, so a 12 ft board looks longer than an 8 ft one.
+
 ## v0.64.0 - Tidier guide tab
 
 - **Guide tab is tidier:** Print, Joining and Edit steps are now under **More…**, so the page preview has more room. Build mode and Share PDF stay up front.
