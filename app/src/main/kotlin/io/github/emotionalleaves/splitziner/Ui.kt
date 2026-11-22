@@ -10,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +20,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
@@ -39,8 +42,12 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,6 +57,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -74,7 +89,7 @@ import java.io.File
 @Composable
 fun SplitzinerApp(vm: AppViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
+    SplitzinerTheme {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                 val open = state.open
@@ -125,50 +140,71 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
     // STL has no reliable MIME type across file apps, so the picker shows every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importFrom(uri) }
     var confirmDelete by remember { mutableStateOf<ProjectMeta?>(null) }
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Splitziner", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Turn a 3D model or a template into something you can build: checked parts, drawings, a build guide and a shopping list.", style = MaterialTheme.typography.bodyMedium)
-        state.update?.let { u ->
-            Card(Modifier.fillMaxWidth().padding(top = 10.dp).clickable { vm.installUpdate() }) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Version ${u.version} is available", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(u.title.removePrefix("Splitziner ").ifBlank { "Tap Update to install it" }, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Button(onClick = { vm.installUpdate() }, enabled = state.updateProgress == null) { Text("Update") }
+    var menu by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        // Header: the app's name and what it does, with the rarely used things in a menu.
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Splitziner", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("From 3D model to workshop drawings", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Check for updates") }, onClick = { menu = false; vm.checkForUpdate() })
+                    DropdownMenuItem(text = { Text("Copy diagnostic report") }, onClick = { menu = false; copy(context, vm.diagnosticReport()) })
+                    DropdownMenuItem(text = { Text("Version ${BuildConfig.VERSION_NAME}") }, onClick = { menu = false }, enabled = false)
                 }
-                state.updateProgress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import") }
-            OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
-        }
-        if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
-        BusyBar(state)
-        Spacer(Modifier.height(8.dp))
-        if (state.projects.isEmpty() && state.busyLabel == null) {
-            Text("Import an STL, OBJ or 3MF file, or start a new design.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 24.dp))
-        }
-        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.projects, key = { it.id }) { p ->
-                Card(Modifier.fillMaxWidth().clickable(enabled = state.busyLabel == null) { vm.openProject(p) }) {
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            state.update?.let { u ->
+                Card(Modifier.fillMaxWidth().padding(top = 12.dp).clickable { vm.installUpdate() }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (p.partCount > 0) "${p.partCount} parts" else p.fileName, style = MaterialTheme.typography.bodySmall)
+                            Text("Version ${u.version} is available", style = MaterialTheme.typography.titleSmall)
+                            Text(u.title.removePrefix("Splitziner ").ifBlank { "Tap Update to install it" }, style = MaterialTheme.typography.bodySmall)
                         }
-                        TextButton(onClick = { confirmDelete = p }) { Text("Delete") }
+                        Button(onClick = { vm.installUpdate() }, enabled = state.updateProgress == null) { Text("Update") }
+                    }
+                    state.updateProgress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f).height(48.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Import")
+                }
+                OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f).height(48.dp)) {
+                    Icon(Icons.Default.Create, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New design")
+                }
+            }
+            Text("STL, OBJ or 3MF files, or a project shared from the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
+            BusyBar(state)
+        }
+        if (state.projects.isEmpty() && state.busyLabel == null) {
+            // First run: what the app makes, in the order it makes it.
+            Card(Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("How it works", style = MaterialTheme.typography.titleMedium)
+                    for ((n, t) in listOf("Import a model from your 3D app, or start from a template such as a bookcase or a chest of drawers.",
+                        "The app splits it into parts, checks each one can really be made, and offers fixes.",
+                        "You get engineering drawings, a step-by-step build guide, a cut list, a cutting plan and a shopping list.").withIndex()) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Box(Modifier.size(24.dp).background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                                Text("${n + 1}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                            Text(t, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
+                        }
                     }
                 }
             }
+        } else if (state.projects.isNotEmpty()) {
+            Text("Projects", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = { vm.checkForUpdate() }) { Text("Check for updates") }
+        LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
+            items(state.projects, key = { it.id }) { p -> ProjectCard(p, enabled = state.busyLabel == null, onOpen = { vm.openProject(p) }, onDelete = { confirmDelete = p }) }
         }
-        TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") }
     }
     UpdateDialogs(state, vm)
     confirmDelete?.let { p ->
@@ -230,47 +266,67 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = vm::closeProject) { Text("← Back") }
-            Text(open.meta.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            TextButton(onClick = { showHelp = true }) { Text("Help") }
-        }
-        BusyBar(state)
-        // A two-line summary, so the model and tabs get the screen; the rest opens on a tap.
-        var details by rememberSaveable { mutableStateOf(false) }
-        Card(Modifier.fillMaxWidth().clickable { details = !details }) {
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+    var details by rememberSaveable { mutableStateOf(false) }
+    var projectMenu by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        // App bar: back, the project and what it is, help and the project's own menu.
+        Row(Modifier.fillMaxWidth().padding(end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = vm::closeProject) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Column(Modifier.weight(1f).clickable { details = true }.padding(vertical = 4.dp)) {
+                Text(open.meta.title.ifBlank { open.meta.name }, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val notes = r.warnings.size + (if (r.duplicatesRemoved > 0) 1 else 0)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${r.parts} part${if (r.parts == 1) "" else "s"}  \u00b7  ${a.overallSize}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val guessed = if (open.meta.fileUnits == null) " (guessed)" else ""
-                        val notes = r.warnings.size + (if (r.duplicatesRemoved > 0) 1 else 0)
-                        Text("File in ${unitName(r.units.fileUnits)}$guessed" + (if (notes > 0) "  \u00b7  $notes note${if (notes == 1) "" else "s"}" else ""),
-                            style = MaterialTheme.typography.bodySmall, color = if (r.warnings.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Text(if (details) "Less" else "More", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text("${r.parts} part${if (r.parts == 1) "" else "s"}  \u00b7  ${a.overallSize}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (notes > 0) Text("  \u00b7  $notes note${if (notes == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
                 }
-                if (details) {
-                    Text("Shown in ${unitName(a.format.units)}.", style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = { showHelp = true }) { Text("Help") }
+            Box {
+                IconButton(onClick = { projectMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Project menu") }
+                DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
+                    DropdownMenuItem(text = { Text("Project details") }, leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) }, onClick = { projectMenu = false; details = true })
+                    DropdownMenuItem(text = { Text("Share project") }, leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }, onClick = {
+                        projectMenu = false
+                        val f = vm.exportProject()
+                        if (f == null) Toast.makeText(context, "Could not save the project", Toast.LENGTH_LONG).show()
+                        else shareFile(context, f, "application/zip", "Share project")
+                    })
+                    DropdownMenuItem(text = { Text("Units") }, onClick = { projectMenu = false; showUnits = true })
+                    DropdownMenuItem(text = { Text("Which way is up") }, onClick = { projectMenu = false; showUp = true })
+                }
+            }
+        }
+        if (details) AlertDialog(
+            onDismissRequest = { details = false },
+            confirmButton = { TextButton(onClick = { details = false }) { Text("Close") } },
+            title = { Text("Project details") },
+            text = {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val guessed = if (open.meta.fileUnits == null) " (guessed)" else ""
+                    Text("${r.parts} part${if (r.parts == 1) "" else "s"}, ${a.overallSize} overall.", style = MaterialTheme.typography.bodyMedium)
+                    Text("File ${open.meta.fileName}, read as ${unitName(r.units.fileUnits)}$guessed; shown in ${unitName(a.format.units)}.", style = MaterialTheme.typography.bodySmall)
+                    if (r.duplicatesRemoved > 0) Text("The file stored ${r.bodies} bodies; ${r.duplicatesRemoved} were exact duplicates and were removed.", style = MaterialTheme.typography.bodySmall)
+                    for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                    Row {
+                        TextButton(onClick = { details = false; showUnits = true }) { Text("Units") }
+                        TextButton(onClick = { details = false; showUp = true }) { Text("Which way is up") }
+                    }
                     TextButton(onClick = {
                         val f = vm.exportProject()
                         if (f == null) Toast.makeText(context, "Could not save the project", Toast.LENGTH_LONG).show()
                         else shareFile(context, f, "application/zip", "Share project")
                     }) { Text("Share project (to back up or open on another phone)") }
-                    if (r.duplicatesRemoved > 0) Text("The file stored ${r.bodies} bodies; ${r.duplicatesRemoved} were exact duplicates and were removed.", style = MaterialTheme.typography.bodySmall)
-                    for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    Row {
-                        TextButton(onClick = { showUnits = true }) { Text("Units") }
-                        TextButton(onClick = { showUp = true }) { Text("Which way is up") }
-                    }
                 }
+            },
+        )
+        BusyBar(state)
+        // One row of tabs that scrolls sideways on a narrow screen.
+        androidx.compose.material3.PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp, containerColor = MaterialTheme.colorScheme.surface) {
+            listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label ->
+                androidx.compose.material3.Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1) })
             }
         }
-        // Tabs wrap onto a second line on a narrow screen, so none is hidden off the edge.
-        androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label -> TabButton(label, tab == i, Modifier) { tab = i } }
-        }
+        Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
         if (tab == 3) {
             DrawingTab(open, state, vm, Modifier.weight(1f))
         } else if (tab == 4) {
@@ -309,16 +365,17 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
             if (a.parts.count { !it.excluded } > 1 && !playing) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Pull apart", style = MaterialTheme.typography.bodySmall)
+                    Text("Pull apart", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Slider(value = pull, onValueChange = { pull = it; if (it > 0f) vm.ensureExplodeOffsets() }, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
                 }
             }
             if (sel == null) {
-                Text("Drag to turn, pinch to zoom, two fingers to move. Tap a part to select it.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 6.dp))
-            } else {
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${sel.name}  \u00b7  item ${sel.item ?: "-"}  \u00d7${sel.qty}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Drag to turn, pinch to zoom, two fingers to move. Tap a part to select it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
+            } else Card(Modifier.fillMaxWidth().padding(bottom = 6.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    sel.item?.let { ItemBadge(it) }
+                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                        Text("${sel.name}  \u00b7  \u00d7${sel.qty}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(sel.desc, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         // The clear space to the nearest part on each side, to read fits and gaps.
                         val clear by androidx.compose.runtime.produceState<List<splitziner.check.DesignCheck.Clearance>?>(null, sel.id, a) {
@@ -332,13 +389,14 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     TextButton(onClick = { editPart = sel }) { Text("Name") }
                 }
             }
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(onClick = { playing = !playing; playStep = 1 }) { Text(if (playing) "Show all" else "Build steps") }
-                OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
-                if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                androidx.compose.material3.FilledTonalButton(onClick = { playing = !playing; playStep = 1 }, contentPadding = pad) { Text(if (playing) "Show all" else "Build steps") }
+                androidx.compose.material3.FilledTonalButton(onClick = { showAdd = true }, enabled = state.busyLabel == null, contentPadding = pad) { Text("Add a board") }
+                if (open.meta.edits.isNotEmpty()) androidx.compose.material3.FilledTonalButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null, contentPadding = pad) { Text("Undo") }
                 Box {
                     var more by remember { mutableStateOf(false) }
-                    OutlinedButton(onClick = { more = true }, enabled = state.busyLabel == null) { Text("More\u2026") }
+                    androidx.compose.material3.FilledTonalButton(onClick = { more = true }, enabled = state.busyLabel == null, contentPadding = pad) { Text("More\u2026") }
                     androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Add a shelf, divider, door or drawer") }, onClick = { more = false; showShelf = true })
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Overall size") }, onClick = { more = false; showSize = true })
@@ -349,12 +407,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
                 items(a.parts, key = { it.id }) { p ->
-                    Column(Modifier.fillMaxWidth().clickable { editPart = p }.padding(vertical = 8.dp)) {
-                        Row {
-                            Text(p.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (p.excluded) "excluded" else "item ${p.item ?: "-"}", style = MaterialTheme.typography.bodySmall)
+                    Row(Modifier.fillMaxWidth().clickable { editPart = p }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val it0 = p.item; if (it0 != null && !p.excluded) ItemBadge(it0) else Box(Modifier.size(28.dp))
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (p.excluded) "Left out of lists and drawings" else p.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text(if (p.excluded) "Left out of lists and drawings" else p.desc, style = MaterialTheme.typography.bodySmall)
+                        if (p.excluded) Text("excluded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                     }
                     HorizontalDivider()
                 }
@@ -378,8 +437,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
                     Row(Modifier.fillMaxWidth().clickable { editRow = row }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("${row.item}", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
-                        Column(Modifier.weight(1f)) {
+                        ItemBadge(row.item)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             // What the parts are called (Side, Shelf, Drawer side...), when they have names.
                             val names = row.name.ifBlank { row.memberIds.mapNotNull { partById[it] }.filter { it.name != it.id }.map { it.name }.distinct().sorted().let { if (it.isEmpty()) "" else it.take(3).joinToString(" / ") + if (it.size > 3) "…" else "" } }
                             if (names.isNotEmpty()) Text(names, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
@@ -418,6 +477,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     }
                 }
             }
+        }
         }
     }
 
@@ -1203,18 +1263,28 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     if (showTools) ToolsDialog(owned ?: emptySet(), onDismiss = { showTools = false }) { showTools = false; vm.setTools(it) }
     val report = state.check
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                if (report == null) Text("Checking the design…", style = MaterialTheme.typography.titleSmall)
-                else Text(
-                    when {
-                        report.problems > 0 -> "${report.problems} problem${if (report.problems == 1) "" else "s"}, ${report.checks} to check"
-                        report.checks > 0 -> "No problems found, ${report.checks} to check"
-                        else -> "No problems found"
-                    }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(if (owned == null) "Tools: not chosen yet" else if (owned.isEmpty()) "Tools: none ticked" else "Tools: " + owned.joinToString(", ") { it.label.lowercase() }, style = MaterialTheme.typography.bodySmall)
+        // The verdict first, coloured by how serious it is.
+        val (bg, fg) = when {
+            report == null -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurface
+            report.problems > 0 -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+            report.checks > 0 -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+            else -> successColors()
+        }
+        Card(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp), colors = CardDefaults.cardColors(containerColor = bg, contentColor = fg)) {
+            Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    if (report == null) Text("Checking the design…", style = MaterialTheme.typography.titleMedium)
+                    else Text(
+                        when {
+                            report.problems > 0 -> "${report.problems} problem${if (report.problems == 1) "" else "s"}, ${report.checks} to check"
+                            report.checks > 0 -> "No problems found, ${report.checks} to check"
+                            else -> "No problems found"
+                        }, style = MaterialTheme.typography.titleMedium)
+                    Text(if (owned == null) "Tools: not chosen yet" else if (owned.isEmpty()) "Tools: none ticked" else "Tools: " + owned.joinToString(", ") { it.label.lowercase() },
+                        style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(onClick = { showTools = true }) { Text("Tools") }
             }
-            OutlinedButton(onClick = { showTools = true }) { Text("Tools") }
         }
         if (report == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); return@Column }
         val changes = open.meta.edits.size
@@ -1223,23 +1293,24 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             if (changes > 0) OutlinedButton(onClick = { showUndo = true }) { Text("Undo ($changes)") }
         }
         for (n in open.analysis.editNotes) Text("Note: $n", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        if (report.problems == 0) Card(Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFDFF2E1))) {
-            Text("Nothing found that stops it being built as drawn. Next: read the Guide through, then share the Shopping list from the Cut list tab and take it to the store." +
-                if (report.checks > 0) " The items below are worth a look first." else "",
-                style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF1B5E20), modifier = Modifier.padding(10.dp))
-        }
+        if (report.problems == 0) Text("Nothing found that stops it being built as drawn. Next: read the Guide through, then share the Shopping list from the Cut list tab and take it to the store." +
+            if (report.checks > 0) " The items below are worth a look first." else "",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
         LazyColumn(Modifier.weight(1f)) {
             items(report.findings) { f ->
                 val (word, color) = when (f.severity) {
                     splitziner.check.Severity.PROBLEM -> "Problem" to MaterialTheme.colorScheme.error
-                    splitziner.check.Severity.CHECK -> "Check" to androidx.compose.ui.graphics.Color(0xFFB26A00)
-                    else -> "Note" to MaterialTheme.colorScheme.onSurfaceVariant
+                    splitziner.check.Severity.CHECK -> "Check" to MaterialTheme.colorScheme.tertiary
+                    else -> "Note" to MaterialTheme.colorScheme.outline
                 }
-                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Column(Modifier.padding(10.dp)) {
+                // A coloured edge says how serious each one is at a glance.
+                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                    Box(Modifier.width(4.dp).fillMaxHeight().background(color))
+                    Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 4.dp)) {
                         Text(word.uppercase(), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        Text(f.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(f.detail, style = MaterialTheme.typography.bodySmall)
+                        Text(f.title, style = MaterialTheme.typography.titleSmall)
+                        Text(f.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (f.partIds.isNotEmpty()) TextButton(onClick = { onShow(f.partIds[0]) }) { Text("Show in 3D") }
                             for (fix in f.fixes) TextButton(onClick = {
@@ -1253,6 +1324,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                                 })
                             }) { Text(fix.label) }
                         }
+                    }
                     }
                 }
             }
@@ -1631,3 +1703,47 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         },
     )
 }
+
+
+/** One project in the list: a monogram, its name, what it is, and when it was last used. */
+@Composable
+private fun ProjectCard(p: ProjectMeta, enabled: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    ElevatedCard(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onOpen)) {
+        Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
+                Text(p.name.trim().take(1).uppercase().ifBlank { "?" }, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val what = listOfNotNull(if (p.partCount > 0) "${p.partCount} part${if (p.partCount == 1) "" else "s"}" else null, p.size.ifBlank { null }).joinToString("  \u00b7  ")
+                Text(what.ifBlank { p.fileName }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val at = maxOf(p.createdAt, p.updatedAt)
+                if (at > 0) Text(android.text.format.DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString(),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}") }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Delete") }, leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }, onClick = { menu = false; onDelete() })
+                }
+            }
+        }
+    }
+}
+
+
+/** An item number in a circle, the way the drawings' balloons show it. */
+@Composable
+private fun ItemBadge(item: Int) {
+    Box(Modifier.size(28.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+        Text("$item", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+    }
+}
+
+
+/** Container and content colours for "all good", in light and dark. */
+@Composable
+private fun successColors(): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> =
+    if (isSystemInDarkTheme()) androidx.compose.ui.graphics.Color(0xFF1E4D2B) to androidx.compose.ui.graphics.Color(0xFFC8EFCF)
+    else androidx.compose.ui.graphics.Color(0xFFDDF1E1) to androidx.compose.ui.graphics.Color(0xFF14421F)

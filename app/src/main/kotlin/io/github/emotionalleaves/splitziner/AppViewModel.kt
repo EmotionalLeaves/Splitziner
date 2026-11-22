@@ -526,7 +526,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             val r = analysis.report
             Diagnostics.log("analysis: ${r.faces} tris, ${r.method}, ${r.bodies} bodies, ${r.parts} parts, units ${r.units.fileUnits}/${r.units.designUnits} margin ${r.units.margin}, ${analysis.timingsMs}")
-            val saved = meta.copy(partCount = analysis.parts.size)
+            val saved = meta.copy(partCount = analysis.parts.size, size = analysis.overallSize, updatedAt = System.currentTimeMillis())
             store.save(saved)
             drawingJob?.cancel(); guideJob?.cancel(); checkJob?.cancel()
             _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }

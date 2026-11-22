@@ -47,6 +47,10 @@ data class ProjectMeta(
     val edits: List<splitziner.edit.Edit> = emptyList(),
     /** The user's wording per step, keyed by the parts in the step. */
     val stepText: Map<String, splitziner.guide.StepText> = emptyMap(),
+    /** The finished size as last worked out ("38 x 12 x 72 in"), for the project list. */
+    val size: String = "",
+    /** When the project was last opened or changed, for the project list. */
+    val updatedAt: Long = 0L,
 ) {
     fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
         title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
@@ -68,7 +72,7 @@ class ProjectStore(context: Context) {
 
     fun list(): List<ProjectMeta> =
         (root.listFiles() ?: emptyArray()).mapNotNull { d -> runCatching { read(File(d, "project.json")) }.getOrNull() }
-            .sortedByDescending { it.createdAt }
+            .sortedByDescending { maxOf(it.createdAt, it.updatedAt) }
 
     /** Copies the file in from [input] without holding it in memory. */
     fun create(fileName: String, input: java.io.InputStream): ProjectMeta {
@@ -133,6 +137,7 @@ class ProjectStore(context: Context) {
         val st = JSONObject()
         for ((k, v) in meta.stepText) st.put(k, JSONObject().put("title", v.title ?: "").put("lines", JSONArray(v.lines ?: emptyList<String>())).put("check", v.check ?: ""))
         o.put("stepText", st)
+        o.put("size", meta.size).put("updatedAt", meta.updatedAt)
         // Write to a temporary file first so a crash never leaves a half-written project.
         val tmp = File(dir(meta.id), "project.json.tmp")
         tmp.writeText(o.toString())
@@ -168,6 +173,7 @@ class ProjectStore(context: Context) {
                     splitziner.guide.StepText(v.optString("title").ifBlank { null }, strings(v.optJSONArray("lines"))?.ifEmpty { null }, v.optString("check").ifBlank { null })
                 }
             } ?: emptyMap(),
+            size = o.optString("size"), updatedAt = o.optLong("updatedAt", 0L),
         )
     }
 
