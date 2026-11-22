@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.66.0 - New design checks sizes
+
+- **New design checks your sizes as you type.** If they leave a part no room (for example, legs wider than the table is long), the dialog says so under the preview and won't create the project until you fix the sizes. Before, you only found out after the project was made.
+
 ## v0.65.0 - Best board lengths
 
 - **Less wood to buy.** Boards can now be bought in 8, 10 or 12 ft lengths (2.4, 3.0 or 3.6 m), and each kind of board uses whichever length wastes least. A length that's only partly used is bought shorter.
