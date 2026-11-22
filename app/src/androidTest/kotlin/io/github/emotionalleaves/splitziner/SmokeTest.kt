@@ -94,8 +94,8 @@ class SmokeTest {
             waitFor(vm, 240_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
             shot("c04_drawing")
-            // Assembly sheet, exploded sheet, and one detail sheet per item.
-            assertTrue("sheets: ${drawing.sheets.size}", drawing.sheets.size >= 2 + open.analysis.cutList.rows.size)
+            // Assembly sheet and exploded sheet; the cabinet's parts are all plain boards, so no detail sheets.
+            assertTrue("sheets: ${drawing.sheets.size}", drawing.sheets.size >= 2)
             val pdf = PdfExporter.write(ctx, drawing.sheets, "smoke_drawing.pdf")
             assertTrue("pdf ${pdf.length()}", pdf.length() > 5_000)
             val (png, dpi) = ImageExporter.writePng(ctx, drawing.sheets[0], "smoke_sheet.png")
@@ -123,6 +123,15 @@ class SmokeTest {
             vm.undoLastEdit()
             waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.size == 1 }
             println("SMOKE editing ok: ${edited.parts.size} parts after adding one")
+
+            // Which way is up: the cabinet turned as if saved with Y up keeps its parts and lies on its back.
+            val tall = open.analysis.bounds.extents.z   // as first read, before the test moved a part up
+            vm.update { it.copy(up = "y") }
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.up == "y" }
+            assertEquals(tall, vm.state.value.open!!.analysis.bounds.extents.y, 1.0)
+            vm.update { it.copy(up = "z") }
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.up == "z" }
+            println("SMOKE turning ok")
 
             // Back to 3D with the pull-apart offsets ready, then give it time to fail if it is going to.
             vm.ensureExplodeOffsets()
