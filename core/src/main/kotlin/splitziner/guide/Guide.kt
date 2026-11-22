@@ -55,7 +55,7 @@ object GuideSteps {
         val pool = cur + built
         for (s in cur) {
             // Doors and drawer fronts are placed by their hinges or by eye, with even gaps; offsets would only mislead.
-            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon") continue
+            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon" || s.name == "Sliding door") continue
             // The longest part it touches that is longer than it along its own length; on the bench any part of the
             // unit, in the build a part already there or going in with it.
             val host = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
@@ -419,10 +419,11 @@ object GuideSteps {
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "dowels" -> j.size; "thin", "edge", "housed" -> continue
-                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"
+                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }
-                hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides") 1 else j.count)
+                hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides" || j.kind == "sliding") 1 else j.count)
+                if (j.kind == "sliding") hw["flush pulls (recessed handles)"] = (hw["flush pulls (recessed handles)"] ?: 0) + j.count
                 if (j.kind == "counterbored") { val plug = if (j.at.endsWith(" in")) "3/8 in wood plugs" else "10 mm wood plugs"; hw[plug] = (hw[plug] ?: 0) + j.count }
                 // Each drawer and door gets a handle; its style is the maker's choice.
                 if (j.kind == "hinges" || j.kind == "applied" || (j.kind == "slides" && j.into === j.through)) hw[splitziner.joinery.Fastening.HANDLE] = (hw[splitziner.joinery.Fastening.HANDLE] ?: 0) + 1

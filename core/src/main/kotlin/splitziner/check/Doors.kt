@@ -20,7 +20,33 @@ object Doors {
     /** Hinges by door height: two up to 900 mm, three to 1500, four beyond (common cabinetmakers' rule). */
     fun hinges(height: Double) = when { height <= 900 -> 2; height <= 1500 -> 3; else -> 4 }
 
+    /**
+     * Sliding doors: two or more thin panels across the front of an opening, one running just behind the other
+     * and overlapping it where they pass, between a top and a bottom. They run in tracks, not on hinges.
+     */
+    fun sliding(parts: List<Part>): List<String> {
+        val live = parts.filter { !it.excluded }
+        fun thin(p: Part) = p.mesh.bounds.extents.let { e -> e.y <= 30.0 && e.y <= 0.15 * minOf(e.x, e.z) && e.z >= 150.0 && e.x >= 150.0 }
+        val cands = live.filter { thin(it) }
+        val out = LinkedHashSet<String>()
+        for (a in cands) for (b in cands) {
+            if (a === b) continue
+            val x = a.mesh.bounds; val y = b.mesh.bounds
+            // b just behind a, not touching through it, overlapping it side to side and up and down.
+            val behind = y.min.y >= x.max.y - 0.5 && y.min.y - x.max.y < 6.0
+            val overlapX = minOf(x.max.x, y.max.x) - maxOf(x.min.x, y.min.x)
+            val overlapZ = minOf(x.max.z, y.max.z) - maxOf(x.min.z, y.min.z)
+            if (!behind || overlapX < 5.0 || overlapX > 0.5 * minOf(x.extents.x, y.extents.x) || overlapZ < 0.8 * minOf(x.extents.z, y.extents.z)) continue
+            // A case round them: something above and below each.
+            fun framed(q: Part) = q.mesh.bounds.let { qb -> live.any { o -> o.mesh.bounds.min.z >= qb.max.z - 0.5 && o.mesh.bounds.min.x < qb.max.x && o.mesh.bounds.max.x > qb.min.x } &&
+                live.any { o -> o.mesh.bounds.max.z <= qb.min.z + 0.5 && o.mesh.bounds.min.x < qb.max.x && o.mesh.bounds.max.x > qb.min.x } }
+            if (framed(a) && framed(b)) { out += a.id; out += b.id }
+        }
+        return out.toList()
+    }
+
     fun find(parts: List<Part>): List<Door> {
+        val slide = sliding(parts).toSet()
         val live = parts.filter { !it.excluded }
         if (live.size < 3) return emptyList()
         val b = live.map { it.mesh.bounds }
@@ -37,13 +63,13 @@ object Doors {
             // Touching nothing at all (it hangs on its hinges).
             val touches = live.indices.any { j -> j != i && (0..2).all { k -> b[j].min[k] <= b[i].max[k] + 0.05 && b[i].min[k] <= b[j].max[k] + 0.05 } }
             if (touches) continue
-            out += Door(p.id, e.z, true)
+            if (p.id !in slide) out += Door(p.id, e.z, true)
         }
         // Doors over the front of a box (overlay doors) are the thin panels found next.
         val inset = out.map { it.id }.toSet()
         val inDrawers = runCatching { Drawers.find(live) }.getOrDefault(emptyList()).flatMap { it.ids }.toSet()
         for ((i, p) in live.withIndex()) {
-            if (p.id in inset || p.id in inDrawers) continue
+            if (p.id in inset || p.id in inDrawers || p.id in slide) continue
             val e = b[i].extents
             if (e.y > 0.15 * minOf(e.x, e.z) || e.y > 30.0) continue
             if (overlay(live, b, i)) out += Door(p.id, e.z, true)

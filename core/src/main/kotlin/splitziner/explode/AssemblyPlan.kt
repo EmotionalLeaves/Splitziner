@@ -102,7 +102,7 @@ object AssemblyPlan {
      * parts that run across the modules (the worktop) stay out of them.
      */
     fun modules(live: List<Part>, drawerIds: Set<String> = emptySet()): List<List<String>> {
-        val hung = runCatching { splitziner.check.Doors.find(live).map { it.id } }.getOrDefault(emptyList()).toSet() + drawerIds +
+        val hung = runCatching { (splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live)) }.getOrDefault(emptyList()).toSet() + drawerIds +
             live.filter { it.name == "Drawer front" || it.name == "Door" }.map { it.id }
         val ps = live.filter { it.id !in hung && '.' !in it.id }
         if (ps.size < 8) return emptyList()
@@ -290,7 +290,7 @@ object AssemblyPlan {
         // About three things fitted per step reads well; a step that places a whole pedestal and its drawers does not.
         // Drawers are made whole and hung last, with any doors and shelves on pins.
         val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
-        val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
+        val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live) + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
             unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
             members = subs)
@@ -725,7 +725,7 @@ object AssemblyPlan {
         val dirOf = HashMap<Int, Dir>()
         // Doors, drawers and adjustable shelves go in once the box is finished: taken off first, so they go on last.
         val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
-        val hungIds = hungGiven ?: runCatching { splitziner.check.Doors.find(parts).map { it.id } + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
+        val hungIds = hungGiven ?: runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         // Each drawer comes out whole; a door or a shelf on its own.
         val idIndex = (0 until n).associateBy { parts[it].id }

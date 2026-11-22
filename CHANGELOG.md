@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.0 - Sliding doors and L desks
+
+- Sliding doors are recognised. They run in a double track (on the shopping list, cut to the opening) with flush pulls, instead of being screwed to the case as panels.
+- L-shaped desks: the two tops are joined with worktop connector bolts from underneath, instead of only being edge-glued. The return's end panel is called a side.
+
 ## v1.1.0 - One-step frame glue-ups
 
 - Picture frames (anything that lies flat as a whole) are laid out and glued up in one step, instead of being split over two.

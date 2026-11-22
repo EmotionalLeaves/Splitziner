@@ -170,6 +170,8 @@ object Roles {
                     if (b.min.x <= all.min.x + 1.0 || b.max.x >= all.max.x - 1.0 || !beyond(true) || !beyond(false)) "Side" else "Divider"
                 }
                 e.y <= t + 0.01 -> when {
+                    // At the back but narrow against the whole piece (an L desk's return end): a side, not a back.
+                    b.max.y >= all.max.y - 1.0 && t > 10.0 && e.x < 0.5 * all.extents.x && e.z > 0.5 * h -> "Side"
                     b.max.y >= all.max.y - 1.0 -> if (t <= 10.0) "Back panel" else "Back"
                     b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 -> "Kick board"
                     b.min.y <= all.min.y + 1.0 -> "Front"
@@ -183,6 +185,7 @@ object Roles {
                 else -> continue
             }
         }
+        for (id in runCatching { splitziner.check.Doors.sliding(live) }.getOrDefault(emptyList())) out[id] = "Sliding door"
         // A tenon: a small block sunk into one part (a leg's mortise) and butting the end of another (an apron),
         // drawn as a part of its own. It is that apron's tenon.
         for (p in live) {

@@ -284,3 +284,8 @@ Departures from the build spec, newest first.
 ## v1.1
 - A piece that lies flat on the bench as a whole (under 100 mm high, every part on the floor and lying flat: a picture frame) is laid out and glued up in one step.
 - A rail built on the bench with only its tenons glued in is called by the rail's name ("glue the tenons into 2 aprons", "the 2 aprons from step 2").
+
+## v1.2
+- Sliding doors: thin panels (over 150 mm each way) where one runs just behind another (under 6 mm apart), overlapping it by more than 5 mm but less than half its width over most of its height, each with something above and below. They are hung last, nothing is screwed to them, and they run in a double track set as long as the opening, with flush pulls so they pass each other.
+- Two panels at least 300 mm wide meeting edge to edge over 300 mm or more (an L desk's tops) are pulled together with worktop connector bolts from underneath, one per 300 mm, at least two, with biscuits or dowels to keep the faces level. Narrower edge joints stay glued.
+- A 3/4 in panel standing at the back but less than half the piece's width (an L desk's return end) is a side, not a back.

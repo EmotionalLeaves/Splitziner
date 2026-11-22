@@ -65,6 +65,9 @@ object Fastening {
     /** The deepest counterbore asked for: a 3/8 in bit bores cleanly to about 2 in (a 3-1/2 in leg). */
     private const val COUNTERBORE_MAX = 52.0
 
+    /** Panels at least this wide meeting edge to edge over at least this length get connector bolts (12 in). */
+    private const val WIDE_JOIN = 300.0
+
     /** Side rails longer than this (4 ft) make a frame too big to carry assembled: they get knock-down fittings. */
     private const val BED_RAIL_MIN = 1200.0
 
@@ -162,7 +165,8 @@ object Fastening {
         val doors = runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList())
         val pinned = runCatching { splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList())
         // An adjustable shelf may touch the back panel, but it only rests on its pins.
-        val doorIds = doors.map { it.id }.toSet() + pinned
+        val slidingIds = runCatching { splitziner.check.Doors.sliding(live) }.getOrDefault(emptyList())
+        val doorIds = doors.map { it.id }.toSet() + pinned + slidingIds
         val drawerOf = HashMap<String, Int>()
         val drawers = runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList())
         drawers.forEachIndexed { k, d -> for (id in d.ids) drawerOf[id] = k }
@@ -247,6 +251,15 @@ object Fastening {
             // Ends meeting edges (the corners of a frame) are not this: there a screw goes through the edge into the end.
             fun longAxis(n: Int) = (0..2).maxByOrNull { ax -> hi[n][ax] - lo[n][ax] }!!
             if (thinAxis(i) == thinAxis(j) && thinAxis(i) != k && longAxis(i) != k && longAxis(j) != k && length >= SMALLEST) {
+                // Two wide panels meeting edge to edge (an L desk's two tops, a worktop round a corner) are pulled
+                // together from underneath with worktop connector bolts; glue alone would not hold a butt joint that long.
+                fun width(n: Int) = (0..2).map { ax -> hi[n][ax] - lo[n][ax] }.sorted()[1]
+                if (width(i) >= WIDE_JOIN && width(j) >= WIDE_JOIN && length >= WIDE_JOIN) {
+                    val n = maxOf(2, ceil(length / 300.0).toInt())
+                    joints.getOrPut(step) { ArrayList() } += Joint(thr, into, n, "", "edgebolt", false)
+                    totals["worktop connector bolts"] = (totals["worktop connector bolts"] ?: 0) + n
+                    continue
+                }
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
                 continue
             }
@@ -565,6 +578,16 @@ object Fastening {
             totals[hk] = (totals[hk] ?: 0) + n
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
         }
+        // Sliding doors run in a double track along the top and bottom of their opening, fitted when they go in.
+        if (slidingIds.isNotEmpty()) {
+            val ds = live.filter { it.id in slidingIds }
+            val span = ds.maxOf { it.mesh.bounds.max.x } - ds.minOf { it.mesh.bounds.min.x }
+            val first = ds.maxByOrNull { it.mesh.bounds.min.y }!!   // the back one goes in first
+            val u = if (fmt.isInch) " in" else " mm"
+            joints.getOrPut(ds.maxOf { mainOf(it) }) { ArrayList() }.add(0, Joint(first, ds.minByOrNull { it.mesh.bounds.min.y }!!, ds.size, "", "sliding", false, fmt.format(span) + u))
+            totals["double sliding-door track set, ${fmt.format(span)}$u"] = 1
+            totals["flush pulls (recessed handles)"] = (totals["flush pulls (recessed handles)"] ?: 0) + ds.size
+        }
         // Adjustable shelves rest on pins, put in when the shelf goes in.
         for (id in pinned) {
             val p = live.first { it.id == id }
@@ -821,6 +844,7 @@ object Fastening {
             else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
             else if (j.kind == "housed") "Glue ${key.second} into the dado or rabbet cut for it in ${key.first}$times (its drawing gives the size), and clamp until dry."
+            else if (j.kind == "edgebolt") "Join ${key.first} to ${key.second} edge to edge from underneath with ${count(n)} worktop connector bolts$times: rout the recesses for them with the bolts' template, about 1 in in from each end and evenly between, put a few biscuits or dowels in the edges to keep the faces level, then tighten the bolts until the joint closes flush."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.kind == "tenon") "Glue ${key.second} into a mortise cut in the end of ${key.first}$times, standing out as drawn (a loose tenon); or, if you prefer, cut ${key.first} longer by the tenon's length and cut the tenon on it. Let the glue set before fitting it."
             else if (j.kind == "mortise") "Cut a mortise in ${key.first} for each tenon$times (its drawing gives the size and place), spread glue in the mortises and on the tenons of ${key.second}, push them home and clamp across the joint until dry. Check it is square as you clamp."
@@ -832,6 +856,7 @@ object Fastening {
                 val ats = g.map { it.at }.distinct()
                 "Screw a closet rod socket (a cup or flange sized for the rod) to the inside of ${key.first} at each end of ${key.second}, its centre ${ats.first()}${if (ats.size > 1) " on each side" else ""}; open sockets let the rod lift out. Cut the rod a little short if the sockets need it, then drop it in."
             }
+            else if (j.kind == "sliding") "Fit a double sliding-door track across the opening, ${j.at} long: screw the deep channel under the top and the shallow one on the bottom, both set back the same from the front edge (or cut two grooves in each, as the track's maker shows). ${if (key.first == key.second) "Lift one ${key.first} into the back channels first, then the other into the front ones" else "Lift ${key.first} into the back channels first, then ${key.second} into the front ones"}; they overlap where they pass. Fit a flush pull (a recessed handle) to each, so they can slide past each other."
             else if (j.kind == "bedrail") "Hang ${key.second} on ${key.first} with bed rail fasteners, one pair at each end$times: let the slotted plate into a shallow recess in ${key.first} and screw it in, screw the hooked plate to the end of ${key.second} at the same height, then hook the rail on and tap it down. No glue, so the bed comes apart to move."
             else if (j.kind == "mitre") {
                 val names = joinedNames(g.flatMap { listOf(itemName(it.through), itemName(it.into)) }.distinct())
@@ -875,7 +900,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

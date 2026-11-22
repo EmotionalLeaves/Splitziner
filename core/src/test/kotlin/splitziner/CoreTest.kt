@@ -1755,3 +1755,21 @@ class TenonTest {
         assertTrue(splitziner.drawing.PartDrawings.grooveNotes(leg, a.parts, a.housed, LengthFormat("in", "fraction")).single().startsWith("MORTISE FOR ITEM"))
     }
 }
+
+class SlidingDoorTest {
+    @Test fun doorsOneBehindTheOtherRunInATrack() {
+        val T = 19.05; val W = 1524.0; val D = 457.2; val H = 609.6
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val dh = H - 76.2 - 2 * T - 3.2; val dw = (W - 2 * T) / 2 + 12.7
+        val ms = listOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, H - T, W - 2 * T, D, T), b(T, 0.0, 76.2, W - 2 * T, D, T),
+            b(T, 50.8, 0.0, W - 2 * T, T, 76.2), b(T, D - 6.35, 76.2 + T, W - 2 * T, 6.35, H - 76.2 - 2 * T),
+            b(T, 0.0, 76.2 + T + 1.6, dw, T, dh), b(W - T - dw, T + 1.6, 76.2 + T + 1.6, dw, T, dh))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, a.parts.count { it.name == "Sliding door" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(1, f.all.count { it.kind == "sliding" })
+        assertTrue(f.all.none { (it.through.name == "Sliding door" || it.into.name == "Sliding door") && it.kind != "sliding" })
+        assertTrue(f.hardware.any { it.contains("sliding-door track") })
+    }
+}
