@@ -72,18 +72,41 @@ object BodySplitter {
 
         val areas = DoubleArray(nF) { MeshOps.triangleArea(soup, it) }
         val maxArea = areas.maxOrNull() ?: 0.0
-        val good = BooleanArray(nF) { areas[it] > maxArea * 1e-10 }
-        val degenerate = good.count { !it }
+        val degenerate = (0 until nF).count { areas[it] <= maxArea * 1e-10 }
+
+        // Exporters sometimes write every body two or three times over. Exact repeats are dropped
+        // triangle by triangle before anything else, so each body is seen once. Only triangles with
+        // the same winding count as repeats: two boards stacked face to face share triangles that
+        // face opposite ways, and both must be kept.
+        val triIndex = PointIndexer(nF)
+        var ut = IntArray(nF * 3)              // unique triangles' vertex ids, in first-seen order
+        var mult = IntArray(nF)                // how many times each was stored
+        var nU = 0
+        for (t in 0 until nF) {
+            if (areas[t] <= maxArea * 1e-10) continue
+            var a = fi[3 * t]; var b = fi[3 * t + 1]; var c = fi[3 * t + 2]
+            if (a == b || b == c || c == a) continue
+            // Rotate so the smallest id leads; the cyclic order (and so the winding) is kept.
+            if (b < a && b < c) { val x = a; a = b; b = c; c = x } else if (c < a && c < b) { val x = a; a = c; c = b; b = x }
+            val before = triIndex.size
+            val id = triIndex.idOf(a.toLong(), b.toLong(), c.toLong())
+            if (id == before) { ut[3 * id] = fi[3 * t]; ut[3 * id + 1] = fi[3 * t + 1]; ut[3 * id + 2] = fi[3 * t + 2]; nU = id + 1 }
+            mult[id]++
+        }
+        ut = ut.copyOf(nU * 3); mult = mult.copyOf(nU)
 
         var method = METHOD_FILE_ORDER
-        var groups = splitByFileOrder(soup, fi, good, nF, sc0, all.center)
+        var groups = splitByFileOrder(verts, ut, nU, sc0, all.center)
         if (groups == null) {
-            groups = splitByComponents(fi, good, nF)
+            groups = splitByComponents(verts, ut, nU, sc0)
             method = if (groups.size >= 2) METHOD_COMPONENTS else METHOD_SINGLE
         }
+        // A body's copy count is how often its triangles were stored (the middle value, to shrug off strays).
+        val groupCopies = groups.map { g -> g.map { mult[it] }.sorted()[g.size / 2] }
 
         // Build one mesh per body from the shared vertex ids.
-        val rawBodies = groups.map { faces -> bodyMesh(verts, fi, faces) }.filter { it.triangleCount > 0 }
+        val built = groups.mapIndexed { i, faces -> bodyMesh(verts, ut, faces) to groupCopies[i] }.filter { it.first.triangleCount > 0 }
+        val rawBodies = built.map { it.first }
 
         val bodyBounds = rawBodies.fold(null as Aabb?) { acc, m -> acc?.union(m.bounds) ?: m.bounds } ?: all
         val ext = bodyBounds.extents
@@ -94,14 +117,15 @@ object BodySplitter {
 
         var fixed = 0
         val cleaned = ArrayList<Mesh>()
-        for (b in rawBodies) {
+        val cleanedCopies = ArrayList<Int>()
+        for ((bi, b) in rawBodies.withIndex()) {
             var m = MeshOps.scaled(b, units.scale)
             if (!m.isWatertight) {
                 val f = TJunctionFixer.fix(m)
                 if (f.isWatertight || f.triangleCount >= m.triangleCount) { if (f.isWatertight) fixed++; m = f }
             }
             if (m.isWatertight) m = MeshOps.fixWinding(m)
-            if (m.triangleCount >= MIN_FACES) cleaned += m
+            if (m.triangleCount >= MIN_FACES) { cleaned += m; cleanedCopies += built[bi].second }
         }
 
         // The same body stored more than once is one part, not several.
@@ -109,7 +133,7 @@ object BodySplitter {
         val copies = ArrayList<Int>()
         val buckets = HashMap<Long, MutableList<Int>>()
         var removed = 0
-        for (m in cleaned) {
+        for ((ci, m) in cleaned.withIndex()) {
             val tl = 1e-4 * maxOf(m.scale, 1e-9)
             val key = bucketKey(m, tl * 100)
             var twin = -1
@@ -119,8 +143,8 @@ object BodySplitter {
                 if (unique.size - u > 64) break
                 if (sameBody(unique[u], m, tl)) { twin = u; break }
             }
-            if (twin >= 0) { copies[twin] = copies[twin] + 1; removed++ }
-            else { buckets.getOrPut(key) { ArrayList() } += unique.size; unique += m; copies += 1 }
+            if (twin >= 0) { copies[twin] = copies[twin] + cleanedCopies[ci]; removed += cleanedCopies[ci] }
+            else { buckets.getOrPut(key) { ArrayList() } += unique.size; unique += m; copies += cleanedCopies[ci]; removed += cleanedCopies[ci] - 1 }
         }
 
         val parts = unique.mapIndexed { i, m ->
@@ -139,64 +163,136 @@ object BodySplitter {
         return SplitResult(parts, report)
     }
 
+    private fun volumeOf(verts: DoubleArray, ut: IntArray, first: Int, last: Int, o: Vec3): Double {
+        var s = 0.0
+        for (t in first until last) {
+            val a = 3 * ut[3 * t]; val b = 3 * ut[3 * t + 1]; val c = 3 * ut[3 * t + 2]
+            val ax = verts[a] - o.x; val ay = verts[a + 1] - o.y; val az = verts[a + 2] - o.z
+            val bx = verts[b] - o.x; val by = verts[b + 1] - o.y; val bz = verts[b + 2] - o.z
+            val cx = verts[c] - o.x; val cy = verts[c + 1] - o.y; val cz = verts[c + 2] - o.z
+            s += ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx)
+        }
+        return s / 6
+    }
+
     /** Returns each body's triangle indices, or null when the file is not laid out body by body. */
-    private fun splitByFileOrder(soup: DoubleArray, fi: IntArray, good: BooleanArray, nF: Int, sc0: Double, origin: Vec3): List<IntArray>? {
+    private fun splitByFileOrder(verts: DoubleArray, ut: IntArray, nU: Int, sc0: Double, origin: Vec3): List<IntArray>? {
         val parity = LongIntMap(1024)
         var odd = 0
         var start = 0
-        var nz = 0
         val ranges = ArrayList<IntArray>()
         val minVol = 1e-9 * sc0 * sc0 * sc0
-        for (i in 0 until nF) {
+        for (i in 0 until nU) {
             for (k in 0..2) {
-                val a = fi[3 * i + k]; val b = fi[3 * i + (k + 1) % 3]
-                if (a == b) continue
                 // Toggle: an edge seen an odd number of times is still open.
-                val now = parity.add(edgeKey(a, b), 1)
+                val now = parity.add(edgeKey(ut[3 * i + k], ut[3 * i + (k + 1) % 3]), 1)
                 if (now % 2 == 1) odd++ else odd--
             }
-            if (good[i]) nz++
-            if (odd == 0 && nz >= MIN_FACES) {
-                if (abs(MeshOps.soupVolume(soup, start, i + 1, good, origin)) > minVol) {
-                    ranges += intArrayOf(start, i + 1); start = i + 1; nz = 0
+            if (odd == 0 && i + 1 - start >= MIN_FACES && abs(volumeOf(verts, ut, start, i + 1, origin)) > minVol) {
+                ranges += intArrayOf(start, i + 1); start = i + 1
+            }
+        }
+        if (ranges.size < 2 || nU - start > MAX_LEFTOVER * nU) return null
+        if (start < nU) ranges[ranges.size - 1][1] = nU
+        return ranges.map { r -> IntArray(r[1] - r[0]) { r[0] + it } }
+    }
+
+    /**
+     * Groups triangles joined through edges that exactly two triangles share. Pieces left open by
+     * T-junctions (one piece's corner sitting on another piece's open edge) are then joined, so a
+     * body whose faces were written with mismatched edges still comes out whole.
+     */
+    private fun splitByComponents(verts: DoubleArray, ut: IntArray, nU: Int, sc0: Double): List<IntArray> {
+        val edgeIndex = LongIntMap(nU * 3 / 2 + 16)
+        var cnt = IntArray(nU * 3 / 2 + 16); var f0 = IntArray(cnt.size); var f1 = IntArray(cnt.size); var ea = IntArray(cnt.size); var eb = IntArray(cnt.size)
+        var n = 0
+        for (t in 0 until nU) for (k in 0..2) {
+            val a = ut[3 * t + k]; val b = ut[3 * t + (k + 1) % 3]
+            val key = edgeKey(a, b)
+            var e = edgeIndex.get(key)
+            if (e < 0) {
+                e = n++; edgeIndex.put(key, e)
+                if (e >= cnt.size) { val c = cnt.size * 2; cnt = cnt.copyOf(c); f0 = f0.copyOf(c); f1 = f1.copyOf(c); ea = ea.copyOf(c); eb = eb.copyOf(c) }
+                f0[e] = t; ea[e] = a; eb[e] = b
+            } else if (cnt[e] == 1) f1[e] = t
+            cnt[e]++
+        }
+        val ds = DisjointSet(nU)
+        for (e in 0 until n) if (cnt[e] == 2) ds.union(f0[e], f1[e])
+
+        // An edge shared by four or more triangles is where separate bodies touch (two boards face to
+        // face share all four edges of the touching face). Each triangle is paired with its true
+        // neighbour: the first one met when turning about the edge into the solid behind it. That
+        // keeps the touching bodies apart while keeping each one whole.
+        val crowded = HashMap<Int, MutableList<Int>>()
+        for (t in 0 until nU) for (k in 0..2) {
+            val e = edgeIndex.get(edgeKey(ut[3 * t + k], ut[3 * t + (k + 1) % 3]))
+            if (cnt[e] >= 3) crowded.getOrPut(e) { ArrayList() } += t
+        }
+        for ((e, tris) in crowded) {
+            val a = Vec3(verts[3 * ea[e]], verts[3 * ea[e] + 1], verts[3 * ea[e] + 2]); val b = Vec3(verts[3 * eb[e]], verts[3 * eb[e] + 1], verts[3 * eb[e] + 2])
+            val u = (b - a).normalized()
+            val e1 = ((if (abs(u.x) < 0.9) Vec3.axis(0) else Vec3.axis(1)) cross u).normalized()
+            val e2 = u cross e1
+            val forward = BooleanArray(tris.size); val angle = DoubleArray(tris.size)
+            for ((i, t) in tris.withIndex()) {
+                var third = -1
+                for (k in 0..2) {
+                    val p = ut[3 * t + k]; val q = ut[3 * t + (k + 1) % 3]
+                    if (p == ea[e] && q == eb[e]) { forward[i] = true; third = ut[3 * t + (k + 2) % 3] }
+                    if (p == eb[e] && q == ea[e]) { forward[i] = false; third = ut[3 * t + (k + 2) % 3] }
+                }
+                val c = Vec3(verts[3 * third], verts[3 * third + 1], verts[3 * third + 2]) - a
+                val w = c - u * (c dot u)
+                angle[i] = Math.atan2(w dot e2, w dot e1)
+            }
+            for (i in tris.indices) {
+                if (!forward[i]) continue
+                // For a triangle running a->b its outside is toward increasing angle, so its solid lies toward decreasing angle.
+                var best = -1; var bestTurn = Double.MAX_VALUE
+                for (j in tris.indices) {
+                    if (forward[j]) continue
+                    var turn = angle[i] - angle[j]
+                    while (turn < 1e-7) turn += 2 * Math.PI     // a triangle lying exactly on this one is the last to be met, not the first
+                    if (turn < bestTurn) { bestTurn = turn; best = j }
+                }
+                if (best >= 0) ds.union(tris[i], tris[best])
+            }
+        }
+
+        // T-junctions: an open edge of one piece with another piece's open-edge vertex lying along it.
+        val open = (0 until n).filter { cnt[it] == 1 }
+        if (open.isNotEmpty() && open.size < 400_000) {
+            val tol = 1e-6 * sc0
+            val cell = maxOf(sc0 / 64, tol * 10)
+            fun c(v: Double) = Math.floor(v / cell).toLong()
+            fun gk(x: Long, y: Long, z: Long) = (x and 0x1fffff) or ((y and 0x1fffff) shl 21) or ((z and 0x1fffff) shl 42)
+            val grid = HashMap<Long, MutableList<Int>>()        // open-edge vertices, each with the triangle it belongs to
+            val owner = HashMap<Int, Int>()
+            for (e in open) for (v in intArrayOf(ea[e], eb[e])) if (owner.put(v, f0[e]) == null) {
+                grid.getOrPut(gk(c(verts[3 * v]), c(verts[3 * v + 1]), c(verts[3 * v + 2]))) { ArrayList() } += v
+            }
+            for (e in open) {
+                val a = Vec3(verts[3 * ea[e]], verts[3 * ea[e] + 1], verts[3 * ea[e] + 2]); val b = Vec3(verts[3 * eb[e]], verts[3 * eb[e] + 1], verts[3 * eb[e] + 2])
+                val len = (b - a).length
+                if (len <= tol) continue
+                val u = (b - a) / len
+                for (x in c(minOf(a.x, b.x) - tol)..c(maxOf(a.x, b.x) + tol)) for (y in c(minOf(a.y, b.y) - tol)..c(maxOf(a.y, b.y) + tol)) for (z in c(minOf(a.z, b.z) - tol)..c(maxOf(a.z, b.z) + tol)) {
+                    for (v in grid[gk(x, y, z)] ?: continue) {
+                        if (v == ea[e] || v == eb[e]) continue
+                        val p = Vec3(verts[3 * v], verts[3 * v + 1], verts[3 * v + 2])
+                        val t = (p - a) dot u
+                        if (t <= tol || t >= len - tol) continue
+                        if ((p - a - u * t).length < tol) ds.union(f0[e], owner.getValue(v))
+                    }
                 }
             }
         }
-        if (ranges.size < 2 || nF - start > MAX_LEFTOVER * nF) return null
-        if (start < nF) ranges[ranges.size - 1][1] = nF
-        return ranges.map { r -> (r[0] until r[1]).filter { good[it] }.toIntArray() }
-    }
 
-    /** Groups triangles joined through edges that exactly two triangles share. */
-    private fun splitByComponents(fi: IntArray, good: BooleanArray, nF: Int): List<IntArray> {
-        val edgeIndex = LongIntMap(nF * 3 / 2 + 16)
-        var cnt = IntArray(nF * 3 / 2 + 16); var f0 = IntArray(cnt.size); var f1 = IntArray(cnt.size)
-        var n = 0
-        var goodCount = 0
-        for (t in 0 until nF) {
-            if (!good[t]) continue
-            goodCount++
-            for (k in 0..2) {
-                val a = fi[3 * t + k]; val b = fi[3 * t + (k + 1) % 3]
-                if (a == b) continue
-                val key = edgeKey(a, b)
-                var e = edgeIndex.get(key)
-                if (e < 0) {
-                    e = n++; edgeIndex.put(key, e)
-                    if (e >= cnt.size) { cnt = cnt.copyOf(cnt.size * 2); f0 = f0.copyOf(cnt.size); f1 = f1.copyOf(cnt.size) }
-                    f0[e] = t
-                } else if (cnt[e] == 1) f1[e] = t
-                cnt[e]++
-            }
-        }
-        val ds = DisjointSet(nF)
-        // Edges shared by more than two triangles join nothing, so boxes touching along an edge stay apart.
-        for (e in 0 until n) if (cnt[e] == 2) ds.union(f0[e], f1[e])
         val byRoot = LinkedHashMap<Int, MutableList<Int>>()
-        for (t in 0 until nF) if (good[t]) byRoot.getOrPut(ds.find(t)) { ArrayList() } += t
+        for (t in 0 until nU) byRoot.getOrPut(ds.find(t)) { ArrayList() } += t
         val comps = byRoot.values.map { it.toIntArray() }
-        return if (comps.size >= 2 && comps.size <= maxOf(2, goodCount / 8)) comps
-        else listOf((0 until nF).filter { good[it] }.toIntArray())
+        return if (comps.size >= 2 && comps.size <= maxOf(2, nU / 8)) comps else listOf(IntArray(nU) { it })
     }
 
     private fun bodyMesh(verts: DoubleArray, fi: IntArray, faces: IntArray): Mesh {

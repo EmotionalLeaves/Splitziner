@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.1 - Sturdier part splitting
+
+Much sturdier part splitting for awkward files.
+
+- **Files that store the whole model several times over** now split correctly whatever order the copies come in. Before, only back-to-back repeats of each body were recognised.
+- **Bodies whose faces don't share edges properly** (a common export quirk) are kept whole instead of falling apart or being lumped together.
+- **Parts that touch face to face**, like two boards stacked on each other, stay separate even when the file mixes their triangles together.
+- **Triangles in any order**: a file no longer has to list one body after another for the app to tell the parts apart.
+
+If a file of yours still comes out as one part, or as too many, tap **Copy diagnostic report** and send it with a note of how many parts it should have.
+
 ## v0.6.0 - Edit the build steps
 
 Edit the build steps: the guide is now yours to correct.

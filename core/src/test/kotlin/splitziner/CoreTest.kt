@@ -540,3 +540,54 @@ class PlanOverrideTest {
         assertEquals("Fit 2× item 1 from the left and right.", splitziner.guide.GuideSteps.build(plan.parts, plan.steps)[1].text[0])
     }
 }
+
+class HardSplitTest {
+    private fun parts(raw: splitziner.io.RawModel) = BodySplitter.split(raw, "mm")
+
+    @Test fun wholeSetWrittenThreeTimesOver() {
+        // A B C ... then the whole set again, twice: not body-by-body repeats.
+        val bodies = Fixtures.miniCabinet(Fixtures.INCH)
+        val r = parts(Fixtures.soup(bodies + bodies + bodies))
+        assertEquals(7, r.parts.size)
+        assertTrue(r.parts.all { it.copies == 3 && it.watertight })
+        assertEquals(21, r.report.bodies); assertEquals(14, r.report.duplicatesRemoved)
+    }
+
+    @Test fun bodiesWithTJunctionsStillSplit() {
+        val t = Fixtures.boxWithTJunction()
+        val shifted = MeshOps.translated(t, Vec3(100.0, 0.0, 0.0))
+        val plain = Fixtures.box(200.0, 240.0, 0.0, 20.0, 0.0, 10.0)
+        for (repeat in listOf(1, 3)) {
+            val r = parts(Fixtures.soup(listOf(t, shifted, plain), repeat = repeat))
+            assertEquals(3, r.parts.size, "repeat $repeat: ${r.report.method}")
+            assertTrue(r.parts.all { it.watertight }, "repeat $repeat")
+            assertEquals(8000.0, r.parts[0].mesh.volume, 1e-6)
+            assertTrue(r.parts.all { it.copies == repeat })
+        }
+    }
+
+    @Test fun boardsStackedFaceToFaceStayTwoParts() {
+        val a = Fixtures.box(0.0, 100.0, 0.0, 50.0, 0.0, 19.0); val b = Fixtures.box(0.0, 100.0, 0.0, 50.0, 19.0, 38.0)
+        for (interleave in listOf(false, true)) {
+            val r = parts(Fixtures.soup(listOf(a, b), interleave = interleave))
+            assertEquals(2, r.parts.size, "interleave $interleave")
+            assertTrue(r.parts.all { it.watertight })
+        }
+    }
+}
+
+class ScrambledCabinetTest {
+    @Test fun cabinetWithTrianglesInAnyOrderStillSplitsIntoSevenParts() {
+        // The worst an exporter can do: every body's triangles mixed in with every other's.
+        val bodies = Fixtures.miniCabinet(Fixtures.INCH)
+        val raw = Fixtures.soup(bodies, interleave = true)
+        val shuffled = (0 until raw.triangleCount).shuffled(Random(11))
+        val soup = DoubleArray(raw.soup.size)
+        shuffled.forEachIndexed { i, t -> raw.soup.copyInto(soup, 9 * i, 9 * t, 9 * t + 9) }
+        val r = BodySplitter.split(splitziner.io.RawModel(soup + soup, "scrambled", emptyList()), "mm")
+        assertEquals(BodySplitter.METHOD_COMPONENTS, r.report.method)
+        assertEquals(7, r.parts.size)
+        assertTrue(r.parts.all { it.watertight && it.copies == 2 })
+        assertEquals(bodies.sumOf { it.volume }, r.parts.sumOf { it.mesh.volume }, 1e-3)
+    }
+}
