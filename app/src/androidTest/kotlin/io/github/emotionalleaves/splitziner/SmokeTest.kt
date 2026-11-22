@@ -189,9 +189,11 @@ class SmokeTest {
             tap("Drawing")
             waitFor(vm, 300_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
+            shot("d04_drawing")
             assertTrue(PdfExporter.write(ctx, drawing.sheets, "smoke_desk.pdf").length() > 20_000)
             tap("Guide")
             waitFor(vm, 300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            shot("d05_guide")
             tap("3D"); Thread.sleep(3000); shot("d03_3d")
             println("SMOKE desk sheets=${drawing.sheets.size} guide pages=${vm.state.value.guide!!.pages.size}")
             assertEquals(Lifecycle.State.RESUMED, scenario.state)

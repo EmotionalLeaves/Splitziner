@@ -224,20 +224,29 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             TextButton(onClick = { showHelp = true }) { Text("Help") }
         }
         BusyBar(state)
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp)) {
-                Text("Found ${r.parts} part${if (r.parts == 1) "" else "s"}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                if (r.duplicatesRemoved > 0) {
-                    Text("The file stored ${r.bodies} bodies; ${r.duplicatesRemoved} were exact duplicates and were removed.", style = MaterialTheme.typography.bodySmall)
-                }
-                Text("Overall size ${a.overallSize}", style = MaterialTheme.typography.bodyMedium)
+        // A two-line summary, so the model and tabs get the screen; the rest opens on a tap.
+        var details by rememberSaveable { mutableStateOf(false) }
+        Card(Modifier.fillMaxWidth().clickable { details = !details }) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val guessed = if (open.meta.fileUnits == null) " (guessed)" else ""
-                    Text("File saved in ${unitName(r.units.fileUnits)}$guessed, shown in ${unitName(a.format.units)}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showUnits = true }) { Text("Change") }
-                    TextButton(onClick = { showUp = true }) { Text("Turn") }
+                    Column(Modifier.weight(1f)) {
+                        Text("${r.parts} part${if (r.parts == 1) "" else "s"}  \u00b7  ${a.overallSize}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val guessed = if (open.meta.fileUnits == null) " (guessed)" else ""
+                        val notes = r.warnings.size + (if (r.duplicatesRemoved > 0) 1 else 0)
+                        Text("File in ${unitName(r.units.fileUnits)}$guessed" + (if (notes > 0) "  \u00b7  $notes note${if (notes == 1) "" else "s"}" else ""),
+                            style = MaterialTheme.typography.bodySmall, color = if (r.warnings.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(if (details) "Less" else "More", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
-                for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                if (details) {
+                    Text("Shown in ${unitName(a.format.units)}.", style = MaterialTheme.typography.bodySmall)
+                    if (r.duplicatesRemoved > 0) Text("The file stored ${r.bodies} bodies; ${r.duplicatesRemoved} were exact duplicates and were removed.", style = MaterialTheme.typography.bodySmall)
+                    for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Row {
+                        TextButton(onClick = { showUnits = true }) { Text("Units") }
+                        TextButton(onClick = { showUp = true }) { Text("Which way is up") }
+                    }
+                }
             }
         }
         // Tabs wrap onto a second line on a narrow screen, so none is hidden off the edge.
@@ -543,11 +552,12 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             }
         }
         Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
-        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Wraps rather than squeezing labels letter by letter on a narrow phone.
+        androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val ready = d != null && !state.drawingBusy
-            Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = ready, modifier = Modifier.weight(1.6f)) { Text("Share PDF") }
-            OutlinedButton(onClick = { if (d != null) shareImage(context, open, d, shown) }, enabled = ready, modifier = Modifier.weight(1f)) { Text("Image") }
-            OutlinedButton(onClick = { if (d != null) shareDxf(context, open, d) }, enabled = ready, modifier = Modifier.weight(1f)) { Text("DXF") }
+            Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = ready) { Text("Share PDF") }
+            OutlinedButton(onClick = { if (d != null) shareImage(context, open, d, shown) }, enabled = ready) { Text("Image") }
+            OutlinedButton(onClick = { if (d != null) shareDxf(context, open, d) }, enabled = ready) { Text("DXF") }
         }
     }
     if (showInfo) TitleBlockDialog(open.meta, onDismiss = { showInfo = false }) { m -> showInfo = false; vm.updateDrawing { m } }
@@ -665,7 +675,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     val g = state.guide
     val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
     Column(modifier.fillMaxWidth()) {
-        Text("The build order is a draft worked out from the shapes alone. It does not know about glue, clamps or screws: read it through before you build.",
+        Text("A draft order worked out from the shapes: read it through before you build.",
             style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
         Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
             if (g != null && g.pages.isNotEmpty()) SheetPreview(g.pages[shown], Modifier.fillMaxSize())
@@ -679,15 +689,15 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         }
         if (g != null) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { page = shown - 1 }, enabled = shown > 0) { Text("\u2190 Back") }
-                Text("Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-                OutlinedButton(onClick = { page = shown + 1 }, enabled = shown < g.pages.size - 1) { Text("Next \u2192") }
+                OutlinedButton(onClick = { page = shown - 1 }, enabled = shown > 0) { Text("\u2190") }
+                Text("Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                OutlinedButton(onClick = { page = shown + 1 }, enabled = shown < g.pages.size - 1) { Text("\u2192") }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
             OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
             OutlinedButton(onClick = { showJoin = true }, enabled = !state.guideBusy) { Text("Joining") }
-            Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy, modifier = Modifier.weight(1f)) { Text("Share guide (PDF)") }
         }
     }
     if (showEditor && g != null) StepEditor(open, g.steps, vm, onDismiss = { showEditor = false })
@@ -790,8 +800,8 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
-    "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap Turn beside the units and pick the axis that should point up.",
-    "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap Change on the project screen.",
+    "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
     "Holes" to "Each part's own drawing shows where its round holes are and how big: a size note such as 3X 8 DIA THRU, and each centre measured from the datum corner. The app finds straight round holes with a flat rim. It does not know about threads, countersinks or what a hole is for, and holes drilled at an angle are drawn but not dimensioned.",
     "Dimensions" to "Everything is measured from the lower-left-front corner. Which faces really matter for fit is a design decision the app can't make.",
