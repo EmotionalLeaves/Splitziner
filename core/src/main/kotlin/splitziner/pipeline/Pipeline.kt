@@ -133,7 +133,8 @@ object Pipeline {
             val roles = timed("roles") { runCatching { splitziner.parts.Roles.names(ps) }.getOrDefault(emptyMap()) }
             // A board split from a drawn part carries that part's id as its name ("P04" on "P04.2"): no name of its own either.
             fun unnamed(p: Part) = (p.name == p.id || p.name == p.id.substringBefore('.')) && p.id !in options.partNames && p.id.substringBefore('.') !in options.partNames
-            ps.map { p -> if (unnamed(p)) roles[p.id]?.let { p.copy(name = it) } ?: p else p }
+            // With no role either, it goes by its own id, which everything reads as "no name".
+            ps.map { p -> if (unnamed(p)) roles[p.id]?.let { p.copy(name = it) } ?: p.copy(name = p.id) else p }
         }
         val cut = timed("cutlist") { CutList.build(toCut, fmt, options.itemOverrides) }
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }

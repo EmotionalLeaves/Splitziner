@@ -326,16 +326,20 @@ object Fastening {
      */
     fun cutLines(plan: FastenPlan, itemName: (Part) -> String): Map<Int, List<String>> {
         val out = LinkedHashMap<Int, MutableList<String>>()
-        for ((key, js) in plan.all.filter { it.kind == "thin" && it.size.split('|').size >= 2 }.groupBy { Triple(it.through.item, it.into.item, it.size) }) {
+        // One line per size of cut: several thin parts taking the same groove are named together.
+        for ((key, js) in plan.all.filter { it.kind == "thin" && it.size.split('|').size >= 2 }.groupBy { it.through.item to it.size }) {
             val host = key.first ?: continue
-            val parts = key.third.split('|'); val rabbet = parts.getOrNull(2) == "rabbet"
-            val thin = itemName(js[0].into)
+            val parts = key.second.split('|'); val rabbet = parts.getOrNull(2) == "rabbet"
+            val thins = js.groupBy { it.into.item }.values.map { itemName(it[0].into) }
+            val thin = if (thins.size == 1) thins[0] else thins.dropLast(1).joinToString(", ") + " and " + thins.last()
             // Joints over all copies of the item; the maker cuts each copy alike.
             val copies = maxOf(1, js[0].through.qty)
             val each = maxOf(1, js.size / copies)
-            val places = if (each > 1) " ($each on each)" else ""
-            out.getOrPut(host) { ArrayList() } += if (rabbet) "For $thin, if you set it in a rabbet: cut a rabbet ${parts[0]} wide and ${parts[1]} deep along the edge where it sits$places."
-                else "For $thin, if you set it in a groove: cut a groove ${parts[0]} wide and ${parts[1]} deep where its edge meets this part$places."
+            val places = if (each > 1) (if (copies > 1) " ($each on each)" else " ($each places)") else ""
+            val one = thins.size == 1
+            val obj = if (one) "it" else "them"; val sits = if (one) "it sits" else "they sit"; val meets = if (one) "its edge meets" else "their edges meet"
+            out.getOrPut(host) { ArrayList() } += if (rabbet) "For $thin, if you set $obj in a rabbet: cut a rabbet ${parts[0]} wide and ${parts[1]} deep along the edge where $sits$places."
+                else "For $thin, if you set $obj in a groove: cut a groove ${parts[0]} wide and ${parts[1]} deep where $meets this part$places."
         }
         return out
     }
