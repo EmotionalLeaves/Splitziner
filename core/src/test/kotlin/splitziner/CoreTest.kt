@@ -702,7 +702,7 @@ class CutPlanTest {
         assertEquals(panels.sumOf { it.qty }, r.sheets.sumOf { it.pieces.size })
         for (sh in r.sheets) {
             for (a in sh.pieces) {
-                assertTrue(a.x >= -1e-6 && a.y >= -1e-6 && a.x + a.w <= stock.sheetW + 1e-6 && a.y + a.l <= stock.sheetL + 1e-6)
+                assertTrue(a.x >= -1e-6 && a.y >= -1e-6 && a.x + a.w <= sh.w + 1e-6 && a.y + a.l <= sh.l + 1e-6)
                 val row = rows.first { it.item == a.item }
                 assertEquals(row.w * row.l, a.w * a.l, 1e-6)
                 // Pieces are at least a saw cut apart.
@@ -1007,5 +1007,19 @@ class UpTest {
         // Turning keeps every part's volume and is not a mirror image.
         assertEquals(flat.parts.sumOf { it.mesh.volume }, up.parts.sumOf { it.mesh.volume }, 1e-3)
         assertTrue(up.parts.all { it.mesh.volume > 0 })
+    }
+}
+
+
+class SmallPanelTest {
+    @Test fun aFewSmallPiecesBuyAQuarterSheet() {
+        val fmt = LengthFormat("in")
+        val parts = (0 until 3).map { i -> Part("P$i", "P", MeshOps.translated(Fixtures.box(0.0, 12 * Fixtures.INCH, 0.0, 16 * Fixtures.INCH, 0.0, 0.5 * Fixtures.INCH), Vec3(0.0, 0.0, i * 100.0))) }
+        val rows = CutList.build(parts, fmt).rows
+        val r = splitziner.cutplan.CutPlanner.plan(rows, splitziner.cutplan.StockSettings.INCH)
+        assertEquals(1, r.sheets.size)
+        assertEquals("quarter sheet", r.sheets[0].size)
+        assertEquals(24 * Fixtures.INCH, r.sheets[0].w, 1e-6)
+        assertTrue(splitziner.cutplan.CutPlanner.shoppingList(r, fmt)[0].startsWith("1 quarter sheet 1/2 in thick"), splitziner.cutplan.CutPlanner.shoppingList(r, fmt)[0])
     }
 }
