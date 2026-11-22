@@ -31,6 +31,9 @@ data class StepText(val title: String? = null, val lines: List<String>? = null, 
 
 object GuideSteps {
     /** Step pictures are drawn at this size in mm and scaled onto the page. */
+    /** A build step names at most this many positions; more, and the picture says it better. */
+    private const val MAX_PLACING = 2
+
     const val PICTURE_W = 170.0
     const val PICTURE_H = 115.0
 
@@ -268,7 +271,10 @@ object GuideSteps {
             // Where loose parts sit on what is built, when nothing else in the step says (a toe-kick set back, a modesty panel set in).
             if (fmt != null && !st.subassembly && !base) {
                 val built = drawn.filter { it.id in done }
-                if (built.isNotEmpty()) lines += placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold.toSet())
+                // Only where it reads as an instruction: a busy step of a sculpted model, with parts set every which way, would
+                // list offsets the picture already shows better.
+                val said = if (built.isNotEmpty() && loose.map { it.item }.distinct().size <= 2) placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold.toSet()) else emptyList()
+                if (said.size <= MAX_PLACING) lines += said
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
