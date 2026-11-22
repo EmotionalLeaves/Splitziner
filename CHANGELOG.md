@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.78.0 - Glued-up tops and first-step spacing
+
+- **Thick tops are glued up**: a panel thicker than any sheet sold (a 1-1/2 in workbench top) is planned as 2 layers of 3/4 in sheet, each cut 1/4 in over size. The cutting plan, shopping list and "Before you build" tell you how to glue and trim it, or to buy a butcher-block panel instead.
+- **Edge banding width**: the shopping line says when an edge is thicker than usual and needs wider banding.
+- **First step spacing**: pieces that stand apart at the start (a bed's side frames, a table's end frames, a desk's sides) now come with how far apart they go and what sits centred between them.
+- **Pictures from the front**: a desk's guide is no longer drawn from behind. Any picture that still is says "Seen from the back".
+
 ## v0.77.0 - Dowels as sold, better first steps
 
 - **Dowels sized as sold**, with diameter and length (3/8 x 1-1/2 in, or 8 x 40 mm), and a "Before you build" note on marking and drilling them with a jig.
