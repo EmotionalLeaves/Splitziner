@@ -103,8 +103,13 @@ object ExplodedView {
     /** How far each part moves, in model mm. Parts without an explode vector stay where they are. */
     fun planOffsets(parts: List<Part>, view: ViewDef, outlines: List<Geometry>, minTravel: Double = 0.0): List<Vec3> {
         val offs = MutableList(parts.size) { Vec3.ZERO }
-        val placed = ArrayList<Geometry>()
-        for ((i, p) in parts.withIndex()) if (p.explode == null || p.explode.length < 1e-9) placed += outlines[i]
+        // Outlines already in place, in a spatial index: with hundreds of parts, testing each new position
+        // against every one of them was most of the work.
+        val placed = ArrayList<Geometry>(); val boxes = ArrayList<org.locationtech.jts.geom.Envelope>()
+        fun place(g: Geometry) { if (!g.isEmpty) { placed += g; boxes += g.envelopeInternal } }
+        // A box test first: most outlines are nowhere near, and the exact test is costly.
+        fun hits(g: Geometry): Boolean { val e = g.envelopeInternal; for (i in placed.indices) if (boxes[i].intersects(e) && g.intersects(placed[i])) return true; return false }
+        for ((i, p) in parts.withIndex()) if (p.explode == null || p.explode.length < 1e-9) place(outlines[i])
         val groups = LinkedHashMap<String, MutableList<Int>>()
         for ((i, p) in parts.withIndex()) if (p.explode != null && p.explode.length >= 1e-9) groups.getOrPut(keyOf(p)) { ArrayList() } += i
         // Groups are placed in build order, so each new part clears everything installed before it.
@@ -122,7 +127,7 @@ object ExplodedView {
                 // Travel grows until the part's outline, with clearance, misses everything already placed.
                 while (l < l0 + 12 * maxOf(size, 10.0)) {
                     val shifted = Silhouette.translated(grown, d2.x * l, d2.y * l)
-                    if (placed.none { shifted.intersects(it) }) break
+                    if (!hits(shifted)) break
                     l += step
                 }
                 need = maxOf(need, l + GAP * size * 0.5)
@@ -132,7 +137,7 @@ object ExplodedView {
             for (i in idx) {
                 val d = parts[i].explode!!.normalized()
                 offs[i] = d * need
-                placed += Silhouette.translated(outlines[i], (offs[i] dot view.x), (offs[i] dot view.up))
+                place(Silhouette.translated(outlines[i], (offs[i] dot view.x), (offs[i] dot view.up)))
             }
         }
         return offs
@@ -150,7 +155,9 @@ object ExplodedView {
     /** [fitBounds] (minX, minY, maxX, maxY in view coordinates) is included in the picture's extent, so a series of pictures can share one framing. */
     fun prepare(parts: List<Part>, view: ViewDef? = null, fitBounds: DoubleArray? = null, minTravelShare: Double = 0.12): ExplodedGeometry {
         val v = view ?: pickView(parts)
-        val outlines0 = parts.map { Silhouette.outline(it.mesh, v) }
+        // Each part's outline is separate work; on a phone's several cores they are traced side by side.
+        val outlines0: List<Geometry> = if (parts.size < 16) parts.map { Silhouette.outline(it.mesh, v) }
+            else parts.parallelStream().map { Silhouette.outline(it.mesh, v) }.collect(java.util.stream.Collectors.toList())
         val whole = parts.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
         val offs = planOffsets(parts, v, outlines0, minTravelShare * (whole?.diagonal ?: 0.0))
         val moved = parts.mapIndexed { i, p -> if (offs[i].length < 1e-9) p.mesh else MeshOps.translated(p.mesh, offs[i]) }

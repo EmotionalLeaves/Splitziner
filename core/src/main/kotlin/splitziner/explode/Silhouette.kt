@@ -15,7 +15,21 @@ object Silhouette {
     /** Beyond this many triangles the exact union is too slow on a phone; the convex outline stands in. */
     private const val MAX_TRIANGLES = 20_000
 
+    /**
+     * A part's outline in a view never changes; guide pictures ask for the same ones step after step.
+     * Kept per mesh (weakly, so they go when the mesh does) and per view direction.
+     */
+    private val cache = java.util.Collections.synchronizedMap(java.util.WeakHashMap<Mesh, HashMap<String, Geometry>>())
+
     fun outline(mesh: Mesh, view: ViewDef): Geometry {
+        val key = "${view.n.x},${view.n.y},${view.n.z},${view.x.x},${view.x.y},${view.x.z}"
+        cache[mesh]?.get(key)?.let { return it }
+        val g = outlineUncached(mesh, view)
+        synchronized(cache) { cache.getOrPut(mesh) { HashMap() }[key] = g }
+        return g
+    }
+
+    private fun outlineUncached(mesh: Mesh, view: ViewDef): Geometry {
         val n = mesh.faceNormals
         val front = (0 until mesh.triangleCount).filter { t -> n[3 * t] * view.n.x + n[3 * t + 1] * view.n.y + n[3 * t + 2] * view.n.z > 1e-9 }
         if (front.size > MAX_TRIANGLES) return hull(mesh, view)
