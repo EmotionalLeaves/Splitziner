@@ -1196,6 +1196,9 @@ private fun num(s: String): Double? {
 }
 
 /** A length in the project's units for a text field: no trailing zeros. */
+/** A size to start a text box with, in the project's style (fractions where the project uses them). */
+private fun sizeText(fmt: splitziner.dims.LengthFormat, mm: Double) = if (fmt.isInch && fmt.inchStyle == "fraction") fmt.format(mm) else field(mm, if (fmt.isInch) 25.4 else 1.0)
+
 private fun field(mm: Double, unit: Double) = String.format(java.util.Locale.ROOT, "%.3f", mm / unit).trimEnd('0').trimEnd('.')
 
 private fun newId(open: OpenProject, prefix: String): String {
@@ -1215,16 +1218,18 @@ private fun newId(open: OpenProject, prefix: String): String {
 private fun ShapeDialog(p: Part, open: OpenProject, onDismiss: () -> Unit, onEdit: (splitziner.edit.Edit) -> Unit) {
     val fmt = open.analysis.format
     val unit = if (fmt.isInch) 25.4 else 1.0
-    var t by remember { mutableStateOf(field(p.t, unit)) }
-    var w by remember { mutableStateOf(field(p.w, unit)) }
-    var l by remember { mutableStateOf(field(p.l, unit)) }
+    // Sizes start in the project's own style: 3/4 in a fraction project, .75 otherwise.
+    fun start(mm: Double) = if (fmt.isInch && fmt.inchStyle == "fraction") fmt.format(mm) else field(mm, unit)
+    var t by remember { mutableStateOf(start(p.t)) }
+    var w by remember { mutableStateOf(start(p.w)) }
+    var l by remember { mutableStateOf(start(p.l)) }
     var dx by remember { mutableStateOf("0") }; var dy by remember { mutableStateOf("0") }; var dz by remember { mutableStateOf("0") }
     var msg by remember { mutableStateOf<String?>(null) }
     val boards = remember(p) { runCatching { splitziner.edit.Boards.decompose(p.mesh).first }.getOrNull() }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Change ${p.name}") },
+        title = { Text(if (p.item != null) "Change item ${p.item}" + (if (p.name != p.id) " (${p.name})" else "") else "Change ${p.name}") },
         text = {
             LazyColumn {
                 item {
@@ -1257,7 +1262,7 @@ private fun ShapeDialog(p: Part, open: OpenProject, onDismiss: () -> Unit, onEdi
                     }
                     Text("Slide until it touches", style = MaterialTheme.typography.labelMedium)
                     val others = open.analysis.parts.filter { it.id != p.id && !it.excluded }
-                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    androidx.compose.foundation.layout.FlowRow {
                         for ((label, dir) in listOf("Down" to splitziner.math.Vec3(0.0, 0.0, -1.0), "Up" to splitziner.math.Vec3(0.0, 0.0, 1.0), "Left" to splitziner.math.Vec3(-1.0, 0.0, 0.0),
                             "Right" to splitziner.math.Vec3(1.0, 0.0, 0.0), "Back" to splitziner.math.Vec3(0.0, 1.0, 0.0), "Front" to splitziner.math.Vec3(0.0, -1.0, 0.0))) {
                             TextButton(onClick = {
@@ -1267,7 +1272,7 @@ private fun ShapeDialog(p: Part, open: OpenProject, onDismiss: () -> Unit, onEdi
                         }
                     }
                     HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    androidx.compose.foundation.layout.FlowRow {
                         TextButton(onClick = { onEdit(splitziner.edit.Edit.SquareUp(listOf(p.id))) }) { Text("Square up") }
                         if (boards != null) TextButton(onClick = { onEdit(splitziner.edit.Edit.SplitBoards(listOf(p.id))) }) { Text("Make from ${boards.pieces.size} boards") }
                         TextButton(onClick = { onEdit(splitziner.edit.Edit.Delete(listOf(p.id))) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
@@ -1286,9 +1291,9 @@ private fun AddBoardDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (spl
     val fmt = open.analysis.format
     val unit = if (fmt.isInch) 25.4 else 1.0
     val b = open.analysis.bounds
-    var sx by remember { mutableStateOf(field(if (fmt.isInch) 24 * 25.4 else 600.0, unit)) }
-    var sy by remember { mutableStateOf(field(if (fmt.isInch) 3.5 * 25.4 else 90.0, unit)) }
-    var sz by remember { mutableStateOf(field(if (fmt.isInch) 0.75 * 25.4 else 18.0, unit)) }
+    var sx by remember { mutableStateOf(sizeText(fmt, if (fmt.isInch) 24 * 25.4 else 600.0)) }
+    var sy by remember { mutableStateOf(sizeText(fmt, if (fmt.isInch) 3.5 * 25.4 else 90.0)) }
+    var sz by remember { mutableStateOf(sizeText(fmt, if (fmt.isInch) 0.75 * 25.4 else 18.0)) }
     var name by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     AlertDialog(
@@ -1333,7 +1338,7 @@ private fun OverallSizeDialog(open: OpenProject, onDismiss: () -> Unit, onApply:
     val unit = if (fmt.isInch) 25.4 else 1.0
     val e = a.bounds.extents
     val now = doubleArrayOf(e.x, e.y, e.z)
-    val vals = remember { androidx.compose.runtime.mutableStateListOf(field(e.x, unit), field(e.y, unit), field(e.z, unit)) }
+    val vals = remember { androidx.compose.runtime.mutableStateListOf(sizeText(fmt, e.x), sizeText(fmt, e.y), sizeText(fmt, e.z)) }
     var msg by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
