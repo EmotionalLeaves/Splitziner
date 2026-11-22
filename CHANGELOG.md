@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.99.0 - Mortise and tenon
+
+- Mortise and tenon: tenons drawn as parts of their own are recognised. The guide glues each tenon into its rail on the bench, then glues the rails into the legs' mortises. No screws or brackets, and no false "parts overlap" problem. Each leg's drawing and making steps give every mortise's size and position, and how to cut it.
+- Step stool treads go on from above onto the stringers.
+- Fixed: a wardrobe's hanging rod could be named a back slat.
+
 ## v0.98.0 - Stringers and treads
 
 - Step stools and short stairs: notched sides are called stringers and the boards on them treads. Treads are screwed down into the stringers instead of hung on brackets.

@@ -250,6 +250,24 @@ object Fastening {
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
                 continue
             }
+            // Mortise and tenon: the tenon is the rail's (cut on it, or glued into its end as a loose tenon) and is
+            // glued into the mortise in the leg; nothing else holds the rail there.
+            if (a.name == "Tenon" || b.name == "Tenon") {
+                val ten = if (a.name == "Tenon") a else b; val other = if (ten === a) b else a
+                val tb = ten.mesh.bounds
+                val inOther = other.mesh.bounds.let { ob -> (0..2).all { k -> tb.min[k] >= ob.min[k] - 0.5 && tb.max[k] <= ob.max[k] + 0.5 } }
+                if (!inOther) joints.getOrPut(step) { ArrayList() } += Joint(other, ten, 1, "", "tenon", true)
+                continue
+            }
+            val tenonBetween = live.any { t -> t.name == "Tenon" && t.mesh.bounds.let { tb ->
+                listOf(a, b).any { h -> h.mesh.bounds.let { ob -> (0..2).all { kk -> tb.min[kk] >= ob.min[kk] - 0.5 && tb.max[kk] <= ob.max[kk] + 0.5 } } } &&
+                listOf(a, b).any { r -> r.mesh.bounds.let { rb -> (0..2).all { kk -> tb.min[kk] <= rb.max[kk] + 0.5 && rb.min[kk] <= tb.max[kk] + 0.5 } && !(0..2).all { kk -> tb.min[kk] >= rb.min[kk] - 0.5 && tb.max[kk] <= rb.max[kk] + 0.5 } } } } }
+            if (tenonBetween) {
+                val leg = listOf(a, b).first { h -> live.any { t -> t.name == "Tenon" && t.mesh.bounds.let { tb -> h.mesh.bounds.let { ob -> (0..2).all { kk -> tb.min[kk] >= ob.min[kk] - 0.5 && tb.max[kk] <= ob.max[kk] + 0.5 } } } } }
+                val rail = if (leg === a) b else a
+                joints.getOrPut(step) { ArrayList() } += Joint(leg, rail, 1, "", "mortise", true)
+                continue
+            }
             // A hanging rod (a wardrobe's) drops into a socket screwed to the side at each end, so it can be lifted out.
             val rod = if (a.kind == PartKind.ROD) a else if (b.kind == PartKind.ROD) b else null
             if (rod != null) {
@@ -494,6 +512,8 @@ object Fastening {
         val byId = live.associateBy { it.id }
         for ((pid, gid) in housed) {
             val p = byId[pid] ?: continue; val g = byId[gid] ?: continue
+            // A tenon's mortise is told with its rail.
+            if (p.name == "Tenon" || g.name == "Tenon") continue
             val sameUnit = unit(p) == unit(g) && benchOf.containsKey(p.id) && benchOf.containsKey(g.id)
             val step = if (sameUnit) maxOf(stepOf[p.id] ?: 0, stepOf[g.id] ?: 0) else maxOf(mainOf(p), mainOf(g))
             joints.getOrPut(step) { ArrayList() } += Joint(g, p, 0, "", "housed", true)
@@ -761,7 +781,8 @@ object Fastening {
         // One item under two names (a box's front and back) fixed the same way is one line: "item 2 (front and back)".
         val groups = groups0.entries.associate { (k, g) -> Triple(if (k.first.startsWith("#")) joined(g.map { itemName(it.through) }.distinct()) else k.first, joined(g.map { itemName(it.into) }.distinct()), k.third) to g }
         val room = maxOf(1, maxLines - out.size)
-        for ((key, g) in groups.entries.take(room)) {
+        // Tenons go into their rails before the rails go into their mortises.
+        for ((key, g) in groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.take(room)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
             out += if (j.kind == "hinges") {
                 // Where they go: the hinge edge (from the front), the end ones a set distance in, any others evenly between.
@@ -801,6 +822,8 @@ object Fastening {
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
             else if (j.kind == "housed") "Glue ${key.second} into the dado or rabbet cut for it in ${key.first}$times (its drawing gives the size), and clamp until dry."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
+            else if (j.kind == "tenon") "Glue ${key.second} into a mortise cut in the end of ${key.first}$times, standing out as drawn (a loose tenon); or, if you prefer, cut ${key.first} longer by the tenon's length and cut the tenon on it. Let the glue set before fitting it."
+            else if (j.kind == "mortise") "Cut a mortise in ${key.first} for each tenon$times (its drawing gives the size and place), spread glue in the mortises and on the tenons of ${key.second}, push them home and clamp across the joint until dry. Check it is square as you clamp."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; ${if (g.size > 1) "the joints are" else "the joint is"} too small for fasteners."
             else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times." +
                 // Solid wood moves across its grain with the seasons; a top fixed tight splits or bows.
@@ -852,10 +875,10 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
-            val rest = groups.entries.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
+            val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
             out += "Also join, item to item: ${rest.joinToString(", ")}."
         }
         return out

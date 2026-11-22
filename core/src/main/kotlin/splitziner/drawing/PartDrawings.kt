@@ -148,8 +148,10 @@ object PartDrawings {
         val byAngle = java.util.TreeMap<String, java.util.TreeSet<Int>>()
         for (p in parts) {
             if (p.excluded || p.item == null) continue
-            val axes = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh).axes }.getOrNull() ?: continue
-            val up = axes.maxByOrNull { kotlin.math.abs(it.z) }!!.let { if (it.z < 0) it * -1.0 else it }
+            val obb = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh) }.getOrNull() ?: continue
+            // Boards only: a rod's or a round top's box can turn any way about it.
+            if (kotlin.math.abs(p.mesh.volume) < 0.9 * obb.volume) continue
+            val up = obb.axes.maxByOrNull { kotlin.math.abs(it.z) }!!.let { if (it.z < 0) it * -1.0 else it }
             val deg = Math.toDegrees(kotlin.math.acos(up.z.coerceIn(-1.0, 1.0)))
             if (deg < 1.0 || deg > 45.0) continue
             val way = when {
@@ -256,7 +258,7 @@ object PartDrawings {
     fun grooveNotes(p: Part, parts: List<Part>, housed: List<Pair<String, String>>, fmt: LengthFormat): List<String> {
         val byId = parts.associateBy { it.id }
         val d = { v: Double -> fmt.format(v) }
-        class G(val text: String, val at: Double?, val from: String)
+        class G(val text: String, val at: Double?, val from: String, val extra: String = "")
         val gs = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
             val q = byId[pid] ?: return@mapNotNull null
             val a = p.mesh.bounds; val b = q.mesh.bounds
@@ -274,13 +276,24 @@ object PartDrawings {
             val atMin = lo < 0.5
             val edgeName = when (w) { 2 -> if (atMin) "BOTTOM END" else "TOP END"; 1 -> if (atMin) "FRONT EDGE" else "BACK EDGE"; else -> if (atMin) "LEFT EDGE" else "RIGHT EDGE" }
             val from = if (w == 2) "THE BOTTOM END" else if (a.extents[w] >= maxOf(a.extents.x, a.extents.y, a.extents.z) - 0.5) "ONE END" else "THE FRONT EDGE"
+            // A tenon sits in a mortise: a slot closed at both ends, opening on the face the tenon is flush with.
+            if (q.name == "Tenon") {
+                val mk = (0..2).firstOrNull { ax -> kotlin.math.abs(b.max[ax] - a.max[ax]) < 0.5 || kotlin.math.abs(b.min[ax] - a.min[ax]) < 0.5 } ?: k
+                val (mw, ml) = (0..2).filter { it != mk }.sortedBy { e[it] }
+                // Where: across the face from its edge, and along it from the end.
+                val acrossFrom = if (mw == 2) "THE BOTTOM END" else if (mw == 1) "THE FRONT EDGE" else "THE LEFT EDGE"
+                val alongTop = a.max[ml] - b.max[ml]
+                val alongName = if (ml == 2) "THE TOP END" else if (ml == 1) "THE BACK EDGE" else "THE RIGHT EDGE"
+                return@mapNotNull G("MORTISE FOR ITEM ${q.item}: ${d(e[mk])} DEEP X ${d(e[mw])} WIDE X ${d(e[ml])} LONG", b.min[mw] - a.min[mw], acrossFrom, ", ITS END ${d(alongTop)} FROM $alongName")
+            }
             G("${if (atEdge) "RABBET" else "GROOVE"} FOR ITEM ${q.item}: ${d(e[k])} DEEP X ${d(e[w])} WIDE X ${d(e[rest[1]])} LONG", if (atEdge) null else lo, if (atEdge) edgeName else from)
         }
-        return gs.groupBy { it.text }.map { (t, g) ->
+        // Alike only when cut the same and measured from the same edge (a leg's two mortises face different ways).
+        return gs.groupBy { Triple(it.text, it.from, it.extra) }.map { (key, g) -> val t = key.first
             val ats = g.mapNotNull { it.at }.distinct().sorted()
             val where = if (ats.isEmpty()) "ALONG THE ${g[0].from} (AS ASSEMBLED)"
-                else "${ats.dropLast(1).joinToString(", ") { d(it) }}${if (ats.size > 1) " AND " else ""}${d(ats.last())} FROM ${g[0].from} (AS ASSEMBLED) TO THE NEAR SIDE OF ${if (ats.size > 1) "EACH" else "THE"} GROOVE"
-            "$t${if (g.size > 1) " (${g.size} PLACES)" else ""}, $where."
+                else "${ats.dropLast(1).joinToString(", ") { d(it) }}${if (ats.size > 1) " AND " else ""}${d(ats.last())} FROM ${g[0].from} (AS ASSEMBLED) TO THE NEAR SIDE OF ${if (ats.size > 1) "EACH" else "THE"} ${if (t.startsWith("MORTISE")) "MORTISE" else "GROOVE"}"
+            "$t${if (g.size > 1) " (${g.size} PLACES)" else ""}, $where${g[0].extra}."
         }
     }
 

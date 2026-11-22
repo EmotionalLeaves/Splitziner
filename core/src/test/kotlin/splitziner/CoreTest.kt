@@ -1738,3 +1738,20 @@ class BedKnockDownTest {
         assertTrue(f.hardware.any { it.contains("bed rail fasteners") })
     }
 }
+
+class TenonTest {
+    @Test fun tenonsAreGluedIntoMortisesNotScrewed() {
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        // Two legs 2-1/2 in square, an apron between them, a 3/8 x 1 x 3 tenon at each end sunk 1 in into the leg.
+        val ms = listOf(b(0.0, 0.0, 0.0, 63.5, 63.5, 711.0), b(1000.0, 0.0, 0.0, 63.5, 63.5, 711.0), b(63.5, 22.0, 610.0, 936.5, 19.0, 101.0),
+            b(38.1, 27.0, 622.7, 25.4, 9.5, 76.2), b(1000.0, 27.0, 622.7, 25.4, 9.5, 76.2), b(0.0, 0.0, 711.0, 1063.5, 400.0, 25.0))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "t.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, a.parts.count { it.name == "Tenon" }, a.parts.map { it.name }.toString())
+        assertEquals(2, a.housed.size)
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"), housed = a.housed)
+        assertTrue(f.all.count { it.kind == "mortise" } == 2 && f.all.count { it.kind == "tenon" } == 2, f.all.map { it.kind }.toString())
+        val leg = a.parts.first { it.name == "Leg" }
+        assertTrue(splitziner.drawing.PartDrawings.grooveNotes(leg, a.parts, a.housed, LengthFormat("in", "fraction")).single().startsWith("MORTISE FOR ITEM"))
+    }
+}

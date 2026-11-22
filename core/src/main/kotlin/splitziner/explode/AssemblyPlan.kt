@@ -73,6 +73,14 @@ object AssemblyPlan {
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
         // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
         modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
+        // A tenon goes with the rail whose end it is on: glued in (or cut on it) before the rail is fitted.
+        for (t in live.filter { it.name == "Tenon" }) {
+            val tb = t.mesh.bounds
+            val rail = live.firstOrNull { o -> o !== t && o.name != "Tenon" && o.mesh.bounds.let { ob -> val long = (0..2).maxByOrNull { ob.extents[it] }!!
+                (kotlin.math.abs(ob.min[long] - tb.max[long]) < 1.0 || kotlin.math.abs(ob.max[long] - tb.min[long]) < 1.0) &&
+                (0..2).filter { it != long }.all { k -> tb.min[k] >= ob.min[k] - 0.5 && tb.max[k] <= ob.max[k] + 0.5 } } } ?: continue
+            out[t.id] = out[rail.id] ?: rail.id
+        }
         // A case standing on another's top (a desk's hutch, a dresser's mirror stand) is built whole, then set on.
         upperUnit(live)?.let { ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "upper" }
         // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
@@ -639,6 +647,18 @@ object AssemblyPlan {
         // Boxes are sorted along each axis so only parts that could possibly be in the way are tested.
         val byAxis = (0..2).map { a -> (0 until n).sortedBy { lo[it][a] }.toIntArray() }
         val blockCache = HashMap<Long, IntArray>()
+        fun aheadShadow(j: Int, i: Int, d: Dir): Geometry {
+            val m = parts[j].mesh; val v = m.vertices; val t = m.triangles
+            val edge = if (d.sign > 0) hi[i][d.k] - tol else lo[i][d.k] + tol
+            val keep = ArrayList<Int>()
+            for (f in 0 until m.triangleCount) {
+                val ahead = (0..2).all { q -> val c = v[3 * t[3 * f + q] + d.k]; if (d.sign > 0) c >= edge else c <= edge }
+                if (ahead) for (q in 0..2) keep += t[3 * f + q]
+            }
+            if (keep.isEmpty()) return Silhouette.GF.createPolygon()
+            val view = ViewDef("axis${d.k}", Vec3.axis(d.k), Vec3.axis((d.k + 1) % 3))
+            return runCatching { Silhouette.outline(splitziner.mesh.Mesh(v, keep.toIntArray()), view).buffer(-tol) }.getOrElse { shadow(d.k, j) }
+        }
         fun allBlockers(i: Int, d: Dir): IntArray = blockCache.getOrPut(i.toLong() * 8 + d.k * 2 + (if (d.sign > 0) 1 else 0)) {
             val out = ArrayList<Int>()
             // Candidates must overlap on the first of the other axes; scan only parts starting before i ends there.
@@ -662,7 +682,10 @@ object AssemblyPlan {
                             !mBehind && !apart && memberShadow(d.k, m).let { b -> !a.isEmpty && !b.isEmpty && a.intersects(b) && a.intersection(b).area > tol * tol } }) out += j
                     continue
                 }
-                val b = shadow(d.k, j)
+                // A notched part (a stringer) is in the way only where it has material ahead of i: its triangles
+                // past i's leading face. A plain box is the same either way.
+                val vol = kotlin.math.abs(parts[j].mesh.volume); val boxV = (0..2).fold(1.0) { acc, ax -> acc * (hi[j][ax] - lo[j][ax]) }
+                val b = if (vol < 0.85 * boxV) aheadShadow(j, i, d) else shadow(d.k, j)
                 if (!a.isEmpty && !b.isEmpty && a.intersects(b) && a.intersection(b).area > tol * tol) out += j
             }
             out.toIntArray()

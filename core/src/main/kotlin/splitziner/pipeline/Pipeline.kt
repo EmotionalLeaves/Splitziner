@@ -140,6 +140,11 @@ object Pipeline {
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
             ?: Aabb.of(doubleArrayOf())
         progress.report(1.0, "Done")
-        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), edited?.housed ?: emptyList())
+        // A tenon sunk in another part sits in a mortise: that overlap is the joint, so it is housed as drawn.
+        val live = cut.parts.filter { !it.excluded }
+        val tenons = live.filter { it.name == "Tenon" }.mapNotNull { t -> val tb = t.mesh.bounds
+            live.firstOrNull { o -> o !== t && o.mesh.bounds.let { ob -> (0..2).all { k -> tb.min[k] >= ob.min[k] - 0.5 && tb.max[k] <= ob.max[k] + 0.5 } } }?.let { t.id to it.id } }
+        val housed = ((edited?.housed ?: emptyList()) + tenons).distinct()
+        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed)
     }
 }

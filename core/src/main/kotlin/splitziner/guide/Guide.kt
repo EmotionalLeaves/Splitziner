@@ -55,7 +55,7 @@ object GuideSteps {
         val pool = cur + built
         for (s in cur) {
             // Doors and drawer fronts are placed by their hinges or by eye, with even gaps; offsets would only mislead.
-            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod") continue
+            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon") continue
             // The longest part it touches that is longer than it along its own length; on the bench any part of the
             // unit, in the build a part already there or going in with it.
             val host = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue

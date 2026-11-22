@@ -130,6 +130,7 @@ fun main(args: Array<String>) {
                 val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, tools, a.housed)
                 println("hardware  ${method.label}: ${fasten.hardware}")
                 if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
+                if (System.getenv("FLINES") != null) for (st in fasten.byStep.keys.sorted()) println("flines    $st: " + splitziner.joinery.Fastening.lines(fasten, st, { p -> "item ${p.item}" }).joinToString(" || ").take(400))
                 val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap(), fasten, a.format)
                 if (System.getenv("GUIDETEXT") != null) for (st in steps) { println("title     ${st.title}"); st.parts.forEach { (w, n) -> println("needs     ${n}x $w") }; st.text.forEach { println("line      $it") }; st.check?.let { println("check     $it") } }
                 val drawn = pl.parts.filter { !it.excluded }

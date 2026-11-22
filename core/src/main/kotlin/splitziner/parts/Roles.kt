@@ -183,6 +183,19 @@ object Roles {
                 else -> continue
             }
         }
+        // A tenon: a small block sunk into one part (a leg's mortise) and butting the end of another (an apron),
+        // drawn as a part of its own. It is that apron's tenon.
+        for (p in live) {
+            val b = p.mesh.bounds; val e = b.extents
+            if (maxOf(e.x, e.y, e.z) > 120.0 || minOf(e.x, e.y, e.z) > 16.0) continue
+            fun inside(o: Part) = o.mesh.bounds.let { ob -> (0..2).all { k -> b.min[k] >= ob.min[k] - 0.5 && b.max[k] <= ob.max[k] + 0.5 } }
+            val host = live.firstOrNull { o -> o !== p && inside(o) } ?: continue
+            val rail = live.firstOrNull { o -> o !== p && o !== host && touches(p, o) && o.mesh.bounds.let { ob ->
+                val long = (0..2).maxByOrNull { ob.extents[it] }!!
+                kotlin.math.abs(ob.min[long] - b.max[long]) < 1.0 || kotlin.math.abs(ob.max[long] - b.min[long]) < 1.0 } } ?: continue
+            if (rail.mesh.bounds.extents.let { maxOf(it.x, it.y, it.z) } < 2 * maxOf(e.x, e.y, e.z)) continue
+            out[p.id] = "Tenon"
+        }
         // Steps: a notched side carrying flat boards at two or more heights on its notches is a stringer, and the
         // boards are treads (a step stool, a short stair).
         for (p in live) {
@@ -197,7 +210,10 @@ object Roles {
         // A seat's back: boards leaned back off upright above the seat, the long ones slats, the upright ones supports.
         for (p in live) {
             if (out[p.id] == "Leg" || out[p.id] == "Centre leg") continue
-            val axes = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh).axes }.getOrNull() ?: continue
+            val obb = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh) }.getOrNull() ?: continue
+            // Boards only: a rod's or a round top's box can turn any way about it.
+            if (kotlin.math.abs(p.mesh.volume) < 0.9 * obb.volume) continue
+            val axes = obb.axes
             val up = axes.maxByOrNull { kotlin.math.abs(it.z) }!!.let { if (it.z < 0) it * -1.0 else it }
             val deg = Math.toDegrees(kotlin.math.acos(up.z.coerceIn(-1.0, 1.0)))
             if (deg < 3.0 || deg > 40.0 || kotlin.math.abs(up.x) > 0.05 || p.mesh.bounds.min.z < all.min.z + 0.3 * h) continue

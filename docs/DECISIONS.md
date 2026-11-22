@@ -270,3 +270,9 @@ Departures from the build spec, newest first.
 ## v0.98
 - Parts whose boxes overlap but which meet face to face (a tread on a notched stringer's step) are found by matching opposite flat faces in the same plane, so they get fixings instead of "then fasten".
 - A notched side carrying flat boards at two or more heights is a stringer; the boards are treads. Treads are screwed down (people stand on them), never bracketed from below, and go on from above.
+
+## v0.99
+- A small block (under 120 mm, no thicker than 16 mm) sunk wholly in one part and butting the end of a rail at least twice its length is a tenon. It is the rail's: glued into a mortise in the rail's end on the bench (or cut on a longer rail), then glued into the mortise in the leg; no screws, brackets or overlap problem. The overlap is housed automatically, and the leg's drawing and making steps give each mortise's size, which face, and how far from the end; mortises are drilled out and pared.
+- Grooves cut the same but measured from different edges (a leg's two mortises) are listed apart.
+- When planning what blocks a part's way in, a notched part (under 85% of its box) counts only where it has material ahead of that part: a tread drops onto a stringer's step from above.
+- Lean angles and back slat names are only read from boards (at least 90% of their oriented box): a rod's box can turn any way about it.
