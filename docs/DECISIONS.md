@@ -314,3 +314,6 @@ Departures from the build spec, newest first.
 
 ## v1.9
 - Sub-assemblies with no name of their own (not a drawer, frame, cabinet, face frame, hutch or tenoned rail) are lettered A, B, C… in the order they are made, as a maker's manual does: "make sub-assembly B from items …", one built over several steps "(1 of 2)", and later "sub-assembly B from step 4". Before, they read "join items 3, 4, 7, 8, 15 and 16" and "the sub-assembly from step 4", which gave no handle to tell them apart.
+
+## v1.10
+- Stringers and treads need the boards to climb: each higher one stands further back (or forward) than the one below by at least a fifth of the stringer's depth. A desk's notched end panels with a top and shelves stacked over each other had been called stringers and treads since v0.98 (the desk's top was a "tread").

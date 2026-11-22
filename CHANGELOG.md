@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.10.0 - Fix stair names on desks
+
+- Fixed: since v0.98, a desk with notched end panels could have its top and shelves called "treads" and its ends "stringers". Only real steps, each board standing further back than the one below, are called that now.
+
 ## v1.9.0 - Lettered sub-assemblies
 
 - Complicated builds read more easily: sub-assemblies without a name of their own are lettered A, B, C… ("make sub-assembly B", then "fit sub-assembly B from step 4"), instead of "join items 3, 4, 7, 8, 15 and 16" and "the sub-assembly from step 4".

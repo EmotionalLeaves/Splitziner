@@ -208,6 +208,12 @@ object Roles {
             val on = live.filter { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && touches(p, o) &&
                 o.mesh.bounds.min.z >= b.min.z + 1.0 && o.mesh.bounds.min.z <= b.max.z + 1.0 }
             if (on.map { Math.round(it.mesh.bounds.min.z) }.distinct().size < 2) continue
+            // Steps climb: each higher board stands further back (or forward) than the one below, by a good part
+            // of the stringer's depth. A desk's notched end with a top and shelves over each other is not a stair.
+            val byHeight = on.groupBy { Math.round(it.mesh.bounds.min.z) }.toSortedMap().values.map { g -> g.map { (it.mesh.bounds.min.y + it.mesh.bounds.max.y) / 2 }.average() }
+            val steps = byHeight.zipWithNext { lo, hi -> hi - lo }
+            val climbs = steps.all { it > 0.2 * b.extents.y } || steps.all { it < -0.2 * b.extents.y }
+            if (!climbs) continue
             out[p.id] = "Stringer"; for (o in on) out[o.id] = "Tread"
         }
         // A seat's back: boards leaned back off upright above the seat, the long ones slats, the upright ones supports.
