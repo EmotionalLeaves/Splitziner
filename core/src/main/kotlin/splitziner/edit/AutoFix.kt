@@ -29,6 +29,9 @@ object AutoFix {
     /** A loose group further than this (mm) from the rest is not moved: it may be meant to be separate. */
     private const val MAX_SEAT = 30.0
 
+    /** An overlap this deep (mm, 3/16 in) or more across a board's whole end is a housing drawn on purpose. */
+    private const val DADO_MIN = 4.5
+
     private val DIRS = listOf(Vec3(0.0, 0.0, -1.0), Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0), Vec3(-1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0), Vec3(0.0, -1.0, 0.0))
     private fun dirName(d: Vec3) = when { d.z < 0 -> "down"; d.z > 0 -> "up"; d.x > 0 -> "right"; d.x < 0 -> "left"; d.y > 0 -> "back"; else -> "forward" }
 
@@ -133,6 +136,15 @@ object AutoFix {
                 val c = rel.clashes.sortedByDescending { it.depth }.firstOrNull { setOf(parts[it.a].id, parts[it.b].id) !in tried } ?: break
                 val a = parts[c.a]; val b = parts[c.b]
                 tried += setOf(a.id, b.id)
+                // Drawn on purpose as a housing: a board let a clear 3/16 in or more (up to half the thickness) into a
+                // bigger panel across its whole end or edge, the way a dado or rabbet is modelled. Kept, not trimmed away.
+                run {
+                    val (small, big) = if (abs(a.mesh.volume) <= abs(b.mesh.volume)) a to b else b to a
+                    if (c.depth >= DADO_MIN && DesignCheck.housable(small, big, c.depth) && Editor.isHousing(small, big)) {
+                        push(Edit.House(small.id, big.id), "Kept ${label(small)} sitting ${d(c.depth)} $u into ${label(big)} as a housing joint (a dado or rabbet): a groove is cut in ${label(big)} to take it.")
+                        continue
+                    }
+                }
                 val ab = runCatching { Editor.trimmed(a, b) }.getOrNull(); val ba = runCatching { Editor.trimmed(b, a) }.getOrNull()
                 // The limit is on everything cut from a part, not on each cut: four small trims can add up to a different part.
                 fun cutSoFar(p: Part, after: Double): Double { val v0 = startVolume[p.id] ?: return after; return 1 - (1 - after) * abs(p.mesh.volume) / v0 }

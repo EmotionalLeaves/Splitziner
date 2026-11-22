@@ -181,6 +181,19 @@ object Editor {
     private fun fresh(p: Part, mesh: Mesh) = Part(p.id, p.name, mesh, p.copies, excluded = p.excluded, material = p.material)
 
     /** What cutting [a] around [b] would leave, and the share of [a] it removes; null when [b] does not pass right through [a]. */
+    /**
+     * Whether [small] runs into [big] across its whole end or edge, as a dado or rabbet is drawn: the boxes' overlap
+     * covers [small] fully on the two directions across the one it enters by. A tenon (only part of the end) is not.
+     */
+    fun isHousing(small: Part, big: Part): Boolean {
+        val s = small.mesh.bounds; val g = big.mesh.bounds
+        val lo = (0..2).map { maxOf(s.min[it], g.min[it]) }; val hi = (0..2).map { minOf(s.max[it], g.max[it]) }
+        if ((0..2).any { hi[it] <= lo[it] }) return false
+        // It enters along exactly one direction: the only one where the overlap is shorter than the board itself.
+        val shorter = (0..2).filter { k -> hi[k] - lo[k] < s.extents[k] - 1.0 }
+        return shorter.size == 1
+    }
+
     fun trimmed(a: Part, b: Part): Pair<Prism, Double>? {
         val pa = Prisms.of(a.mesh) ?: return null
         val (blo, bhi) = Prisms.range(b.mesh, pa.view.n)

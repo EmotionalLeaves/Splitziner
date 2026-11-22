@@ -216,3 +216,10 @@ Departures from the build spec, newest first.
 - Even spacing is only given across empty gaps (not across a divider between two bays' tops) and is also looked for within one stack (a bay's shelves). Ties in build order go to the group that reaches less high.
 - Metric boards snap to whole-millimetre stock thickness: a 3/4 in board is 19 mm, not "19.1".
 - A step with more than three kinds of part is titled with the first two "and N more", instead of a bare "Step 3".
+
+## v0.89
+- Dados and rabbets drawn as overlaps are kept as housings by the automatic fixes. The overlap must be 3/16 in (4.5 mm) or more deep, no deeper than half the panel, and run across the board's whole end or edge (it is shorter than the board along exactly one direction).
+  - Before, a deliberately dadoed bookcase had its shelves trimmed back to butt joints.
+  - A tenon (only part of an end) still goes to the cut-back and trim choices.
+- The housed-joint line says "dado or rabbet" and points to the part's drawing for the size.
+- Project names come from file names: underscores and hyphens become spaces, and an all-lowercase name gets a capital first letter ("kitchen_run.stl" becomes "Kitchen run").

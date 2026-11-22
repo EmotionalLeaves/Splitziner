@@ -781,9 +781,9 @@ class DesignCheckTest {
 class EditTest {
     private val mm = LengthFormat("mm")
     private fun parts(vararg m: splitziner.mesh.Mesh) = m.mapIndexed { i, x -> Part("P%02d".format(i + 1), "P", x) }
-    private fun problems(ps: List<Part>): List<String> {
+    private fun problems(ps: List<Part>, housed: List<Pair<String, String>> = emptyList()): List<String> {
         val cut = CutList.build(ps, mm)
-        return splitziner.check.DesignCheck.run(cut.parts, cut.rows, mm, splitziner.check.Tool.entries.toSet()).findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title }
+        return splitziner.check.DesignCheck.run(cut.parts, cut.rows, mm, splitziner.check.Tool.entries.toSet(), housed = housed).findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title }
     }
 
     @Test fun prismRoundTripKeepsShapeAndCloses() {
@@ -824,14 +824,16 @@ class EditTest {
         val plan = splitziner.edit.AutoFix.plan(ps, mm)
         println("autofix: " + plan.done)
         assertTrue(plan.left.isEmpty(), plan.left.toString())
-        val fixed = splitziner.edit.Editor.apply(ps, plan.edits).parts
-        assertEquals(emptyList(), problems(fixed))
+        val applied = splitziner.edit.Editor.apply(ps, plan.edits)
+        val fixed = applied.parts
+        assertEquals(emptyList(), problems(fixed, applied.housed))
         assertEquals(18.0, fixed[2].mesh.bounds.min.z, 1e-6)                        // seated on the base
         assertEquals(12.0, fixed[2].mesh.extents.z, 1e-6)                           // and now a stock thickness
         // The pipeline replays the same changes on the original file.
         val bytes = Fixtures.binaryStl(Fixtures.soup(listOf(base, post, riser)))
         val a = Pipeline.analyze(bytes, "broken.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", edits = splitziner.edit.AutoFix.plan(Pipeline.analyze(bytes, "broken.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm")).originalParts, mm).edits))
-        assertEquals(emptyList(), problems(a.parts.map { Part(it.id, it.name, it.mesh) }))
+        // The post let 8 mm into the base is kept as a housing (a stopped groove cut to take it), not cut short.
+        assertEquals(emptyList(), problems(a.parts.map { Part(it.id, it.name, it.mesh) }, a.housed))
     }
 }
 

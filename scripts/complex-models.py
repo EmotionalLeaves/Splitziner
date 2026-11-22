@@ -226,3 +226,16 @@ def library():
 for fn in (kitchen_run, library):
     write(os.path.join(out, fn.__name__ + ".stl"), fn())
     print(fn.__name__, len(fn()), "parts")
+
+def dado_bookcase():
+    """Shelves let 1/4 in into dados in the sides, back in a rabbet: the joints are modelled as overlaps."""
+    W, D, H, d = 762.0, 304.8, 1219.2, 6.35
+    p = [box(0, 0, 0, T, D, H), box(W - T, 0, 0, T, D, H)]
+    for z in (76.2, 400.0, 750.0, H - T):
+        p.append(box(T - d, 0, z, W - 2 * T + 2 * d, D - 6.35, T))
+    p.append(box(T - d, D - 6.35, 76.2, W - 2 * T + 2 * d, 6.35, H - 76.2))     # back in rabbets
+    p.append(box(T, 19.05, 0, W - 2 * T, T, 76.2))
+    return p
+
+write(os.path.join(out, "dado_bookcase.stl"), dado_bookcase())
+print("dado_bookcase", len(dado_bookcase()))
