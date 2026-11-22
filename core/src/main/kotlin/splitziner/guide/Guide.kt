@@ -274,6 +274,20 @@ object GuideLayout {
         return bottom - 4
     }
 
+    /** A short name for each page, for going straight to it: "Cover", "Making the parts", "Steps 3 to 4". */
+    fun labels(pages: List<DisplayList>): List<String> = pages.mapIndexed { i, p ->
+        val texts = p.prims.filterIsInstance<splitziner.sheet.Text>().map { it.text }
+        val steps = texts.mapNotNull { Regex("""^Step (\d+)\b""").find(it)?.groupValues?.get(1)?.toInt() }.distinct().sorted()
+        when {
+            i == 0 -> "Cover"
+            steps.size == 1 -> "Step ${steps[0]}"
+            steps.size > 1 -> "Steps ${steps.first()} to ${steps.last()}"
+            texts.any { it.equals("Making the parts", true) } -> "Making the parts"
+            texts.any { it.equals("Before you build", true) } -> "Before you build"
+            else -> "Page ${i + 1}"
+        }
+    }
+
     fun pages(info: Info, steps: List<GuideStep>, rows: List<CutListRow>, hero: DisplayList?): List<DisplayList> {
         val w = if (info.a4) 210.0 else 215.9; val h = if (info.a4) 297.0 else 279.4
         val pages = Pages(w, h, info.title)

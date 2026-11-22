@@ -743,7 +743,8 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             }
         }
         if (d != null && d.sheets.size > 1) PagerBar(d.labels.getOrElse(shown) { "Sheet ${shown + 1}" }, "${shown + 1} of ${d.sheets.size}  \u00b7  pinch to zoom, double-tap to fit",
-            shown > 0, shown < d.sheets.size - 1, { sheetIndex = shown - 1 }, { sheetIndex = shown + 1 })
+            shown > 0, shown < d.sheets.size - 1, { sheetIndex = shown - 1 }, { sheetIndex = shown + 1 },
+            jump = d.sheets.indices.map { d.labels.getOrElse(it) { "Sheet ${it + 1}" } }, onJump = { sheetIndex = it })
         else Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         // Wraps rather than squeezing labels letter by letter on a narrow phone.
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -893,7 +894,8 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                 }
             }
         }
-        if (g != null) PagerBar("Page ${shown + 1} of ${g.pages.size}", "${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
+        if (g != null) PagerBar(g.labels.getOrNull(shown) ?: "Page ${shown + 1}", "Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 },
+            jump = g.pages.indices.map { "${it + 1}.  " + (g.labels.getOrNull(it) ?: "Page ${it + 1}") }, onJump = { page = it })
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { showBuild = true }, enabled = g != null && !state.guideBusy && g.work.isNotEmpty()) { Text("Build mode") }
             OutlinedButton(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
@@ -2005,12 +2007,19 @@ private fun successColors(): Pair<androidx.compose.ui.graphics.Color, androidx.c
 
 /** Previous and next around what is shown: a title and a smaller line under it. */
 @Composable
-private fun PagerBar(title: String, sub: String, canBack: Boolean, canNext: Boolean, onBack: () -> Unit, onNext: () -> Unit) {
+private fun PagerBar(title: String, sub: String, canBack: Boolean, canNext: Boolean, onBack: () -> Unit, onNext: () -> Unit, jump: List<String> = emptyList(), onJump: (Int) -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.FilledTonalButton(onClick = onBack, enabled = canBack, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) { Text("\u2190") }
-        Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // With many pages, tapping the title lists them all, to go straight to one.
+        var menu by remember { mutableStateOf(false) }
+        Box(Modifier.weight(1f)) {
+            Column(Modifier.fillMaxWidth().then(if (jump.size > 2) Modifier.clickable { menu = true } else Modifier).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(title + if (jump.size > 2) " \u25be" else "", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                jump.forEachIndexed { i, label -> DropdownMenuItem(text = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }, onClick = { menu = false; onJump(i) }) }
+            }
         }
         androidx.compose.material3.FilledTonalButton(onClick = onNext, enabled = canNext, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) { Text("\u2192") }
     }
