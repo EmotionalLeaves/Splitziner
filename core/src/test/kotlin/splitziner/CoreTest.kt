@@ -1159,3 +1159,43 @@ class FullSizeTest {
         assertTrue(r.pages.size in 1..4, "${r.pages.size}")
     }
 }
+
+class DrawerTest {
+    private fun cabinetWithDrawer(sideGap: Double): List<Part> {
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val c = t.build(splitziner.edit.Templates.defaults(t, false))   // 600 wide, 18 sides, 720 high, 560 deep, shelf at 351
+        val inner0 = 18.0 + sideGap; val inner1 = 600.0 - 18.0 - sideGap
+        val z0 = 400.0; val h = 150.0; val d = 480.0
+        val drawer = listOf(
+            Fixtures.box(inner0, inner1, 20.0, 32.0, z0, z0 + h), Fixtures.box(inner0, inner1, 20.0 + d - 12, 20.0 + d, z0, z0 + h),
+            Fixtures.box(inner0, inner0 + 12, 32.0, 20.0 + d - 12, z0, z0 + h), Fixtures.box(inner1 - 12, inner1, 32.0, 20.0 + d - 12, z0, z0 + h),
+            Fixtures.box(inner0 + 12, inner1 - 12, 32.0, 20.0 + d - 12, z0, z0 + 6))
+        return (c + drawer).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+    }
+
+    @Test fun aDrawerWithNoRoomForSlidesIsFlagged() {
+        val fmt = LengthFormat("mm")
+        val tight = cabinetWithDrawer(0.5)
+        val ds = splitziner.check.Drawers.find(tight)
+        assertEquals(1, ds.size); assertEquals(0.5, ds[0].left, 1e-6)
+        val cut = CutList.build(tight, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.findings.any { it.title.contains("drawer", ignoreCase = true) }, rep.findings.map { it.title }.toString())
+        val roomy = cabinetWithDrawer(12.7)
+        val cut2 = CutList.build(roomy, fmt)
+        assertTrue(splitziner.check.DesignCheck.run(cut2.parts, cut2.rows, fmt, null).findings.none { it.title.contains("slides") })
+    }
+}
+
+class RealDeskTest {
+    /** The real desk from a phone 3D app: fixing it automatically must leave nothing that stops it being built. */
+    @Test fun fixingTheDeskLeavesNoProblems() {
+        val f = java.io.File("../app/src/androidTest/assets/desk.stl")
+        if (!f.exists()) return
+        val a0 = Pipeline.analyze(f, splitziner.pipeline.AnalysisOptions(displayUnits = "in"))
+        val plan = splitziner.edit.AutoFix.plan(a0.originalParts, a0.format)
+        val a = Pipeline.analyze(f, splitziner.pipeline.AnalysisOptions(displayUnits = "in", edits = plan.edits))
+        val rep = splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, null, housed = a.housed)
+        assertEquals(0, rep.problems, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title }.toString())
+    }
+}

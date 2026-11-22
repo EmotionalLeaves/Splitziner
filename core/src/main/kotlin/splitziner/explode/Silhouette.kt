@@ -30,8 +30,9 @@ object Silhouette {
     }
 
     /**
-     * A closed part that fills its oriented box is a box, and a box's outline is exactly the convex hull of its
-     * corners: far quicker than joining hundreds of triangles, which is most of the time on big assemblies.
+     * A closed part that fills its oriented box is (nearly) a box, and its outline is close to the convex hull of its
+     * corners: far quicker than joining hundreds of triangles. Only for pictures, where a small notch lost does not
+     * matter; editing and cutting need the true outline.
      */
     private fun boxLike(mesh: Mesh): Boolean {
         if (!mesh.isWatertight) return false
@@ -41,7 +42,6 @@ object Silhouette {
     }
 
     private fun outlineUncached(mesh: Mesh, view: ViewDef): Geometry {
-        if (boxLike(mesh)) return hull(mesh, view)
         val n = mesh.faceNormals
         val front = (0 until mesh.triangleCount).filter { t -> n[3 * t] * view.n.x + n[3 * t + 1] * view.n.y + n[3 * t + 2] * view.n.z > 1e-9 }
         if (front.size > MAX_TRIANGLES) return hull(mesh, view)
@@ -59,7 +59,7 @@ object Silhouette {
     }
 
     /**
-     * Outlines of many meshes. Copies of one shape that differ only by where they sit (599 identical bolts) are
+     * Outlines of many meshes, for pictures. Copies of one shape that differ only by where they sit (599 identical bolts) are
      * traced once and the outline moved, which is most of the work saved on big repetitive assemblies.
      */
     fun outlines(meshes: List<Mesh>, view: ViewDef): List<Geometry> {
@@ -85,8 +85,9 @@ object Silhouette {
         }
         val leaders = leader.indices.filter { leader[it] == it }
         val traced = HashMap<Int, Geometry>()
-        val computed = if (leaders.size < 16) leaders.map { it to outline(meshes[it], view) }
-            else leaders.parallelStream().map { it to outline(meshes[it], view) }.collect(java.util.stream.Collectors.toList())
+        fun pic(m: Mesh) = if (boxLike(m)) hull(m, view) else outline(m, view)
+        val computed = if (leaders.size < 16) leaders.map { it to pic(meshes[it]) }
+            else leaders.parallelStream().map { it to pic(meshes[it]) }.collect(java.util.stream.Collectors.toList())
         for ((i, g) in computed) traced[i] = g
         return meshes.indices.map { i ->
             val l = leader[i]

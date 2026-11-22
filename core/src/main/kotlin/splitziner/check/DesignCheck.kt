@@ -303,6 +303,17 @@ object DesignCheck {
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }
+        // Drawers need room at their sides for slides or runners.
+        for (dr in runCatching { Drawers.find(live) }.getOrDefault(emptyList())) {
+            val its = live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted()
+            val each = minOf(dr.left, dr.right)
+            if (each < Drawers.SLIDE_GAP) {
+                val (u2, k) = if (fmt.isInch) "1/2 in" to 12.7 else "12.5 mm" to 12.5
+                out += Finding(Severity.CHECK, "No room for drawer slides (items ${its.joinToString(", ")})",
+                    "Items ${its.joinToString(", ")} look like a drawer box, with ${d(dr.left)} $u on the left and ${d(dr.right)} $u on the right. Ball-bearing slides, the usual kind, need about $u2 each side, so the box would be ${d(2 * k - dr.left - dr.right)} $u narrower. Wooden runners or a drawer that slides on its bottom need only a little play. Decide which before cutting the drawer parts.",
+                    dr.ids)
+            }
+        }
         val sagging = HashSet<Int?>()
         for ((i, p) in live.withIndex()) {
             if (p.kind != PartKind.PANEL && p.kind != PartKind.BOARD) continue
