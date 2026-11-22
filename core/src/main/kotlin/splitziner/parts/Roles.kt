@@ -23,7 +23,9 @@ object Roles {
                 out[p.id] = when {
                     p == bottom && e.z <= t + 0.01 -> "Drawer bottom"
                     e.x <= t + 0.01 -> "Drawer side"
-                    e.y <= t + 0.01 && p.mesh.bounds.min.y <= frontY + 0.5 -> if (dr.boxIds.size == dr.ids.size) "Drawer front" else "Drawer box front"
+                    // With a separate front fixed on, the box's own front and back are alike: its ends.
+                    e.y <= t + 0.01 && dr.boxIds.size != dr.ids.size -> "Drawer box end"
+                    e.y <= t + 0.01 && p.mesh.bounds.min.y <= frontY + 0.5 -> "Drawer front"
                     e.y <= t + 0.01 -> "Drawer back"
                     else -> "Drawer part"
                 }

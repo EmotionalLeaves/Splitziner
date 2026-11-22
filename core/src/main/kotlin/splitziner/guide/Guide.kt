@@ -281,29 +281,56 @@ object GuideLayout {
         var y = h - 26
         p.text(w / 2, y, info.title, 9.0, HAlign.CENTER, VAlign.TOP, bold = true); y -= 14
         if (info.subtitle.isNotBlank()) { p.text(w / 2, y, info.subtitle, 4.0, HAlign.CENTER, VAlign.TOP); y -= 8 }
-        if (hero != null) { p.prims += Image(25.0, y - 95, w - 25, y, hero); y -= 100 }
-        for ((k, v) in listOf("FINISHED SIZE" to info.overallSize, "PARTS" to "${info.partCount}", "BUILD STEPS" to "${steps.size}")) {
-            p.text(25.0, y, "$k:", 3.2, vAlign = VAlign.TOP, bold = true); p.text(70.0, y, v, 3.2, vAlign = VAlign.TOP); y -= 6
+        // Hardware sits beside the summary; tools, when known, under it. The picture shrinks (within reason) so the
+        // parts table fits on the cover.
+        val hwW = w / 2 - 30
+        val hwH = if (info.hardware.isEmpty()) 0.0 else 7 + info.hardware.sumOf { wrapHanging("• $it", 3.0, hwW - 3, 3.0).size * 4.5 }
+        val toolW = w - 50
+        val toolH = if (info.tools.isEmpty()) 0.0 else 12 + wrapMixed(info.tools.joinToString(", "), 3.0, toolW).size * 4.5
+        val tableH = 14 + rows.sumOf { r -> wrapMixed(r.name.ifBlank { "x" }, 2.9, 48.0).size * 4.2 + 0.8 }
+        val infoH = maxOf(20.0, hwH)
+        val spare = y - 16 - infoH - 3 - 24 - toolH - tableH - 10
+        val heroH = spare.coerceIn(45.0, 95.0)
+        if (hero != null) { p.prims += Image(25.0, y - heroH, w - 25, y, hero); y -= heroH + 5 }
+        val infoTop = y
+        for ((k, v) in listOf("SIZE" to info.overallSize, "PARTS" to "${info.partCount}", "STEPS" to "${steps.size}")) {
+            p.text(25.0, y, k, 3.2, vAlign = VAlign.TOP, bold = true); p.text(45.0, y, v, 3.2, vAlign = VAlign.TOP); y -= 6
+        }
+        if (info.hardware.isNotEmpty()) {
+            var hy = infoTop; val hx = w / 2 + 5
+            p.text(hx, hy, "HARDWARE", 3.5, vAlign = VAlign.TOP, bold = true); hy -= 7
+            for (it in info.hardware) hy = para(p, hx + 3, hy, "• $it", 3.0, hwW - 3, hang = 3.0)
+            y = minOf(y, hy)
         }
         y -= 3
         y = notice(p, 25.0, y, w - 50, DRAFT_NOTICE)
-        val columns = ArrayList<Pair<String, List<String>>>()
-        if (info.tools.isNotEmpty()) columns += "TOOLS NEEDED" to info.tools
-        if (info.hardware.isNotEmpty()) columns += "HARDWARE" to info.hardware
-        columns += "MATERIALS" to rows.map { "${it.qty} x ${it.description}" + if (it.material.isNotBlank()) " (${it.material})" else "" }
-        val colW = (w - 50 - (columns.size - 1) * 8) / columns.size
-        val top = y
+        if (info.tools.isNotEmpty()) {
+            p.text(25.0, y, "TOOLS NEEDED", 3.5, vAlign = VAlign.TOP, bold = true); y -= 7
+            y = para(p, 25.0, y, info.tools.joinToString(", "), 3.0, toolW) - 3
+        }
         var page = p
-        columns.forEachIndexed { ci, (head, items) ->
-            var pg = page; var x = 25.0 + ci * (colW + 8); var yy = top
-            pg.text(x, yy, head, 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7
-            for (it in items) {
-                val need = wrapHanging("• $it", 3.0, colW - 3, 3.0).size * 4.5
-                // The page is full: carry the list on overleaf under a "continued" heading.
-                if (yy - need < 16) { pg = pages.new(); x = 25.0; yy = h - 26; pg.text(x, yy, "$head (CONTINUED)", 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7 }
-                yy = para(pg, x + 3, yy, "• $it", 3.0, colW - 3, hang = 3.0)
-            }
-            page = pg
+        // The parts: item, how many, what it is called, its size, its material.
+        val colX = doubleArrayOf(25.0, 37.0, 50.0, 100.0, 160.0)
+        fun header(pg: DisplayList, yy: Double, cont: Boolean): Double {
+            pg.text(25.0, yy, if (cont) "PARTS (CONTINUED)" else "PARTS", 3.5, vAlign = VAlign.TOP, bold = true)
+            var y2 = yy - 7
+            for ((i, hd) in listOf("ITEM", "QTY", "NAME", "SIZE (T X W X L)", "MATERIAL").withIndex()) pg.text(colX[i], y2, hd, 2.6, vAlign = VAlign.TOP, bold = true)
+            y2 -= 4.2
+            pg.line(25.0, y2, w - 25, y2, LineStyle.THIN)
+            return y2 - 1.5
+        }
+        var yy = header(page, y, false)
+        for (r in rows) {
+            val name = r.name.ifBlank { r.description.substringBefore(' ').lowercase().replaceFirstChar { it.uppercase() } }
+            val nameLines = wrapMixed(name, 2.9, colX[3] - colX[2] - 2)
+            val need = nameLines.size * 4.2 + 0.8
+            if (yy - need < 16) { page = pages.new(); yy = header(page, h - 26, true) }
+            page.text(colX[0], yy, "${r.item}", 2.9, vAlign = VAlign.TOP, bold = true)
+            page.text(colX[1], yy, "${r.qty}", 2.9, vAlign = VAlign.TOP)
+            nameLines.forEachIndexed { i, ln -> page.text(colX[2], yy - i * 4.2, ln, 2.9, vAlign = VAlign.TOP) }
+            page.text(colX[3], yy, r.stock + (if (r.kind == splitziner.parts.PartKind.ROD) " (rod)" else ""), 2.9, vAlign = VAlign.TOP)
+            if (r.material.isNotBlank()) page.text(colX[4], yy, r.material, 2.9, vAlign = VAlign.TOP)
+            yy -= need
         }
 
         // The work before the first step and after the last, on a page of its own.
