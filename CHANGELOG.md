@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6.0 - Tidier exploded views
+
+- Exploded drawings are much tidier on big pieces: a bookcase's shelves are pulled out together in neat columns instead of a staircase down the page, and a chest's drawers come out side by side.
+
 ## v1.5.0 - Cleaner exploded cabinet runs
 
 - Kitchen runs: the exploded drawing shows the cabinets pulled apart along the row, with the worktop above them, instead of scattered front and back.

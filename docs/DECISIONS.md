@@ -301,3 +301,6 @@ Departures from the build spec, newest first.
 
 ## v1.5
 - Cabinets in a row are drawn in the exploded views pulled apart along the row, evenly out from the middle (by 0.3 of a cabinet's width per place), so each reads whole; before, the peel order scattered them front and back under the worktop.
+
+## v1.6
+- In the exploded views, parts of one item pulled the same way move as one group even when they are fitted over several steps (a bookcase's shelves), and alike drawer boxes move as one group: pulled out the same distance, side by side, instead of each clearing the last and spilling down the page.

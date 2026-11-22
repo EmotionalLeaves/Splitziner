@@ -579,7 +579,20 @@ object AssemblyPlan {
         val unitOf = unitKeys(parts)
         val unitSize = unitOf.values.groupingBy { it }.eachCount()
         fun single(p: Part) = !p.excluded && p.item != null && (unitSize[unitOf[p.id] ?: p.id] ?: 1) == 1
-        val key = { p: Part -> if (!single(p)) null else p.explode?.let { e -> val d = e.normalized(); "${p.step}/${p.item}/${Math.round(d.x * 4)},${Math.round(d.y * 4)},${Math.round(d.z * 4)}" } }
+        // Across steps too: a bookcase's shelves fitted over four steps are still drawn pulled out together, side by
+        // side, rather than each clearing the last and spilling down the page.
+        // Drawer boxes alike (a chest's six) are pulled out together too, each with its whole box.
+        val kindOf = parts.filter { !it.excluded }.groupBy { unitOf[it.id] ?: it.id }.mapValues { (_, ms) -> ms.mapNotNull { it.item }.sorted().joinToString(",") }
+        val key = { p: Part ->
+            val u = unitOf[p.id] ?: p.id
+            val dir = p.explode?.let { e -> val d = e.normalized(); "${Math.round(d.x * 4)},${Math.round(d.y * 4)},${Math.round(d.z * 4)}" }
+            when {
+                dir == null || p.excluded || p.item == null -> null
+                single(p) -> "${p.item}/$dir"
+                u.startsWith("drawer") -> "box:${kindOf[u]}/$dir"
+                else -> null
+            }
+        }
         val counts = parts.mapNotNull { key(it) }.groupingBy { it }.eachCount()
         return parts.map { p ->
             val k = key(p)
