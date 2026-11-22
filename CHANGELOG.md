@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.52.0 - Build mode: the guide one step per screen
+
+- **Build mode** on the Guide tab is for using in the workshop. It shows the guide one step per screen: a large picture, what the step uses, and numbered instructions, with any check to make. Tap **Done, next** to move on. The app remembers which steps are done, so next time you open it, it picks up where you left off.
+- **Help** is now in the project menu (⋮), which leaves room to show the project's full size under its name.
+
 ## v0.51.0 - Shopping checklist and Check filters
 
 - **Shopping list is now a checklist you can take to the store.** It lists the sheets and lengths from the cutting plan, the edge banding, and the hardware the guide uses (screws, hinges, slides). Tick each line as you buy it. The ticks stay with the project, a bar shows how far through you are, and any prices you've entered are added up. **Share** still sends it as text.
