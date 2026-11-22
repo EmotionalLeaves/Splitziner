@@ -422,14 +422,19 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
         } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
-                items(a.parts, key = { it.id }) { p ->
+                // In item order, the left-out parts last; sizes in ordinary type with their unit, like the cut list.
+                val ordered = a.parts.sortedWith(compareBy({ it.excluded }, { it.item ?: Int.MAX_VALUE }, { it.id }))
+                items(ordered, key = { it.id }) { p ->
                     Row(Modifier.fillMaxWidth().clickable { editPart = p }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         val it0 = p.item; if (it0 != null && !p.excluded) ItemBadge(it0) else Box(Modifier.size(28.dp))
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (p.excluded) "Left out of lists and drawings" else p.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            val desc = p.desc.lowercase().replaceFirstChar { it.uppercase() }
+                            Text(if (p.excluded) "Left out of lists and drawings" else desc.substringBefore(',') + " ${a.format.unitLabel}" + (if (desc.contains(',')) "," + desc.substringAfter(',') else ""),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (p.excluded) Text("excluded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                        else Text(p.id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                     HorizontalDivider()
                 }
