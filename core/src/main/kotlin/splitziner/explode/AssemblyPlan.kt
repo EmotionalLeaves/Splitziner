@@ -79,7 +79,7 @@ object AssemblyPlan {
      * once; of those, the shortest, as a woodworker would make the ends first.
      */
     fun legFrames(live: List<Part>): List<List<String>> {
-        val legs = live.filter { it.name == "Leg" && '.' !in it.id }
+        val legs = live.filter { it.name.endsWith("eg") && '.' !in it.id }
         if (legs.size < 4 || legs.size % 2 != 0) return emptyList()
         fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
         fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }

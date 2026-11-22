@@ -42,7 +42,12 @@ object Roles {
         for (p in live) {
             if (p.id in out) continue
             val e = p.mesh.bounds.extents; val dims = listOf(e.x, e.y, e.z).sorted()
-            if (dims[1] < 2.5 * dims[0] && e.z >= dims[2] - 0.01 && e.z > 1.5 * dims[1] && p.mesh.bounds.min.z <= all.min.z + 1.0) { out[p.id] = "Leg"; legs += p.id }
+            if (dims[1] < 2.5 * dims[0] && e.z >= dims[2] - 0.01 && e.z > 1.5 * dims[1] && p.mesh.bounds.min.z <= all.min.z + 1.0) {
+                // One standing away from every outside edge (under a bed's centre rail) is a centre leg.
+                val b = p.mesh.bounds; val m = 2 * dims[1]
+                val inside = b.min.x > all.min.x + m && b.max.x < all.max.x - m && b.min.y > all.min.y + m && b.max.y < all.max.y - m
+                out[p.id] = if (inside) "Centre leg" else "Leg"; legs += p.id
+            }
         }
         fun touches(a: Part, o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 1.0 && a.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 1.0 }
         for (p in live) {

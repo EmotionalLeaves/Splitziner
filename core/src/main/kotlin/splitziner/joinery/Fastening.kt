@@ -183,7 +183,7 @@ object Fastening {
             // a few fasteners only hold them while the glue sets.
             // A back panel on a shelf's edge is not: that strip is too narrow to clamp a face to.
             // Nor is a rail against a leg: that is a structural joint, screwed.
-            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0 && thr.name != "Leg" && into.name != "Leg"
+            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0 && !thr.name.endsWith("eg") && !into.name.endsWith("eg")
             // A top resting on its supports is never fixed through its visible face: brackets go underneath.
             // Nor is a top with nothing above it (a table top on its aprons): screw heads in it would be on show.
             val ti0 = idx.getValue(thr.id)
@@ -218,7 +218,7 @@ object Fastening {
                 if (k == 0 || k == 1) { if (restsAtBothEnds(ti0) && (hi[ti0].z - lo[ti0].z) < (hi[ii0].z - lo[ii0].z)) continue; if (restsAtBothEnds(ii0) && (hi[ii0].z - lo[ii0].z) < (hi[ti0].z - lo[ti0].z)) continue }
             }
             // A leg's end under a top held by aprons needs nothing of its own: the aprons carry the top.
-            if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name.endsWith("ail")) && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
+            if (topDown && into.name.endsWith("eg") && live.any { o -> (o.name == "Apron" || o.name.endsWith("ail")) && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
             if (topDown && !glue) {
                 count = maxOf(2, ceil(length / (2 * SPACING)).toInt())
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "brackets", false)
