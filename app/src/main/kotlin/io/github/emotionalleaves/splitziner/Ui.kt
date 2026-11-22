@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -222,6 +223,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var showCutPlan by remember { mutableStateOf(false) }
     if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -375,7 +377,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
                 OutlinedButton(onClick = { shareCsv(context, open) }) { Text("Share CSV") }
-                OutlinedButton(onClick = { shareShopping(context, open, vm) }) { Text("Shopping list") }
+                OutlinedButton(onClick = { shareShopping(context, open, vm, scope) }) { Text("Shopping list") }
                 OutlinedButton(onClick = { shareProfiles(context, open) }) { Text("CNC profiles") }
             }
         }
@@ -972,11 +974,22 @@ private fun savedStock(context: Context, fmt: splitziner.dims.LengthFormat): spl
     return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch)
 }
 
-/** Everything to buy, as plain text to take to the store: stock, hardware, edge banding. */
-private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel) {
-    try {
+/** Everything to buy, as plain text to take to the store: stock, hardware, edge banding. Worked out off the main thread. */
+private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel, scope: kotlinx.coroutines.CoroutineScope) {
+    val stock = savedStock(context, open.analysis.format)
+    scope.launch {
+        val text = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { shoppingText(open, vm, stock) } }
+            .onFailure { Diagnostics.logError("shopping list", it) }.getOrNull()
+        if (text == null) { Toast.makeText(context, "Could not make the shopping list", Toast.LENGTH_LONG).show(); return@launch }
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "Shopping list").putExtra(Intent.EXTRA_TEXT, text)
+        context.startActivity(Intent.createChooser(send, "Share shopping list"))
+    }
+}
+
+private fun shoppingText(open: OpenProject, vm: AppViewModel, stock: splitziner.cutplan.StockSettings): String {
+    run {
         val a = open.analysis; val fmt = a.format
-        val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, fmt))
+        val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, stock)
         val sb = StringBuilder("Shopping list: ${open.meta.title.ifBlank { open.meta.name }}\n\nWood\n")
         for (b in splitziner.cutplan.CutPlanner.shoppingList(plan, fmt)) sb.append("• ").append(b).append('\n')
         for (b in plan.leftOut) sb.append("• ").append(b).append('\n')
@@ -984,11 +997,7 @@ private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel)
         val hardware = vm.hardwareFor(open)
         if (hardware.isNotEmpty()) { sb.append("\nHardware (${vm.methodFor(open.meta).label.lowercase()})\n"); for (h in hardware) sb.append("• ").append(h).append('\n') }
         sb.append("\nSizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying.")
-        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "Shopping list").putExtra(Intent.EXTRA_TEXT, sb.toString())
-        context.startActivity(Intent.createChooser(send, "Share shopping list"))
-    } catch (e: Throwable) {
-        Diagnostics.logError("shopping list", e)
-        Toast.makeText(context, "Could not make the shopping list", Toast.LENGTH_LONG).show()
+        return sb.toString()
     }
 }
 
