@@ -235,6 +235,14 @@ class SmokeTest {
             waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             shot("n02_bookcase_guide")
             println("SMOKE bookcase parts=${a.parts.size} items=${a.cutList.rows.size} guide steps=${vm.state.value.guide!!.stepCount}")
+            // Overall size: the dialog, then 6 in (152.4 mm) wider through the same edit it makes.
+            tap("3D"); tap("Overall size"); shot("n03_overall_size"); tap("Cancel")
+            val w0 = a.bounds.extents.x
+            val plane = splitziner.edit.Editor.stretchPlane(a.parts, 0)!!
+            vm.addEdits(listOf(splitziner.edit.Edit.Stretch(0, plane.first, 152.4)))
+            waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.isNotEmpty() }
+            assertEquals(w0 + 152.4, vm.state.value.open!!.analysis.bounds.extents.x, 0.01)
+            println("SMOKE overall size ok: ${vm.state.value.open!!.analysis.overallSize}")
             assertNull(Diagnostics.lastCrash())
         }
     }
