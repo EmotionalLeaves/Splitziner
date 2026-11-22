@@ -1361,8 +1361,19 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         if (report.problems == 0) Text("Nothing found that stops it being built as drawn. Next: read the Guide through, then share the Shopping list from the Cut list tab and take it to the store." +
             if (report.checks > 0) " The items below are worth a look first." else "",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
+        // Filters by how serious, so a long list can be worked through one kind at a time.
+        var only by remember { mutableStateOf<splitziner.check.Severity?>(null) }
+        val counts = report.findings.groupingBy { it.severity }.eachCount()
+        if (counts.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.material3.FilterChip(selected = only == null, onClick = { only = null }, label = { Text("All ${report.findings.size}") })
+            for ((sev, word) in listOf(splitziner.check.Severity.PROBLEM to "Problems", splitziner.check.Severity.CHECK to "To check", splitziner.check.Severity.NOTE to "Notes")) {
+                val n = counts[sev] ?: 0
+                if (n > 0) androidx.compose.material3.FilterChip(selected = only == sev, onClick = { only = if (only == sev) null else sev }, label = { Text("$word $n") })
+            }
+        }
+        val shownFindings = report.findings.filter { only == null || it.severity == only }
         LazyColumn(Modifier.weight(1f)) {
-            items(report.findings) { f ->
+            items(shownFindings) { f ->
                 val (word, color) = when (f.severity) {
                     splitziner.check.Severity.PROBLEM -> "Problem" to MaterialTheme.colorScheme.error
                     splitziner.check.Severity.CHECK -> "Check" to MaterialTheme.colorScheme.tertiary
@@ -1375,8 +1386,13 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                     Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 4.dp)) {
                         Text(word.uppercase(), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         Text(f.title, style = MaterialTheme.typography.titleSmall)
-                        Text(f.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // Long explanations open on request, so the list can be scanned.
+                        var whole by remember(f) { mutableStateOf(false) }
+                        val long = f.detail.length > 180
+                        Text(f.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = if (long && !whole) 3 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis)
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (long) TextButton(onClick = { whole = !whole }) { Text(if (whole) "Less" else "More") }
                             if (f.partIds.isNotEmpty()) TextButton(onClick = { onShow(f.partIds[0]) }) { Text("Show in 3D") }
                             for (fix in f.fixes) TextButton(onClick = {
                                 vm.addEdits(when (fix.kind) {
