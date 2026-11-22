@@ -53,6 +53,18 @@ object Templates {
             Field("w", "Length", 1200.0, 48.0), Field("d", "Width", 350.0, 14.0), Field("h", "Height", 450.0, 18.0), Field("t", "Top thickness", 30.0, 1.5),
             Field("leg", "Leg size", 60.0, 3.5), Field("apron", "Apron depth", 80.0, 3.5), Field("at", "Apron thickness", 19.0, 0.75),
         )) { v -> table(v) },
+        Template("desk", "Desk", "A top on two panel ends, braced by a modesty panel set in from the back.", listOf(
+            Field("w", "Width", 1400.0, 60.0), Field("d", "Depth", 700.0, 28.0), Field("h", "Height", 750.0, 30.0),
+            Field("t", "Top thickness", 25.0, 1.0), Field("st", "Panel thickness", 18.0, 0.75), Field("m", "Modesty panel height", 300.0, 12.0),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val st = v.getValue("st"); val m = v.getValue("m")
+            val lh = h - t; val inner = w - 2 * st
+            listOf(
+                box(0.0, 0.0, lh, w, d, t),                                   // top, flush with the ends
+                box(0.0, 0.0, 0.0, st, d, lh), box(w - st, 0.0, 0.0, st, d, lh), // ends
+                box(st, d - 3 * st, lh - m, inner, st, m),                    // modesty panel, set in from the back
+            )
+        },
         Template("box", "Open box", "A bottom with four sides around it: a crate, planter or drawer box.", listOf(
             Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 300.0, 12.0), Field("h", "Height", 200.0, 8.0), Field("t", "Side thickness", 12.0, 0.5), Field("bt", "Bottom thickness", 6.0, 0.25),
         )) { v ->
