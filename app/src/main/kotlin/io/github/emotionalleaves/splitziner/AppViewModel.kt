@@ -293,7 +293,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val pl = planOf(a, open.meta.stepOrder)
                     val method = methodFor(open.meta)
                     val fasten = runCatching { splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, toolsFor(open.meta), a.housed) }.onFailure { Diagnostics.logError("fastening", it) }.getOrNull()
-                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText, fasten)
+                    val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, open.meta.stepText, fasten, a.format)
                     val drawn = pl.parts.filter { !it.excluded }
                     val view = splitziner.explode.ExplodedView.pickView(drawn)
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")

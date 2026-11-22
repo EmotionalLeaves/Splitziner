@@ -49,7 +49,23 @@ object GuideSteps {
     fun stepKey(partIds: List<String>): String = partIds.sorted().joinToString(",")
 
     /** [overrides] is keyed by [stepKey]. */
-    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap(), fasten: splitziner.joinery.FastenPlan? = null): List<GuideStep> {
+    /**
+     * The even gap between like parts laid side by side (slats, spaced boards), or null when they are not evenly
+     * spaced or there are fewer than three. Read from the whole model, so the first step that lays some can say it.
+     */
+    fun evenGap(like: List<Part>): Double? {
+        if (like.size < 3) return null
+        val b = like.map { it.mesh.bounds }
+        // Spread along the axis where their centres differ most.
+        val ax = (0..2).maxByOrNull { k -> b.maxOf { it.center[k] } - b.minOf { it.center[k] } } ?: return null
+        val sorted = b.sortedBy { it.min[ax] }
+        val gaps = sorted.zipWithNext { a, c -> c.min[ax] - a.max[ax] }
+        if (gaps.any { it < 3.0 }) return null
+        return if (gaps.maxOrNull()!! - gaps.minOrNull()!! <= 1.5) gaps.average() else null
+    }
+
+    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap(), fasten: splitziner.joinery.FastenPlan? = null, fmt: splitziner.dims.LengthFormat? = null): List<GuideStep> {
+        val gapTold = HashSet<Int>()
         val drawn = parts.filter { !it.excluded }
         val byId = drawn.associateBy { it.id }
         // One view for every step, so the reader keeps their bearings.
@@ -136,6 +152,20 @@ object GuideSteps {
                     "${fits[i].first} items $joined${fits[i].second}, in that order."
                 }
                 i = j + 1
+            }
+            // Like parts laid side by side, evenly spaced (slats): the gap, once, the first time some go in.
+            if (fmt != null && !st.subassembly) for ((item, n) in count) {
+                if (item == null || n < 2 || item in gapTold) continue
+                val like = drawn.filter { it.item == item }
+                val flat = like.all { p -> p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) } }
+                val gap = if (flat) evenGap(like) else null
+                if (gap != null) {
+                    gapTold += item
+                    val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
+                    val nm = like.filter { it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
+                    val what = if (nm != null) "the ${if (nm.endsWith("helf")) nm.dropLast(1) + "ves" else if (nm.endsWith("s")) nm else nm + "s"} (item $item)" else "the item $item parts"
+                    lines += "Space $what $g apart, evenly; a spacer block cut to $g keeps every gap the same."
+                }
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
