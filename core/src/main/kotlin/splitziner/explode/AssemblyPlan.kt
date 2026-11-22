@@ -266,13 +266,17 @@ object AssemblyPlan {
      */
     private fun mergeAlike(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
         val itemOf = units.associate { it.id to it.item }
+        // Parts named alike (drawer fronts of graduated drawers, items of their own) count as alike too.
+        val nameOf = units.associate { it.id to it.name.takeIf { n -> n != it.id && n.isNotBlank() } }
         val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
         for ((n, st) in steps.withIndex()) {
             val last = out.lastOrNull()
             val items = st.partIds.map { itemOf[it] }.distinct()
-            val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && items.size == 1 && items[0] != null &&
-                last.partIds.all { itemOf[it] == items[0] } && last.directions.toSet() == st.directions.toSet() &&
-                last.partIds.size + st.partIds.size <= MAX_GROUP
+            val names = (st.partIds + (last?.partIds ?: emptyList())).map { nameOf[it] }.distinct()
+            val sameItem = items.size == 1 && items[0] != null && last != null && last.partIds.all { itemOf[it] == items[0] }
+            val sameName = names.size == 1 && names[0] != null
+            val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
+                last.directions.toSet() == st.directions.toSet() && last.partIds.size + st.partIds.size <= MAX_GROUP
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
