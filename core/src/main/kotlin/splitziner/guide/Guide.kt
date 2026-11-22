@@ -299,7 +299,8 @@ object GuideLayout {
         // The work before the first step and after the last, on a page of its own.
         if (info.before.isNotEmpty() || info.after.isNotEmpty()) {
             val pg = pages.new(); var yy = h - 26
-            for ((head, items) in listOf("BEFORE YOU BUILD" to info.before, "WHEN IT IS TOGETHER" to info.after)) {
+            val after = info.after + if (info.hardware.any { it.contains("anti-tip") }) listOf("Stand it where it will live and fix it to the wall with the anti-tip strap, screwed into a stud.") else emptyList()
+            for ((head, items) in listOf("BEFORE YOU BUILD" to info.before, "WHEN IT IS TOGETHER" to after)) {
                 if (items.isEmpty()) continue
                 pg.text(25.0, yy, head, 4.0, vAlign = VAlign.TOP, bold = true); yy -= 8
                 items.forEachIndexed { i, t -> yy = para(pg, 28.0, yy, "${i + 1}. $t", 3.2, w - 56, hang = 4.0) - 1.5 }
