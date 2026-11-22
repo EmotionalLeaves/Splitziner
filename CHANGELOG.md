@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.61.0 - Bed frame template and more accurate joints
+
+- **New template: Bed frame.** It has side and end rails round the mattress, legs in the corners, cleats along the side rails carrying slats, and a centre rail on two more legs so no slat spans more than half the width. Set the mattress size, height, rail and leg sizes, and the slat width and gap. The guide builds the side frames (rail, legs and cleat) on the bench, then joins them and screws the slats down.
+- **More accurate joints everywhere:**
+  - The app now finds parts that touch across the middle of both faces, such as a slat crossing a centre rail. Before, these were missed.
+  - Short legs are recognised as legs. Narrow boards lying side by side are named **Slat**, and ledger strips are named **Cleat**.
+  - A board resting on supports at both ends or both edges is screwed down to them, not into the legs at its ends.
+  - A rail against a leg is screwed, not "glued face to face".
+- **Supports come first in the guide:** a step never sets a part on something that hasn't been fitted yet.
+
 ## v0.60.0 - Clearer exploded views
 
 - **Clearer exploded views:** doors and drawer fronts are now pulled far enough out to clear the shelves and boxes behind them, so each part can be seen on its own instead of overlapping.
