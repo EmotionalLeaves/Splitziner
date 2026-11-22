@@ -65,14 +65,42 @@ object PartDrawings {
      * each end, any more evenly between); the cup's distance from the edge and its depth belong to the hinge
      * bought, so they are given as typical values to check against its template.
      */
+    /** Typical cup edge distance and depth (mm), drawn to show where the cups go; the hinges' template rules. */
+    private const val CUP_IN = 22.0
+    private const val CUP_DEEP = 13.0
+    private const val CUP_DIA = 35.0
+
+    /** How far a cup's centre is from each end of the door (mm), the usual workshop practice. */
+    private fun cupEnd(height: Double) = minOf(100.0, height / 5)
+
+    /**
+     * The hinge cups of door [p] in the coordinates of its laid-down drawing [laid]: along one long edge (the
+     * hinge edge, shown on the drawing's lower or left edge), drilled into the back face.
+     */
+    fun hingeCups(p: Part, parts: List<Part>, laid: Mesh): List<splitziner.features.Hole> {
+        val door = runCatching { splitziner.check.Doors.find(parts) }.getOrDefault(emptyList()).firstOrNull { it.id == p.id } ?: return emptyList()
+        val n = splitziner.check.Doors.hinges(door.height)
+        val b = laid.bounds
+        val e = cupEnd(door.height)
+        // The door's height is the laid X when it is the longer side, else Z.
+        val alongX = kotlin.math.abs(b.extents.x - door.height) <= kotlin.math.abs(b.extents.z - door.height)
+        val len = if (alongX) b.extents.x else b.extents.z
+        val at = (0 until n).map { k -> e + k * (len - 2 * e) / (n - 1) }
+        val back = b.max.y
+        return at.map { a ->
+            val c = if (alongX) splitziner.math.Vec3(b.min.x + a, back, b.min.z + CUP_IN) else splitziner.math.Vec3(b.min.x + CUP_IN, back, b.min.z + a)
+            splitziner.features.Hole(c, splitziner.math.Vec3(0.0, -1.0, 0.0), CUP_DIA, CUP_DEEP, false)
+        }
+    }
+
     fun hingeNotes(p: Part, parts: List<Part>, fmt: LengthFormat): List<String> {
         val door = runCatching { splitziner.check.Doors.find(parts) }.getOrDefault(emptyList()).firstOrNull { it.id == p.id } ?: return emptyList()
         val n = splitziner.check.Doors.hinges(door.height)
-        val end = minOf(100.0, door.height / 5)
+        val end = cupEnd(door.height)
         val d = { v: Double -> fmt.format(v) }
         val between = if (n > 2) ", ${n - 2} MORE EVENLY BETWEEN" else ""
         return listOf("HINGE CUPS FOR $n CONCEALED HINGES: 35 MM DIAMETER IN THE BACK FACE ALONG THE HINGE EDGE, CENTRES ${d(end)} FROM EACH END$between. " +
-            "CUP DISTANCE FROM THE EDGE AND DEPTH TO SUIT THE HINGES' TEMPLATE (USUALLY ABOUT 22 MM IN AND 12-13 MM DEEP). DO NOT DRILL THROUGH.")
+            "THE CUPS ARE DRAWN AT THE USUAL 22 MM IN FROM THE EDGE AND 13 MM DEEP: CHECK BOTH AGAINST THE HINGES' TEMPLATE BEFORE DRILLING. DO NOT DRILL THROUGH. A PAIR OF DOORS IS MADE ONE OF EACH HAND.")
     }
 
     /** Items drilled for shelf pins: these always get a detail sheet, which gives the holes. */
@@ -158,7 +186,7 @@ object PartDrawings {
                 notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
-            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt)
+            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh))
             r.sheets.forEach { it.qa.clear() }
             out += row to DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
         }

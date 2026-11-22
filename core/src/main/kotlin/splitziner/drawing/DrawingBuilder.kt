@@ -158,7 +158,8 @@ object DrawingBuilder {
      * [planned] is the same parts carrying their assembly plan (explode directions and steps). When given
      * for an assembly, a second sheet shows the exploded view with item balloons.
      */
-    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, planned: List<Part>? = null): DrawingResult {
+    /** [extraHoles] are holes drilled into a single part that its model does not have (hinge cups). */
+    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, planned: List<Part>? = null, extraHoles: List<Hole> = emptyList()): DrawingResult {
         val drawn = parts.filter { !it.excluded }
         val single = drawn.size <= 1
         val front = vs.views.getValue("front"); val top = vs.views.getValue("top"); val right = vs.views.getValue("right")
@@ -171,7 +172,7 @@ object DrawingBuilder {
             }
         }
         // Holes are located and called out on drawings of one part; on an assembly they would bury the views.
-        val holes = if (drawn.size == 1) runCatching { HoleFinder.find(drawn[0].mesh) }.getOrDefault(emptyList()) else emptyList()
+        val holes = if (drawn.size == 1) runCatching { HoleFinder.find(drawn[0].mesh) }.getOrDefault(emptyList()) + extraHoles else emptyList()
         val callouts = holeCallouts(holes, fmt)
         val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes)
         fun size(v: ViewLines) = doubleArrayOf(v.bounds[2] - v.bounds[0], v.bounds[3] - v.bounds[1])
@@ -315,10 +316,20 @@ object DrawingBuilder {
                         val ext = rp + if (rp < SMALL_HOLE_MM) 1.2 else minOf(4.0, maxOf(2.0, 0.4 * rp))
                         val style = if (rp < SMALL_HOLE_MM) LineStyle.THIN else LineStyle.CENTER
                         dl.line(c[0] - ext, c[1], c[0] + ext, c[1], style); dl.line(c[0], c[1] - ext, c[0], c[1] + ext, style)
+                        // A hole the model does not have is drawn here: solid from the face it is drilled in, else hidden.
+                        if (h in extraHoles) dl.circle(c[0], c[1], rp, if ((h.axis dot def.n) < 0) LineStyle.THICK else LineStyle.HIDDEN)
                     } else if (along < 0.02 && h.depth != null) {
                         val a = paper(h.start); val e = paper(h.end)
                         val len = Math.hypot(e[0] - a[0], e[1] - a[1])
-                        if (len > 1e-6) { val ux = (e[0] - a[0]) / len * 3; val uy = (e[1] - a[1]) / len * 3; dl.line(a[0] - ux, a[1] - uy, e[0] + ux, e[1] + uy, LineStyle.CENTER) }
+                        if (len > 1e-6) {
+                            val ux = (e[0] - a[0]) / len * 3; val uy = (e[1] - a[1]) / len * 3; dl.line(a[0] - ux, a[1] - uy, e[0] + ux, e[1] + uy, LineStyle.CENTER)
+                            if (h in extraHoles) {
+                                // Its sides and bottom, hidden inside the part.
+                                val px = -uy / 3 * h.diameter / 2 * s; val py = ux / 3 * h.diameter / 2 * s
+                                dl.line(a[0] + px, a[1] + py, e[0] + px, e[1] + py, LineStyle.HIDDEN); dl.line(a[0] - px, a[1] - py, e[0] - px, e[1] - py, LineStyle.HIDDEN)
+                                dl.line(e[0] - px, e[1] - py, e[0] + px, e[1] + py, LineStyle.HIDDEN)
+                            }
+                        }
                     }
                 }
                 val notes = callouts.filter { it.view == name }
