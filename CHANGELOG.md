@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.69.0 - Spacing in the guide
+
+- **The guide gives the spacing** for parts set out evenly, such as slats or a bookcase's shelves: "Space the slats (item 4) 3-7/16 in apart, evenly; a spacer block cut to 3-7/16 in keeps every gap the same."
+- On first run, the how-it-works card has a **Try a template** button.
+
 ## v0.68.0 - Help screen and clearer rail names
 
 - **Help has its own screen.** Topics are grouped by section (getting a model in, 3D and changes, check and fixes, drawings, build guide, cut list and buying). Tap a topic to open it, or search all of them.
