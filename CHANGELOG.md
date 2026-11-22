@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.29.0 - Prices, grain and project files
+
+What it costs, grain that stays put, and projects you can back up.
+
+- **Prices.** On the Cut list tab, **Prices** lets you type what each sheet and board costs where you shop. The Cut list then shows what the wood comes to, and the shopping list prices every line and gives a total. Prices are remembered for your other projects.
+- **Grain.** Tap an item and tick "Grain runs along its length". The cutting plan then never turns that part on the sheet, and marks it G, so a visible panel's grain runs the way you want.
+- **Share project.** Tap the summary at the top of a project, then **Share project**. You get one file with the model and everything you set and changed. Open it on any phone with the app (Import, or Open with) and the project comes back whole, changes included.
+- **OBJ files** are recognised by their contents as well as their name, and stand the right way up when opened.
+- Import is now one button: **Import** (STL, OBJ or a shared project).
+
 ## v0.28.0 - Drawers, nightstand, turning parts
 
 Drawers that work like drawers, a nightstand to start from, and turning parts.
