@@ -15,7 +15,17 @@ object Templates {
 
     class Template(val key: String, val name: String, val blurb: String, val fields: List<Field>, val build: (Map<String, Double>) -> List<Mesh>)
 
-    private fun box(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double) = Editor.box(Vec3(x, y, z), Vec3(w, d, h))
+    /** Sizes that cannot make the piece: a part would come out with no size at all, or less. */
+    class SizesDoNotFit : IllegalArgumentException("Those sizes do not fit together: some part would have no room. Make the piece bigger or its parts smaller.")
+
+    private fun box(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double): Mesh {
+        if (w < 1.0 || d < 1.0 || h < 1.0) throw SizesDoNotFit()
+        return Editor.box(Vec3(x, y, z), Vec3(w, d, h))
+    }
+
+    /** Null when the sizes make the piece, else what is wrong, in words for the person who typed them. */
+    fun problem(t: Template, values: Map<String, Double>): String? =
+        try { t.build(values); null } catch (e: SizesDoNotFit) { e.message } catch (e: Exception) { "Those sizes do not make this piece." }
 
     val ALL: List<Template> = listOf(
         Template("shelves", "Bookcase", "Two sides, a top and bottom between them, evenly spaced shelves (fixed or on pins), a back panel and a kick board.", listOf(

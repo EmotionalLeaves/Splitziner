@@ -1983,6 +1983,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 if (v == null || v < 0 || (!f.count && v == 0.0 && !f.key.startsWith("back"))) { error = "Enter a number for ${f.label.lowercase()}."; return@TextButton }
                 mm[f.key] = if (f.count) v else if (inch) v * 25.4 else v
             }
+            // Sizes that leave a part no room are caught here, with a plain reason, not after the project is made.
+            splitziner.edit.Templates.problem(t, splitziner.edit.Templates.defaults(t, inch) + mm)?.let { error = it; return@TextButton }
             onDismiss(); vm.newDesign(t.key, mm)
         }) { Text("Create") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
