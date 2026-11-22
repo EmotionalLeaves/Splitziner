@@ -73,7 +73,9 @@ object Lumber {
     fun fit(t: Double, w: Double): Size? = SIZES.filter { abs(it.t - t) < maxOf(0.8, 0.03 * it.t) && it.w >= w - 0.8 }.minByOrNull { it.w }
 }
 
-class CutPlanResult(val stock: StockSettings, val sheets: List<SheetLayout>, val boards: List<BoardLayout>, val leftOut: List<String>)
+/** [layered]: panels thicker than any sheet, cut as this many layers of a sheet thickness and glued face to face (item to count and layer thickness). */
+class CutPlanResult(val stock: StockSettings, val sheets: List<SheetLayout>, val boards: List<BoardLayout>, val leftOut: List<String>,
+    val layered: Map<Int, Pair<Int, Double>> = emptyMap())
 
 /**
  * Lays panels out on sheets and boards along bought lengths. Every sheet layout can be cut with
@@ -156,8 +158,34 @@ object CutPlanner {
     /** Boards this thin (mm) or thinner are hardly sold as timber in metric: they are strips cut from sheet. */
     private const val THIN_STRIP_MAX = 12.5
 
-    fun plan(rows: List<CutListRow>, stock: StockSettings): CutPlanResult {
+    /**
+     * The thickest sheet sold for furniture: 1 in MDF and plywood; 30 mm in metric. Anything thicker (a 1-1/2 in
+     * workbench top) is glued up from layers of a thinner sheet, as it is in practice.
+     */
+    private const val SHEET_MAX_IN = 25.4
+    private const val SHEET_MAX_MM = 30.0
+
+    /** Each layer of a glued-up panel is cut this much over (mm) and the panel trimmed to size once the glue sets: 1/4 in, or 5 mm. */
+    fun layerOver(inch: Boolean) = if (inch) 6.35 else 5.0
+
+    /** A panel [t] thick made of 2 or 3 equal layers of a stock sheet thickness, or null when no split is exact. */
+    fun layersOf(t: Double, inch: Boolean): Pair<Int, Double>? {
+        val stockT = splitziner.check.DesignCheck.stockThicknesses(if (inch) LengthFormat("in") else LengthFormat("mm"))
+        val max = if (inch) SHEET_MAX_IN else SHEET_MAX_MM
+        if (t <= max + 0.5) return null
+        // Two layers of 3/4 in (or 19 mm) first: the common sheet, and the fewest glue lines.
+        for (n in 2..3) stockT.filter { it <= max + 0.01 }.sortedBy { abs(it - 19.0) > 0.6 }.firstOrNull { abs(it * n - t) <= maxOf(0.6, 0.02 * t) }?.let { return n to it }
+        return null
+    }
+
+    fun plan(rows0: List<CutListRow>, stock: StockSettings): CutPlanResult {
         val leftOut = ArrayList<String>()
+        // A panel thicker than any sheet is cut as layers of one, each a piece of its own on the plan.
+        val layered = HashMap<Int, Pair<Int, Double>>()
+        val rows = rows0.map { r ->
+            val split = if (r.kind == PartKind.PANEL) layersOf(r.t, stock.lumber) else null
+            if (split == null) r else { layered[r.item] = split; val o = layerOver(stock.lumber); r.copy(t = split.second, qty = r.qty * split.first, w = r.w + o, l = r.l + o) }
+        }
         val sheets = ArrayList<SheetLayout>(); val boards = ArrayList<BoardLayout>()
         fun key(v: Double) = Math.round(v * 100)
 
@@ -256,10 +284,27 @@ object CutPlanner {
                 else BoardLayout(first.kind, first.t, first.w, first.material, cuts, off, length = own)
             }
         }
-        return CutPlanResult(stock, sheets, boards, leftOut)
+        return CutPlanResult(stock, sheets, boards, leftOut, layered)
     }
 
-    /** What to buy, one line per kind of stock. */
+    /** "Before you build" for each panel glued up from layers of sheet: how to make it. */
+    fun gluingSteps(rows: List<CutListRow>, fmt: LengthFormat): List<String> = rows.filter { it.kind == PartKind.PANEL }.mapNotNull { r ->
+        val v = layersOf(r.t, fmt.isInch) ?: return@mapNotNull null
+        val tf = if (fmt.isInch) LengthFormat("in", inchStyle = "fraction", fractionDenominator = 8) else fmt
+        val u = if (fmt.isInch) " in" else " mm"
+        val name = r.name.takeIf { it.isNotBlank() }?.let { " (${it.lowercase()})" } ?: ""
+        "Glue up item ${r.item}$name from ${v.first} layers of ${tf.format(v.second)}$u sheet, each cut ${tf.format(layerOver(fmt.isInch))}$u over the cut list's width and length (the cutting plan allows for it). " +
+            "Spread glue thinly over the faces that meet, line the layers up, and screw them together from the face that will be underneath, about every ${if (fmt.isInch) "8 in" else "200 mm"}, with screws a little shorter than the layers together. " +
+            "Once the glue has set, trim the edges flush and to size together."
+    }
+
+    /** What each glued-up panel is made of, for the plan, the shopping list and the guide. */
+    fun layerNotes(r: CutPlanResult, fmt: LengthFormat): List<String> = r.layered.entries.sortedBy { it.key }.map { (item, v) ->
+        val tf = if (fmt.isInch) LengthFormat("in", inchStyle = "fraction", fractionDenominator = 8) else fmt
+        val u = if (fmt.isInch) " in" else " mm"
+        "Item $item is cut as ${v.first} layers of ${tf.format(v.second)}$u sheet, glued face to face to make it ${tf.format(v.first * v.second)}$u thick (or buy it as a butcher-block or worktop panel that thick)."
+    }
+
     /** One kind of stock to buy: how many, and what one of them is ("sheet 3/4 in thick, 48 x 96"), which also keys its price. */
     class Buy(val count: Int, val one: String, val line: String)
 
@@ -333,6 +378,11 @@ object CutPlanLayout {
         p.text(20.0, y, "TO BUY", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5
         val buy = CutPlanner.shoppingList(r, fmt) + extraBuy
         for (b in buy.ifEmpty { listOf("Nothing in this project is cut from sheets or lengths.") }) y = para(p, 23.0, y, "• $b", 3.0, w - 46)
+        val glued = CutPlanner.layerNotes(r, fmt)
+        if (glued.isNotEmpty()) {
+            y -= 4; p.text(20.0, y, "GLUED UP", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5
+            for (b in glued) y = para(p, 23.0, y, "• $b", 3.0, w - 46)
+        }
         if (r.leftOut.isNotEmpty()) {
             y -= 4; p.text(20.0, y, "NOT IN THE PLAN", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5
             for (b in r.leftOut) y = para(p, 23.0, y, "• $b", 3.0, w - 46)

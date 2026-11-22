@@ -1577,3 +1577,17 @@ class CutPlanPackingTest {
             assertTrue(a.x + a.w <= b.x + 1e-6 || b.x + b.w <= a.x + 1e-6 || a.y + a.l <= b.y + 1e-6 || b.y + b.l <= a.y + 1e-6)
     }
 }
+
+class GluedUpPanelTest {
+    @Test fun thickTopIsTwoLayersOfSheet() {
+        assertEquals(2 to 19.05, splitziner.cutplan.CutPlanner.layersOf(38.1, true)?.let { it.first to Math.round(it.second * 100) / 100.0 })
+        assertEquals(2, splitziner.cutplan.CutPlanner.layersOf(38.0, false)?.first)
+        assertEquals(null, splitziner.cutplan.CutPlanner.layersOf(19.0, false))
+        val row = splitziner.parts.CutListRow(1, 1, "", "PANEL", "", "", "", splitziner.parts.PartKind.PANEL, 38.1, 609.6, 1524.0, listOf("P01"), name = "Top")
+        val r = splitziner.cutplan.CutPlanner.plan(listOf(row), splitziner.cutplan.StockSettings.INCH)
+        assertTrue(r.sheets.all { kotlin.math.abs(it.thickness - 19.05) < 0.01 }, "cut from 3/4 in sheet")
+        assertEquals(2, r.sheets.sumOf { s -> s.pieces.count { it.item == 1 } })
+        assertTrue(splitziner.cutplan.CutPlanner.layerNotes(r, splitziner.dims.LengthFormat("in", "fraction")).single().contains("2 layers of 3/4 in"))
+        assertTrue(splitziner.cutplan.CutPlanner.gluingSteps(listOf(row), splitziner.dims.LengthFormat("in", "fraction")).single().startsWith("Glue up item 1 (top)"))
+    }
+}

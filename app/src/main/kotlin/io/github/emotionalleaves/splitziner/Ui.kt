@@ -1378,6 +1378,7 @@ private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, 
             sb.append("• ").append(b.line).append(if (p != null) "  — ${money(p * b.count)}" else "").append('\n')
         }
         for (b in plan.leftOut) sb.append("• ").append(b).append('\n')
+        for (b in splitziner.cutplan.CutPlanner.layerNotes(plan, fmt)) sb.append("  ").append(b).append('\n')
         runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull()?.let { sb.append("• ").append(it).append('\n') }
         val hardware = vm.hardwareFor(open)
         if (hardware.isNotEmpty()) { sb.append("\nHardware (${vm.methodFor(open.meta).label.lowercase()})\n"); for (h in hardware) sb.append("• ").append(h).append('\n') }
@@ -1389,7 +1390,7 @@ private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, 
 }
 
 private class ShopLine(val text: String, val cost: String?)
-private class ShopLists(val wood: List<ShopLine>, val hardware: List<ShopLine>, val total: String?)
+private class ShopLists(val wood: List<ShopLine>, val hardware: List<ShopLine>, val total: String?, val notes: List<String> = emptyList())
 
 /**
  * The shopping list as a checklist to take to the store: wood, edge banding and hardware, each ticked off as it
@@ -1411,7 +1412,8 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
                 val (cost, missing) = woodCost(context, buy)
                 // Advice ("buy about 10% extra") is said under the list, not ticked off like a thing to buy.
                 ShopLists(wood, vm.hardwareFor(open).filterNot { it.startsWith("Buy about") || it.startsWith("Joined with") }.map { ShopLine(it, null) },
-                    if (cost > 0) "Wood about ${money(cost)}" + (if (missing > 0) ", $missing without a price" else "") else null)
+                    if (cost > 0) "Wood about ${money(cost)}" + (if (missing > 0) ", $missing without a price" else "") else null,
+                    splitziner.cutplan.CutPlanner.layerNotes(plan, fmt))
             }.onFailure { Diagnostics.logError("shopping list", it) }.getOrNull()
         }
     }
@@ -1451,6 +1453,8 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
                                 }
                             }
                         }
+                        // Panels glued up from layers: said under the list, as the sheets above already count them.
+                        items(l.notes) { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
                         if (l.hardware.any { it.text.contains("screws") || it.text.contains("brads") }) item { Text("Buy about 10% extra screws and brads; a few always go astray.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
                         item { Text("Sizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying. Stock sizes come from the cutting plan.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp)) }
