@@ -319,6 +319,24 @@ object DesignCheck {
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }
+        // A case (two upright sides) with no back panel racks: pushed sideways, it leans like a parallelogram.
+        if (live.size >= 3) run {
+            val all = live.map { it.mesh.bounds }
+            val mx0 = all.minOf { it.min.x }; val mx1 = all.maxOf { it.max.x }; val my0 = all.minOf { it.min.y }; val my1 = all.maxOf { it.max.y }
+            val mz0 = all.minOf { it.min.z }; val mz1 = all.maxOf { it.max.z }
+            val w = mx1 - mx0; val h = mz1 - mz0; val dd = my1 - my0
+            fun upright(i: Int, thinAxis: Int): Boolean { val e = all[i].extents; val t = listOf(e.x, e.y, e.z)[thinAxis]; return t < 0.25 * minOf(listOf(e.x, e.y, e.z).filterIndexed { k, _ -> k != thinAxis }.min(), 1e9) }
+            val sides = live.indices.filter { upright(it, 0) && all[it].extents.z > 0.7 * h && all[it].extents.y > 0.5 * dd }
+            val leftSide = sides.any { all[it].min.x <= mx0 + 0.1 * w }; val rightSide = sides.any { all[it].max.x >= mx1 - 0.1 * w }
+            if (!(leftSide && rightSide) || h < 500.0) return@run
+            // A back: thin front to back, covering most of the back's area.
+            val backArea = live.indices.filter { upright(it, 1) }.sumOf { all[it].extents.x * all[it].extents.z }
+            if (backArea >= 0.5 * w * h) return@run
+            // A wide rail or modesty panel across the back, fixed to both sides, braces it as well.
+            if (live.indices.any { upright(it, 1) && all[it].extents.x >= 0.85 * (w - 2 * 25.0) && all[it].extents.z >= 0.2 * h }) return@run
+            out += Finding(Severity.CHECK, "It may rack (lean sideways)",
+                "Its sides stand on their own with no back panel. Pushed from the side, a case like this leans over like a parallelogram unless something holds it square. A back of 1/4 in (6 mm) sheet fixed all round, a diagonal brace, or a wide rail glued and screwed at the top and bottom of the back stops it.")
+        }
         // Drawers need room at their sides for slides or runners.
         for (dr in runCatching { Drawers.find(live) }.getOrDefault(emptyList())) {
             val its = live.filter { it.id in dr.ids }.mapNotNull { it.item }.distinct().sorted()

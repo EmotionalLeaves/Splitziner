@@ -1234,3 +1234,16 @@ class ClearanceTest {
         assertNull(c["right"])
     }
 }
+
+class RackingTest {
+    @Test fun aBookcaseWithoutABackIsFlagged() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("shelves")
+        for ((back, flagged) in listOf(6.0 to false, 0.0 to true)) {
+            val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("back" to back)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+            val cut = CutList.build(parts, fmt)
+            val r = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+            assertEquals(flagged, r.findings.any { it.title.contains("rack") }, "back $back: ${r.findings.map { it.title }}")
+        }
+    }
+}
