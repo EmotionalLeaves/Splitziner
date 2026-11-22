@@ -137,6 +137,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return plan!!
     }
 
+    /** The hardware list the guide would give (fasteners and glue), worked out here so the shopping list has it. */
+    fun hardwareFor(open: OpenProject): List<String> = runCatching {
+        val a = open.analysis
+        val pl = planOf(a, open.meta.stepOrder)
+        splitziner.joinery.Fastening.plan(pl.parts, pl.steps, methodFor(open.meta), a.format, toolsFor(open.meta), a.housed).hardware
+    }.getOrDefault(emptyList())
+
     /** The build plan for playing the steps in 3D: worked out off the main thread, cached with the guide's. */
     suspend fun planFor3D(): splitziner.explode.PlanResult? {
         val open = _state.value.open ?: return null

@@ -372,6 +372,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
                 OutlinedButton(onClick = { shareCsv(context, open) }) { Text("Share CSV") }
+                OutlinedButton(onClick = { shareShopping(context, open, vm) }) { Text("Shopping list") }
                 OutlinedButton(onClick = { shareProfiles(context, open) }) { Text("CNC profiles") }
             }
         }
@@ -957,6 +958,36 @@ private fun shareParts(context: Context, open: OpenProject) {
 
 
 /** Asks what stock the plan should cut from, in the project's units, then shares the plan as a PDF. */
+/** The stock sizes last used in the cutting plan, or the usual ones for these units. */
+private fun savedStock(context: Context, fmt: splitziner.dims.LengthFormat): splitziner.cutplan.StockSettings {
+    val prefs = context.getSharedPreferences("cutplan", Context.MODE_PRIVATE)
+    val def = splitziner.cutplan.StockSettings.defaultFor(fmt)
+    val unit = if (fmt.isInch) 25.4 else 1.0; val tag = if (fmt.isInch) "in" else "mm"
+    fun get(key: String, d: Double) = prefs.getString("${key}_$tag", null)?.trim()?.toDoubleOrNull()?.let { it * unit } ?: d
+    val w = get("sheetW", def.sheetW); val l = get("sheetL", def.sheetL)
+    return splitziner.cutplan.StockSettings(minOf(w, l), maxOf(w, l), get("boardL", def.boardL), get("kerf", def.kerf), prefs.getBoolean("rotate", true), lumber = fmt.isInch)
+}
+
+/** Everything to buy, as plain text to take to the store: stock, hardware, edge banding. */
+private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel) {
+    try {
+        val a = open.analysis; val fmt = a.format
+        val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, fmt))
+        val sb = StringBuilder("Shopping list: ${open.meta.title.ifBlank { open.meta.name }}\n\nWood\n")
+        for (b in splitziner.cutplan.CutPlanner.shoppingList(plan, fmt)) sb.append("• ").append(b).append('\n')
+        for (b in plan.leftOut) sb.append("• ").append(b).append('\n')
+        runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull()?.let { sb.append("• ").append(it).append('\n') }
+        val hardware = vm.hardwareFor(open)
+        if (hardware.isNotEmpty()) { sb.append("\nHardware (${vm.methodFor(open.meta).label.lowercase()})\n"); for (h in hardware) sb.append("• ").append(h).append('\n') }
+        sb.append("\nSizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying.")
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "Shopping list").putExtra(Intent.EXTRA_TEXT, sb.toString())
+        context.startActivity(Intent.createChooser(send, "Share shopping list"))
+    } catch (e: Throwable) {
+        Diagnostics.logError("shopping list", e)
+        Toast.makeText(context, "Could not make the shopping list", Toast.LENGTH_LONG).show()
+    }
+}
+
 @Composable
 private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -982,7 +1013,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                 prefs.edit().putString("sheetW_$tag", sheetW.trim()).putString("sheetL_$tag", sheetL.trim()).putString("boardL_$tag", boardL.trim()).putString("kerf_$tag", kerf.trim()).putBoolean("rotate", rotate).apply()
                 try {
                     // The sheet's longer side is its length, whichever box it was typed in.
-                    val stock = splitziner.cutplan.StockSettings(minOf(w, l) * unit, maxOf(w, l) * unit, b * unit, k * unit, rotate)
+                    val stock = splitziner.cutplan.StockSettings(minOf(w, l) * unit, maxOf(w, l) * unit, b * unit, k * unit, rotate, lumber = fmt.isInch)
                     val rows = open.analysis.cutList.rows
                     val plan = splitziner.cutplan.CutPlanner.plan(rows, stock)
                     val pages = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
