@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.76.0 - No fitting from below the floor
+
+- **Build order:** a part that stands on the floor is never "fitted from below". In the bed frame, the centre frame now goes in with the second side frame and the first slats, then the end rails, then the remaining slats.
+
 ## v0.75.0 - Frames by name in the guide
 
 - **Clearer wording for frames in the guide:** a sub-assembly with legs is called a **frame** ("Step 1: make 2 frames from items 2 and 4"). The steps say "Place one frame from step 1", then "Fit the other frame from step 1", instead of "the sub-assembly" both times.
