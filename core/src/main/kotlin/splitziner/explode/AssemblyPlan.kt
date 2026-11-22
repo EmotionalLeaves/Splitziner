@@ -68,7 +68,32 @@ object AssemblyPlan {
         for (p in live) out[p.id] = p.id.substringBefore('.')
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
+        legFrames(live).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
         return out
+    }
+
+    /**
+     * A table or bench on legs is built as end frames: two legs and the short rails between them, glued up flat on
+     * the bench, then stood up and joined by the long rails. Building leg by leg instead leaves a single leg
+     * standing alone in step 1. The frames are the rails of one item running one way that pair every leg exactly
+     * once; of those, the shortest, as a woodworker would make the ends first.
+     */
+    fun legFrames(live: List<Part>): List<List<String>> {
+        val legs = live.filter { it.name == "Leg" && '.' !in it.id }
+        if (legs.size < 4 || legs.size % 2 != 0) return emptyList()
+        fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+        fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }
+        val rails = live.filter { it.name == "Apron" || it.name == "Rail" }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
+        val legIds = legs.map { it.id }.toSet()
+        val pick = rails.groupBy { it.first.item to longAxis(it.first) }.values.filter { g ->
+            val ls = g.flatMap { it.second.map { l -> l.id } }
+            ls.size == legIds.size && ls.toSet() == legIds
+        }.minByOrNull { g -> g[0].first.mesh.bounds.extents.let { maxOf(it.x, it.y) } } ?: return emptyList()
+        return pick.map { (r, ls) ->
+            val pair = ls.map { it.id }.toSet()
+            // Other rails between the same two legs (a stretcher low down) belong to the same frame.
+            listOf(r.id) + ls.map { it.id } + rails.filter { it.first !== r && it.second.map { l -> l.id }.toSet() == pair }.map { it.first.id }
+        }
     }
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
@@ -77,7 +102,13 @@ object AssemblyPlan {
         val units = live.groupBy { keyOf.getValue(it.id) }
         // Two boards (an L, a pair of strips) are simply fitted one after the other; a bench step for them is a page of nothing.
         val subs = units.filter { it.value.size >= MIN_SUB_PARTS }
-        if (order != null || subs.isEmpty()) return planCore(all, maxSteps, order)
+        if (order != null) return planCore(all, maxSteps, order)
+        if (subs.isEmpty()) {
+            val r = planCore(all, maxSteps, order)
+            val (st, ren) = mergeFloating(r.steps, live)
+            if (st.size == r.steps.size) return r
+            return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { ren[it] ?: it }) }, st)
+        }
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
         val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
         val bench = ArrayList<BuildStep>()
@@ -104,9 +135,10 @@ object AssemblyPlan {
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
             unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts)
-        val unitOf = main.parts.associateBy { it.id }
+        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts)
+        val unitOf = main.parts.associate { it.id to it.copy(step = it.step?.let { s0 -> renumber[s0] ?: s0 }) }
         val steps = ArrayList<BuildStep>(bench)
-        for (st in main.steps) {
+        for (st in mainSteps) {
             val ids = st.partIds.flatMap { id -> subs[id]?.map { it.id } ?: listOf(id) }
             steps += st.copy(step = steps.size + 1, partIds = ids, items = ids.mapNotNull { id -> live.first { it.id == id }.item }.distinct().sorted())
         }
@@ -118,6 +150,31 @@ object AssemblyPlan {
             }
         }
         return PlanResult(out, steps)
+    }
+
+    /**
+     * A step that stands something on the floor touching nothing already built (a desk's second side, a table's
+     * second end frame) cannot be fastened yet: it goes in with the step after it, which joins it to the rest.
+     * Returns the steps and, per old step number, the new one.
+     */
+    private fun mergeFloating(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val boundsOf = units.associate { it.id to it.mesh.bounds }
+        val floor = units.minOfOrNull { it.mesh.bounds.min.z } ?: 0.0
+        fun touch(a: String, b: String): Boolean { val x = boundsOf[a] ?: return false; val y = boundsOf[b] ?: return false; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+        val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
+        val built = HashSet<String>(); var carry: BuildStep? = null
+        for ((n, st) in steps.withIndex()) {
+            val merged = carry?.let { c -> st.copy(partIds = c.partIds + st.partIds, directions = (c.directions + st.directions).distinct(), items = (c.items + st.items).distinct().sorted()) } ?: st
+            val alone = carry == null && built.isNotEmpty() && n < steps.size - 1 &&
+                st.partIds.all { id -> (boundsOf[id]?.min?.z ?: Double.MAX_VALUE) <= floor + 1.0 } &&
+                st.partIds.none { id -> built.any { touch(id, it) } }
+            built += st.partIds
+            if (alone) { carry = st; continue }
+            carry?.let { renumber[it.step] = out.size + 1 }
+            carry = null
+            out += merged.copy(step = out.size + 1); renumber[st.step] = out.size
+        }
+        return out to renumber
     }
 
     /** Boards from one drawn part are built on the bench only when there are at least this many of them. */

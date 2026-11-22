@@ -183,7 +183,13 @@ object Fastening {
             // a few fasteners only hold them while the glue sets.
             val faceToFace = width > 3 * tThrough
             // A top resting on its supports is never fixed through its visible face: brackets go underneath.
-            val topDown = k == 2 && (rel.lo[idx.getValue(thr.id)].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && width > 2 * tThrough
+            // Nor is a top with nothing above it (a table top on its aprons): screw heads in it would be on show.
+            val ti0 = idx.getValue(thr.id)
+            val openTop = rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
+                minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
+            val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            // A leg's end under a top held by aprons needs nothing of its own: the aprons carry the top.
+            if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name == "Rail") && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
             if (topDown && !glue) {
                 count = maxOf(2, ceil(length / (2 * SPACING)).toInt())
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "brackets", false)
@@ -305,7 +311,7 @@ object Fastening {
         }
         fun kindRank(k: String) = when { k == HANDLE -> 6; k.contains("slides") || k.contains("hinges") || k == "shelf pins" -> 5; k.contains("bracket") -> 4; k.contains("pocket") -> 0; k.endsWith("screws") -> 1; k.contains("dowel") -> 2; k.endsWith("brads") -> 3; else -> 4 }
         val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}" else "$n × $k" } + listOf("Wood glue") +
-            (if (method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) listOf("Buy about 10% extra fasteners") else emptyList())
+            (if ((method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) && totals.keys.any { it.endsWith("screws") || it.contains("brackets") || it.endsWith("brads") }) listOf("Buy about 10% extra fasteners") else emptyList())
         return FastenPlan(method, joints, hardware, every)
     }
 
