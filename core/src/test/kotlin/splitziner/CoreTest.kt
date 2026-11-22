@@ -876,3 +876,62 @@ class SimplifyTest {
         return MeshOps.fromSoup(soup.toDoubleArray(), 1e-9)
     }
 }
+
+class PartMarksTest {
+    @Test fun ownExportsReadBackAsTheSameParts() {
+        // Two boards touching face to face, one of them with an open surface: without marks these would merge.
+        val a = Fixtures.box(0.0, 100.0, 0.0, 50.0, 0.0, 18.0)
+        val b0 = Fixtures.box(0.0, 100.0, 0.0, 50.0, 18.0, 36.0)
+        val b = splitziner.mesh.Mesh(b0.vertices, b0.triangles.copyOf(b0.triangles.size - 3))
+        val out = ByteArrayOutputStream()
+        StlWriter.writeParts(listOf(a, b, Fixtures.box(200.0, 300.0, 0.0, 50.0, 0.0, 18.0)), out)
+        val r = Pipeline.analyze(out.toByteArray(), "own.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(3, r.parts.size); assertEquals(BodySplitter.METHOD_MARKED, r.report.method)
+        // Someone else's file with the same bytes set is not trusted: colours live there too.
+        val other = out.toByteArray().copyOf(); "Other program".toByteArray().copyInto(other)
+        assertEquals(splitziner.io.StlReader.read(other).groups, null)
+    }
+
+    @Test fun textFilesWithSeveralSolidsKeepThem() {
+        val a = StlWriter.writeAscii(Fixtures.box(0.0, 10.0, 0.0, 10.0, 0.0, 10.0), "a")
+        val b = StlWriter.writeAscii(Fixtures.box(0.0, 10.0, 0.0, 10.0, 10.0, 20.0).let { splitziner.mesh.Mesh(it.vertices, it.triangles.copyOf(it.triangles.size - 3)) }, "b")
+        val r = Pipeline.analyze((a + b).toByteArray(), "two.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, r.parts.size)
+    }
+}
+
+class BoardsTest {
+    @Test fun frameAndOpenBoxBecomeBoards() {
+        // A 600 x 400 frame of 40 mm members, 18 mm thick, drawn as one solid.
+        val outer = splitziner.explode.Silhouette.GF.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 600.0, 0.0, 400.0))
+        val inner = splitziner.explode.Silhouette.GF.toGeometry(org.locationtech.jts.geom.Envelope(40.0, 560.0, 40.0, 360.0))
+        val frame = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.TOP, outer.difference(inner), 0.0, 18.0))
+        val (r, why) = splitziner.edit.Boards.decompose(frame)
+        assertNotNull(r, why); assertEquals(4, r!!.pieces.size); assertTrue(r.flat)
+        assertEquals(frame.volume, r.pieces.sumOf { it.volume }, frame.volume * 1e-6)
+        // A U channel, 60 x 60 with 12 mm walls and 600 long, drawn as one solid: three boards.
+        val gf = splitziner.explode.Silhouette.GF
+        val u = gf.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 60.0, 0.0, 60.0)).difference(gf.toGeometry(org.locationtech.jts.geom.Envelope(12.0, 48.0, 12.0, 70.0)))
+        val channel = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.RIGHT, u, 0.0, 600.0))
+        val (b, why2) = splitziner.edit.Boards.decompose(channel)
+        assertNotNull(b, why2); assertEquals(3, b!!.pieces.size); assertFalse(b.flat)
+        assertEquals(channel.volume, b.pieces.sumOf { it.volume }, channel.volume * 1e-6)
+        // A plain panel, and a panel with a small cut-out, stay one piece.
+        assertNull(splitziner.edit.Boards.decompose(Fixtures.box(0.0, 600.0, 0.0, 400.0, 0.0, 18.0)).first)
+        assertNull(splitziner.edit.Boards.decompose(Fixtures.holedBoard(listOf(null, null))).first)
+    }
+
+    @Test fun thickFrameIsFixedAutomatically() {
+        val outer = splitziner.explode.Silhouette.GF.toGeometry(org.locationtech.jts.geom.Envelope(0.0, 900.0, 0.0, 750.0))
+        val inner = splitziner.explode.Silhouette.GF.toGeometry(org.locationtech.jts.geom.Envelope(25.0, 875.0, 25.0, 725.0))
+        // A leg frame 75 mm deep standing on the floor, drawn as one solid: no sheet is that thick.
+        val leg = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.FRONT, outer.difference(inner), -75.0, 0.0))
+        val mm = LengthFormat("mm")
+        val ps = CutList.build(listOf(Part("P01", "P", leg)), mm).parts
+        val check = splitziner.check.DesignCheck.run(ps, CutList.build(ps, mm).rows, mm, null)
+        assertTrue(check.findings.any { it.title.startsWith("Item 1 is a frame cut from one") && it.fixes.any { f -> f.kind == splitziner.check.FixKind.SPLIT_BOARDS } })
+        val plan = splitziner.edit.AutoFix.plan(ps, mm)
+        val after = splitziner.edit.Editor.apply(ps, plan.edits).parts
+        assertEquals(4, after.size, plan.done.toString())
+    }
+}

@@ -9,7 +9,7 @@ import kotlin.system.exitProcess
 /** Runs the engine on a file and writes what it found; the way to check the engine without a phone. */
 fun main(args: Array<String>) {
     if (args.isEmpty()) { System.err.println("usage: <file.stl> [--out <dir>] [--units mm|cm|in|m] [--display mm|in]"); exitProcess(1) }
-    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null
+    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null
     var i = 0
     while (i < args.size) {
         when (args[i]) {
@@ -17,6 +17,8 @@ fun main(args: Array<String>) {
             "--units" -> units = args[++i]
             "--display" -> display = args[++i]
             "--full" -> full = true
+            "--only" -> only = args[++i].split(',').toSet()
+            "--boards" -> boards = true
             "--fix" -> fix = true
             "--tools" -> tools = splitziner.check.Tool.parse(args[++i].split(','))
             else -> file = args[i]
@@ -25,7 +27,9 @@ fun main(args: Array<String>) {
     }
     try {
         val f = File(file ?: error("no input file"))
-        val a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
+        val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
+        // --only P01,P05: keep just those parts, to look at one corner of a model.
+        val a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
         val r = a.report
@@ -40,6 +44,12 @@ fun main(args: Array<String>) {
         for (p in a.parts) {
             val topo = p.mesh.topology
             val open = (0 until topo.edgeCount).count { topo.edgeUseCount[it] == 1 }; val many = (0 until topo.edgeCount).count { topo.edgeUseCount[it] > 2 }
+            if (boards && p.kind != splitziner.parts.PartKind.ROD) {
+                val t0 = System.nanoTime(); val (res, why) = splitziner.edit.Boards.decompose(p.mesh)
+                val ms = (System.nanoTime() - t0) / 1_000_000
+                if (res == null) println("boards    ${p.id} item ${p.item}: no ($why) ${ms}ms")
+                else println("boards    ${p.id} item ${p.item}: ${res.note}: " + res.pieces.joinToString { q -> val e = splitziner.mesh.OrientedBounds.of(q).extents; listOf(e.x, e.y, e.z).sorted().joinToString(" x ") { a.format.format(it) } } + " ${ms}ms")
+            }
             val bb = p.mesh.bounds; fun r(v: Double) = "%.2f".format(v / 25.4)
             println("box       ${p.id} item ${p.item} x ${r(bb.min.x)}..${r(bb.max.x)} y ${r(bb.min.y)}..${r(bb.max.y)} z ${r(bb.min.z)}..${r(bb.max.z)} vol ${"%.1f".format(Math.abs(p.mesh.volume) / 16387.064)} fill ${"%.2f".format(p.fill)}")
             println("part      ${p.id} item ${p.item} tris ${p.mesh.triangleCount} watertight ${p.watertight} open ${open} crowded ${many} copies ${p.copies} ${p.desc}")
@@ -51,9 +61,9 @@ fun main(args: Array<String>) {
             println("fixtime   ${(System.nanoTime() - t0) / 1_000_000} ms, ${plan.edits.size} changes")
             for (l in plan.done) println("fixed     $l")
             for (l in plan.left) println("left      $l")
-            val all = splitziner.mesh.MeshOps.concatenate(plan.parts.filter { !it.excluded }.map { it.mesh })
-            File(out, "fixed.stl").outputStream().use { splitziner.io.StlWriter.writeBinary(all, it, "Splitziner fixed model units=mm") }
-            println("wrote     ${File(out, "fixed.stl")} (${all.triangleCount} triangles, millimetres)")
+            val ms = plan.parts.filter { !it.excluded }.map { it.mesh }
+            File(out, "fixed.stl").outputStream().use { splitziner.io.StlWriter.writeParts(ms, it) }
+            println("wrote     ${File(out, "fixed.stl")} (${ms.sumOf { it.triangleCount }} triangles in ${ms.size} parts, millimetres)")
         }
         if (full) {
             // The same steps the app takes, written as SVG so they can be looked at.

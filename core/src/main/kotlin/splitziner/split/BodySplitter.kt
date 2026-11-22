@@ -39,6 +39,7 @@ class SplitResult(val parts: List<Part>, val report: SplitReport)
  */
 object BodySplitter {
     const val METHOD_FILE_ORDER = "file order (each body closes)"
+    const val METHOD_MARKED = "part marks in the file"
     const val METHOD_COMPONENTS = "connected components"
     const val METHOD_SINGLE = "single body"
 
@@ -59,7 +60,10 @@ object BodySplitter {
         val verts = ix.verts; val ut = ix.ut; val mult = ix.mult; val nU = ix.nU; val degenerate = ix.degenerate; val warningsIn = ix.warnings
 
         var method = METHOD_FILE_ORDER
-        var groups = splitByFileOrder(verts, ut, nU, sc0, all.center)
+        // The file says which triangles make each part: take its word.
+        val marked = ix.group?.let { g -> (0 until nU).groupBy { g[it] }.values.map { it.toIntArray() }.takeIf { it.size >= 2 } }
+        var groups = marked ?: splitByFileOrder(verts, ut, nU, sc0, all.center)
+        if (marked != null) method = METHOD_MARKED
         if (groups == null) {
             groups = splitByComponents(verts, ut, nU, sc0)
             method = if (groups.size >= 2) METHOD_COMPONENTS else METHOD_SINGLE
@@ -261,7 +265,7 @@ object BodySplitter {
         return if (comps.size >= 2 && comps.size <= maxOf(2, nU / 8)) comps else listOf(IntArray(nU) { it })
     }
 
-    private class Indexed(val verts: DoubleArray, val ut: IntArray, val mult: IntArray, val nU: Int, val degenerate: Int, val warnings: List<String>)
+    private class Indexed(val verts: DoubleArray, val ut: IntArray, val mult: IntArray, val nU: Int, val degenerate: Int, val warnings: List<String>, val group: IntArray?)
 
     private fun index(raw: RawModel, sc0: Double): Indexed {
         val nF = raw.triangleCount
@@ -286,6 +290,7 @@ object BodySplitter {
         val areas = FloatArray(nF) { raw.area(it).toFloat() }
         // Everything needed from the raw triangles is in [verts], [fi] and [areas] now.
         val warnings = raw.warnings
+        val groupsIn = raw.groups
         raw.release()
         val maxArea = (areas.maxOrNull() ?: 0f).toDouble()
         val degenerate = (0 until nF).count { areas[it] <= maxArea * 1e-10 }
@@ -295,6 +300,7 @@ object BodySplitter {
         // the same winding count as repeats: two boards stacked face to face share triangles that
         // face opposite ways, and both must be kept.
         val triIndex = PointIndexer(nF)
+        val firstOf = IntArray(nF)             // the file triangle each unique triangle was first seen as
         var ut = IntArray(nF * 3)              // unique triangles' vertex ids, in first-seen order
         var mult = IntArray(nF)                // how many times each was stored
         var nU = 0
@@ -306,12 +312,13 @@ object BodySplitter {
             if (b < a && b < c) { val x = a; a = b; b = c; c = x } else if (c < a && c < b) { val x = a; a = c; c = b; b = x }
             val before = triIndex.size
             val id = triIndex.idOf(a.toLong(), b.toLong(), c.toLong())
-            if (id == before) { ut[3 * id] = fi[3 * t]; ut[3 * id + 1] = fi[3 * t + 1]; ut[3 * id + 2] = fi[3 * t + 2]; nU = id + 1 }
+            if (id == before) { ut[3 * id] = fi[3 * t]; ut[3 * id + 1] = fi[3 * t + 1]; ut[3 * id + 2] = fi[3 * t + 2]; nU = id + 1; firstOf[id] = t }
             mult[id]++
         }
         ut = ut.copyOf(nU * 3); mult = mult.copyOf(nU)
+        val group = groupsIn?.let { g -> IntArray(nU) { g[firstOf[it]] } }
 
-        return Indexed(verts, ut, mult, nU, degenerate, warnings)
+        return Indexed(verts, ut, mult, nU, degenerate, warnings, group)
     }
 
     private fun bodyMesh(verts: DoubleArray, fi: IntArray, faces: IntArray, remap: IntArray): Mesh {

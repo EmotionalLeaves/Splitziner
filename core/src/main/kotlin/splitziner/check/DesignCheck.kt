@@ -22,7 +22,7 @@ import kotlin.math.abs
 enum class Severity { PROBLEM, CHECK, NOTE }
 
 /** A change the app can make for the user to deal with a finding. */
-enum class FixKind { SET_THICKNESS, SQUARE_UP }
+enum class FixKind { SET_THICKNESS, SQUARE_UP, SPLIT_BOARDS }
 
 class Fix(val kind: FixKind, val label: String, val partIds: List<String>, val value: Double = 0.0)
 
@@ -44,7 +44,7 @@ class CheckReport(val findings: List<Finding>, val work: List<ItemWork>, val too
  */
 object DesignCheck {
     /** Thicknesses sheet goods and planed boards are commonly sold in. */
-    val STOCK_IN = doubleArrayOf(0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0, 1.5)
+    val STOCK_IN = doubleArrayOf(0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0, 1.25, 1.5)
     val STOCK_MM = doubleArrayOf(3.0, 4.0, 6.0, 9.0, 12.0, 15.0, 18.0, 19.0, 22.0, 25.0, 30.0, 38.0, 40.0)
 
     /** Parts closer than this are touching (mm). */
@@ -125,7 +125,7 @@ object DesignCheck {
         return smooth to odd
     }
 
-    private fun inside(bvh: Bvh, p: Vec3): Boolean {
+    fun inside(bvh: Bvh, p: Vec3): Boolean {
         // Three rays, majority vote: one ray through a gap in a leaky surface must not decide it.
         var votes = 0
         for (d in DIRS) {
@@ -159,12 +159,28 @@ object DesignCheck {
                 "${items(ps)} ${if (ps.size == 1) "is" else "are"} ${d(t)} thick. Common stock is ${near.joinToString(" or ") { ds(it) }}. Change the thickness, or plan to plane material down.",
                 ps.map { it.id }, near.map { Fix(FixKind.SET_THICKNESS, "Make ${ds(it)} thick", ps.map { p -> p.id }, it) })
         }
+        // Shapes drawn as one solid that are really several boards: a frame from a thick slab, an open box, a channel.
+        for (p in live.filter { it.kind == PartKind.SHAPED || it.kind == PartKind.PANEL || it.kind == PartKind.BOARD }.distinctBy { it.item }) {
+            val ids = live.filter { it.item == p.item }.map { it.id }
+            val (b, _) = runCatching { splitziner.edit.Boards.decompose(p.mesh) }.getOrDefault(null to "")
+            if (b == null) continue
+            val n = b.pieces.size
+            val fix = listOf(Fix(FixKind.SPLIT_BOARDS, "Make it from $n boards", ids))
+            val list = b.pieces.map { m -> val e = OrientedBounds.of(m).extents; listOf(e.x, e.y, e.z).sorted() }.joinToString("; ") { (a, bb, c) -> "${d(a)} x ${d(bb)} x ${d(c)}" }
+            if (!b.flat) out += Finding(Severity.PROBLEM, "Item ${p.item} is ${n} boards drawn as one solid",
+                "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} but is mostly empty, like a box or channel whose sides were joined in the 3D program. It cannot be cut from one piece. Built for real it is $n boards: $list.", ids, fix)
+            else if (p.t >= 18.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is a frame cut from one ${d(p.t)} $u slab",
+                "Only ${Math.round(b.materialShare * 100)}% of its ${d(p.w)} x ${d(p.l)} outline is material, and no shop sells sheet that thick for it. Built for real it is $n pieces: $list. ${b.note.substringAfter(";", "").trim().replaceFirstChar { it.uppercase() }}".trim(), ids, fix)
+            else out += Finding(Severity.CHECK, "Item ${p.item} wastes most of the sheet it is cut from",
+                "Only ${Math.round(b.materialShare * 100)}% of its ${d(p.w)} x ${d(p.l)} outline is material; the rest is scrap. It can be made from $n strips instead: $list.", ids, fix)
+        }
         for (p in live.filter { it.kind == PartKind.SHAPED && it.t >= 0.3 * it.w }.distinctBy { it.item }) {
+            if (runCatching { splitziner.edit.Boards.decompose(p.mesh).first }.getOrNull() != null) continue
             val fill = abs(p.mesh.volume) / maxOf(p.t * p.w * p.l, 1e-9)
             val hollow = fill < 0.5
             out += Finding(if (hollow) Severity.PROBLEM else Severity.CHECK,
                 if (hollow) "Item ${p.item} is a hollow shape drawn as one piece" else "Item ${p.item} is a solid block, not a board",
-                if (hollow) "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} but is mostly empty, like a box or frame whose sides were joined into one solid in the 3D program. It cannot be cut from one piece. Model its sides as separate parts to get a cut list for it."
+                if (hollow) "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} but is mostly empty, and its walls are not square enough to split into boards automatically. Model its sides as separate parts to get a cut list for it."
                 else "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} and is not a simple board or rod. It has to be glued up from layers and shaped, machined, or printed.",
                 live.filter { it.item == p.item }.map { it.id })
         }

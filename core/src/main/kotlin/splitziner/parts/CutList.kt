@@ -36,6 +36,9 @@ object PartDescriber {
     /** A plain rectangular block fills its box; anything under this has been shaped. */
     private const val SOLID_FILL = 0.96
 
+    /** A board that keeps at least this much of its stock, with notches sawn right through, is a notched board. */
+    private const val NOTCHED_BOARD_FILL = 0.7
+
     /** Under this a board has a notch or hole worth mentioning. */
     private const val NOTCH_FILL = 0.995
 
@@ -88,6 +91,10 @@ object PartDescriber {
             val holeText = when (holes.size) { 0 -> ""; 1 -> ", 1 HOLE"; else -> ", ${holes.size} HOLES" }
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}$notch$holeText")
         }
+        // A stick or board with a notch or a shaped end, sawn right through: still that board, notched.
+        // Only when most of the board is left; a part mostly cut away is a shape cut from sheet.
+        if (fill > NOTCHED_BOARD_FILL && w < PANEL_MIN_WIDTH && l >= 2.5 * w && m.isWatertight && runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() != null)
+            return PartDescription(PartKind.BOARD, t, w, l, fill, "BOARD ${d(t)} X ${d(w)} X ${d(l)}, NOTCHED")
         val desc = if (t < 0.3 * w) "SHAPED, ${d(t)} THK, CUT FROM ${d(w)} X ${d(l)}" else "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}"
         return PartDescription(PartKind.SHAPED, t, w, l, fill, desc)
     }

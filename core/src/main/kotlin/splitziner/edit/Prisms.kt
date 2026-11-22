@@ -43,7 +43,12 @@ object Prisms {
     }
 
     fun outline(mesh: Mesh, view: ViewDef): Geometry {
-        val g = Silhouette.outline(mesh, view)
+        var g = Silhouette.outline(mesh, view)
+        // A surface with gaps may have faces turned the wrong way; its shadow then needs the faces seen from behind too.
+        if (!mesh.isWatertight) runCatching {
+            val back = Silhouette.outline(mesh, ViewDef("back", -view.n, view.x))
+            g = g.union(org.locationtech.jts.geom.util.AffineTransformation.scaleInstance(1.0, -1.0).transform(back)).buffer(0.0)
+        }
         return runCatching { TopologyPreservingSimplifier.simplify(g, SIMPLIFY) }.getOrDefault(g)
     }
 

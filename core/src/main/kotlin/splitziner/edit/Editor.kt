@@ -29,6 +29,8 @@ sealed class Edit {
     /** Another copy of a part, shifted by [d]. */
     data class Duplicate(val id: String, val newId: String, val d: Vec3) : Edit()
     data class Delete(val ids: List<String>) : Edit()
+    /** Replace each part by the plain boards it would be built from (see [Boards]). New pieces get ids "<id>.2", "<id>.3"... */
+    data class SplitBoards(val ids: List<String>) : Edit()
 }
 
 class EditResult(val parts: List<Part>, val notes: List<String>)
@@ -105,6 +107,13 @@ object Editor {
                     is Edit.AddBox -> cur + Part(e.id, e.name, box(e.min, e.size))
                     is Edit.Duplicate -> cur.firstOrNull { it.id == e.id }?.let { cur + Part(e.newId, it.name, MeshOps.translated(it.mesh, e.d), material = it.material) } ?: cur
                     is Edit.Merge -> merge(cur, e, notes)
+                    is Edit.SplitBoards -> cur.flatMap { p ->
+                        if (p.id !in e.ids) listOf(p) else {
+                            val (r, why) = Boards.decompose(p.mesh)
+                            if (r == null) { notes += "${p.id} could not be split into boards: $why"; listOf(p) }
+                            else r.pieces.mapIndexed { i, m -> Part(if (i == 0) p.id else "${p.id}.${i + 1}", p.name, m, p.copies, material = p.material) }
+                        }
+                    }
                     is Edit.Trim -> {
                         val a = cur.firstOrNull { it.id == e.id }; val b = cur.firstOrNull { it.id == e.by }
                         val t = if (a != null && b != null) trimmed(a, b) else null

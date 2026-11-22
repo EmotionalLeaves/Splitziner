@@ -789,8 +789,7 @@ private fun shareModel(context: Context, open: OpenProject) {
     try {
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }
         val file = File(dir, "${open.meta.name.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }}${if (open.meta.edits.isEmpty()) "" else "_fixed"}.stl")
-        val all = splitziner.mesh.MeshOps.concatenate(open.analysis.parts.filter { !it.excluded }.map { it.mesh })
-        file.outputStream().use { splitziner.io.StlWriter.writeBinary(all, it, "Splitziner model units=mm") }
+        file.outputStream().use { splitziner.io.StlWriter.writeParts(open.analysis.parts.filter { !it.excluded }.map { it.mesh }, it) }
         Toast.makeText(context, "This STL is in millimetres", Toast.LENGTH_LONG).show()
         shareFile(context, file, "model/stl", "Share model")
     } catch (e: Throwable) {
@@ -945,6 +944,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                                 vm.addEdit(when (fix.kind) {
                                     splitziner.check.FixKind.SET_THICKNESS -> splitziner.edit.Edit.Thickness(fix.partIds, fix.value)
                                     splitziner.check.FixKind.SQUARE_UP -> splitziner.edit.Edit.SquareUp(fix.partIds)
+                                    splitziner.check.FixKind.SPLIT_BOARDS -> splitziner.edit.Edit.SplitBoards(fix.partIds)
                                 })
                             }) { Text(fix.label) }
                         }

@@ -13,6 +13,12 @@ class StlException(message: String) : Exception(message)
  * triangles read from a file are kept at that precision: half the memory, nothing lost.
  */
 class RawModel private constructor(private var f: FloatArray?, private var d: DoubleArray?, val sourceName: String, val warnings: List<String>) {
+    /**
+     * Which part each triangle belongs to, when the file says so: Splitziner's own exports mark it in each
+     * triangle's spare two bytes, and text files can hold several named solids. Null when the file does not say.
+     */
+    var groups: IntArray? = null
+
     /** Lets the triangles go once the splitter has indexed them; on a large file this frees most of its memory. */
     fun release() { f = null; d = null }
 
@@ -41,6 +47,9 @@ class RawModel private constructor(private var f: FloatArray?, private var d: Do
         return splitziner.math.Aabb(splitziner.math.Vec3(lo[0], lo[1], lo[2]), splitziner.math.Vec3(hi[0], hi[1], hi[2]))
     }
 }
+
+/** Splitziner's own STL files begin their header with this, so their part marks can be trusted when read back. */
+const val SPLITZINER_HEADER = "Splitziner"
 
 object StlReader {
     /**
@@ -82,7 +91,14 @@ object StlReader {
             else -> throw StlException("Not a valid STL file")
         }
         if (soup.isEmpty()) throw StlException("The file contains no triangles")
-        return RawModel(soup, name, warnings)
+        val raw = RawModel(soup, name, warnings)
+        // Part marks are trusted from Splitziner's own files (other programs use those bytes for colour) and from text files with several solids.
+        val ours = String(head, 0, minOf(80, head.size), Charsets.ISO_8859_1).startsWith(SPLITZINER_HEADER)
+        val a = lastAttr; val so = lastSolid
+        lastAttr = null; lastSolid = null
+        if (ours && a != null && a.size == raw.triangleCount && a.any { it != a[0] }) raw.groups = a
+        else if (so != null && so.size == raw.triangleCount) raw.groups = so
+        return raw
     }
 
     private fun tooBig(n: Long) {
@@ -98,6 +114,7 @@ object StlReader {
         val s = java.io.BufferedInputStream(input, 1 shl 16)
         var skip = 84L; while (skip > 0) { val k = s.skip(skip); if (k <= 0) break; skip -= k }
         val soup = FloatArray(n.toInt() * 9)
+        val attr = IntArray(n.toInt())
         val rec = ByteArray(50 * 1024)
         val bb = ByteBuffer.wrap(rec).order(ByteOrder.LITTLE_ENDIAN)
         var t = 0; var o = 0; var bad = 0
@@ -110,13 +127,24 @@ object StlReader {
                 var p = j * 50 + 12          // the stored normal is never trusted
                 var ok = true
                 for (k in 0 until 9) { val v = bb.getFloat(p); p += 4; if (!v.isFinite()) ok = false; soup[o + k] = v }
-                if (ok) o += 9 else bad++
+                if (ok) { attr[o / 9] = bb.getShort(p).toInt() and 0xffff; o += 9 } else bad++
             }
             t += whole
             if (got < want) { warnings += "The file ends early; ${n - t} triangles are missing"; break }
         }
         if (bad > 0) warnings += "$bad triangles with invalid coordinates were dropped"
+        lastAttr = attr.copyOf(o / 9)
         return if (o == soup.size) soup else soup.copyOf(o)
+    }
+
+    // Per-triangle part marks found by the last read; picked up by [read]. Reading is one file at a time per thread.
+    private var lastAttr: IntArray? by ThreadLocalVar()
+    private var lastSolid: IntArray? by ThreadLocalVar()
+
+    private class ThreadLocalVar<T> {
+        private val v = ThreadLocal<T?>()
+        operator fun getValue(r: Any?, p: kotlin.reflect.KProperty<*>): T? = v.get()
+        operator fun setValue(r: Any?, p: kotlin.reflect.KProperty<*>, value: T?) = v.set(value)
     }
 
     private fun readAscii(input: java.io.InputStream, warnings: MutableList<String>): FloatArray {
@@ -133,24 +161,52 @@ object StlReader {
             return tok.toString()
         }
         val tri = FloatArray(9); var k = 0
+        var solid = -1
+        var solids = IntArray(1024)
         while (true) {
             val t = next() ?: break
+            if (t.equals("solid", ignoreCase = true)) { solid++; continue }
             if (!t.equals("vertex", ignoreCase = true)) continue
             for (j in 0..2) tri[k++] = next()?.toFloatOrNull() ?: Float.NaN
             if (k == 9) {
                 k = 0
                 if (tri.any { !it.isFinite() }) { bad++; continue }
                 if (count + 9 > out.size) { tooBig(count / 9L * 2); out = out.copyOf(out.size * 2) }
+                if (count / 9 >= solids.size) solids = solids.copyOf(solids.size * 2)
+                solids[count / 9] = maxOf(solid, 0)
                 tri.copyInto(out, count); count += 9
             }
         }
         if (k != 0) warnings += "The file ends with an incomplete triangle; it was dropped"
         if (bad > 0) warnings += "$bad triangles with invalid coordinates were dropped"
+        lastSolid = if (solid >= 1) solids.copyOf(count / 9) else null
         return out.copyOf(count)
     }
 }
 
 object StlWriter {
+    /** Several parts in one binary STL, each triangle marked with its part's number (1 up), so the parts read back as they were. */
+    fun writeParts(meshes: List<Mesh>, out: OutputStream, header: String = "$SPLITZINER_HEADER model, millimetres, part number in each facet attribute") {
+        require(header.startsWith(SPLITZINER_HEADER))
+        val total = meshes.sumOf { it.triangleCount }
+        val bos = java.io.BufferedOutputStream(out, 1 shl 16)
+        val head = ByteBuffer.allocate(84).order(ByteOrder.LITTLE_ENDIAN)
+        val h = header.toByteArray(Charsets.US_ASCII); head.put(h, 0, minOf(h.size, 80)); head.position(80); head.putInt(total)
+        bos.write(head.array())
+        val rec = ByteBuffer.allocate(50).order(ByteOrder.LITTLE_ENDIAN)
+        for ((pi, mesh) in meshes.withIndex()) {
+            val n = mesh.faceNormals
+            for (t in 0 until mesh.triangleCount) {
+                rec.clear()
+                for (k in 0..2) rec.putFloat(n[3 * t + k].toFloat())
+                for (c in 0..2) { val v = 3 * mesh.triangles[3 * t + c]; for (k in 0..2) rec.putFloat(mesh.vertices[v + k].toFloat()) }
+                rec.putShort(((pi + 1) and 0xffff).toShort())
+                bos.write(rec.array())
+            }
+        }
+        bos.flush()
+    }
+
     /** Binary STL with recomputed normals. [header] must not start with "solid" or readers take it for ASCII. */
     fun writeBinary(mesh: Mesh, out: OutputStream, header: String) {
         require(!header.trimStart().lowercase().startsWith("solid")) { "binary STL header must not start with 'solid'" }

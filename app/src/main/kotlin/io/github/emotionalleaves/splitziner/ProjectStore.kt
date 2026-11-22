@@ -155,6 +155,7 @@ object EditJson {
         is splitziner.edit.Edit.AddBox -> JSONObject().put("op", "add").put("id", e.id).put("name", e.name).put("min", vec(e.min)).put("size", vec(e.size))
         is splitziner.edit.Edit.Duplicate -> JSONObject().put("op", "copy").put("id", e.id).put("newId", e.newId).put("d", vec(e.d))
         is splitziner.edit.Edit.Delete -> JSONObject().put("op", "delete").put("ids", JSONArray(e.ids))
+        is splitziner.edit.Edit.SplitBoards -> JSONObject().put("op", "boards").put("ids", JSONArray(e.ids))
     }
 
     /** Null for a change this version does not know, so an older app skips it and keeps the rest. */
@@ -169,6 +170,7 @@ object EditJson {
             "add" -> splitziner.edit.Edit.AddBox(o.getString("id"), o.getString("name"), vec(o.getJSONArray("min")), vec(o.getJSONArray("size")))
             "copy" -> splitziner.edit.Edit.Duplicate(o.getString("id"), o.getString("newId"), vec(o.getJSONArray("d")))
             "delete" -> splitziner.edit.Edit.Delete(ids(o.getJSONArray("ids")))
+            "boards" -> splitziner.edit.Edit.SplitBoards(ids(o.getJSONArray("ids")))
             else -> null
         }
     }.getOrNull()
