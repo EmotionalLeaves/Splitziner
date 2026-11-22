@@ -1773,3 +1773,20 @@ class SlidingDoorTest {
         assertTrue(f.hardware.any { it.contains("sliding-door track") })
     }
 }
+
+class UpGuessTest {
+    @Test fun aCabinetSavedWithYUpIsStoodUp() {
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+        fun stl(meshes: List<splitziner.mesh.Mesh>): ByteArray { val bos = ByteArrayOutputStream(); StlWriter.writeParts(meshes, bos); return bos.toByteArray() }
+        // Saved with Y up: the model's Z (up) becomes the file's Y, its Y (back) the file's -Z.
+        val yUp = ms.map { m -> splitziner.mesh.Mesh(DoubleArray(m.vertices.size) { i -> val v = 3 * (i / 3); when (i % 3) { 0 -> m.vertices[v]; 1 -> m.vertices[v + 2]; else -> -m.vertices[v + 1] } }, m.triangles) }
+        val upright = Pipeline.analyze(stl(ms), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val lying = Pipeline.analyze(stl(yUp), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals("z", Pipeline.guessUp(upright.parts))
+        assertEquals("y", Pipeline.guessUp(lying.parts))
+        val stood = Pipeline.analyze(stl(yUp), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", up = "y", upGuessed = true))
+        assertEquals(upright.overallSize, stood.overallSize)
+        assertTrue(stood.report.warnings.any { it.contains("lying on its back") })
+    }
+}

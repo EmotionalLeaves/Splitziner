@@ -308,3 +308,6 @@ Departures from the build spec, newest first.
 ## v1.7
 - 3D view: the Front / Top / Right / 3D buttons sit in one row along the top of the view instead of down its right edge, where they covered the end of a wide model on a phone.
 - Build steps in 3D: the caption is the step's own title over up to two lines; the "Made on the bench" prefix went, as bench steps' titles already say so.
+
+## v1.8
+- A newly imported STL is tried three ways up (as saved, Y up, Y down) and stood up the way that makes the most sense: parts counted with roles that only arise the right way up (kick boards, legs, slats, treads, feet, drawer fronts, aprons: 2 each, up to 12 parts), weaker ones (posts, stretchers, back panels: 1 each, up to 6), drawers found (3 each) and doors (2 each), one each for a top and a bottom; unnamed panels count against (up to 3), and a whole face lying on the floor (over 85% of the footprint) costs 2. Another way must win by 3 points; Y down must also beat Y up by 3. On 24 test models and 10 templates saved Z up none was turned; saved Y up, 30 of 34 were stood up and the rest left as they were (an open box, a flat frame, a desk, a three-part model). OBJ files keep their Y-up rule. The project's notes say when the app turned it, and picking a way by hand clears that.

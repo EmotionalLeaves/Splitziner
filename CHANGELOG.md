@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.8.0 - Models stand up by themselves
+
+- Models saved with Y up (Blender, Fusion and others by default) are now stood up automatically on import, instead of arriving lying on their backs. The project notes say when this happens. If the guess is wrong, use Which way is up in the project menu.
+- Mitred boxes: the glue-up step now says to fold the sides up around the bottom.
+
 ## v1.7.0 - Clearer 3D view
 
 - 3D view: the Front / Top / Right / 3D buttons now sit in a row along the top, so they no longer cover the end of a wide model.

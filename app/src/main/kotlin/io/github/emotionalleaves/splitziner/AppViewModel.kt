@@ -573,13 +573,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(projects = store.list(), open = if (it.open?.meta?.id == meta.id) null else it.open) }
     }
 
-    private suspend fun analyze(meta: ProjectMeta, deleteOnFailure: Boolean) {
+    private suspend fun analyze(meta0: ProjectMeta, deleteOnFailure: Boolean) {
         _state.update { it.copy(busyLabel = "Reading triangles", busyFraction = 0.05f, error = null) }
         try {
-            val analysis = withContext(Dispatchers.Default) {
+            var meta = meta0
+            var analysis = withContext(Dispatchers.Default) {
                 Pipeline.analyze(store.source(meta.id), meta.options(), { f, label ->
                     _state.update { it.copy(busyLabel = label, busyFraction = f.toFloat()) }
                 }, meta.fileName)
+            }
+            // A newly imported model that looks as if it is lying on its back (saved with Y up) is stood up,
+            // and its notes say so; the user can still pick another way under Which way is up.
+            if (deleteOnFailure && meta.up == "z" && !meta.upGuessed) {
+                val up = withContext(Dispatchers.Default) { runCatching { Pipeline.guessUp(analysis.parts) }.getOrDefault("z") }
+                if (up != "z") {
+                    meta = meta.copy(up = up, upGuessed = true).also { store.save(it) }
+                    _state.update { it.copy(busyLabel = "Standing the model up", busyFraction = 0.5f) }
+                    analysis = withContext(Dispatchers.Default) { Pipeline.analyze(store.source(meta.id), meta.options(), { _, _ -> }, meta.fileName) }
+                    Diagnostics.log("import: turned to $up up")
+                }
             }
             val r = analysis.report
             Diagnostics.log("analysis: ${r.faces} tris, ${r.method}, ${r.bodies} bodies, ${r.parts} parts, units ${r.units.fileUnits}/${r.units.designUnits} margin ${r.units.margin}, ${analysis.timingsMs}")
@@ -589,7 +601,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
             saveThumb(saved, analysis)
         } catch (e: Throwable) {
-            if (deleteOnFailure) store.delete(meta.id)
+            if (deleteOnFailure) store.delete(meta0.id)
             fail("analysis", e)
         }
     }

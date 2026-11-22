@@ -274,7 +274,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             Column {
                 Text("STL files do not say which way is up. The app takes the file's Z axis as up; many programs (Blender, and Fusion and others with their default setting) save with Y up, so the model arrives lying on its back. Pick what makes it stand the right way. Floor, build order and drawings all follow this.", style = MaterialTheme.typography.bodySmall)
                 for ((key, label) in listOf("z" to "Z up (as the file is)", "y" to "Y up (common from Blender, Fusion)", "x" to "X up", "-z" to "Upside down", "-y" to "Y down", "-x" to "X down")) {
-                    Row(Modifier.fillMaxWidth().clickable { showUp = false; if (key != open.meta.up) vm.update { it.copy(up = key) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { showUp = false; if (key != open.meta.up) vm.update { it.copy(up = key, upGuessed = false) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = open.meta.up == key, onClick = null)
                         Text(label, modifier = Modifier.padding(start = 8.dp))
                     }

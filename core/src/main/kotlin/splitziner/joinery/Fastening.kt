@@ -888,7 +888,7 @@ object Fastening {
                 val names = joinedNames(g.flatMap { listOf(itemName(it.through), itemName(it.into)) }.distinct())
                 val corners = if (g.size == 1) "the mitred corner" else "the ${count(g.size)} mitred corners"
                 val per = n / g.size
-                if (j.at == "BEVEL") "Join $corners of $names: lay the pieces outside face up, points touching end to end, and run tape across each joint. Spread glue in the mitres, fold them up into the box and tape the last corner; check it is square (equal diagonals) and let it dry. Then pin each corner with ${sized(per, j.size)} brads, half from each side, or cut slots across the corners and glue in thin splines for strength."
+                if (j.at == "BEVEL") "Join $corners of $names: lay the pieces outside face up, points touching end to end, and run tape across each joint. Spread glue in the mitres, fold them up into the box (around its bottom, if the bottom sits inside them) and tape the last corner; check it is square (equal diagonals) and let it dry. Then pin each corner with ${sized(per, j.size)} brads, half from each side, or cut slots across the corners and glue in thin splines for strength."
                 else "Join $corners of $names: glue the mitres and close them flat on the bench with a band clamp or corner clamps, checking the diagonals are equal. Once dry, drive ${sized(per, j.size)} brads across each corner from the outside edges (or a V-nail from the back); set the heads and fill."
             }
             else if (j.kind == "under") "From underneath, drill pilot holes up through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."

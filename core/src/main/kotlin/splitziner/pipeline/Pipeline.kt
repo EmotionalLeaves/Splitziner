@@ -25,6 +25,8 @@ data class AnalysisOptions(
      * ("-z" is upside down). Many programs export with Y up; the app works with Z up.
      */
     val up: String = "z",
+    /** The app chose [up] itself, judging the file to be saved another way up: the analysis says so in its notes. */
+    val upGuessed: Boolean = false,
     /** Changes the user has made to the model, replayed on the file's parts every time it is read. */
     val edits: List<splitziner.edit.Edit> = emptyList(),
 )
@@ -65,6 +67,50 @@ object Pipeline {
         "-z" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0)
         else -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     }
+
+    /**
+     * Which of the file's axes most likely points up, judged by what the model looks like stood each way: drawers
+     * and doors that hang right, legs and a kick board on the floor, a top on top. Many programs save with Y up, so a
+     * cabinet arrives lying on its back. Returns "z" unless another way is clearly better (by [MARGIN] points).
+     */
+    fun guessUp(parts: List<Part>): String {
+        val live = parts.filter { !it.excluded }
+        if (live.size < 3) return "z"
+        fun turned(up: String): List<Part> { if (up == "z") return live; val r = upRotation(up)
+            return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
+                val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
+                r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
+            }, p.mesh.triangles)) } }
+        fun score(ps: List<Part>): Int {
+            val names = runCatching { splitziner.parts.Roles.names(ps).values }.getOrDefault(emptyList())
+            val drawers = runCatching { splitziner.check.Drawers.find(ps).size }.getOrDefault(0)
+            val doors = runCatching { splitziner.check.Doors.find(ps).size }.getOrDefault(0)
+            // Lying on its back, a whole panel rests on the floor; standing, only edges and feet do.
+            val floor = ps.minOf { it.mesh.bounds.min.z }
+            val all = ps.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            var down = 0.0
+            for (p in ps) { val m = p.mesh; val n = m.faceNormals; val a = m.faceAreas; val v = m.vertices; val t = m.triangles
+                for (f in 0 until m.triangleCount) if (n[3 * f + 2] < -0.99 && v[3 * t[3 * f] + 2] < floor + 1.0) down += a[f] }
+            val frac = down / maxOf(1.0, all.extents.x * all.extents.y)
+            // Roles that only make sense the right way up (a kick board, a stringer's treads) count most; ones that
+            // come up either way a little; boards with no sensible role at all count against.
+            // Counted by parts, not kinds: a bed's 24 slats and 4 legs outweigh a stray "foot" or two that a bed
+            // lying on its side throws up.
+            val kinds = names.toSet()
+            return 3 * drawers + 2 * doors + 2 * minOf(12, names.count { it in STRONG_ROLES }) + minOf(6, names.count { it in WEAK_ROLES }) +
+                (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) 2 else 0)
+        }
+        val scores = listOf("z", "y", "-y").associateWith { score(turned(it)) }
+        // Y up is the common export; its upside-down twin has to beat it clearly as well.
+        val other = if (scores.getValue("-y") >= scores.getValue("y") + MARGIN) "-y" else "y"
+        return if (scores.getValue(other) >= scores.getValue("z") + MARGIN) other else "z"
+    }
+
+    private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat")
+    private val WEAK_ROLES = setOf("Post", "Stretcher", "Back panel", "Modesty panel", "Cleat", "Side rail", "End rail")
+
+    /** Points by which another up axis must beat the file's own Z before the app turns the model. */
+    private const val MARGIN = 3
 
     /**
      * Above this many triangles in all, parts are simplified for the rest of the work. A phone draws
@@ -125,6 +171,7 @@ object Pipeline {
             out
         }
         progress.report(0.8, "Building the cut list")
+        if (options.upGuessed && options.up != "z") report = report.copy(warnings = report.warnings + "The model looked as if it was lying on its back (saved with ${options.up.uppercase()} up, as many programs do), so it has been stood up. If that is wrong, open the project menu (\u22ee, top right), then Which way is up.")
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
         val named = lighter.map { p -> p.copy(name = options.partNames[p.id] ?: p.name, excluded = p.id in options.excludedPartIds) }
         val edited = if (options.edits.isEmpty()) null else timed("edits") { splitziner.edit.Editor.apply(named, options.edits) }
