@@ -483,7 +483,7 @@ object Fastening {
         // hung parts and the like keep a line per part, as their wording is about that part.
         val plainKinds = setOf("screws", "brads", "pocket screws", "dowels", "corner", "brackets", "laminate", "")
         // Drawers hung in one step are one line however many sizes of box they are (graduated drawers).
-        val groups0 = (js - cut.toSet()).groupBy { if (it.kind == "slides") Triple("drawers", "*", it.size + it.kind + (it.into === it.through)) else Triple(itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
+        val groups0 = (js - cut.toSet()).groupBy { if (it.kind == "slides") Triple("drawers", "*", it.size + it.kind + (it.into === it.through)) else Triple(if ((it.kind in plainKinds || it.glueOnly) && it.through.item != null) "#${it.through.item}" else itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
         fun joined(names: List<String>): String {
             if (names.size == 1) return names[0]
             val m = names.map { Regex("""^(.*?) \((.*)\)$""").find(it) }
@@ -500,7 +500,8 @@ object Fastening {
             }
             return names.dropLast(1).joinToString(", ") + " and " + names.last()
         }
-        val groups = groups0.entries.associate { (k, g) -> Triple(k.first, joined(g.map { itemName(it.into) }.distinct()), k.third) to g }
+        // One item under two names (a box's front and back) fixed the same way is one line: "item 2 (front and back)".
+        val groups = groups0.entries.associate { (k, g) -> Triple(if (k.first.startsWith("#")) joined(g.map { itemName(it.through) }.distinct()) else k.first, joined(g.map { itemName(it.into) }.distinct()), k.third) to g }
         val room = maxOf(1, maxLines - out.size)
         for ((key, g) in groups.entries.take(room)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""

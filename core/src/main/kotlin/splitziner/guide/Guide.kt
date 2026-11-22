@@ -127,7 +127,9 @@ object GuideSteps {
         val done = LinkedHashSet<String>()
         val out = ArrayList<GuideStep>()
         // " (side)" after an item number, when its parts share a name of their own.
-        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name }.distinct().singleOrNull()?.let { " (${it.lowercase()})" } ?: ""
+        // "item 2 (side)"; one item under a few names reads "item 2 (front and back)".
+        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name.lowercase() }.distinct().let { ns ->
+            when (ns.size) { 1 -> " (${ns[0]})"; 2, 3 -> " (" + ns.dropLast(1).joinToString(", ") + " and " + ns.last() + ")"; else -> "" } }
         // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
         // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
         val keyOf = splitziner.explode.AssemblyPlan.unitKeys(drawn)
@@ -327,6 +329,10 @@ object GuideSteps {
                         byName[key] = (byName[key] ?: 0) + n
                     }
                     for ((key, n) in byName) {
+                        // One item under several names (a box's front and back): "the front and back".
+                        val item = key.removePrefix("\u0000item ").toIntOrNull()
+                        val names = if (key.startsWith("\u0000") && item != null) loose.filter { it.item == item && it.name != it.id }.map { it.name.lowercase() }.distinct() else emptyList()
+                        if (names.size in 2..3 && names.size == n) { bits += "the " + names.dropLast(1).joinToString(", ") + " and " + names.last(); continue }
                         if (key.startsWith("\u0000")) { val w = key.drop(1); bits += if (n == 1) w else "$n× $w" }
                         else bits += if (n == 1) "the $key" else "${if (base) "the " else ""}$n ${plural(key, n)}"
                     }
