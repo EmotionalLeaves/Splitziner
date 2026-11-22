@@ -54,7 +54,9 @@ data class ProjectMeta(
 ) {
     fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
         title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
-        designer = designer, drawn = drawn, checked = checked, approved = approved, date = date, notes = notes,
+        // A drawing carries a date: the one typed in the title block, else the day it is drawn.
+        designer = designer, drawn = drawn, checked = checked, approved = approved,
+        date = date.ifBlank { java.time.LocalDate.now().toString() }, notes = notes,
         toleranceLines = tolerance, softwareVersion = version, sourceFile = fileName,
     )
 
