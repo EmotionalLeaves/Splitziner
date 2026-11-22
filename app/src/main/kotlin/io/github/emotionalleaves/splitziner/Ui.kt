@@ -660,7 +660,7 @@ private fun TitleBlockDialog(meta: ProjectMeta, onDismiss: () -> Unit, onApply: 
                 Text("The app never picks tolerances for you.", style = MaterialTheme.typography.bodySmall)
                 for ((label, lines) in TOLERANCE_PRESETS) Choice(label, lines, m.tolerance) { m = m.copy(tolerance = it) }
                 Text("Sheet size", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-                for ((label, v) in listOf("Choose for me" to "auto", "A (8.5 \u00d7 11 in)" to "A", "B (11 \u00d7 17 in)" to "B", "C (17 \u00d7 22 in)" to "C", "D (22 \u00d7 34 in)" to "D", "E (34 \u00d7 44 in)" to "E")) {
+                for ((label, v) in listOf("Choose for me" to "auto", "Choose, but printable at home (A or B)" to "AB", "A (8.5 \u00d7 11 in)" to "A", "B (11 \u00d7 17 in)" to "B", "C (17 \u00d7 22 in)" to "C", "D (22 \u00d7 34 in)" to "D", "E (34 \u00d7 44 in)" to "E")) {
                     Choice(label, v, m.sheet) { m = m.copy(sheet = it) }
                 }
                 Text("Section views (cut open to show the inside)", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))

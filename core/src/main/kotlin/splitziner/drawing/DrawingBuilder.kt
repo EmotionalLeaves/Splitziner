@@ -220,7 +220,8 @@ object DrawingBuilder {
         }
 
         val pinned = SheetSize.byLetter(settings.sheet)
-        val candidates = if (pinned != null) listOf(pinned) else SheetSize.AUTO
+        // "AB": the smallest sheet that works, but no bigger than B (11 x 17 in), which a home or office printer takes.
+        val candidates = if (pinned != null) listOf(pinned) else if (settings.sheet == "AB") SheetSize.AUTO.take(2) else SheetSize.AUTO
         val scales = if (settings.scale != null) doubleArrayOf(settings.scale) else SCALES
         var chosen: Layout? = null
         for ((ci, sheet) in candidates.withIndex()) {
