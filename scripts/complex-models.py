@@ -122,3 +122,78 @@ os.makedirs(out, exist_ok=True)
 for fn in (dresser, kitchen_base, bunk_bed, pedestal_desk, bookcase):
     write(os.path.join(out, fn.__name__ + ".stl"), fn())
     print(fn.__name__, len(fn()), "parts")
+
+import math
+
+def prism(poly, z0, h):
+    """Extruded convex polygon (counter-clockwise, in x,y) from z0 to z0+h."""
+    n = len(poly); tris = []
+    bot = [(x, y, z0) for x, y in poly]; top = [(x, y, z0 + h) for x, y in poly]
+    for i in range(1, n - 1):
+        tris.append((bot[0], bot[i + 1], bot[i])); tris.append((top[0], top[i], top[i + 1]))
+    for i in range(n):
+        j = (i + 1) % n
+        tris.append((bot[i], bot[j], top[j])); tris.append((bot[i], top[j], top[i]))
+    return tris
+
+def rotated_box(cx, cy, cz, w, d, h, ax, ay):
+    """Box centred at (cx,cy,cz), size w,d,h, tilted ax about x then ay about y (radians)."""
+    b = box(-w / 2, -d / 2, -h / 2, w, d, h)
+    def r(v):
+        x, y, z = v
+        y, z = y * math.cos(ax) - z * math.sin(ax), y * math.sin(ax) + z * math.cos(ax)
+        x, z = x * math.cos(ay) + z * math.sin(ay), -x * math.sin(ay) + z * math.cos(ay)
+        return (x + cx, y + cy, z + cz)
+    return [tuple(r(v) for v in t) for t in b]
+
+def corner_shelf():
+    R, H = 406.4, 1219.2
+    p = [box(0, 0, 0, T, R, H), box(T, 0, 0, R - T, T, H)]          # two backs meeting in the corner
+    for i in range(5):
+        z = 76.2 + i * (H - 76.2 - T) / 4
+        p.append(prism([(T, T), (R, T), (T, R)], z, T))               # triangular shelves
+    return p
+
+def round_table():
+    D, H, tt, leg = 914.4, 762.0, 25.4, 63.5
+    n = 48
+    poly = [(D / 2 + D / 2 * math.cos(2 * math.pi * i / n), D / 2 + D / 2 * math.sin(2 * math.pi * i / n)) for i in range(n)]
+    p = [prism(poly, H - tt, tt)]
+    off = D / 2 - 0.3 * D
+    for x in (off, D - off - leg):
+        for y in (off, D - off - leg):
+            p.append(box(x, y, 0, leg, leg, H - tt))
+    a = 76.2
+    p += [box(off + leg, off, H - tt - a, D - 2 * off - 2 * leg, T, a), box(off + leg, D - off - T, H - tt - a, D - 2 * off - 2 * leg, T, a)]
+    p += [box(off, off + leg, H - tt - a, T, D - 2 * off - 2 * leg, a), box(D - off - T, off + leg, H - tt - a, T, D - 2 * off - 2 * leg, a)]
+    return p
+
+def hexa(v):
+    """Closed solid from 8 vertices ordered like box(): bottom 0-3, top 4-7."""
+    f = [(0, 2, 1), (0, 3, 2), (4, 5, 6), (4, 6, 7), (0, 1, 5), (0, 5, 4),
+         (1, 2, 6), (1, 6, 5), (2, 3, 7), (2, 7, 6), (3, 0, 4), (3, 4, 7)]
+    return [(v[i], v[j], v[k]) for i, j, k in f]
+
+def splayed_stool():
+    S, H, tt, leg = 355.6, 609.6, 31.75, 38.1
+    p = [box(0, 0, H - tt, S, S, tt)]
+    out = (H - tt) * math.tan(math.radians(8))          # 8 degree splay, both ways
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cx = S / 2 + sx * (S / 2 - 45); cy = S / 2 + sy * (S / 2 - 45)
+            bx = cx + sx * out; by = cy + sy * out
+            h = leg / 2
+            v = [(bx - h, by - h, 0), (bx + h, by - h, 0), (bx + h, by + h, 0), (bx - h, by + h, 0),
+                 (cx - h, cy - h, H - tt), (cx + h, cy - h, H - tt), (cx + h, cy + h, H - tt), (cx - h, cy + h, H - tt)]
+            p.append(hexa(v))
+    # stretchers between the legs, low down, level
+    z = 152.4; f = z / (H - tt)
+    for sy in (-1, 1):
+        cy = S / 2 + sy * (S / 2 - 45) + sy * out * (1 - f)
+        xl = S / 2 - (S / 2 - 45) - out * (1 - f) + leg / 2; xr = S / 2 + (S / 2 - 45) + out * (1 - f) - leg / 2
+        p.append(box(xl, cy - 9.5, z, xr - xl, 19.0, 38.1))
+    return p
+
+for fn in (corner_shelf, round_table, splayed_stool):
+    write(os.path.join(out, fn.__name__ + ".stl"), fn())
+    print(fn.__name__, len(fn()), "parts")
