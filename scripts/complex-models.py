@@ -197,3 +197,32 @@ def splayed_stool():
 for fn in (corner_shelf, round_table, splayed_stool):
     write(os.path.join(out, fn.__name__ + ".stl"), fn())
     print(fn.__name__, len(fn()), "parts")
+
+def kitchen_run():
+    p = []
+    W = 762.0
+    for i in range(4):
+        for t in kitchen_base():
+            pass
+        cab = kitchen_base()
+        p += [[tuple((v[0] + i * W, v[1], v[2]) for v in tri) for tri in part] for part in cab]
+    # one countertop over all, overhanging the front by 1 in
+    p.append(box(0, -T - 25.4, 876.3, 4 * W, 584.2 + T + 25.4, 38.1))
+    return p
+
+def library():
+    bays, W, D, H = 3, 812.8, 304.8, 2133.6
+    p = []
+    for b in range(bays + 1):
+        p.append(box(b * (W + T), 0, 0, T, D, H))                      # uprights
+    for b in range(bays):
+        x0 = b * (W + T) + T
+        p += [box(x0, 0, 76.2, W, D - 6.35, T), box(x0, 0, H - T, W, D - 6.35, T), box(x0, 19.05, 0, W, T, 76.2)]
+        for i in range(1, 6):
+            p.append(box(x0, 0, 76.2 + i * (H - 76.2) / 6, W, D - 6.35, T))
+        p.append(box(x0, D - 6.35, 76.2, W, 6.35, H - 76.2))
+    return p
+
+for fn in (kitchen_run, library):
+    write(os.path.join(out, fn.__name__ + ".stl"), fn())
+    print(fn.__name__, len(fn()), "parts")

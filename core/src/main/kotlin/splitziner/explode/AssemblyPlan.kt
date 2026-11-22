@@ -24,6 +24,8 @@ data class BuildStep(
     val explodeOf: Map<String, Vec3?> = emptyMap(),
     /** For a sub-assembly step: how many identical ones to make. */
     val makeCount: Int = 1,
+    /** A big sub-assembly (a cabinet) is built in several bench steps: this is the first of them, on later ones. */
+    val continues: Int? = null,
 )
 
 class PlanResult(val parts: List<Part>, val steps: List<BuildStep>)
@@ -69,6 +71,8 @@ object AssemblyPlan {
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         legFrames(live).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
+        modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
         // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
         val ff = live.filter { it.name == "Stile" || it.name == "Face frame rail" }
         if (ff.size >= 3 && ff.any { it.name == "Stile" } && ff.any { it.name == "Face frame rail" }) for (p in ff) out[p.id] = "faceframe"
@@ -81,6 +85,57 @@ object AssemblyPlan {
      * standing alone in step 1. The frames are the rails of one item running one way that pair every leg exactly
      * once; of those, the shortest, as a woodworker would make the ends first.
      */
+    /**
+     * Repeated identical modules: the same parts again and again, each set shifted by one step along one axis (four
+     * base cabinets in a row under one worktop). Returns each module's part ids, or nothing when there is no clear
+     * repeat of at least two modules of four or more parts. Hung parts (doors, drawers and their fronts) and
+     * parts that run across the modules (the worktop) stay out of them.
+     */
+    fun modules(live: List<Part>, drawerIds: Set<String> = emptySet()): List<List<String>> {
+        val hung = runCatching { splitziner.check.Doors.find(live).map { it.id } }.getOrDefault(emptyList()).toSet() + drawerIds +
+            live.filter { it.name == "Drawer front" || it.name == "Door" }.map { it.id }
+        val ps = live.filter { it.id !in hung && '.' !in it.id }
+        if (ps.size < 8) return emptyList()
+        fun key(p: Part) = p.mesh.bounds.extents.let { e -> Triple(Math.round(e.x), Math.round(e.y), Math.round(e.z)) }
+        fun corner(p: Part) = p.mesh.bounds.min
+        // The most common shift between like parts, along one axis.
+        val counts = HashMap<Triple<Long, Long, Long>, Int>()
+        for ((_, g) in ps.groupBy { key(it) }) for (a in g) for (b in g) {
+            if (a === b) continue
+            val d = corner(b) - corner(a)
+            val axes = listOf(d.x, d.y, d.z).count { kotlin.math.abs(it) > 1.0 }
+            if (axes != 1 || listOf(d.x, d.y, d.z).any { it < -1.0 }) continue
+            val k = Triple(Math.round(d.x), Math.round(d.y), Math.round(d.z)); counts[k] = (counts[k] ?: 0) + 1
+        }
+        val best = counts.entries.maxWithOrNull(compareBy<Map.Entry<Triple<Long, Long, Long>, Int>> { it.value }.thenBy { -(kotlin.math.abs(it.key.first) + kotlin.math.abs(it.key.second) + kotlin.math.abs(it.key.third)) }) ?: return emptyList()
+        if (best.value < 4) return emptyList()
+        val d = Vec3(best.key.first.toDouble(), best.key.second.toDouble(), best.key.third.toDouble())
+        fun at(p: Part, k: Int): Part? { val c = corner(p) + d * k.toDouble(); return ps.firstOrNull { o -> key(o) == key(p) && (o.mesh.bounds.min - c).length < 1.5 } }
+        // The first module: parts with no copy one step back, but a copy one step on.
+        // The first module is the stretch one step long at the start of the row.
+        val ax = if (kotlin.math.abs(d.x) > 1) 0 else if (kotlin.math.abs(d.y) > 1) 1 else 2
+        // Modules stand side by side on the floor: a pattern repeating upwards (shelves and dividers) is not one.
+        if (ax == 2) return emptyList()
+        val start = ps.minOf { corner(it)[ax] }
+        fun chain(p: Part): Int { var k = 1; while (at(p, k) != null) k++; return k }
+        val cand = ps.filter { corner(it)[ax] < start + d[ax] - 1.0 && at(it, 1) != null }
+        if (cand.size < 4) return emptyList()
+        // As many modules as most of its parts repeat (a part another feature took in one module is left out).
+        val n = cand.map { chain(it) }.groupingBy { it }.eachCount().maxByOrNull { it.value }!!.key
+        val first = cand.filter { chain(it) >= n }
+        if (n < 2 || first.size < 4) return emptyList()
+        val mods = (0 until n).map { k -> first.map { at(it, k)!!.id } }
+        if (mods.flatten().toSet().size != n * first.size) return emptyList()
+        // Each module must hang together on its own.
+        fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+        val m0 = first; val seen = HashSet<Part>(); val todo = ArrayDeque(listOf(m0[0]))
+        while (todo.isNotEmpty()) { val q = todo.removeFirst(); if (!seen.add(q)) continue; m0.filter { it !in seen && touch(it, q) }.forEach { todo += it } }
+        if (seen.size != m0.size) return emptyList()
+        val floor = live.minOf { it.mesh.bounds.min.z }
+        if (m0.none { it.mesh.bounds.min.z <= floor + 1.0 }) return emptyList()
+        return mods
+    }
+
     fun legFrames(live: List<Part>): List<List<String>> {
         val legs = live.filter { it.name.endsWith("eg") && '.' !in it.id }
         if (legs.size < 4 || legs.size % 2 != 0) return emptyList()
@@ -145,6 +200,22 @@ object AssemblyPlan {
                 ids += u.map { it.id }
             }
             val first = kind.first()
+            if (first.size > BIG_SUB) {
+                // A whole cabinet is too much for one picture: it is built in a few bench steps, as on its own.
+                val inner = planCore(first, maxSteps = minOf(5, maxOf(2, ceil(first.size / 3.0).toInt())))
+                val ex = inner.parts.associate { it.id to it.explode }
+                val start = bench.size + 1
+                // The piece laid down first goes in with the first parts joined to it, not on a page of its own.
+                val isteps = if (inner.steps.size >= 2 && inner.steps[0].partIds.size == 1)
+                    listOf(inner.steps[1].copy(partIds = inner.steps[0].partIds + inner.steps[1].partIds)) + inner.steps.drop(2) else inner.steps
+                for ((k, ist) in isteps.withIndex()) {
+                    val ids = ist.partIds.filter { id -> first.any { it.id == id } }
+                    if (ids.isEmpty()) continue
+                    bench += BuildStep(bench.size + 1, ids, emptyList(), ids.mapNotNull { id -> first.first { it.id == id }.item }.distinct().sorted(),
+                        subassembly = true, explodeOf = ids.associateWith { if (k == 0 && ex[it] == null) null else ex[it] }, makeCount = kind.size, continues = if (bench.size + 1 == start) null else start)
+                }
+                continue
+            }
             bench += BuildStep(bench.size + 1, first.map { it.id }, emptyList(), first.mapNotNull { it.item }.distinct().sorted(),
                 subassembly = true, explodeOf = first.associate { it.id to benchExplode[it.id] }, makeCount = kind.size)
         }
@@ -296,7 +367,7 @@ object AssemblyPlan {
             val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
                 (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) &&
                 // Drawers and their fronts go in all together, a chest's worth: hanging them is the same job each time.
-                last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" }) MAX_DRAWERS else MAX_GROUP)
+                last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" || nameOf[it] == "Door" }) MAX_DRAWERS else MAX_GROUP)
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
@@ -317,6 +388,17 @@ object AssemblyPlan {
             // frame), they are set out with it: placed, not fitted from a direction they never travel. The rest of
             // their step (the slats that tie them) stays a step of its own.
             val base = out.lastOrNull()
+            // Repeated cabinets are all set out in a row at the start, then joined to each other.
+            if (base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.any { it.startsWith("module") }) {
+                val mods = st.partIds.filter { it.startsWith("module") }
+                if (mods.isNotEmpty()) {
+                    out[out.size - 1] = base.copy(partIds = base.partIds + mods)
+                    built += mods
+                    if (mods.size == st.partIds.size) { renumber[st.step] = out.size; continue }
+                    for (id in mods) moved[id] = out.size
+                    st = st.copy(partIds = st.partIds - mods.toSet())
+                }
+            }
             if (carry == null && base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { onFloor(it) }) {
                 // Only pieces the next parts tie to the base straight away (a bed's slats, a table's aprons): one that
                 // stands alone until the very end (a desk's far end panel) waits for its own step.
@@ -394,6 +476,9 @@ object AssemblyPlan {
 
     /** Most things one step of the main build fits from one direction. */
     private const val MAX_GROUP = 5
+
+    /** A sub-assembly of more parts than this is built in several bench steps. */
+    private const val BIG_SUB = 6
 
     /** Drawers (or their fronts) hung in one step, at most. */
     private const val MAX_DRAWERS = 12

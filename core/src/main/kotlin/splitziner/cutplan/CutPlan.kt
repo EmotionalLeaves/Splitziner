@@ -263,7 +263,7 @@ object CutPlanner {
             }
             val placeable = members.filter { r ->
                 val fits = (r.w <= stock.sheetW + 1e-6 && r.l <= stock.sheetL + 1e-6) || (stock.rotate && !r.grain && r.l <= stock.sheetW + 1e-6 && r.w <= stock.sheetL + 1e-6)
-                if (!fits) leftOut += "Item ${r.item} is larger than a sheet; it is not in the plan."
+                if (!fits) leftOut += "Item ${r.item} is larger than a sheet; it is not in the plan." + (if (r.name.contains("Top") && r.t * (layered[r.item]?.first ?: 1) >= 25.0) " Buy it as a ready-made worktop (laminate, solid wood or butcher block) and cut it to length." else "")
                 fits
             }
             var take = placeable.filter { !optional(it) }

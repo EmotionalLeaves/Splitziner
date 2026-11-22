@@ -117,9 +117,27 @@ object Fastening {
         fun unit(p: Part) = keyOf[p.id] ?: p.id.substringBefore('.')
         val units = live.groupBy { unit(it) }.filter { it.value.size >= 2 }
         val unitKind = units.mapValues { (_, ms) -> ms.mapNotNull { it.item }.sorted() }
-        for (st in steps) if (st.subassembly) {
+        for (st in steps) if (st.subassembly && st.continues == null && steps.none { it.continues == st.step }) {
             val kind = live.filter { it.id in st.partIds }.mapNotNull { it.item }.sorted()
             for ((root, k) in unitKind) if (k == kind) for (p in units.getValue(root)) benchOf.putIfAbsent(p.id, st.step)
+        }
+        // A unit built over several bench steps: each copy's part goes in the step its counterpart in the first copy
+        // does, found by item and by where it sits in its unit.
+        for (st0 in steps) if (st0.subassembly && st0.continues == null && steps.any { it.continues == st0.step }) {
+            val seq = steps.filter { it.step == st0.step || it.continues == st0.step }
+            val firstIds = seq.flatMap { it.partIds }.toSet()
+            val kind = live.filter { it.id in firstIds }.mapNotNull { it.item }.sorted()
+            val firstRoot = units.entries.firstOrNull { (_, ms) -> ms.any { it.id in firstIds } }?.key ?: continue
+            fun origin(ms: List<Part>) = splitziner.math.Vec3(ms.minOf { it.mesh.bounds.min.x }, ms.minOf { it.mesh.bounds.min.y }, ms.minOf { it.mesh.bounds.min.z })
+            val o0 = origin(units.getValue(firstRoot))
+            for ((root, k) in unitKind) if (k == kind) {
+                val ms = units.getValue(root); val o = origin(ms)
+                for (st in seq) for (id in st.partIds) {
+                    val p0 = live.firstOrNull { it.id == id } ?: continue
+                    val rel0 = p0.mesh.bounds.min - o0
+                    ms.firstOrNull { q -> q.item == p0.item && (q.mesh.bounds.min - o - rel0).length < 1.5 }?.let { benchOf.putIfAbsent(it.id, st.step) }
+                }
+            }
         }
         for ((id, st) in benchOf) stepOf[id] = st
         // The main step a part goes in: its own step if it is loose, its sub-assembly's placing step otherwise.
@@ -191,6 +209,15 @@ object Fastening {
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
                 continue
             }
+            // Cabinets built whole and set side by side are clamped flush and screwed through one side into the next,
+            // with screws shorter than the two sides together; no glue, so they can come apart to move.
+            val ua = unit(a); val ub = unit(b)
+            if (ua != ub && ua.startsWith("module") && ub.startsWith("module")) {
+                val sz = pick(2 * tThrough - 6.0, fmt, false)?.let { gauged(it, tThrough, fmt) } ?: ""
+                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 4, sz, "cabinets", false)
+                if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + 4
+                continue
+            }
             // Face frames: stiles and rails are joined to each other with pocket screws from the back, the usual way, as
             // screws through a stile's edge would show; the frame is glued and pinned to the case's front edges, and the
             // edges of shelves behind it need nothing.
@@ -228,6 +255,19 @@ object Fastening {
             val wideTop = thr.name == "Top" || minOf(hi[ti0].x - lo[ti0].x, hi[ti0].y - lo[ti0].y) >= 150.0
             val openTop = wideTop && thr.name != "Slat" && rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
                 minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
+            // A top on flat stretchers (a cabinet's, a worktop on a row of them) is screwed from below, up through the
+            // stretchers, with screws that stop well short of its face.
+            if (faceToFace && k == 2) {
+                val upperI = if (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 0.5) ti0 else idx.getValue(into.id)
+                val upper = if (upperI == ti0) thr else into; val lower = if (upper === thr) into else thr
+                val tl = rel.hi[idx.getValue(lower.id)].z - rel.lo[idx.getValue(lower.id)].z; val tu = rel.hi[upperI].z - rel.lo[upperI].z
+                if (upper.name == "Top" && tu > 12.0) {
+                    val sz = pick(tl + minOf(0.6 * tu, tu - 6.0), fmt, false)?.let { gauged(it, tl, fmt) } ?: ""
+                    joints.getOrPut(step) { ArrayList() } += Joint(lower, upper, count, sz, "up", false)
+                    if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + count
+                    continue
+                }
+            }
             val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
             // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
             // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.
@@ -410,7 +450,9 @@ object Fastening {
         // Identical sub-assemblies are made more than once in one bench step. Every copy's joints are already in
         // the totals; the step itself tells how to make one, so it keeps only the first copy's joints.
         for (st in steps) if (st.subassembly && st.makeCount > 1) {
-            val first = st.partIds.toSet()
+            // The first copy is all the parts its bench steps list, when it is built over several.
+            val start = st.continues ?: st.step
+            val first = steps.filter { it.step == start || it.continues == start }.flatMap { it.partIds }.toSet()
             joints[st.step]?.let { js -> val own = js.filter { it.through.id in first && it.into.id in first }; if (own.isNotEmpty()) joints[st.step] = own.toMutableList() }
         }
         // By kind (screws, then brads, then the rest), shortest first.
@@ -600,6 +642,8 @@ object Fastening {
                 else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
+            else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
+            else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
             else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in its ends, on the back of the frame$times (or glue and dowel them)."
             else when (plan.method) {
@@ -616,7 +660,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

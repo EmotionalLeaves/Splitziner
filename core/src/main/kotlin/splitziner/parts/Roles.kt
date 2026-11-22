@@ -105,7 +105,11 @@ object Roles {
                 continue
             }
             // Several narrow boards alike, lying flat side by side: slats (a bed's, a bench seat's).
-            if (dims[1] < NARROW && e.z <= t + 0.01 && live.count { o -> o.mesh.bounds.extents.let { oe -> kotlin.math.abs(oe.x - e.x) < 0.5 && kotlin.math.abs(oe.y - e.y) < 0.5 && kotlin.math.abs(oe.z - e.z) < 0.5 } } >= 4) {
+            // Spread across their length, not end to end: a row of cabinets' top stretchers in line are not slats.
+            val alike = live.filter { o -> o.mesh.bounds.extents.let { oe -> kotlin.math.abs(oe.x - e.x) < 0.5 && kotlin.math.abs(oe.y - e.y) < 0.5 && kotlin.math.abs(oe.z - e.z) < 0.5 } }
+            val lenAx = if (e.x >= e.y) 0 else 1
+            val inLine = alike.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min[1 - lenAx] - b.min[1 - lenAx]) < 1.0 && kotlin.math.abs(o.mesh.bounds.min.z - b.min.z) < 1.0 }
+            if (dims[1] < NARROW && e.z <= t + 0.01 && alike.size >= 4 && !inLine) {
                 out[p.id] = "Slat"; continue
             }
             // Narrow boards are not shelves or sides: a strip lying down is a rail, one standing up an upright.

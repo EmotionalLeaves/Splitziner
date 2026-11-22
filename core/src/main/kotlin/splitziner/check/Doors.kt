@@ -93,6 +93,7 @@ object Doors {
             j != i && kotlin.math.abs(o.min.y - d.min.y) < 0.5 && kotlin.math.abs(o.max.y - d.max.y) < 0.5 && o.min.z < d.max.z && o.max.z > d.min.z &&
                 (if (left) d.min.x - o.max.x in 0.5..MAX_GAP else o.min.x - d.max.x in 0.5..MAX_GAP)
         }
-        return (upright(true) || twin(true)) && (upright(false) || twin(false)) && rail(true) && rail(false) && !(twin(true) && twin(false))
+        // In a row of doors (a kitchen run) a door may have another beside it both ways; it still needs an upright behind one edge.
+        return (upright(true) || twin(true)) && (upright(false) || twin(false)) && rail(true) && rail(false) && !(twin(true) && twin(false) && !upright(true) && !upright(false))
     }
 }

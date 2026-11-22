@@ -203,7 +203,9 @@ object DesignCheck {
             val fitsSheet = (p.w <= stock.sheetW + 0.5 && p.l <= stock.sheetL + 0.5) || (p.l <= stock.sheetW + 0.5 && p.w <= stock.sheetL + 0.5)
             val isBoard = p.kind == PartKind.BOARD
             if (!isBoard && !fitsSheet) out += Finding(Severity.PROBLEM, "Item ${p.item} is bigger than a sheet",
-                "It needs ${d(p.w)} x ${d(p.l)}; your sheets are ${d(stock.sheetW)} x ${d(stock.sheetL)}. It must be made from two pieces joined, or the design made smaller.", live.filter { it.item == p.item }.map { it.id })
+                "It needs ${d(p.w)} x ${d(p.l)}; your sheets are ${d(stock.sheetW)} x ${d(stock.sheetL)}. It must be made from two pieces joined, or the design made smaller." +
+                    // A long, deep, thick top over a run of cabinets is what worktops are sold as.
+                    (if (p.name == "Top" && p.t >= 25.0) " Worktops (laminate, solid wood or butcher block) are sold in long lengths about 25 in (600 mm) deep: buy one and cut it to length." else ""), live.filter { it.item == p.item }.map { it.id })
             if (isBoard && p.l > stock.boardLengths.last() + 0.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is longer than your boards",
                 "It is ${d(p.l)} long; boards come in lengths up to ${d(stock.boardLengths.last())}.", live.filter { it.item == p.item }.map { it.id })
         }
