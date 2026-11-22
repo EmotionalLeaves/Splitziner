@@ -225,7 +225,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
         title = { Text("Splitziner ${BuildConfig.VERSION_NAME}") },
         text = {
             Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Turns a 3D model of furniture into parts, drawings, a build guide, a cut list, a cutting plan and a shopping list, all on the phone. Nothing is sent anywhere; your files stay on this phone unless you share them.", style = MaterialTheme.typography.bodyMedium)
+                Text("Turns a 3D model of furniture into parts, drawings, a build guide, a cut list, a cutting plan and a shopping list, all on the phone. Your models and projects stay on this phone unless you share them; the only thing the app fetches is news of a newer version, from the project's GitHub page.", style = MaterialTheme.typography.bodyMedium)
                 Text("Drawings follow a common engineering drawing layout. They are generated, not checked by a person: see Help, What to trust.", style = MaterialTheme.typography.bodySmall)
                 Text("Open source software used", fontWeight = FontWeight.Bold)
                 for ((what, licence) in listOf(
