@@ -283,9 +283,11 @@ object DesignCheck {
         // Doors hang on hinges, which are hardware too.
         val doors = runCatching { Doors.find(live) }.getOrDefault(emptyList())
         run { val idx = live.indices.associateBy { live[it].id }; for (dr in doors) idx[dr.id]?.let { onSlides += it } }
-        for (dr in doors) {
-            val it0 = live.first { it.id == dr.id }.item
-            out += Finding(Severity.NOTE, "Door (item $it0)", "Item $it0 is a door. It hangs on ${Doors.hinges(dr.height)} hinges, which are hardware and not in the model. Concealed (cup) hinges need a 35 mm hole in the back of the door; follow the hinges' own template.", listOf(dr.id))
+        for ((it0, ds) in doors.groupBy { dr -> live.first { it.id == dr.id }.item }) {
+            val n = ds.size; val hinges = Doors.hinges(ds[0].height)
+            out += Finding(Severity.NOTE, if (n == 1) "Door (item $it0)" else "$n doors (item $it0)",
+                (if (n == 1) "Item $it0 is a door. It hangs on $hinges hinges" else "Item $it0 is $n doors. Each hangs on $hinges hinges") +
+                    ", which are hardware and not in the model. Concealed (cup) hinges need a 35 mm hole in the back of the door; follow the hinges' own template.", ds.map { it.id })
         }
         if (n > 1) {
             val alone = (0 until n).filter { touching[it].isEmpty() && it !in onSlides }

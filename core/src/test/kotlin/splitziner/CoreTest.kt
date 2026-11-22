@@ -1287,3 +1287,15 @@ class DoorTest {
         assertTrue(f.hardware.any { it.contains("2 × concealed (cup) hinges") }, f.hardware.toString())
     }
 }
+
+class CabinetDoorsTest {
+    @Test fun aPairOfDoorsIsFoundAndHung() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("doors" to 2.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        assertEquals(2, splitziner.check.Doors.find(parts).size)
+        val cut = CutList.build(parts, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.problems == 0, rep.findings.map { it.title }.toString())
+    }
+}

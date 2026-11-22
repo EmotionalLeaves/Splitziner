@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
         if (file?.startsWith("template:") == true) {
             val t = splitziner.edit.Templates.byKey(file!!.removePrefix("template:"))
             val tmp = File(out.apply { mkdirs() }, "${t.key}.stl")
-            tmp.outputStream().use { splitziner.io.StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, display == "in")), it) }
+            tmp.outputStream().use { splitziner.io.StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, display == "in") + (System.getenv("TPL") ?: "").split(',').filter { it.contains('=') }.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }), it) }
             file = tmp.path; if (units == null) units = "mm"
         }
         val f = File(file ?: error("no input file"))
