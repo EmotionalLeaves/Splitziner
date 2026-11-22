@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Three boards pulled apart: the app splits a model into its parts. -->
+<!-- A box with its top lifted off: the app takes a model apart into the boards you cut. Isometric, as on the drawings. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M30,34h48v8h-48z" />
-    <path android:fillColor="#FFD166" android:pathData="M30,50h48v8h-48z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M30,66h48v8h-48z" />
+    <!-- Left face -->
+    <group android:scaleX="1.15" android:scaleY="1.15" android:pivotX="54" android:pivotY="53.4">
+    <path android:fillColor="#D6E6F7" android:pathData="M36.2,52 L54,62.3 L54,80 L36.2,69.7 Z" />
+    <!-- Right face -->
+    <path android:fillColor="#A9C9EC" android:pathData="M54,62.3 L71.8,52 L71.8,69.7 L54,80 Z" />
+    <!-- Inside, seen where the top is off -->
+    <path android:fillColor="#0F2E4D" android:pathData="M36.2,52 L54,41.7 L71.8,52 L54,62.3 Z" />
+    <!-- The lid, lifted: its edge, then its top -->
+    <path android:fillColor="#E0962E" android:pathData="M36.2,37 L54,47.3 L71.8,37 L71.8,40 L54,50.3 L36.2,40 Z" />
+    <path android:fillColor="#FFC46B" android:pathData="M36.2,37 L54,26.7 L71.8,37 L54,47.3 Z" />
+    <!-- Edges -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="1.2" android:strokeLineJoin="round"
+        android:pathData="M36.2,52 L54,62.3 L71.8,52 M54,62.3 L54,80 M36.2,52 L36.2,69.7 L54,80 L71.8,69.7 L71.8,52 L54,41.7 L36.2,52" />
+</group>
 </vector>
