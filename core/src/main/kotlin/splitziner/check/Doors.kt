@@ -11,7 +11,8 @@ object Doors {
     /** Clear space round an inset door, at most (mm); a real door needs 1.5-3 mm to swing. */
     private const val MAX_GAP = 6.0
 
-    class Door(val id: String, val height: Double, val hingeLeft: Boolean)
+    /** [paired]: one of a pair meeting in the middle, hinged on its outer edge; a single door's side is the maker's choice. */
+    class Door(val id: String, val height: Double, val hingeLeft: Boolean, val paired: Boolean = false)
 
     /** Wider than this (mm) a single door is unusual; the common rule of thumb is about 600 mm (24 in). */
     const val MAX_WIDTH = 620.0
@@ -47,7 +48,15 @@ object Doors {
             if (e.y > 0.15 * minOf(e.x, e.z) || e.y > 30.0) continue
             if (overlay(live, b, i)) out += Door(p.id, e.z, true)
         }
-        return out
+        // A pair of doors meeting in the middle hang from their outer edges.
+        val byId = live.associateBy { it.id }
+        return out.map { d ->
+            val a = byId.getValue(d.id).mesh.bounds
+            val mate = out.firstOrNull { o -> o.id != d.id && byId.getValue(o.id).mesh.bounds.let { c ->
+                c.min.z < a.max.z && c.max.z > a.min.z && kotlin.math.abs(c.min.y - a.min.y) < 1.0 &&
+                    (c.min.x - a.max.x in -0.5..MAX_GAP || a.min.x - c.max.x in -0.5..MAX_GAP) } }
+            if (mate == null) d else Door(d.id, d.height, byId.getValue(mate.id).mesh.bounds.min.x > a.min.x, true)
+        }
     }
 
     /**

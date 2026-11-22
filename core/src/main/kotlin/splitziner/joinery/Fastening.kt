@@ -325,7 +325,11 @@ object Fastening {
         for (dr in doors) {
             val p = live.first { it.id == dr.id }
             val n = splitziner.check.Doors.hinges(dr.height)
-            joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, "hinges", "hinges", false))
+            // Which edge they go on, as the model has the door, and the usual place along it: the end hinges about
+            // 3 in (75 mm) from the top and bottom, a common cabinetmakers' rule, any others evenly between.
+            val end = if (fmt.isInch) "3 in" else "75 mm"
+            val at = "${if (!dr.paired) "" else if (dr.hingeLeft) "left" else "right"}|$end"
+            joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, "hinges", "hinges", false, at))
             totals["concealed (cup) hinges"] = (totals["concealed (cup) hinges"] ?: 0) + n
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
         }
@@ -472,8 +476,16 @@ object Fastening {
         val room = maxOf(1, maxLines - out.size)
         for ((key, g) in groups.entries.take(room)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
-            out += if (j.kind == "hinges") (if (g.size > 1) "Drill the hinge cups in the back of each ${key.first} with a 35 mm bit (using the hinges' template), screw on ${count(n / g.size)} hinges each, then hang them and adjust them until the gaps are even. Fit each one's handle or knob ${HANDLE_PLACE} its hinges."
-                else "Drill the hinge cups in the back of ${key.first} with a 35 mm bit (using the hinges' template), screw on ${count(n)} hinges, then hang it and adjust it until the gaps are even. Fit its handle or knob ${HANDLE_PLACE} the hinges.")
+            out += if (j.kind == "hinges") {
+                // Where they go: the hinge edge (from the front), the end ones a set distance in, any others evenly between.
+                val per = n / g.size
+                val sides = g.map { it.at.substringBefore('|') }.filter { it.isNotEmpty() }
+                val end = g.first().at.substringAfter('|', "")
+                val edge = when { sides.isEmpty() -> "on the side you want it hinged, "; sides.distinct().size == 1 -> "on its ${sides[0]}-hand edge (seen from the front), "; else -> "on its outer edge, so the pair opens from the middle, " }
+                val place = if (end.isEmpty()) "" else " The top and bottom hinges go about $end from the ends" + (if (per > 2) ", the others evenly between" else "") + "."
+                if (g.size > 1) "Drill the hinge cups in the back of each ${key.first} ${edge}with a 35 mm bit (using the hinges' template), screw on ${count(per)} hinges each, then hang them and adjust them until the gaps are even.$place Fit each one's handle or knob ${HANDLE_PLACE} its hinges."
+                else "Drill the hinge cups in the back of ${key.first} ${edge}with a 35 mm bit (using the hinges' template), screw on ${count(n)} hinges, then hang it and adjust it until the gaps are even.$place Fit its handle or knob ${HANDLE_PLACE} the hinges."
+            }
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
             else if (j.kind == "slides") {
