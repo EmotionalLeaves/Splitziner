@@ -223,3 +223,9 @@ Departures from the build spec, newest first.
   - A tenon (only part of an end) still goes to the cut-back and trim choices.
 - The housed-joint line says "dado or rabbet" and points to the part's drawing for the size.
 - Project names come from file names: underscores and hyphens become spaces, and an all-lowercase name gets a capital first letter ("kitchen_run.stl" becomes "Kitchen run").
+
+## v0.90
+- Detail drawings of a part with housings show them:
+  - The grooves and rabbets that run right through the part one way are cut into the drawn part, along the way most of them run. A dado stopping within 1/2 in of an edge, where it meets the back rabbet, counts as through.
+  - The views draw them, and the ordinate dimensions place each one.
+  - The rest stay in the notes, which now give each groove's position from the bottom end (as assembled) and name each rabbet by the edge it runs along.

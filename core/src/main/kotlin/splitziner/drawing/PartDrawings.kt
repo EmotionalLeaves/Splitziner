@@ -175,6 +175,41 @@ object PartDrawings {
     }
 
     /** Notes for the grooves in [p]: one per part housed in it, sized from where the two overlap in the model. */
+    /**
+     * The part with the grooves that housed parts sit in cut away, for drawing. Only grooves running right through
+     * the part one way (dados and rabbets cut end to end) are cut, along the direction most of them run; others are
+     * left to the notes. Null when there is nothing to cut.
+     */
+    fun carveGrooves(p: Part, parts: List<Part>, housed: List<Pair<String, String>>): splitziner.mesh.Mesh? {
+        val byId = parts.associateBy { it.id }
+        val a = p.mesh.bounds
+        val boxes = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
+            val b = byId[pid]?.mesh?.bounds ?: return@mapNotNull null
+            val lo = splitziner.math.Vec3(maxOf(a.min.x, b.min.x), maxOf(a.min.y, b.min.y), maxOf(a.min.z, b.min.z))
+            val hi = splitziner.math.Vec3(minOf(a.max.x, b.max.x), minOf(a.max.y, b.max.y), minOf(a.max.z, b.max.z))
+            if ((0..2).any { hi[it] <= lo[it] }) null else lo to hi
+        }
+        if (boxes.isEmpty()) return null
+        // The direction each runs right through the part.
+        // (A dado that stops at a rabbet along the back edge runs into it: through, for the drawing, within 1/2 in.)
+        fun through(bx: Pair<splitziner.math.Vec3, splitziner.math.Vec3>) = (0..2).firstOrNull { k -> bx.first[k] <= a.min[k] + 13.0 && bx.second[k] >= a.max[k] - 13.0 && a.extents[k] > 3 * (bx.second - bx.first).let { minOf(it.x, it.y, it.z) } }
+        val axis = boxes.mapNotNull { through(it) }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: return null
+        val cut = boxes.filter { through(it) == axis }
+        val dir = splitziner.math.Vec3.axis(axis)
+        val prism = splitziner.edit.Prisms.along(p.mesh, dir, splitziner.math.Vec3.axis((axis + 1) % 3))
+        // Only a plain prism along that way (a board's section), so cutting its outline is exact.
+        if (kotlin.math.abs(prism.outline.area * prism.thickness - kotlin.math.abs(p.mesh.volume)) > 0.02 * kotlin.math.abs(p.mesh.volume)) return null
+        val gf = org.locationtech.jts.geom.GeometryFactory()
+        var outline = prism.outline
+        for ((lo, hi) in cut) {
+            val corners = listOf(lo, hi, splitziner.math.Vec3(lo.x, hi.y, lo.z), splitziner.math.Vec3(hi.x, lo.y, hi.z), splitziner.math.Vec3(lo.x, lo.y, hi.z), splitziner.math.Vec3(hi.x, hi.y, lo.z), splitziner.math.Vec3(hi.x, lo.y, lo.z), splitziner.math.Vec3(lo.x, hi.y, hi.z))
+            val px = corners.map { it dot prism.view.x }; val py = corners.map { it dot prism.view.up }
+            val env = org.locationtech.jts.geom.Envelope(px.min(), px.max(), py.min(), py.max())
+            outline = outline.difference(gf.toGeometry(env))
+        }
+        return splitziner.edit.Prisms.toMesh(prism.with(outline = outline))
+    }
+
     fun grooveNotes(p: Part, parts: List<Part>, housed: List<Pair<String, String>>, fmt: LengthFormat): List<String> {
         val byId = parts.associateBy { it.id }
         val d = { v: Double -> fmt.format(v) }
@@ -213,7 +248,9 @@ object PartDrawings {
         for (row in rows) {
             if (row.item in skip) continue
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: continue
-            val laid = p.copy(mesh = squaredUp(p.mesh))
+            // Grooves for housed parts are cut into the drawn part, so the views show them and the dimensions place them.
+            val carved = runCatching { carveGrooves(p, parts, housed) }.getOrNull() ?: p.mesh
+            val laid = p.copy(mesh = squaredUp(carved))
             val vs = DrawingBuilder.views(listOf(laid), settings.sections)
             val base = info.drawingNo.ifBlank { "DWG" }
             val itemInfo = info.copy(
