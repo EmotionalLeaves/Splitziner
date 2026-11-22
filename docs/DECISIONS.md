@@ -229,3 +229,7 @@ Departures from the build spec, newest first.
   - The grooves and rabbets that run right through the part one way are cut into the drawn part, along the way most of them run. A dado stopping within 1/2 in of an edge, where it meets the back rabbet, counts as through.
   - The views draw them, and the ordinate dimensions place each one.
   - The rest stay in the notes, which now give each groove's position from the bottom end (as assembled) and name each rabbet by the edge it runs along.
+
+## v0.91
+- Hardware totals give gauged screws as sold, after the count: "26 screws, #8 x 1-1/2 in" or "18 screws, 4 x 40 mm". Before it read "26 × 4 x 40 mm screws".
+- `scripts/fuzz-templates.py` builds every template with random sizes (half to double each default, random options) and checks for crashes and odd text ("null", "item -", "(0 joints)"). 120 runs found none. Sizes that cannot fit are refused with a message, as intended.
