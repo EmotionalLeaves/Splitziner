@@ -208,6 +208,13 @@ object DrawingBuilder {
             val topRight = origin.getValue("top")[0] + wt * s + t.right
             if (right - CALL > keepX && rightTop > keepY) fits = false
             if (topRight > keepX && topEdge - CALL > keepY) fits = false
+            // Every view with its dimensions must stay out of that corner, the dimension text included.
+            for ((name, m, wh) in listOf(Triple("front", f, wf to hf), Triple("top", t, wt to ht), Triple("right", r, wr to hr))) {
+                val o = origin.getValue(name)
+                val x1 = o[0] + wh.first * s + m.right + CALL; val y1 = o[1] + wh.second * s + m.top
+                val y0 = o[1] - m.bottom - CALL
+                if (x1 > keepX && y1 > keepY && y0 < sheet.fieldY1) fits = false
+            }
             val fill = maxOf((right - sheet.fieldX0 - 2) / availW, (topEdge - bandTop - 2) / availH)
             return Placed(origin, fits, fill)
         }

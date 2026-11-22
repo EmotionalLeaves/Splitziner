@@ -8,6 +8,7 @@ import splitziner.parts.CutListRow
 import splitziner.parts.Part
 import splitziner.sheet.DisplayList
 import splitziner.sheet.DrawingInfo
+import kotlin.math.abs
 
 /**
  * Detail drawings: one sheet per item of the cut list, showing that part on its own with its
@@ -80,12 +81,50 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = "auto"), fmt)
             r.sheets.forEach { it.qa.clear() }
             out += row to DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
+        }
+        return out
+    }
+
+    /**
+     * What a maker needs to cut a flat part's outline that the views do not dimension: the corner radius, and where
+     * each opening is and how big. Read from a slice through the middle of the part's thickness, in the front view's
+     * terms (from the lower left corner of the part as drawn). Openings are given by the box around them.
+     */
+    fun outlineNotes(laid: Mesh, fmt: LengthFormat): List<String> {
+        val ext = laid.extents
+        if (ext.y > 0.35 * minOf(ext.x, ext.z)) return emptyList()       // not a flat part
+        // The slice's own frame: u along Z (the part's width, up the sheet), v along X (its length, across).
+        val loops = runCatching { splitziner.section.Slicer.sectionLoops(laid, Vec3(0.0, ext.y / 2, 0.0), Vec3(0.0, 1.0, 0.0)) }.getOrNull() ?: return emptyList()
+        if (loops.isEmpty()) return emptyList()
+        fun area(l: List<splitziner.math.Vec2>) = abs(splitziner.section.Slicer.loopArea(l))
+        val outer = loops.maxByOrNull { area(it) }!!
+        val d = { v: Double -> fmt.format(v) }
+        val out = ArrayList<String>()
+        // Rounded corners: a corner of radius r leaves r(sqrt 2 - 1) between the box corner and the outline.
+        val ou0 = outer.minOf { it.x }; val ou1 = outer.maxOf { it.x }; val ov0 = outer.minOf { it.y }; val ov1 = outer.maxOf { it.y }
+        val radii = listOf(ou0 to ov0, ou0 to ov1, ou1 to ov0, ou1 to ov1).map { (cu, cv) -> outer.minOf { Math.hypot(it.x - cu, it.y - cv) } / (Math.sqrt(2.0) - 1) }
+        val r = radii.average()
+        if (r > 0.01 * minOf(ou1 - ou0, ov1 - ov0) && radii.all { abs(it - r) < 0.15 * r }) out += "ALL OUTSIDE CORNERS R${d(r)}."
+        // Openings: loops inside the outline.
+        val holes = loops.filter { it !== outer && it.all { p -> p.x > ou0 && p.x < ou1 && p.y > ov0 && p.y < ov1 } && area(it) > 1e-4 * area(outer) }
+            .sortedWith(compareBy({ it.minOf { p -> p.y } }, { it.minOf { p -> p.x } }))
+        for ((i, h) in holes.withIndex()) {
+            val u0 = h.minOf { it.x }; val u1 = h.maxOf { it.x }; val v0 = h.minOf { it.y }; val v1 = h.maxOf { it.y }
+            val w = v1 - v0; val hgt = u1 - u0
+            val shape = when {
+                area(h) > 0.97 * w * hgt -> "SQUARE-CORNERED"
+                abs(w - hgt) < 0.05 * maxOf(w, hgt) && area(h) > 0.75 * w * hgt -> "ROUND"
+                else -> "ROUND-ENDED"
+            }
+            val name = if (holes.size == 1) "OPENING" else "OPENING ${'A' + i}"
+            out += if (shape == "ROUND") "$name: ${d(w)} DIA THRU, CENTRE ${d((v0 + v1) / 2 - ov0)} FROM LEFT EDGE, ${d((u0 + u1) / 2 - ou0)} FROM BOTTOM EDGE."
+            else "$name: $shape, ${d(w)} X ${d(hgt)} THRU, ITS BOX STARTING ${d(v0 - ov0)} FROM LEFT EDGE AND ${d(u0 - ou0)} FROM BOTTOM EDGE."
         }
         return out
     }

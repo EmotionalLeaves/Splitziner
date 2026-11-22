@@ -83,8 +83,24 @@ object HiddenLine {
         val bvh = scene.bvh
         val vis = ArrayList<Double>(); val hid = ArrayList<Double>()
         val topo = mesh.topology
-        fun hiddenAt(p: Vec3) = bvh.intersectsAny(p + lift, n)
+        val fn = mesh.faceNormals
+        // The test point also steps a hair off the surface, outward. Without it, at an outline where the next face
+        // runs straight away from the viewer (the top of a panel with a rounded edge, seen from the front) the ray
+        // travels inside that face's plane, grazes it, and the whole outline comes out hidden.
+        var off = Vec3(0.0, 0.0, 0.0)
+        val offLen = 1e-4 * sceneScale
+        // Face winding in real files is not always consistent, so "outward" may point in: the point counts as hidden
+        // only when it is blocked stepped off to both sides. A point truly behind another part is blocked either way.
+        fun hiddenAt(p: Vec3) = bvh.intersectsAny(p + lift + off, n) && bvh.intersectsAny(p + lift - off, n)
         for (e in candidateEdges(mesh, n)) {
+            var ox = 0.0; var oy = 0.0; var oz = 0.0
+            for (side in 0..1) {
+                val f = topo.edgeFaces.getOrElse(2 * e + side) { -1 }
+                if (f < 0 || (side == 1 && topo.edgeUseCount[e] < 2)) continue
+                ox += fn[3 * f]; oy += fn[3 * f + 1]; oz += fn[3 * f + 2]
+            }
+            val ol = kotlin.math.sqrt(ox * ox + oy * oy + oz * oz)
+            off = if (ol > 1e-9) Vec3(ox / ol * offLen, oy / ol * offLen, oz / ol * offLen) else Vec3(0.0, 0.0, 0.0)
             val a = mesh.vertex(topo.edges[2 * e]); val b = mesh.vertex(topo.edges[2 * e + 1])
             val d = b - a
             val len = d.length
