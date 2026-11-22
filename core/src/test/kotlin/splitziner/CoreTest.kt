@@ -1208,12 +1208,14 @@ class ObjTest {
 }
 
 class FullSizeTest {
-    @Test fun anLBracketGetsTemplatesAndPlainBoardsDoNot() {
+    @Test fun anAngledBracketGetsTemplatesAndSquareShapesDoNot() {
         val fmt = LengthFormat("mm")
-        // An L bracket 300 x 300, arms 60 wide, 18 thick: two overlapping boxes made into one solid outline.
-        val l = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("p", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)),
-            org.locationtech.jts.io.WKTReader().read("POLYGON ((0 0, 300 0, 300 60, 60 60, 60 300, 0 300, 0 0))"), 0.0, 18.0))
-        val parts = listOf(Part("P01", "L", l), Part("P02", "Board", Fixtures.box(400.0, 700.0, 0.0, 60.0, 0.0, 18.0)))
+        fun prism(wkt: String) = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("p", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)),
+            org.locationtech.jts.io.WKTReader().read(wkt), 0.0, 18.0))
+        // A bracket 300 x 300 with a sloped brace edge needs a template; a square-cut L is marked out with a square.
+        val v = prism("POLYGON ((0 0, 300 0, 300 60, 60 300, 0 300, 0 0))")
+        val l = prism("POLYGON ((1000 0, 1300 0, 1300 60, 1060 60, 1060 300, 1000 300, 1000 0))")
+        val parts = listOf(Part("P01", "V", v), Part("P02", "L", l), Part("P03", "Board", Fixtures.box(400.0, 700.0, 0.0, 60.0, 0.0, 18.0)))
         val cut = CutList.build(parts, fmt)
         val r = splitziner.drawing.FullSize.build(cut.parts, cut.rows, fmt)
         assertEquals(1, r.items.size)

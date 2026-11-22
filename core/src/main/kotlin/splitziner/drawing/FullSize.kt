@@ -36,7 +36,19 @@ object FullSize {
         val polys = (0 until g.numGeometries).mapNotNull { g.getGeometryN(it) as? Polygon }
         if (polys.isEmpty()) return false
         // A rectangle with rounded corners, a notch or a slot is nearly its box; its sheet gives the radius and openings.
-        return g.area < 0.9 * g.envelopeInternal.area
+        if (g.area >= 0.9 * g.envelopeInternal.area) return false
+        // Nor is an outline of square-cut straight edges only (a frame, an L, a notched slab): a rule and a square mark
+        // it out faster and truer than taped-up paper. A template is for curves and angles.
+        val cs = g.coordinates
+        var square = true
+        for (poly in polys) for (ring in listOf(poly.exteriorRing) + (0 until poly.numInteriorRing).map { poly.getInteriorRingN(it) }) {
+            val c = ring.coordinates
+            for (i in 0 until c.size - 1) {
+                val dx = kotlin.math.abs(c[i + 1].x - c[i].x); val dy = kotlin.math.abs(c[i + 1].y - c[i].y)
+                if (minOf(dx, dy) > 0.02 * maxOf(dx, dy) && maxOf(dx, dy) > 1.0) { square = false; break }
+            }
+        }
+        return cs.isNotEmpty() && !square
     }
 
     fun build(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, a4: Boolean = !fmt.isInch): Result {
