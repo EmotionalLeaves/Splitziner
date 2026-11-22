@@ -213,7 +213,24 @@ object DrawingBuilder {
         // Holes are located and called out on drawings of one part; on an assembly they would bury the views.
         val holes = if (drawn.size == 1) runCatching { HoleFinder.find(drawn[0].mesh) }.getOrDefault(emptyList()) + extraHoles else emptyList()
         val callouts = holeCallouts(holes, fmt)
-        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes, detail = drawn.size == 1)
+        val groups = DimPlanner.plan(vs.scene, vs.views, fmt, settings.maxLevelDims, holes, detail = drawn.size == 1).let { gs ->
+            // A round part is sized by its diameter: one "36 DIA" across it instead of a width and a length a
+            // tessellated outline makes a hair short of the true circle.
+            val dia = if (drawn.size == 1) runCatching { FullSize.circleDiameter(drawn[0].mesh) }.getOrNull() else null
+            if (dia == null) gs else {
+                val e = vs.scene.extents; val flat = (0..2).minBy { e[it] }
+                val (keep, drop) = (0..2).filter { it != flat }.let { it[0] to it[1] }
+                gs.mapNotNull { g ->
+                    val items = g.items.mapNotNull { when {
+                        it.kind != "overall" -> it
+                        g.axis == keep -> splitziner.dims.DimItem(it.coord, fmt.format(dia) + " DIA", it.kind, it.anchor)
+                        g.axis == drop -> null
+                        else -> it
+                    } }
+                    if (items.isEmpty()) null else splitziner.dims.DimGroup(g.view, g.horizontal, g.axis, g.side, items, g.style)
+                }
+            }
+        }
         fun size(v: ViewLines) = doubleArrayOf(v.bounds[2] - v.bounds[0], v.bounds[3] - v.bounds[1])
         val (wf, hf) = size(front).let { it[0] to it[1] }
         val (wt, ht) = size(top).let { it[0] to it[1] }

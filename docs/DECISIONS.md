@@ -236,3 +236,8 @@ Departures from the build spec, newest first.
 
 ## v0.92
 - Full-size paper templates are made only for outlines with curves or angled edges. An outline of square-cut straight edges only (a frame, an L, a notched slab) is quicker and truer to mark out with a rule and a square, so its detail drawing is enough. On the sample desk this cut the full-size pages from 100 to 25.
+- 0.93: Round and oval tops get no paper template: a circle is marked with a trammel from its centre, an ellipse with two nails at its foci and a string as long as the oval (the gardener's method). Detected when every outline vertex sits within 1% of the ellipse; only flat parts (thickness under 0.3 of the width), so rods are not "circles".
+- 0.93: A part too thick for a 3 in screw (a 3 in trestle post) is counterbored 3/8 in (10 mm) so 1-1/2 in of wood is left to pass, and plugged; brackets only when even that fails. 1-1/2 in is ordinary framing stock thickness.
+- 0.93: Trestles: a post on a foot and under a top rail is one end frame, built flat on the bench, then joined by the stretcher.
+- 0.93: A hanging rod sits in closet rod sockets screwed to the sides (lift-out), placed by its centre below the shelf above.
+- 0.93: All back panels go on together in one late step, after shelves and top, unless a later part goes in the same way through where the back would be.

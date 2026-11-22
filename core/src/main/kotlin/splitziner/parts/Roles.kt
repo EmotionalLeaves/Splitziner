@@ -82,6 +82,9 @@ object Roles {
             }
             // Square-ish in section and long: a leg standing up, a rail or apron lying down.
             if (dims[1] < 2.5 * t && dims[2] > 4 * dims[1]) {
+                // Round in section and lying down: a rod (a wardrobe's hanging rod, a towel rail's bar).
+                val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
+                if (e.z < dims[2] - 0.01 && fill in 0.70..0.82 && dims[1] < 1.1 * t) { out[p.id] = "Rod"; continue }
                 out[p.id] = if (e.z >= dims[2] - 0.01 && b.min.z <= all.min.z + 1.0) "Leg" else if (e.z >= dims[2] - 0.01) "Post" else "Rail"
                 continue
             }
@@ -158,6 +161,23 @@ object Roles {
                     else -> "Panel"
                 }
                 else -> continue
+            }
+        }
+        // A trestle: a post stands on a foot lying on the floor and carries a top rail under the top. Rails that run
+        // from post to post are its stretchers.
+        val posts = live.filter { out[it.id] == "Post" }
+        for (p in live) {
+            if (out[p.id] != "Rail") continue
+            val b = p.mesh.bounds
+            fun over(o: Part) = o.mesh.bounds.let { ob -> ob.min.x < b.max.x && ob.max.x > b.min.x && ob.min.y < b.max.y && ob.max.y > b.min.y }
+            val postOn = posts.any { o -> kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && over(o) }
+            val postUnder = posts.any { o -> kotlin.math.abs(o.mesh.bounds.max.z - b.min.z) < 1.0 && over(o) }
+            val between = posts.count { o -> touches(p, o) && o.mesh.bounds.min.z < b.min.z && o.mesh.bounds.max.z > b.max.z }
+            out[p.id] = when {
+                postOn && b.min.z <= all.min.z + 1.0 -> "Foot"
+                postUnder && !postOn -> "Top rail"
+                between >= 2 -> "Stretcher"
+                else -> "Rail"
             }
         }
         return out

@@ -51,6 +51,43 @@ object FullSize {
         return cs.isNotEmpty() && !square
     }
 
+    /**
+     * The diameter when a flat part's outline is a circle (a round table top), or null. A circle is marked out with a
+     * trammel from its centre, which beats taping up pages of paper.
+     */
+    fun circleDiameter(mesh: splitziner.mesh.Mesh): Double? = oval(mesh)?.takeIf { (a, b) -> a - b < 0.01 * a + 1.0 }?.let { (a, b) -> (a + b) / 2 }
+
+    /**
+     * The length and width of a flat part whose outline is an ellipse (an oval table top, a circle included), or
+     * null. Its axes are the outline's principal axes; every point must sit on the ellipse they give, within 1%.
+     */
+    fun oval(mesh: splitziner.mesh.Mesh): Pair<Double, Double>? {
+        // Only a flat part: a rod or a turned leg is round in section too, but it is cut to length, not marked out.
+        val ex = mesh.bounds.extents.let { listOf(it.x, it.y, it.z).sorted() }
+        if (ex[0] > 0.3 * ex[1]) return null
+        val pr = runCatching { Prisms.of(mesh) }.getOrNull() ?: return null
+        val poly = pr.outline.takeIf { it.numGeometries == 1 }?.getGeometryN(0) as? Polygon ?: return null
+        if (poly.numInteriorRing > 0) return null
+        val c = poly.exteriorRing.coordinates.dropLast(1)
+        if (c.size < 16) return null
+        val cen = poly.centroid
+        // Principal axes from the points' spread.
+        var sxx = 0.0; var syy = 0.0; var sxy = 0.0
+        for (p in c) { val dx = p.x - cen.x; val dy = p.y - cen.y; sxx += dx * dx; syy += dy * dy; sxy += dx * dy }
+        val ang = 0.5 * kotlin.math.atan2(2 * sxy, sxx - syy)
+        val ca = kotlin.math.cos(ang); val sa = kotlin.math.sin(ang)
+        val uv = c.map { p -> val dx = p.x - cen.x; val dy = p.y - cen.y; (dx * ca + dy * sa) to (-dx * sa + dy * ca) }
+        // Semi-axes: the points' reach along each axis, taken as the largest radius near that axis.
+        var ra = uv.maxOf { kotlin.math.abs(it.first) }; var rb = uv.maxOf { kotlin.math.abs(it.second) }
+        // Near round, the axes are arbitrary and no vertex need sit on them: the circle's radius is the vertices'.
+        if (kotlin.math.abs(ra - rb) < 0.02 * maxOf(ra, rb)) { val r = uv.maxOf { kotlin.math.hypot(it.first, it.second) }; ra = r; rb = r }
+        if (ra < 1.0 || rb < 1.0) return null
+        // A tessellated curve has its vertices on the true outline: each must lie on the ellipse.
+        val ok = uv.all { (u, v) -> kotlin.math.abs(kotlin.math.sqrt((u / ra) * (u / ra) + (v / rb) * (v / rb)) - 1) < 0.01 }
+        if (!ok) return null
+        return if (ra >= rb) 2 * ra to 2 * rb else 2 * rb to 2 * ra
+    }
+
     fun build(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, a4: Boolean = !fmt.isInch): Result {
         val pw = if (a4) 210.0 else 215.9; val ph = if (a4) 297.0 else 279.4
         val tw = pw - 2 * MARGIN; val th = ph - 2 * MARGIN - 22      // room at the foot for the label and check square
@@ -61,6 +98,8 @@ object FullSize {
             val pr = runCatching { Prisms.of(p.mesh) }.getOrNull() ?: continue
             var g = pr.outline
             if (g.isEmpty || !shaped(g)) continue
+            // A circle is swung with a trammel from its centre: its drawing and the making steps say so.
+            if (oval(p.mesh) != null) continue
             val e0 = g.envelopeInternal
             if (e0.height > e0.width) g = AffineTransformation.rotationInstance(Math.PI / 2).transform(g)
             val e = g.envelopeInternal

@@ -5,6 +5,7 @@ import splitziner.check.Tool
 import splitziner.dims.LengthFormat
 import splitziner.explode.BuildStep
 import splitziner.parts.Part
+import splitziner.parts.PartKind
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -57,6 +58,9 @@ object Fastening {
 
     /** A screw must reach at least this far (mm) into the second part to hold. */
     private const val MIN_BITE = 20.0
+
+    /** Wood left under a counterbore for the screw to pass: 1-1/2 in, the thickness of ordinary framing stock. */
+    private const val COUNTERBORE_LEAVE = 38.0
 
     /** Joints shorter than this (mm) are too small to fasten; they are glued. */
     private const val SMALLEST = 20.0
@@ -209,6 +213,25 @@ object Fastening {
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
                 continue
             }
+            // A hanging rod (a wardrobe's) drops into a socket screwed to the side at each end, so it can be lifted out.
+            val rod = if (a.kind == PartKind.ROD) a else if (b.kind == PartKind.ROD) b else null
+            if (rod != null) {
+                val other = if (rod === a) b else a
+                val rb = rod.mesh.bounds; val ob = other.mesh.bounds
+                val longAx = (0..2).maxByOrNull { rb.extents[it] }!!
+                if (longAx == k) {
+                    val u = if (fmt.isInch) " in" else " mm"
+                    // Where its centre is: down from the underside of the shelf above it, back from the side's front edge.
+                    val cz = (rb.min.z + rb.max.z) / 2; val cy = (rb.min.y + rb.max.y) / 2
+                    val above = live.filter { o -> o !== rod && o.mesh.bounds.min.z >= rb.max.z - 0.5 && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) &&
+                        o.mesh.bounds.min.x < rb.max.x && o.mesh.bounds.max.x > rb.min.x && o.mesh.bounds.min.y < rb.max.y && o.mesh.bounds.max.y > rb.min.y }.minByOrNull { it.mesh.bounds.min.z }
+                    val at = (above?.let { "${fmt.format(it.mesh.bounds.min.z - cz)}$u below the underside of ${it.item?.let { n -> "item $n (${it.name.lowercase()})" } ?: it.name.lowercase()}" } ?: "${fmt.format(cz - ob.min.z)}$u up from the bottom of the side") +
+                        " and ${fmt.format(cy - ob.min.y)}$u back from the front edge"
+                    joints.getOrPut(step) { ArrayList() } += Joint(other, rod, 1, "", "rod", false, at)
+                    totals["closet rod sockets"] = (totals["closet rod sockets"] ?: 0) + 1
+                    continue
+                }
+            }
             // Cabinets built whole and set side by side are clamped flush and screwed through one side into the next,
             // with screws shorter than the two sides together; no glue, so they can come apart to move.
             val ua = unit(a); val ub = unit(b)
@@ -352,12 +375,22 @@ object Fastening {
                     // Through the first part, then into the second for 1.5 times that thickness but never within 3 mm of its far side.
                     val want = tThrough + minOf(1.5 * tThrough, depth - 3.0)
                     size = pick(want, fmt, brads)?.let { if (brads) it else gauged(it, tThrough, fmt) } ?: ""; kind = if (brads) "brads" else "screws"
-                    // A part too thick for any stock screw to pass through and still bite (a 3-1/2 in leg) is fixed
-                    // with brackets in the inside corner instead.
+                    // A part too thick for any stock screw to pass through and still bite (a 3 in trestle post) is
+                    // counterbored, as joiners do: a plug-sized hole sinks each head so the screw passes only
+                    // COUNTERBORE_LEAVE of wood, and a glued wooden plug hides it afterwards.
                     val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
                     if (!brads && tThrough + MIN_BITE > longest) {
-                        joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "corner", false)
-                        totals["corner brackets, with short screws"] = (totals["corner brackets, with short screws"] ?: 0) + count
+                        val cs = pick(COUNTERBORE_LEAVE + minOf(1.5 * COUNTERBORE_LEAVE, depth - 3.0), fmt, false)
+                        if (cs == null || tThrough - COUNTERBORE_LEAVE < 3.0) {
+                            joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "corner", false)
+                            totals["corner brackets, with short screws"] = (totals["corner brackets, with short screws"] ?: 0) + count
+                            continue
+                        }
+                        val sz = gauged(cs, COUNTERBORE_LEAVE, fmt)
+                        joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, sz, "counterbored", false, fmt.format(tThrough - COUNTERBORE_LEAVE) + (if (fmt.isInch) " in" else " mm"))
+                        totals["$sz screws"] = (totals["$sz screws"] ?: 0) + count
+                        val plug = if (fmt.isInch) "3/8 in wood plugs" else "10 mm wood plugs"
+                        totals[plug] = (totals[plug] ?: 0) + count
                         continue
                     }
                 }
@@ -575,7 +608,7 @@ object Fastening {
         // One item under several names (item 2 as bottom, top and shelf) is one line: "item 2 (bottom, top and shelf)".
         // Plain fixings from one part into several (a side screwed to the bottom and the kick board) are one line;
         // hung parts and the like keep a line per part, as their wording is about that part.
-        val plainKinds = setOf("screws", "brads", "pocket screws", "dowels", "corner", "brackets", "laminate", "")
+        val plainKinds = setOf("screws", "brads", "pocket screws", "dowels", "corner", "brackets", "laminate", "counterbored", "")
         // Drawers hung in one step are one line however many sizes of box they are (graduated drawers).
         val groups0 = (js - cut.toSet()).groupBy { if (it.kind == "slides") Triple("drawers", "*", it.size + it.kind + (it.into === it.through)) else Triple(if ((it.kind in plainKinds || it.glueOnly) && it.through.item != null) "#${it.through.item}" else itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
         fun joined(names: List<String>): String {
@@ -636,6 +669,14 @@ object Fastening {
             else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times." +
                 // Solid wood moves across its grain with the seasons; a top fixed tight splits or bows.
                 (if (g.any { it.through.material.isNotBlank() && !splitziner.material.Materials.sheetGood(it.through.material) }) " As the top is solid wood, use brackets with slotted holes, or tabletop fasteners, and leave the screws a little loose across the grain so it can move with the seasons." else "")
+            else if (j.kind == "rod") {
+                val ats = g.map { it.at }.distinct()
+                "Screw a closet rod socket (a cup or flange sized for the rod) to the inside of ${key.first} at each end of ${key.second}, its centre ${ats.first()}${if (ats.size > 1) " on each side" else ""}; open sockets let the rod lift out. Cut the rod a little short if the sockets need it, then drop it in."
+            }
+            else if (j.kind == "counterbored") {
+                val bit = if (j.at.endsWith(" in")) "3/8 in" else "10 mm"
+                "Counterbore ${key.first} for the screws$times, as it is too thick to screw straight through: at each of ${count(n)} screw positions drill a $bit hole ${j.at} deep, so the head sits down in it, then drill the pilot on through. Glue and screw it to ${key.second} with ${sized(n, j.size)} screws, then glue $bit wooden plugs into the holes and trim them flush."
+            }
             else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
             else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${sized(n, j.size)} brads$times."
             else if (j.kind == "thin") {
@@ -666,7 +707,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

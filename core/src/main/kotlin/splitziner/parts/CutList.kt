@@ -135,7 +135,9 @@ object PartDescriber {
         // Only when most of the board is left; a part mostly cut away is a shape cut from sheet.
         if (fill > NOTCHED_BOARD_FILL && w < PANEL_MIN_WIDTH && l >= 2.5 * w && m.isWatertight && runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() != null)
             return PartDescription(PartKind.BOARD, t, w, l, fill, "BOARD ${d(t)} X ${d(w)} X ${d(l)}, NOTCHED")
-        val desc = if (t < 0.3 * w) "SHAPED, ${d(t)} THK, CUT FROM ${d(w)} X ${d(l)}" else "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}"
+        val round = if (t < 0.3 * w) runCatching { splitziner.drawing.FullSize.circleDiameter(m) }.getOrNull() else null
+        val oval = if (round == null && t < 0.3 * w) runCatching { splitziner.drawing.FullSize.oval(m) }.getOrNull() else null
+        val desc = if (round != null) "ROUND, ${d(round)} DIA X ${d(t)} THK" else if (oval != null) "OVAL, ${d(oval.first)} X ${d(oval.second)} X ${d(t)} THK" else if (t < 0.3 * w) "SHAPED, ${d(t)} THK, CUT FROM ${d(w)} X ${d(l)}" else "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}"
         return PartDescription(PartKind.SHAPED, t, w, l, fill, desc)
     }
 }

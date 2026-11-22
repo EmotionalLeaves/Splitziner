@@ -70,7 +70,7 @@ object AssemblyPlan {
         for (p in live) out[p.id] = p.id.substringBefore('.')
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
-        legFrames(live).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
         // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
         modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
         // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
@@ -142,6 +142,23 @@ object AssemblyPlan {
             if (touch(pa, pb) && !(thinAxis(pa) == ax && thinAxis(pb) == ax)) return emptyList()
         }
         return mods
+    }
+
+    /**
+     * A trestle's ends: each post with the foot it stands on and the top rail it carries, made flat on the bench as
+     * one frame, then the ends are stood up and joined by the stretcher. Only when every post has both.
+     */
+    fun trestleEnds(live: List<Part>): List<List<String>> {
+        val posts = live.filter { it.name == "Post" && '.' !in it.id }
+        if (posts.size < 2) return emptyList()
+        fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+        val ends = posts.map { p ->
+            val foot = live.filter { it.name == "Foot" && touch(it, p) }
+            val top = live.filter { it.name == "Top rail" && touch(it, p) }
+            if (foot.size != 1 || top.size != 1) return emptyList()
+            listOf(foot[0].id, p.id, top[0].id)
+        }
+        return if (ends.flatten().toSet().size == ends.size * 3) ends else emptyList()
     }
 
     fun legFrames(live: List<Part>): List<List<String>> {
@@ -266,9 +283,17 @@ object AssemblyPlan {
         val (q0, rq) = railsBeforeSlats(steps, units, members)
         val (s00, rs0) = supportsFirst(q0, units, members)
         val rs = rq.mapValues { (_, v) -> rs0[v] ?: v }; val s0 = s00
-        val (a00, r00) = backLast(s0, units)
-        val r0 = rs.mapValues { (_, v) -> r00[v] ?: v }; val a0 = a00
+        // Parts moved on their own (out of their step) follow each later renumbering.
+        fun follow(pre: Map<String, Int>, ren: Map<Int, Int>) { for ((k, v) in pre) if (moved[k] == v) moved[k] = ren[v] ?: v }
+        val (sp, rsp) = backApart(s0, units, moved)
+        val rs1 = rs.mapValues { (_, v) -> rsp[v] ?: v }
+        val pre0 = moved.toMap()
+        val (a00, r00) = backLast(sp, units)
+        follow(pre0, r00)
+        val r0 = rs1.mapValues { (_, v) -> r00[v] ?: v }; val a0 = a00
+        val pre1 = moved.toMap()
         val (a, ra1) = mergeFloating0(a0, units, moved)
+        follow(pre1, ra1)
         val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
         val (b, rb) = mergeAlike(a, units)
         for (k in moved.keys.toList()) moved[k] = rb[moved[k]!!] ?: moved[k]!!
@@ -332,6 +357,38 @@ object AssemblyPlan {
      * squared up with the back, and the shelves are fixed while it is still open. It moves later only past
      * steps that do not come in from behind, so nothing it would block is fitted after it.
      */
+    /**
+     * A back panel that the plan fits along with other parts (a side and a shelf) is taken out into a step of its
+     * own just after, so it can go on last, once the case is together: it squares the case and closes it.
+     */
+    private fun backApart(steps: List<BuildStep>, units: List<Part>, moved: MutableMap<String, Int>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val byId = units.associateBy { it.id }
+        fun isBack(id: String) = byId[id]?.name == "Back panel"
+        val holding = steps.indices.filter { n -> !steps[n].subassembly && steps[n].partIds.any { isBack(it) } }
+        // Nothing to gather: no back, or one back already in a step of its own.
+        if (holding.isEmpty() || (holding.size == 1 && steps[holding[0]].partIds.all { isBack(it) })) return steps to steps.associate { it.step to it.step }
+        val backs = holding.flatMap { n -> steps[n].partIds.filter { isBack(it) } }
+        val lastAt = holding.last()
+        val out = ArrayList<BuildStep>(); val ren = HashMap<Int, Int>()
+        // Backs go on together from behind (all of a bookcase's bays), once the case is together.
+        val back = Vec3(0.0, 1.0, 0.0)
+        for ((n, st) in steps.withIndex()) {
+            val rest = if (st.subassembly) st.partIds else st.partIds.filter { !isBack(it) }
+            if (rest.isNotEmpty()) {
+                out += if (rest.size == st.partIds.size) st.copy(step = out.size + 1)
+                    else st.copy(step = out.size + 1, partIds = rest, items = rest.mapNotNull { byId[it]?.item }.distinct().sorted(), directions = st.directions.filter { (it dot back) < 0.5 }.ifEmpty { st.directions })
+                ren[st.step] = out.size
+            }
+            if (n == lastAt) {
+                out += st.copy(step = out.size + 1, partIds = backs, items = backs.mapNotNull { byId[it]?.item }.distinct().sorted(), directions = listOf(back), subassembly = false, explodeOf = emptyMap(), continues = null)
+                if (rest.isEmpty()) ren[st.step] = out.size
+                for (id in backs) moved[id] = out.size
+            }
+        }
+        for (n in holding) if (steps[n].step !in ren) ren[steps[n].step] = moved[backs[0]]!!
+        return out to ren
+    }
+
     private fun backLast(steps: List<BuildStep>, units: List<Part>): Pair<List<BuildStep>, Map<Int, Int>> {
         val byId = units.associateBy { it.id }
         fun touch(a: String, b: String): Boolean { val x = byId[a]?.mesh?.bounds ?: return false; val y = byId[b]?.mesh?.bounds ?: return false; return (0..2).all { x.min[it] <= y.max[it] + NEAR_BACK && y.min[it] <= x.max[it] + NEAR_BACK } }
@@ -344,7 +401,14 @@ object AssemblyPlan {
             val st = list[k]
             // Doors, drawers and shelves on pins are hung in a squared case, so the back stays before them.
             val hung = st.partIds.any { id -> id.startsWith("drawer") || byId[id]?.name in setOf("Door", "Drawer front", "Adjustable shelf") }
-            if (st.subassembly || hung || st.directions.any { d -> back.directions.any { (it dot d) > 0.5 } }) break
+            // A later part that goes in the same way as the back, through where the back would be, must go first.
+            fun crosses(id: String, d: Vec3): Boolean {
+                val x = byId[id]?.mesh?.bounds ?: return true
+                val ax = (0..2).maxByOrNull { kotlin.math.abs(d[it]) }!!
+                return back.partIds.any { b -> val y = byId[b]?.mesh?.bounds ?: return@any true; (0..2).filter { it != ax }.all { x.min[it] < y.max[it] - 0.5 && y.min[it] < x.max[it] - 0.5 } }
+            }
+            val sameWay = st.directions.any { d -> back.directions.any { (it dot d) > 0.5 } }
+            if (st.subassembly || hung || (sameWay && st.partIds.any { id -> back.directions.any { crosses(id, it) } })) break
             if (st.partIds.any { id -> back.partIds.any { touch(id, it) } }) j = k
         }
         if (j == i) return list to steps.associate { it.step to it.step }

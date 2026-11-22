@@ -94,7 +94,9 @@ object DesignCheck {
                 if (smooth >= 4) work += Work.CURVED_CUT
                 val shell = Silhouette.GF.createPolygon(poly.exteriorRing.coordinates).area
                 // Rounded corners take a sliver off the box; only a real bite out of a curved part is also a notch.
-                if (if (smooth >= 4) shell < 0.97 * boxArea else (odd > 0 || shell < 0.995 * boxArea)) work += Work.NOTCH
+                // A curved outline is measured against its own hull, so a round or oval top is not a notch.
+                val hull = Silhouette.GF.createPolygon(poly.exteriorRing.coordinates).convexHull().area
+                if (if (smooth >= 4) shell < 0.97 * hull else (odd > 0 || shell < 0.995 * boxArea)) work += Work.NOTCH
                 for (h in 0 until poly.numInteriorRing) {
                     val r = poly.getInteriorRingN(h)
                     val a = Silhouette.GF.createPolygon(r.coordinates).area

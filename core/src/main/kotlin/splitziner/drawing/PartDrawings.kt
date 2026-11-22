@@ -153,6 +153,16 @@ object PartDrawings {
      * of many sheets can be found through. Detail drawings take the assembly's number and the item's ("DESK-1-13").
      */
     /** The end cuts of a stick sawn off square (a splayed leg), as the saw is set: from the cut list's description. */
+    /** A round part is marked with a trammel from its centre, so the drawing gives the radius to swing. */
+    private fun circleNotes(p: Part, fmt: LengthFormat): List<String> {
+        val d = runCatching { FullSize.circleDiameter(p.mesh) }.getOrNull()
+        if (d != null) return listOf("CIRCLE ${fmt.format(d)} DIA. MARK FROM THE CENTRE WITH A TRAMMEL SET TO ${fmt.format(d / 2)} RADIUS; NO TEMPLATE NEEDED.")
+        // An ellipse is drawn with a string round two nails at its foci (the gardener's method).
+        val (a, b) = runCatching { FullSize.oval(p.mesh) }.getOrNull() ?: return emptyList()
+        val f = Math.sqrt(a * a - b * b) / 2
+        return listOf("ELLIPSE ${fmt.format(a)} X ${fmt.format(b)}. MARK WITH NAILS ON THE LONG CENTRE LINE ${fmt.format(f)} EACH SIDE OF THE CENTRE AND A STRING ${fmt.format(a)} LONG TIED BETWEEN THEM, PENCIL HELD AGAINST THE STRING; NO TEMPLATE NEEDED.")
+    }
+
     private fun angleNotes(row: CutListRow): List<String> {
         val m = Regex("""ENDS CUT AT (.*)$""").find(row.description) ?: return emptyList()
         return listOf("BOTH ENDS CUT AT ${m.groupValues[1]} OFF SQUARE, PARALLEL TO EACH OTHER. ${if (m.groupValues[1].contains("COMPOUND")) "SET BOTH THE MITRE AND THE BEVEL." else "SET THE MITRE ONLY."} LENGTH IS MEASURED ALONG THE LONG EDGE.")
@@ -256,7 +266,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + angleNotes(row) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + circleNotes(p, fmt) + angleNotes(row) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))
@@ -303,7 +313,8 @@ object PartDrawings {
         val ou0 = outer.minOf { it.x }; val ou1 = outer.maxOf { it.x }; val ov0 = outer.minOf { it.y }; val ov1 = outer.maxOf { it.y }
         val radii = listOf(ou0 to ov0, ou0 to ov1, ou1 to ov0, ou1 to ov1).map { (cu, cv) -> outer.minOf { Math.hypot(it.x - cu, it.y - cv) } / (Math.sqrt(2.0) - 1) }
         val r = radii.average()
-        if (r > 0.01 * minOf(ou1 - ou0, ov1 - ov0) && radii.all { abs(it - r) < 0.15 * r }) out += "ALL OUTSIDE CORNERS R${d(r)}."
+        // A radius near half the width is a round or round-ended outline, not a rounded corner.
+        if (r > 0.01 * minOf(ou1 - ou0, ov1 - ov0) && r < 0.4 * minOf(ou1 - ou0, ov1 - ov0) && radii.all { abs(it - r) < 0.15 * r }) out += "ALL OUTSIDE CORNERS R${d(r)}."
         // Openings: loops inside the outline.
         val holes = loops.filter { it !== outer && it.all { p -> p.x > ou0 && p.x < ou1 && p.y > ov0 && p.y < ov1 } && area(it) > 1e-4 * area(outer) }
             .sortedWith(compareBy({ it.minOf { p -> p.y } }, { it.minOf { p -> p.x } }))

@@ -41,7 +41,14 @@ object HowTo {
             }
         }
         if (Work.NOTCH in w.work) out += "Mark the notches from the drawing and cut them with a ${pick(Work.NOTCH)}, staying just inside the line; pare or sand to it."
-        if (Work.CURVED_CUT in w.work) out += "Mark the curves (print the full-size template if it has one) and cut them with a ${pick(Work.CURVED_CUT)}, just outside the line; sand to the line."
+        val circle = runCatching { splitziner.drawing.FullSize.circleDiameter(part.mesh) }.getOrNull()
+        val oval = if (circle == null) runCatching { splitziner.drawing.FullSize.oval(part.mesh) }.getOrNull() else null
+        if (circle != null) out += "It is a circle ${d(circle)} $u across: find the centre of the blank, swing ${if (Regex("""^(8|11(?!\d)|18(?!\d))""").containsMatchIn(d(circle / 2))) "an" else "a"} ${d(circle / 2)} $u radius with a trammel (or a pencil on a string pinned at the centre), cut just outside the line with a ${pick(Work.CURVED_CUT)}, then true the edge with a router on a circle jig pivoting on the same centre, or sand to the line."
+        else if (oval != null) {
+            val f = Math.sqrt(oval.first * oval.first - oval.second * oval.second) / 2
+            out += "It is an oval (an ellipse) ${d(oval.first)} x ${d(oval.second)} $u: draw both centre lines on the blank, drive two nails on the long one ${d(f)} $u each side of the centre, and tie a string that does not stretch between them, ${d(oval.first)} $u long. Hold a pencil against the string, keep it taut and run it round; cut just outside the line with a ${pick(Work.CURVED_CUT)} and sand to the line."
+        }
+        else if (Work.CURVED_CUT in w.work) out += "Mark the curves (print the full-size template if it has one) and cut them with a ${pick(Work.CURVED_CUT)}, just outside the line; sand to the line."
         if (Work.CUTOUT in w.work) out += "For the ${if (w.cutouts == 1) "opening" else "${w.cutouts} openings"}: drill a hole inside each one big enough for the blade, then cut out with a ${pick(Work.CUTOUT)}."
         if (Work.HOLES in w.work) {
             val sizes = w.holeDiameters.distinct().sorted().joinToString(", ") { d(it) }
@@ -50,10 +57,12 @@ object HowTo {
         if (Work.EDGE_SHAPE in w.work) out += "Round or bevel the edges with a ${pick(Work.EDGE_SHAPE)}; test the setting on an offcut first."
         if (Work.THICKNESS in w.work) out += "Plane it down to ${d(row.t)} $u with a ${pick(Work.THICKNESS)}, taking light passes off both faces."
         for (g in grooves) {
-            // "GROOVE FOR ITEM 32: 1/2 DEEP X 7/8 WIDE X 33-3/4 LONG, WHERE ... (2 PLACES)."
-            val m = Regex("""GROOVE FOR ITEM (\S+): (.+?) DEEP X (.+?) WIDE X (.+?) LONG.*?(\((\d+) PLACES\))?\.?$""").find(g) ?: continue
+            // "GROOVE FOR ITEM 3: 1/4 DEEP X 3/4 WIDE X 11-3/4 LONG (3 PLACES), 3, 15-3/4 AND 29-1/2 FROM THE BOTTOM END ..."
+            // or "RABBET FOR ITEM 2: 1/4 DEEP X 1/4 WIDE X 45 LONG, ALONG THE BACK EDGE (AS ASSEMBLED)."
+            val m = Regex("""(GROOVE|RABBET) FOR ITEM (\S+): (.+?) DEEP X (.+?) WIDE X (.+?) LONG(?: \((\d+) PLACES\))?(?:, (.*?))?\.?$""").find(g) ?: continue
             val places = m.groupValues[6].takeIf { it.isNotEmpty() }?.let { " in $it places" } ?: ""
-            out += "Cut a groove for item ${m.groupValues[1]}$places: ${m.groupValues[2].lowercase()} deep, ${m.groupValues[3].lowercase()} wide, ${m.groupValues[4].lowercase()} long, where its drawing shows, with a ${grooveTool()}."
+            val where = m.groupValues[7].takeIf { it.isNotEmpty() }?.lowercase()?.let { w -> if (w.startsWith("along")) w else "at $w" } ?: "where its drawing shows"
+            out += "Cut a ${m.groupValues[1].lowercase()} for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} deep, ${m.groupValues[4].lowercase()} wide, ${m.groupValues[5].lowercase()} long, $where, with a ${grooveTool()}."
         }
         out += extra
         if (row.qty > 1) out += "Make ${row.qty} the same; cutting them together, or setting a stop, keeps them identical."

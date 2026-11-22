@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.93.0 - Round and oval tops, trestles, wardrobes
+
+- Round tops: no more 20 pages of paper template. The drawing gives one "36 DIA" and the steps tell you to swing an 18 in radius with a trammel (or a pencil on a string), then true the edge with a router on a circle jig.
+- Oval tops: marked out with two nails and a string (the drawing and steps give where the nails go and how long the string is). Cut lists now say ROUND or OVAL.
+- Very thick parts (3 in trestle posts and feet) are counterbored and plugged instead of fixed with corner brackets; the plugs are on the shopping list.
+- Trestle tables: each end (foot, post, top rail) is built flat on the bench first, then the two ends are stood up and joined by the stretcher. Parts are now named foot, post, top rail and stretcher.
+- Wardrobes: the hanging rod is called a rod, and the guide fits closet rod sockets at the right height instead of screwing it.
+- Back panels go on last, all together, once the shelves and top are in (it squares the case). Fixes bookcases with several bays and desks where the back went on too early.
+- Groove and rabbet steps on the "Making the parts" page now say where each cut goes.
+- Fixed: the hardware list for a step could read "#8 x 1-1/4 in up" instead of screws.
+
 ## v0.92.0 - Fewer template pages
 
 - **Fewer pages to print**: full-size paper templates are only made for curved or angled shapes. Square-cut shapes are marked out from their drawing with a rule and square (the sample desk went from 100 template pages to 25).

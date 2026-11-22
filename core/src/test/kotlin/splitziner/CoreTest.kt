@@ -1633,3 +1633,45 @@ class NamesTest {
         assertEquals("My desk", splitziner.text.Names.fromFile("My desk.3mf"))
     }
 }
+
+class RoundAndOvalTest {
+    @Test fun circlesAndOvalsAreMarkedOutNotTemplated() {
+        val disk = Fixtures.cylinder(457.2, 0.0, 25.4)
+        assertEquals(914.4, splitziner.drawing.FullSize.circleDiameter(disk)!!, 1.0)
+        // Stretched twice as long: an ellipse, not a circle.
+        val v = disk.vertices.copyOf(); for (i in 0 until disk.vertexCount) v[3 * i] *= 2.0
+        val oval = splitziner.mesh.Mesh(v, disk.triangles)
+        assertNull(splitziner.drawing.FullSize.circleDiameter(oval))
+        val (a, b) = splitziner.drawing.FullSize.oval(oval)!!
+        assertEquals(1828.8, a, 1.0); assertEquals(914.4, b, 1.0)
+        // A rod is round in section but cut to length, never marked out.
+        assertNull(splitziner.drawing.FullSize.oval(Fixtures.cylinder(15.9, 0.0, 970.0)))
+    }
+}
+
+class TrestleTest {
+    private fun trestle(): List<splitziner.mesh.Mesh> {
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val out = ArrayList<splitziner.mesh.Mesh>()
+        out += b(0.0, 0.0, 711.2, 1828.8, 762.0, 31.75)
+        for (x in listOf(250.0, 1502.6)) {
+            out += b(x, 342.9, 76.2, 76.2, 76.2, 558.8)      // post
+            out += b(x, 76.2, 0.0, 76.2, 609.6, 76.2)        // foot
+            out += b(x, 101.6, 635.0, 76.2, 558.8, 76.2)     // top rail
+        }
+        out += b(326.2, 361.95, 304.8, 1176.4, 38.1, 101.6) // stretcher
+        return out
+    }
+
+    @Test fun endsAreBuiltOnTheBenchAndThickPartsCounterbored() {
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(trestle())), "trestle.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(2, names.count { it == "Foot" }, names.toString()); assertEquals(2, names.count { it == "Post" }); assertEquals(1, names.count { it == "Stretcher" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val bench = pl.steps.first()
+        assertTrue(bench.subassembly && bench.makeCount == 2 && bench.partIds.size == 3, pl.steps.toString())
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, splitziner.dims.LengthFormat("in", "fraction"))
+        assertTrue(f.all.any { it.kind == "counterbored" } && f.all.none { it.kind == "corner" }, f.all.map { it.kind }.toString())
+        assertTrue(f.hardware.any { it.contains("3/8 in wood plugs") }, f.hardware.toString())
+    }
+}
