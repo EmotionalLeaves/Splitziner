@@ -384,7 +384,7 @@ object DesignCheck {
         val leaky = live.filter { !it.watertight }
         if (leaky.isNotEmpty()) out += Finding(Severity.NOTE, "${leaky.size} part${if (leaky.size == 1) " has" else "s have"} gaps in the surface",
             "${items(leaky)}. The 3D file leaves small holes in these surfaces, so their sizes are read from the outside and their weight is estimated. The drawings are not affected.", leaky.map { it.id })
-        out += Finding(Severity.NOTE, "Joints are yours to decide", "The model shows shapes, not screws, dowels or glue. Nothing here checks that a joint is strong enough.")
+        out += Finding(Severity.NOTE, "Joint strength is not checked", "The build guide says how each joint is fixed (choose screws, pocket screws, dowels or brads under Joining on the Guide tab), sized by workshop rules of thumb. Nothing here calculates whether a joint is strong enough for the load it will carry.")
         return CheckReport(out.sortedBy { it.severity.ordinal }, work, toolsNeeded)
     }
 
