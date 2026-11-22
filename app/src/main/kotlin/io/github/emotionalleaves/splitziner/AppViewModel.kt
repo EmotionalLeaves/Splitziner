@@ -395,17 +395,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * A new design with nothing but a base board to build on. STL has no empty file, so the project's
      * source is that one board; everything else is added in the app and kept as changes.
      */
-    fun newDesign() {
+    /** Countries that measure in inches, for a new design's display units. */
+    val inchLocale: Boolean get() = java.util.Locale.getDefault().country in setOf("US", "LR", "MM")
+
+    /** Starts a project from a template ([key] in [splitziner.edit.Templates]), or from one board when [key] is null. Sizes in mm. */
+    fun newDesign(key: String? = null, values: Map<String, Double> = emptyMap()) {
         if (_state.value.busyLabel != null) return
         viewModelScope.launch {
             try {
-                val inch = java.util.Locale.getDefault().country in setOf("US", "LR", "MM")
+                val inch = inchLocale
                 val meta = withContext(Dispatchers.IO) {
-                    val base = if (inch) splitziner.edit.Editor.box(splitziner.math.Vec3(0.0, 0.0, 0.0), splitziner.math.Vec3(24 * 25.4, 16 * 25.4, 0.75 * 25.4))
-                        else splitziner.edit.Editor.box(splitziner.math.Vec3(0.0, 0.0, 0.0), splitziner.math.Vec3(600.0, 400.0, 18.0))
-                    val bytes = java.io.ByteArrayOutputStream().also { splitziner.io.StlWriter.writeParts(listOf(base), it) }.toByteArray()
-                    val m = store.create("New design.stl", bytes.inputStream())
-                    m.copy(name = "New design", fileUnits = "mm", displayUnits = if (inch) "in" else "mm").also { store.save(it) }
+                    val t = key?.let { splitziner.edit.Templates.byKey(it) }
+                    val meshes = if (t != null) t.build(splitziner.edit.Templates.defaults(t, inch) + values)
+                        else listOf(if (inch) splitziner.edit.Editor.box(splitziner.math.Vec3(0.0, 0.0, 0.0), splitziner.math.Vec3(24 * 25.4, 16 * 25.4, 0.75 * 25.4))
+                        else splitziner.edit.Editor.box(splitziner.math.Vec3(0.0, 0.0, 0.0), splitziner.math.Vec3(600.0, 400.0, 18.0)))
+                    val name = t?.name ?: "New design"
+                    val bytes = java.io.ByteArrayOutputStream().also { splitziner.io.StlWriter.writeParts(meshes, it) }.toByteArray()
+                    val m = store.create("$name.stl", bytes.inputStream())
+                    m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm").also { store.save(it) }
                 }
                 analyze(meta, deleteOnFailure = true)
             } catch (e: Throwable) { fail("new design", e) }

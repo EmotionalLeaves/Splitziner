@@ -51,7 +51,9 @@ object Lumber {
     private const val IN = 25.4
     private val WIDTHS = listOf(2 to 1.5, 3 to 2.5, 4 to 3.5, 6 to 5.5, 8 to 7.25, 10 to 9.25, 12 to 11.25)
     // 5/4 ("five-quarter") boards are a full inch thick.
-    val SIZES: List<Size> = listOf("1" to 0.75, "5/4" to 1.0, "2" to 1.5).flatMap { (nt, at) -> WIDTHS.map { (nw, aw) -> Size("${nt}x$nw", at * IN, aw * IN) } }
+    val SIZES: List<Size> = listOf("1" to 0.75, "5/4" to 1.0, "2" to 1.5).flatMap { (nt, at) -> WIDTHS.map { (nw, aw) -> Size("${nt}x$nw", at * IN, aw * IN) } } +
+        // Posts, for legs.
+        listOf(Size("4x4", 3.5 * IN, 3.5 * IN), Size("4x6", 3.5 * IN, 5.5 * IN))
 
     /** The narrowest standard board of this thickness at least [w] wide, or null if the thickness is not a lumber thickness. */
     fun fit(t: Double, w: Double): Size? = SIZES.filter { abs(it.t - t) < maxOf(0.8, 0.03 * it.t) && it.w >= w - 0.8 }.minByOrNull { it.w }

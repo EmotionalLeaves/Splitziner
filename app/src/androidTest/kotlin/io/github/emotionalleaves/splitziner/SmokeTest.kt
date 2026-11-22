@@ -201,4 +201,30 @@ class SmokeTest {
             assertNull(vm.state.value.error)
         }
     }
+
+    /** Starting a design from a template, the way a person would: New design, pick Bookcase, Create. */
+    @Test fun newBookcaseFromTemplate() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            fun tap(label: String) {
+                rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
+                rule.onAllNodesWithText(label).onFirst().performClick()
+                rule.waitForIdle()
+            }
+            tap("New design"); tap("Bookcase"); shot("n01_new_design")
+            tap("Create")
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val a = vm.state.value.open!!.analysis
+            // Two sides, top, bottom, kick board, four shelves and a back.
+            assertEquals(10, a.parts.size)
+            tap("Guide")
+            waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            shot("n02_bookcase_guide")
+            println("SMOKE bookcase parts=${a.parts.size} items=${a.cutList.rows.size} guide steps=${vm.state.value.guide!!.stepCount}")
+            assertNull(Diagnostics.lastCrash())
+        }
+    }
 }

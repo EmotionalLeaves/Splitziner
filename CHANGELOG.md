@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.21.0 - Templates, materials and weight
+
+Start from a real piece of furniture, and know what it weighs.
+
+- **New design templates.** New design now offers a bookcase, cabinet, table, bench or open box. Type the main sizes (width, height, depth, board thickness, number of shelves) and you get a complete model in stock thicknesses: 3/4 in boards, a 1/4 in back and 4x4 legs in inch countries, 18 mm and 6 mm in metric ones. Every part can be changed afterwards. "One board" is still there.
+- **Materials in one tap.** Tapping an item in the cut list shows chips for common materials (birch plywood, MDF, pine, oak...). Tick the box to give every other item the same material.
+- **Weight.** The Cut list tab says roughly what the piece weighs from the materials you set, and the drawing's title block fills in WT once every item has one. Typical densities are used, so it says "about".
+- **Balance check by material.** When every item has a known material, the tipping check weighs each part by it, instead of treating everything as the same wood.
+- **Legs too thick to screw through** (a 4x4) are fixed to their aprons with brackets in the inside corner, rather than with a 3 in screw that would not reach.
+- Standard 4x4 and 4x6 posts are now in the lumber list for the cutting plan.
+
 ## v0.20.0 - Drawings you can cut from
 
 Drawings a maker can cut from, and a shorter guide.

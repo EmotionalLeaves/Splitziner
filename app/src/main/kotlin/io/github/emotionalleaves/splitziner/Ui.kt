@@ -119,6 +119,7 @@ private fun BusyBar(state: UiState) {
 
 @Composable
 private fun HomeScreen(state: UiState, vm: AppViewModel) {
+    var showNew by remember { mutableStateOf(false) }
     val context = LocalContext.current
     // STL has no reliable MIME type across file apps, so the picker shows every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importFrom(uri) }
@@ -141,8 +142,9 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import STL") }
-            OutlinedButton(onClick = { vm.newDesign() }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
+            OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
         }
+        if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
         BusyBar(state)
         Spacer(Modifier.height(8.dp))
         if (state.projects.isEmpty() && state.busyLabel == null) {
@@ -827,7 +829,7 @@ private val HELP = listOf(
     "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
     "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
     "Check" to "The Check tab looks at the model the way someone about to build it would. It flags parts that pass through each other, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, shelves that run a long way between supports, and whether it would tip over. Problems (red) stop the build as drawn; Check items (amber) need your judgement. It works from shapes alone: it knows nothing about wood, glue, screws or loads, and its sag and balance findings are rules of thumb.",
-    "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place. New design on the home screen starts from a single board. Undo takes the last change back.",
+    "Changing parts" to "On the 3D tab, tap a part, then Change. You can set its size, move it by an amount, slide it until it touches the next part, copy it, square it up, make it from boards, or delete it. Add a board puts a new board above the model to slide into place. New design on the home screen starts a bookcase, cabinet, table, bench or open box at the sizes you give (in stock thicknesses), or a single board. Undo takes the last change back.",
     "Frames and boxes drawn as one piece" to "3D programs often join a frame, an open box or a channel into one solid. Nobody can cut that from one board. The check finds these and offers Make from N boards, which splits the part into the plain boards it would be built from. Frames with a step in their thickness (a rebate) become two stacked layers, which make the same step. Rounded corners come out square.",
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
@@ -1197,6 +1199,51 @@ private fun AddBoardDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (spl
                 }
                 OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, singleLine = true)
                 msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
+}
+
+
+/** Pick a starting design and its main sizes; the parts can be changed one by one afterwards. */
+@Composable
+private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
+    val inch = vm.inchLocale
+    val unit = if (inch) "in" else "mm"
+    fun show(mm: Double, count: Boolean) = if (count) "${mm.toInt()}" else if (inch) "%.2f".format(java.util.Locale.US, mm / 25.4).trimEnd('0').trimEnd('.') else "${Math.round(mm)}"
+    var key by remember { mutableStateOf<String?>(splitziner.edit.Templates.ALL.first().key) }
+    val template = key?.let { splitziner.edit.Templates.byKey(it) }
+    val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = {
+            val t = template
+            if (t == null) { onDismiss(); vm.newDesign(); return@TextButton }
+            val mm = HashMap<String, Double>()
+            for (f in t.fields) {
+                val v = values[f.key]?.trim()?.replace(',', '.')?.toDoubleOrNull()
+                if (v == null || v < 0 || (!f.count && v == 0.0 && !f.key.startsWith("back"))) { error = "Enter a number for ${f.label.lowercase()}."; return@TextButton }
+                mm[f.key] = if (f.count) v else if (inch) v * 25.4 else v
+            }
+            onDismiss(); vm.newDesign(t.key, mm)
+        }) { Text("Create") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("New design") },
+        text = {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (t in splitziner.edit.Templates.ALL) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
+                    androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                }
+                if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
+                else {
+                    Text(template.blurb, style = MaterialTheme.typography.bodySmall)
+                    for (f in template.fields) OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },
+                        label = { Text(if (f.count) f.label else "${f.label} ($unit)") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },
     )

@@ -26,6 +26,13 @@ fun main(args: Array<String>) {
         i++
     }
     try {
+        // "template:shelves" builds a starting design and works on that.
+        if (file?.startsWith("template:") == true) {
+            val t = splitziner.edit.Templates.byKey(file!!.removePrefix("template:"))
+            val tmp = File(out.apply { mkdirs() }, "${t.key}.stl")
+            tmp.outputStream().use { splitziner.io.StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, display == "in")), it) }
+            file = tmp.path; if (units == null) units = "mm"
+        }
         val f = File(file ?: error("no input file"))
         val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
         // --only P01,P05: keep just those parts, to look at one corner of a model.

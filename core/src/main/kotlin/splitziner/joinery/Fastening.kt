@@ -46,6 +46,9 @@ object Fastening {
     /** A screw needs at least this much wood around it in the part it goes into (mm), or it splits it. */
     private const val MIN_INTO = 15.0
 
+    /** A screw must reach at least this far (mm) into the second part to hold. */
+    private const val MIN_BITE = 20.0
+
     /** Joints shorter than this (mm) are too small to fasten; they are glued. */
     private const val SMALLEST = 20.0
 
@@ -179,6 +182,14 @@ object Fastening {
                     // Through the first part, then into the second for 1.5 times that thickness but never within 3 mm of its far side.
                     val want = tThrough + minOf(1.5 * tThrough, depth - 3.0)
                     size = pick(want, fmt, brads) ?: ""; kind = if (brads) "brads" else "screws"
+                    // A part too thick for any stock screw to pass through and still bite (a 3-1/2 in leg) is fixed
+                    // with brackets in the inside corner instead.
+                    val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
+                    if (!brads && tThrough + MIN_BITE > longest) {
+                        joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "corner", false)
+                        totals["corner brackets, with short screws"] = (totals["corner brackets, with short screws"] ?: 0) + count
+                        continue
+                    }
                 }
                 JoinMethod.POCKET_SCREWS -> {
                     // A pocket screw runs at an angle through the end of the joining part; its length follows that part's thickness.
@@ -202,7 +213,7 @@ object Fastening {
         // Identical sub-assemblies are made more than once: their fasteners count that many times.
         for (st in steps) if (st.subassembly && st.makeCount > 1) {
             for (jt in joints[st.step].orEmpty()) if (!jt.glueOnly && jt.kind != "thin") {
-                val key = when (jt.kind) { "dowels" -> jt.size; "brackets" -> "corner brackets, with short screws"; "laminate" -> "${jt.size} brads"; else -> "${jt.size} ${jt.kind}" }
+                val key = when (jt.kind) { "dowels" -> jt.size; "brackets", "corner" -> "corner brackets, with short screws"; "laminate" -> "${jt.size} brads"; else -> "${jt.size} ${jt.kind}" }
                 totals[key] = (totals[key] ?: 0) + jt.count * (st.makeCount - 1)
             }
         }
@@ -234,6 +245,7 @@ object Fastening {
             out += if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
             else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times."
+            else if (j.kind == "corner") "Fix ${key.second} to ${key.first} with ${count(n)} corner brackets in the inside corner$times; ${key.first} is too thick to screw through."
             else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${count(n)} ${j.size} brads$times."
             else if (j.kind == "thin") {
                 val (w, d) = j.size.split('|').let { if (it.size == 2) it[0] to it[1] else "" to "" }
@@ -252,7 +264,7 @@ object Fastening {
         if (groups.size > maxLines) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "edge" -> "edge glued"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" -> "brackets"; j.kind == "laminate" -> "glue and brads"
+                j.kind == "edge" -> "edge glued"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(maxLines).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

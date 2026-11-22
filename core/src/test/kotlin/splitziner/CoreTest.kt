@@ -1044,3 +1044,20 @@ class MaterialsTest {
         assertEquals("0.5 kg", splitziner.material.Materials.format(w.kg, false))
     }
 }
+
+class TemplatesTest {
+    @Test fun everyTemplateBuildsCleanBoardsThatDoNotOverlap() {
+        for (inch in listOf(false, true)) for (t in splitziner.edit.Templates.ALL) {
+            val fmt = LengthFormat(if (inch) "in" else "mm")
+            val meshes = t.build(splitziner.edit.Templates.defaults(t, inch))
+            val parts = meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+            val cut = CutList.build(parts, fmt)
+            assertTrue(cut.rows.all { it.kind == PartKind.PANEL || it.kind == PartKind.BOARD }, "${t.name}: ${cut.rows.map { it.description }}")
+            val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+            assertTrue(rep.findings.none { it.title.contains("occupy the same space") || it.title.contains("touch nothing") || it.title.contains("tip over") || it.title.contains("not a thickness") }, "${t.name}: ${rep.findings.map { it.title }}")
+            // The whole file round-trips through the reader as the same number of parts.
+            val bytes = ByteArrayOutputStream().also { StlWriter.writeParts(meshes, it) }.toByteArray()
+            assertEquals(meshes.size, Pipeline.analyze(bytes, "t.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm")).parts.size, t.name)
+        }
+    }
+}
