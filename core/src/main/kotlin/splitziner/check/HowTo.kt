@@ -72,9 +72,10 @@ object HowTo {
             // or "RABBET FOR ITEM 2: 1/4 DEEP X 1/4 WIDE X 45 LONG, ALONG THE BACK EDGE (AS ASSEMBLED)."
             val m = Regex("""(GROOVE|RABBET|MORTISE) FOR ITEM (\S+): (.+?) DEEP X (.+?) WIDE X (.+?) LONG(?: \((\d+) PLACES\))?(?:, (.*?))?\.?$""").find(g) ?: continue
             val places = m.groupValues[6].takeIf { it.isNotEmpty() }?.let { " in $it places" } ?: ""
-            val where = m.groupValues[7].takeIf { it.isNotEmpty() }?.lowercase()?.let { w -> if (w.startsWith("along")) w else "at $w" } ?: "where its drawing shows"
-            out += if (m.groupValues[1] == "MORTISE") "Cut a mortise for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} deep, ${m.groupValues[4].lowercase()} wide, ${m.groupValues[5].lowercase()} long, $where. Drill out most of it with a ${m.groupValues[4].lowercase()} bit, a row of holes to depth, then pare the sides and square the ends with a chisel (or rout it with a fence). Test the tenon's fit: snug by hand, not hammered."
-                else "Cut a ${m.groupValues[1].lowercase()} for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} deep, ${m.groupValues[4].lowercase()} wide, ${m.groupValues[5].lowercase()} long, $where, with a ${grooveTool()}."
+            // Positions carry their unit as the sizes do: "at 3 in, 15-3/4 in and 29-1/2 in from the bottom end".
+            val where = m.groupValues[7].takeIf { it.isNotEmpty() }?.lowercase()?.replace(Regex("""(\d)(,| and| from)"""), "$1 $u$2")?.let { w -> if (w.startsWith("along")) w else "at $w" } ?: "where its drawing shows"
+            out += if (m.groupValues[1] == "MORTISE") "Cut a mortise for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} $u deep, ${m.groupValues[4].lowercase()} $u wide, ${m.groupValues[5].lowercase()} $u long, $where. Drill out most of it with a ${m.groupValues[4].lowercase()} $u bit, a row of holes to depth, then pare the sides and square the ends with a chisel (or rout it with a fence). Test the tenon's fit: snug by hand, not hammered."
+                else "Cut a ${m.groupValues[1].lowercase()} for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} $u deep, ${m.groupValues[4].lowercase()} $u wide, ${m.groupValues[5].lowercase()} $u long, $where, with a ${grooveTool()}."
         }
         out += extra
         if (row.qty > 1) out += "Make ${row.qty} the same; cutting them together, or setting a stop, keeps them identical."

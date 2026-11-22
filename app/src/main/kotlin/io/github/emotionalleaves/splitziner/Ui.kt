@@ -1561,7 +1561,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                     if (pages.isNotEmpty()) io.github.emotionalleaves.splitziner.render.SheetPreview(pages[shown], Modifier.fillMaxSize())
                     else if (valid) LinearProgressIndicator(Modifier.align(Alignment.Center).fillMaxWidth(0.6f))
                 }
-                if (pages.size > 1) PagerBar(if (shown == 0) "Summary and what to buy" else "Page ${shown + 1}", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
+                if (pages.size > 1) PagerBar(if (shown == 0) "What to buy" else "Sheets, page ${shown + 1}", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
                     shown > 0, shown < pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
                 androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = pages.isNotEmpty(), onClick = {

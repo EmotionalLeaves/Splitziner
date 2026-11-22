@@ -317,3 +317,8 @@ Departures from the build spec, newest first.
 
 ## v1.10
 - Stringers and treads need the boards to climb: each higher one stands further back (or forward) than the one below by at least a fifth of the stringer's depth. A desk's notched end panels with a top and shelves stacked over each other had been called stringers and treads since v0.98 (the desk's top was a "tread").
+
+## v1.11
+- The making steps give every groove, rabbet and mortise size and position with its unit ("1/4 in deep … at 3 in, 15-3/4 in and 29-1/2 in from the bottom end"); in millimetres a bare "25.4 deep" read as nothing in particular.
+- Sliding-door track is listed as "at least" the opening's length, in whole millimetres in metric.
+- Cutting plan viewer: the first page is labelled "What to buy" (it was cut off as "Summary and what to b…").

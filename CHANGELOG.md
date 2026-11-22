@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.11.0 - Units everywhere
+
+- The "Making the parts" steps now give every groove, rabbet and mortise size and position with its unit, which matters most in millimetres.
+- Sliding-door track is listed as "at least" the opening's length, rounded to whole millimetres.
+- Cutting plan: the first page is called "What to buy", so the label is no longer cut off.
+
 ## v1.10.0 - Fix stair names on desks
 
 - Fixed: since v0.98, a desk with notched end panels could have its top and shelves called "treads" and its ends "stringers". Only real steps, each board standing further back than the one below, are called that now.

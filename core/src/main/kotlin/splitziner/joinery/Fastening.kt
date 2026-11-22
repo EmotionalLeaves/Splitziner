@@ -609,9 +609,10 @@ object Fastening {
             val ds = live.filter { it.id in slidingIds }
             val span = ds.maxOf { it.mesh.bounds.max.x } - ds.minOf { it.mesh.bounds.min.x }
             val first = ds.maxByOrNull { it.mesh.bounds.min.y }!!   // the back one goes in first
-            val u = if (fmt.isInch) " in" else " mm"
-            joints.getOrPut(ds.maxOf { mainOf(it) }) { ArrayList() }.add(0, Joint(first, ds.minByOrNull { it.mesh.bounds.min.y }!!, ds.size, "", "sliding", false, fmt.format(span) + u))
-            totals["double sliding-door track set, ${fmt.format(span)}$u"] = 1
+            // Track is sold by length and cut down: at least the opening, in whole millimetres.
+            val len = if (fmt.isInch) fmt.format(span) + " in" else "${Math.ceil(span).toInt()} mm"
+            joints.getOrPut(ds.maxOf { mainOf(it) }) { ArrayList() }.add(0, Joint(first, ds.minByOrNull { it.mesh.bounds.min.y }!!, ds.size, "", "sliding", false, len))
+            totals["double sliding-door track set, at least $len long"] = 1
             totals["flush pulls (recessed handles)"] = (totals["flush pulls (recessed handles)"] ?: 0) + ds.size
         }
         // Adjustable shelves rest on pins, put in when the shelf goes in.
