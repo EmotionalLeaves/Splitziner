@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.31.0 - Pocket holes, hardware per step, gaps
+
+Pocket holes done right, hardware per step, and gaps you can read.
+
+- **Pocket holes in the right part.** With pocket screws, the guide now puts the pocket holes in the end of the part that meets the other's face (the shelf, not the side), on a face that won't show. The screw length follows that part's thickness.
+- **Drill first.** "Before you build" now says how many pocket holes to drill in each item before assembly.
+- **Hardware with each step.** Each step's parts list also lists the screws, brackets, brads or slides that step uses, so you can lay them out together.
+- **Gaps in 3D.** Tap a part on the 3D tab and it shows the clear space to the nearest part on each side, e.g. "Gap left 1/2 to item 3, above 1/4 to item 1". Handy for checking a drawer's room for slides, or a shelf's fit.
+
 ## v0.30.0 - How to make each part
 
 How to make each part, with your tools.
