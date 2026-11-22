@@ -119,6 +119,17 @@ class ProjectStore(context: Context) {
         } catch (t: Throwable) { d.deleteRecursively(); throw t }
     }
 
+    /** A copy under a new id and name, to try a variation without losing the original. */
+    fun duplicate(meta: ProjectMeta, name: String): ProjectMeta {
+        val id = UUID.randomUUID().toString()
+        dir(id).mkdirs()
+        source(meta.id).copyTo(source(id))
+        thumb(meta.id).takeIf { it.exists() }?.copyTo(thumb(id))
+        val copy = meta.copy(id = id, name = name, createdAt = System.currentTimeMillis())
+        save(copy)
+        return copy
+    }
+
     fun save(meta: ProjectMeta) {
         val o = JSONObject()
         o.put("schema", 1).put("id", meta.id).put("name", meta.name).put("fileName", meta.fileName).put("createdAt", meta.createdAt)

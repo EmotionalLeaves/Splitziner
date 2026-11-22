@@ -146,6 +146,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
     // STL has no reliable MIME type across file apps, so the picker shows every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importFrom(uri) }
     var confirmDelete by remember { mutableStateOf<ProjectMeta?>(null) }
+    var renaming by remember { mutableStateOf<ProjectMeta?>(null) }
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         // Header: the app's name and what it does, with the rarely used things in a menu.
@@ -209,10 +210,21 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
             Text("Projects", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
         }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-            items(state.projects, key = { it.id }) { p -> ProjectCard(p, vm.thumbFile(p.id), state.thumbsVersion, enabled = state.busyLabel == null, onOpen = { vm.openProject(p) }, onDelete = { confirmDelete = p }) }
+            items(state.projects, key = { it.id }) { p -> ProjectCard(p, vm.thumbFile(p.id), state.thumbsVersion, enabled = state.busyLabel == null, onOpen = { vm.openProject(p) }, onDelete = { confirmDelete = p },
+                onDuplicate = { vm.duplicateProject(p) }, onRename = { renaming = p }) }
         }
     }
     UpdateDialogs(state, vm)
+    renaming?.let { p ->
+        var name by remember(p) { mutableStateOf(p.name) }
+        AlertDialog(
+            onDismissRequest = { renaming = null },
+            confirmButton = { TextButton(onClick = { vm.renameProject(p, name); renaming = null }, enabled = name.isNotBlank()) { Text("Rename") } },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel") } },
+            title = { Text("Rename project") },
+            text = { OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true) },
+        )
+    }
     confirmDelete?.let { p ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
@@ -1955,7 +1967,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
 
 /** One project in the list: a monogram, its name, what it is, and when it was last used. */
 @Composable
-private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabled: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabled: Boolean, onOpen: () -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit = {}, onRename: () -> Unit = {}) {
     var menu by remember { mutableStateOf(false) }
     // The model's picture, read off the main thread; a letter stands in until there is one.
     val pic by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, p.id, p.updatedAt, version) {
@@ -1981,6 +1993,8 @@ private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabl
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Default.Create, contentDescription = null) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text("Make a copy") }, leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }, onClick = { menu = false; onDuplicate() })
                     DropdownMenuItem(text = { Text("Delete") }, leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }, onClick = { menu = false; onDelete() })
                 }
             }

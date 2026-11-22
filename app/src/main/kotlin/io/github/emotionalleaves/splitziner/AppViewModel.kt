@@ -546,6 +546,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun duplicateProject(meta: ProjectMeta) {
+        runCatching { store.duplicate(meta, "${meta.name} (copy)") }.onFailure { Diagnostics.logError("duplicate", it); _state.update { s -> s.copy(error = "Could not copy the project") } }
+        _state.update { it.copy(projects = store.list()) }
+    }
+
+    fun renameProject(meta: ProjectMeta, name: String) {
+        val n = name.trim().ifBlank { return }
+        store.save(meta.copy(name = n))
+        _state.update { it.copy(projects = store.list(), open = it.open?.let { o -> if (o.meta.id == meta.id) OpenProject(o.meta.copy(name = n), o.analysis) else o }) }
+    }
+
     fun deleteProject(meta: ProjectMeta) {
         store.delete(meta.id)
         _state.update { it.copy(projects = store.list(), open = if (it.open?.meta?.id == meta.id) null else it.open) }
