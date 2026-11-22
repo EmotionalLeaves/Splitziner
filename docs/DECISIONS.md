@@ -298,3 +298,6 @@ Departures from the build spec, newest first.
 ## v1.4
 - What blocks a part's way in, for a leaning or notched part, is now its material clipped to the space ahead of the moving part (each triangle cut at that plane), not whole triangles: a leaning back support's long faces reach both sides, so a back slat in front of it goes in from the front, not through it from behind.
 - Test models moved to `scripts/models/` (gen.py writes the first set; gen2-9 add the rest), and `scripts/guide-diff.sh` compares every model's guide text between a commit and the working tree, to catch unintended changes.
+
+## v1.5
+- Cabinets in a row are drawn in the exploded views pulled apart along the row, evenly out from the middle (by 0.3 of a cabinet's width per place), so each reads whole; before, the peel order scattered them front and back under the worktop.

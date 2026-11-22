@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.0 - Cleaner exploded cabinet runs
+
+- Kitchen runs: the exploded drawing shows the cabinets pulled apart along the row, with the worktop above them, instead of scattered front and back.
+
 ## v1.4.0 - Leaning parts go in the right way
 
 - Leaning parts: a bench's back slats now go on from the front, in front of their supports, instead of "from the back" through them.

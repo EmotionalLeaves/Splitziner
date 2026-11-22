@@ -303,10 +303,22 @@ object AssemblyPlan {
             steps += st.copy(step = steps.size + 1, partIds = ids, items = ids.mapNotNull { id -> live.first { it.id == id }.item }.distinct().sorted())
         }
         val firstMain = bench.size + 1
+        // Cabinets in a row are drawn pulled apart along the row, evenly out from the middle, so each reads whole;
+        // whatever the peel order gave them would scatter them front and back.
+        val rowPull = HashMap<String, Vec3>()
+        val mods = unitParts.filter { it.id.startsWith("module") }
+        if (mods.size >= 2) {
+            val ax = (0..1).maxByOrNull { k -> mods.maxOf { it.mesh.bounds.center[k] } - mods.minOf { it.mesh.bounds.center[k] } }!!
+            val sorted = mods.sortedBy { it.mesh.bounds.center[ax] }
+            val gap = 0.3 * sorted.minOf { it.mesh.bounds.extents[ax] }
+            sorted.forEachIndexed { n, m -> val off = (n - (sorted.size - 1) / 2.0) * gap; if (kotlin.math.abs(off) > 1e-6) rowPull[m.id] = Vec3.axis(ax, off) }
+        }
         val out = all.map { p ->
             if (p.excluded) p else {
-                val u = unitOf[p.id] ?: unitOf[keyOf[p.id] ?: p.id.substringBefore('.')]
-                p.copy(explode = u?.explode, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
+                val key = keyOf[p.id] ?: p.id.substringBefore('.')
+                val u = unitOf[p.id] ?: unitOf[key]
+                val ex = if (key.startsWith("module")) rowPull[key] else u?.explode
+                p.copy(explode = ex, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
             }
         }
         return PlanResult(shareGroups(out), steps)
