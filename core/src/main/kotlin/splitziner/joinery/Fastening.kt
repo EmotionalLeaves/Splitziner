@@ -248,7 +248,10 @@ object Fastening {
             val ti = idx.getValue(thr.id)
             val aroundThr = (0..2).filter { it != k }.minOf { ax -> rel.hi[ti][ax] - rel.lo[ti][ax] }
             // Brads are thin and forgive a thinner edge than screws do, but a 1/4 in panel's edge still splits.
-            val minInto = if (method == JoinMethod.GLUE_AND_BRADS) MIN_INTO_BRADS else MIN_INTO
+            // With screws, an edge too thin for a screw but thick enough for a brad (a 1/2 in drawer side met by its
+            // end) is glued and pinned instead, as drawer boxes are; only an edge too thin even for that is set in.
+            val pinInstead = method == JoinMethod.SCREWS && !glue && !faceToFace && minOf(around, aroundThr) < MIN_INTO && minOf(around, aroundThr) >= MIN_INTO_BRADS
+            val minInto = if (method == JoinMethod.GLUE_AND_BRADS || pinInstead) MIN_INTO_BRADS else MIN_INTO
             if (!glue && !faceToFace && aroundThr < minInto && aroundThr < around) {
                 val grooveDepth = minOf(GROOVE_SHARE * depth, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
@@ -268,7 +271,7 @@ object Fastening {
             }
             if (!glue) when (method) {
                 JoinMethod.SCREWS -> {
-                    val brads = tThrough < THIN
+                    val brads = tThrough < THIN || pinInstead
                     // Through the first part, then into the second for 1.5 times that thickness but never within 3 mm of its far side.
                     val want = tThrough + minOf(1.5 * tThrough, depth - 3.0)
                     size = pick(want, fmt, brads)?.let { if (brads) it else gauged(it, tThrough, fmt) } ?: ""; kind = if (brads) "brads" else "screws"
