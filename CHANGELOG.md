@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.58.0 - Rename and copy projects
+
+- **Rename or copy a project** from its menu (⋮) on the first screen. **Make a copy** lets you try a variation without losing the original.
+- The edge banding line on the shopping list and cutting plan reads more naturally ("the edges that show of items 1, 2 and 3").
+
 ## v0.57.0 - Cleaner balloons
 
 - **Balloon leaders no longer cross** in exploded views and guide pictures. When a leader would cross one already drawn, its balloon is moved, so every number points clearly at its own part.
