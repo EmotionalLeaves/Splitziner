@@ -202,14 +202,23 @@ object GuideSteps {
                         else -> w + "s"
                     }
                     val bits = ArrayList<String>()
+                    // Drawers of several sizes are still just drawers: "hang the 4 drawers".
+                    val drawers = unitCount.values.filter { us -> us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true } }.sumOf { it.size }
+                    if (drawers > 0) bits += if (drawers == 1) "hang the drawer" else "hang the $drawers drawers"
                     for ((bench, us) in unitCount) {
-                        val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
-                        bits += if (drawer) (if (us.size == 1) "hang the drawer" else "hang the ${us.size} drawers") else (if (us.size == 1) "the sub-assembly from step $bench" else "the ${us.size} sub-assemblies from step $bench")
+                        if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) continue
+                        bits += if (us.size == 1) "the sub-assembly from step $bench" else "the ${us.size} sub-assemblies from step $bench"
                     }
+                    // Parts of one name are counted together, whatever their item numbers: "3 drawer fronts".
+                    val byName = LinkedHashMap<String, Int>()
                     for ((item, n) in count) {
                         val nm = loose.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
-                        val w = nm ?: (if (item != null) "item $item" else "part")
-                        bits += if (nm == null) (if (n == 1) w else "$n× $w") else if (n == 1) "the $w" else "$n ${plural(w, n)}"
+                        val key = nm ?: "\u0000" + (if (item != null) "item $item" else "part")
+                        byName[key] = (byName[key] ?: 0) + n
+                    }
+                    for ((key, n) in byName) {
+                        if (key.startsWith("\u0000")) { val w = key.drop(1); bits += if (n == 1) w else "$n× $w" }
+                        else bits += if (n == 1) "the $key" else "$n ${plural(key, n)}"
                     }
                     if (bits.isEmpty() || bits.size > 3) "Step ${st.step}"
                     else "Step ${st.step}: " + (if (bits.size == 1) bits[0] else bits.dropLast(1).joinToString(", ") + " and " + bits.last())
