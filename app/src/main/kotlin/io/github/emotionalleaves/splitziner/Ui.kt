@@ -237,6 +237,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     HorizontalDivider()
                 }
             }
+            Button(onClick = { shareParts(context, open) }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) { Text("Share parts as separate STL files (ZIP)") }
         } else {
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
@@ -446,7 +447,12 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             }
         }
         Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
-        Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = d != null && !state.drawingBusy, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) { Text("Share drawing (PDF)") }
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val ready = d != null && !state.drawingBusy
+            Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = ready, modifier = Modifier.weight(1.6f)) { Text("Share PDF") }
+            OutlinedButton(onClick = { if (d != null) shareImage(context, open, d, shown) }, enabled = ready, modifier = Modifier.weight(1f)) { Text("Image") }
+            OutlinedButton(onClick = { if (d != null) shareDxf(context, open, d) }, enabled = ready, modifier = Modifier.weight(1f)) { Text("DXF") }
+        }
     }
     if (showInfo) TitleBlockDialog(open.meta, onDismiss = { showInfo = false }) { m -> showInfo = false; vm.updateDrawing { m } }
     if (showQa && d != null) {
@@ -669,3 +675,54 @@ private val HELP = listOf(
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )
+
+
+private fun baseName(open: OpenProject) = open.meta.drawingNo.ifBlank { open.meta.name }.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
+
+private fun shareFile(context: Context, file: File, mime: String, title: String) {
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+    val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(Intent.createChooser(send, title))
+}
+
+private fun shareImage(context: Context, open: OpenProject, d: DrawingState, index: Int) {
+    try {
+        val (file, dpi) = io.github.emotionalleaves.splitziner.render.ImageExporter.writePng(context, d.sheets[index], "${baseName(open)}_${d.sheets[index].name.ifBlank { "sheet${index + 1}" }}.png")
+        if (dpi < 200) Toast.makeText(context, "Large sheet: image made at $dpi dots per inch", Toast.LENGTH_LONG).show()
+        shareFile(context, file, "image/png", "Share image")
+    } catch (e: Throwable) {
+        Diagnostics.logError("share image", e)
+        Toast.makeText(context, "Could not make the image", Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun shareDxf(context: Context, open: OpenProject, d: DrawingState) {
+    try {
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val file = File(dir, "${baseName(open)}_dxf.zip")
+        java.util.zip.ZipOutputStream(file.outputStream()).use { zip ->
+            d.lists.forEachIndexed { i, dl ->
+                zip.putNextEntry(java.util.zip.ZipEntry("${baseName(open)}_${dl.name.ifBlank { "sheet${i + 1}" }}.dxf"))
+                zip.write(splitziner.export.DxfWriter.write(dl).toByteArray(Charsets.US_ASCII))
+                zip.closeEntry()
+            }
+        }
+        Toast.makeText(context, "DXF files record the drawing; they are not cutting profiles", Toast.LENGTH_LONG).show()
+        shareFile(context, file, "application/zip", "Share DXF files")
+    } catch (e: Throwable) {
+        Diagnostics.logError("share dxf", e)
+        Toast.makeText(context, "Could not make the DXF files", Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun shareParts(context: Context, open: OpenProject) {
+    try {
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val file = File(dir, "${open.meta.name.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }}_parts.zip")
+        file.outputStream().use { splitziner.export.PartsZip.write(open.analysis.parts, open.analysis.report, open.analysis.sourceName, it) }
+        shareFile(context, file, "application/zip", "Share parts")
+    } catch (e: Throwable) {
+        Diagnostics.logError("share parts", e)
+        Toast.makeText(context, "Could not pack the parts", Toast.LENGTH_LONG).show()
+    }
+}

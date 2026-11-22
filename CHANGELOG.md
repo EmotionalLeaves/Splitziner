@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.0 - More ways to share
+
+More ways to get your work out of the app.
+
+- **Share parts as separate STL files.** On the Parts tab, one button packs every part as its own STL in a ZIP, in millimetres, with a list saying which file is which item. Handy for printing or re-using single parts.
+- **Share a sheet as an image.** On the Drawing tab, **Image** sends the sheet you are looking at as a PNG, for a quick message or a post.
+- **DXF export.** **DXF** packs every sheet as a DXF file for CAD programs, with line types on separate layers. These record the drawing; they are not cutting profiles.
+- **Share PDF** is unchanged and still contains the whole set.
+
 ## v0.7.0 - Part drawings and pull-apart 3D
 
 A drawing for every part, and a pull-apart slider in 3D.

@@ -609,3 +609,36 @@ class PartDrawingTest {
         assertEquals(meshes.last().volume, brace.volume, 1e-3)
     }
 }
+
+class ExportTest {
+    @Test fun dxfHasOneLinePerSegmentAndEndsProperly() {
+        val dl = splitziner.sheet.DisplayList(100.0, 50.0)
+        dl.segs(doubleArrayOf(0.0, 0.0, 10.0, 0.0, 10.0, 0.0, 10.0, 10.0), splitziner.sheet.LineStyle.THICK)
+        dl.line(0.0, 5.0, 20.0, 5.0, splitziner.sheet.LineStyle.HIDDEN)
+        val dxf = splitziner.export.DxfWriter.write(dl)
+        assertEquals(3, Regex("(?m)^LINE$").findAll(dxf).count())
+        assertTrue(dxf.contains("0\nSECTION\n2\nENTITIES\n")); assertTrue(dxf.endsWith("0\nEOF\n"))
+        assertTrue(dxf.contains("8\nVISIBLE\n")); assertTrue(dxf.contains("8\nHIDDEN\n"))
+    }
+
+    @Test fun partsZipRoundTrips() {
+        val bytes = Fixtures.binaryStl(Fixtures.soup(Fixtures.miniCabinet(), scale = 0.0254))
+        val a = Pipeline.analyze(bytes, "cabinet.stl")
+        val out = ByteArrayOutputStream()
+        splitziner.export.PartsZip.write(a.parts, a.report, a.sourceName, out)
+        val zin = java.util.zip.ZipInputStream(out.toByteArray().inputStream())
+        var stl = 0; var names = ArrayList<String>()
+        while (true) {
+            val e = zin.nextEntry ?: break
+            names += e.name
+            if (e.name.endsWith(".stl")) {
+                val raw = StlReader.read(zin.readBytes())
+                val part = a.parts[stl++]
+                assertEquals(part.mesh.triangleCount, raw.triangleCount)
+                // Written as 32-bit floats, so volume agrees to float precision.
+                assertEquals(part.mesh.volume, BodySplitter.split(raw, "mm").parts[0].mesh.volume, part.mesh.volume * 1e-5)
+            }
+        }
+        assertEquals(7, stl); assertTrue("parts.csv" in names && "README.txt" in names)
+    }
+}

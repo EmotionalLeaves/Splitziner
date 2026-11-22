@@ -95,3 +95,28 @@ object PdfExporter {
         }
     }
 }
+
+object ImageExporter {
+    /** Largest picture made, in pixels. Bigger sheets are rendered at fewer dots per inch to stay under it. */
+    private const val MAX_PIXELS = 24_000_000f
+
+    /** Renders one sheet as a PNG at up to 200 dots per inch. Returns the file and the resolution used. */
+    fun writePng(context: Context, sheet: PreparedSheet, fileName: String): Pair<File, Int> {
+        val inchesW = sheet.widthMm / 25.4f; val inchesH = sheet.heightMm / 25.4f
+        var dpi = 200f
+        if (inchesW * inchesH * dpi * dpi > MAX_PIXELS) dpi = Math.sqrt((MAX_PIXELS / (inchesW * inchesH)).toDouble()).toFloat()
+        val w = Math.round(inchesW * dpi); val h = Math.round(inchesH * dpi)
+        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bmp)
+            canvas.drawColor(Color.WHITE)
+            sheet.draw(canvas, dpi / 25.4f)
+            val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+            val out = File(dir, fileName)
+            out.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            return out to Math.round(dpi)
+        } finally {
+            bmp.recycle()
+        }
+    }
+}

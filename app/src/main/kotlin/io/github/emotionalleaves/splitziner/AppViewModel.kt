@@ -28,7 +28,11 @@ class OpenProject(val meta: ProjectMeta, val analysis: Analysis)
 /** The build guide for the open project, laid out on pages. */
 class GuideState(val pages: List<PreparedSheet>, val stepCount: Int, val steps: List<splitziner.explode.BuildStep>)
 
-class DrawingState(val sheets: List<PreparedSheet>, val labels: List<String>, val sheetLetter: String, val scaleText: String, val qa: List<String>)
+class DrawingState(
+    val sheets: List<PreparedSheet>, val labels: List<String>, val sheetLetter: String, val scaleText: String, val qa: List<String>,
+    /** The sheets as the engine made them, for exports that need more than a picture (DXF). */
+    val lists: List<splitziner.sheet.DisplayList> = emptyList(),
+)
 
 data class UiState(
     val projects: List<ProjectMeta> = emptyList(),
@@ -165,7 +169,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         items.forEachIndexed { i, d -> sheets += d.sheets; labels += d.sheets.map { "Item ${a.cutList.rows[i].item}: ${a.cutList.rows[i].description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
                         Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms")
                     }.onFailure { Diagnostics.logError("part drawings", it) }
-                    DrawingState(sheets.map { PreparedSheet.of(it) }, labels, r.sheet.letter, r.scaleText, qa)
+                    DrawingState(sheets.map { PreparedSheet.of(it) }, labels, r.sheet.letter, r.scaleText, qa, sheets)
                 }
                 _state.update { it.copy(drawing = result, drawingBusy = false) }
             } catch (e: kotlinx.coroutines.CancellationException) {
