@@ -12,6 +12,7 @@ import splitziner.features.HoleFinder
 import splitziner.math.Vec2
 import splitziner.math.Vec3
 import splitziner.mesh.Bvh
+import splitziner.mesh.Mesh
 import splitziner.mesh.OrientedBounds
 import splitziner.parts.CutListRow
 import splitziner.parts.Part
@@ -321,14 +322,27 @@ object DesignCheck {
         val islands: List<List<Int>> get() = groups.sortedByDescending { it.size }.drop(1)
     }
 
-    fun relations(live: List<Part>): Relations {
+    /**
+     * What is known about one pair of meshes: clash depth (or -1 for none) and whether they touch. A caller
+     * that changes a few parts at a time (the fixer) passes the same memo, so unchanged pairs are not tested again.
+     */
+    class PairMemo { internal val map = HashMap<Long, DoubleArray>(); internal val ids = java.util.IdentityHashMap<Mesh, Int>() }
+
+    fun relations(live: List<Part>, memo: PairMemo? = null): Relations {
         val n = live.size
-        val bvh = live.map { Bvh(it.mesh) }
+        val bvh = live.map { it.mesh.bvh }
         val lo = live.map { it.mesh.bounds.min }; val hi = live.map { it.mesh.bounds.max }
         val touching = Array(n) { HashSet<Int>() }
         val clashes = ArrayList<Clash>()
+        fun idOf(m: Mesh): Int = memo!!.ids.getOrPut(m) { memo.ids.size }
         for (i in 0 until n) for (j in i + 1 until n) {
             if (!(0..2).all { lo[i][it] <= hi[j][it] + TOUCH && lo[j][it] <= hi[i][it] + TOUCH }) continue
+            val key = if (memo != null) { val a = idOf(live[i].mesh); val b = idOf(live[j].mesh); minOf(a, b).toLong() * 1_000_000 + maxOf(a, b) } else 0L
+            memo?.map?.get(key)?.let { r ->
+                if (r[0] >= 0) clashes += Clash(i, j, r[0])
+                if (r[1] > 0) { touching[i] += j; touching[j] += i }
+                null
+            } ?: run pair@{
             // The space both boxes share, pulled in a little so faces that merely touch do not count.
             val a = Vec3(maxOf(lo[i].x, lo[j].x), maxOf(lo[i].y, lo[j].y), maxOf(lo[i].z, lo[j].z))
             val b = Vec3(minOf(hi[i].x, hi[j].x), minOf(hi[i].y, hi[j].y), minOf(hi[i].z, hi[j].z))
@@ -351,7 +365,10 @@ object DesignCheck {
                 // Depth of the clash: the thinnest way through the shared space, to the nearest sample spacing.
                 val depth = minOf(maxX - minX + ext.x / gx, maxY - minY + ext.y / gy, maxZ - minZ + ext.z / gz)
                 clashes += Clash(i, j, depth); touching[i] += j; touching[j] += i
-            } else if (near(live[i], bvh[j]) || near(live[j], bvh[i])) { touching[i] += j; touching[j] += i }
+                memo?.map?.put(key, doubleArrayOf(depth, 1.0))
+            } else if (near(live[i], bvh[j]) || near(live[j], bvh[i])) { touching[i] += j; touching[j] += i; memo?.map?.put(key, doubleArrayOf(-1.0, 1.0)) }
+            else memo?.map?.put(key, doubleArrayOf(-1.0, 0.0))
+            }
         }
         val seen = BooleanArray(n); val groups = ArrayList<List<Int>>()
         for (s in 0 until n) {

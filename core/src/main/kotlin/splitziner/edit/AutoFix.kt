@@ -41,6 +41,8 @@ object AutoFix {
             return if (split) "a $size piece of item $item" else "item $item (${p.desc.lowercase()})"
         }
         val counts = LinkedHashMap<String, Int>()
+        // Pairs of parts already tested; a change only makes the pairs with a changed part be tested again.
+        val memo = DesignCheck.PairMemo()
         // Trims are told once per pair of items: how many cuts, and the largest share any one piece lost.
         class TrimGroup(val text: String) { var cuts = 0; var most = 0.0 }
         val trims = LinkedHashMap<String, TrimGroup>()
@@ -54,11 +56,11 @@ object AutoFix {
         val startVolume = HashMap<String, Double>()
         fun push(e: Edit, text: String) {
             edits += e; counts[text] = (counts[text] ?: 0) + 1
-            parts = CutList.build(Editor.apply(base, already + edits).parts, fmt).parts
+            parts = CutList.build(Editor.apply(parts, listOf(edits.last())).parts, fmt).parts
         }
 
         fun seat() {
-            val rel = DesignCheck.relations(parts)
+            val rel = DesignCheck.relations(parts, memo)
             val islandIdx = rel.islands
             val loose = islandIdx.flatten().toSet()
             val body = parts.filterIndexed { i, _ -> i !in loose }
@@ -86,7 +88,7 @@ object AutoFix {
 
         // Overlapping flat pieces of one thickness lying in one plane are one piece of sheet drawn as several bodies.
         run {
-            val rel = DesignCheck.relations(parts)
+            val rel = DesignCheck.relations(parts, memo)
             val prisms = parts.map { runCatching { Prisms.of(it.mesh) }.getOrNull() }
             val parent = IntArray(parts.size) { it }
             fun find(x: Int): Int { var r = x; while (parent[r] != r) r = parent[r]; return r }
@@ -109,7 +111,7 @@ object AutoFix {
             var guard = 0
             val tried = HashSet<Set<String>>()
             while (guard++ < 60) {
-                val rel = DesignCheck.relations(parts)
+                val rel = DesignCheck.relations(parts, memo)
                 val c = rel.clashes.sortedByDescending { it.depth }.firstOrNull { setOf(parts[it.a].id, parts[it.b].id) !in tried } ?: break
                 val a = parts[c.a]; val b = parts[c.b]
                 tried += setOf(a.id, b.id)
@@ -139,7 +141,7 @@ object AutoFix {
                 val g = trims.getOrPut(key) { TrimGroup("Trimmed ${itemLabel(pick.first)} where it runs into ${itemLabel(pick.second)}") }
                 g.cuts++; g.most = maxOf(g.most, pick.third)
                 edits += Edit.Trim(pick.first.id, pick.second.id)
-                parts = CutList.build(Editor.apply(base, already + edits).parts, fmt).parts
+                parts = CutList.build(Editor.apply(parts, listOf(edits.last())).parts, fmt).parts
             }
         }
 
