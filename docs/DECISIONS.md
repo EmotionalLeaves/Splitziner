@@ -189,3 +189,10 @@ Departures from the build spec, newest first.
   - A thin panel (a 1/4 in back) is pinned.
   - An edge too thin for a screw but fine for a brad is glued and pinned, as with screws.
   - Found by running the complex models with every joining method: a bunk bed asked for 168 pocket screws, many of them through slats.
+
+## v0.85
+- More complex test models: a corner shelf with triangular shelves, a round table on legs set well in, and a stool with legs splayed 8° both ways.
+- A straight stick whose ends are sawn off square is described with its angles: "ENDS CUT AT 8° AND 8° (COMPOUND)", not "NOTCHED". It gets a detail drawing with a note to set both the mitre and the bevel; its length is measured along the long edge. Detected from the end faces: flat, parallel, tilted.
+- A "centre leg" is judged against the other legs' outline, not the whole model. A round table's legs, set well in from an overhanging top, are just legs.
+- A thick stick of no standard lumber size (a 2-1/2 in square leg) is planned from the next standard size up (4x4), planed or ripped down. Before, it fell to "thicker than any sheet sold". The cut plan's notes heading is now "NOTES".
+- Step titles count parts by their own names ("the bottom and 3 shelves", "the front and the back").
