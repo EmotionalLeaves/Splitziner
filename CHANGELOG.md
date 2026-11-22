@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.92.0 - Fewer template pages
+
+- **Fewer pages to print**: full-size paper templates are only made for curved or angled shapes. Square-cut shapes are marked out from their drawing with a rule and square (the sample desk went from 100 template pages to 25).
+
 ## v0.91.0 - Clearer hardware lists
 
 - **Clearer hardware lists**: screws read as you'd ask for them: "26 screws, #8 x 1-1/2 in" (or "4 x 40 mm").
