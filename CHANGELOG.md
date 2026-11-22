@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.81.0 - Screws as sold, pilot holes, hinge sides
+
+- **Screws as you'd buy them**: gauge and length ("#8 x 1-1/2 in", "4 x 40 mm"), chosen from the thickness of the board they go through.
+- **Pilot holes**: "Before you build" gives the drill bit for each screw size, for softwood and plywood or hardwood and MDF.
+- **Doors**: a pair of doors hangs from its outer edges, so they open from the middle. A single door says to choose its hinge side. Hinges go about 3 in from the top and bottom.
+
 ## v0.80.0 - Where the drawer slides go
 
 - **Drawer slides say where they go**: each hang-the-drawer step gives the level line to draw on the cabinet sides (so far down from the top edge) and where the front of the slide sits. Graduated drawers get all their lines in one instruction, top drawer first.
