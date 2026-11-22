@@ -1121,6 +1121,11 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             if (changes > 0) OutlinedButton(onClick = { showUndo = true }) { Text("Undo ($changes)") }
         }
         for (n in open.analysis.editNotes) Text("Note: $n", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        if (report.problems == 0) Card(Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFDFF2E1))) {
+            Text("Nothing found that stops it being built as drawn. Next: read the Guide through, then share the Shopping list from the Cut list tab and take it to the store." +
+                if (report.checks > 0) " The items below are worth a look first." else "",
+                style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF1B5E20), modifier = Modifier.padding(10.dp))
+        }
         LazyColumn(Modifier.weight(1f)) {
             items(report.findings) { f ->
                 val (word, color) = when (f.severity) {
