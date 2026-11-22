@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.30.0 - How to make each part
+
+How to make each part, with your tools.
+
+- **How to make it.** Tap an item on the Cut list tab and it now lists the steps to make that part, using the tools you have ticked:
+  - cut the blank from the right stock (with the grain the way you set);
+  - cut notches, curves and openings, drilling a starter hole for the blade;
+  - drill holes over a scrap board;
+  - round the edges, plane to thickness, and cut any grooves with their sizes.
+  When a step needs a tool you haven't ticked, it says so and suggests the slow way.
+- **Making the parts** is a new section of the build guide, before the steps. It covers every item that needs more than cutting to size.
+- The phone test now also opens an OBJ file and checks that a shared project comes back with its changes. Both pass.
+
 ## v0.29.0 - Prices, grain and project files
 
 What it costs, grain that stays put, and projects you can back up.
