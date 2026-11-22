@@ -145,7 +145,7 @@ object GuideSteps {
                 if (st.makeCount > 1) lines += "Make ${st.makeCount} of these, all the same."
             } else if (!base || how.isNotEmpty()) {
                 // Doors, drawers and shelves on pins are hung, not fixed: their own lines say how to line them up.
-                val hung = fasten?.byStep?.get(st.step).orEmpty().let { js -> js.isNotEmpty() && js.all { it.kind in setOf("hinges", "slides", "pins") } }
+                val hung = fasten?.byStep?.get(st.step).orEmpty().let { js -> js.isNotEmpty() && js.all { it.kind in setOf("hinges", "slides", "pins", "applied") } }
                 if (!base && !hung) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
                 lines += how
             }
@@ -170,13 +170,13 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> "concealed hinges"; "pins" -> "shelf pins"
+                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate" -> "${j.size} brads"; "dowels" -> j.size; "thin", "edge", "housed" -> continue
                     else -> "${j.size} ${j.kind}"
                 }
                 hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides") 1 else j.count)
                 // Each drawer and door gets a handle; its style is the maker's choice.
-                if (j.kind == "slides" || j.kind == "hinges") hw[splitziner.joinery.Fastening.HANDLE] = (hw[splitziner.joinery.Fastening.HANDLE] ?: 0) + 1
+                if (j.kind == "hinges" || j.kind == "applied" || (j.kind == "slides" && j.into === j.through)) hw[splitziner.joinery.Fastening.HANDLE] = (hw[splitziner.joinery.Fastening.HANDLE] ?: 0) + 1
             }
             val need = (if (st.makeCount > 1) list.map { (k, v) -> k to v * st.makeCount } else list) +
                 hw.map { (k, v) -> k.replaceFirstChar { it.uppercase() } to v * maxOf(1, st.makeCount) }

@@ -66,7 +66,8 @@ object AssemblyPlan {
         val live = parts.filter { !it.excluded }
         val out = HashMap<String, String>()
         for (p in live) out[p.id] = p.id.substringBefore('.')
-        runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.ids) out[id] = "drawer${k + 1}" }
+        // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
+        runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         return out
     }
 
@@ -99,9 +100,10 @@ object AssemblyPlan {
         // The main build keeps a readable number of steps of its own, however many sub-assemblies there are.
         // About three things fitted per step reads well; a step that places a whole pedestal and its drawers does not.
         // Drawers are made whole and hung last, with any doors and shelves on pins.
+        val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
-            unitParts.map { it.id }.filter { it.startsWith("drawer") }
-        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain)
+            unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
+        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts)
         val unitOf = main.parts.associateBy { it.id }
         val steps = ArrayList<BuildStep>(bench)
         for (st in main.steps) {
@@ -131,7 +133,7 @@ object AssemblyPlan {
     private const val MAX_GROUP = 5
 
     /** [hungGiven], when not null, names the parts hung last (doors, drawers made whole, shelves on pins) instead of finding them. */
-    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null): PlanResult {
+    private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null, hungFirst: Set<String> = emptySet()): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
         if (n == 0) return PlanResult(all, emptyList())
@@ -231,7 +233,9 @@ object AssemblyPlan {
             // leave straight out of the front (its own parts aside) is taken first, all its parts together.
             // A drawer made whole is one mesh here, and its front may overlap the carcass edges in a shadow test though
             // it leaves straight forward on its slides: such units are trusted to come out of the front.
-            val outFront = hungGroups.filter { g -> g.all { i -> i in remaining && (hungGiven != null || blockers(i, outDir, present).all { it in g }) } }
+            // Applied drawer fronts come off before their drawers (so go on after them).
+            val firstOff = hungGroups.filter { g -> g.all { parts[it].id in hungFirst } }
+            val outFront = (if (firstOff.isNotEmpty()) firstOff else hungGroups).filter { g -> g.all { i -> i in remaining && (hungGiven != null || blockers(i, outDir, present).all { it in g }) } }
             if (outFront.isNotEmpty()) {
                 val take = LinkedHashMap<Int, Dir>()
                 for (g in outFront) for (i in g) take[i] = outDir
@@ -328,11 +332,15 @@ object AssemblyPlan {
             // Everything a part rests on (touching it from below) must already be in place, or come with it.
             fun below(i: Int) = adj[i].filter { j -> hi[j].z <= lo[i].z + tol }
             fun restsOnBuilt(g: List<Int>) = g.all { i -> lo[i].z <= allLo.z + tol || below(i).all { it in placed || it in g } }
+            // Hung parts wait for the box to be finished, and applied drawer fronts for their drawers.
+            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 2; g.any { parts[it].id in hungIds } -> 1; else -> 0 }
             while (pool.isNotEmpty()) {
+                val low = pool.minOf { rank(it) }
+                val now = pool.filter { rank(it) == low }
                 // Standing parts first (a second leg frame before the top that spans both), then parts whose supports are all built.
-                val pick = pool.firstOrNull { feasible(it) && grounded(it) } ?: pool.firstOrNull { feasible(it) && onFloor(it) }
-                    ?: pool.firstOrNull { feasible(it) && supported(it) && restsOnBuilt(it) } ?: pool.firstOrNull { feasible(it) && supported(it) }
-                    ?: pool.firstOrNull { feasible(it) } ?: pool.first()
+                val pick = now.firstOrNull { feasible(it) && grounded(it) } ?: now.firstOrNull { feasible(it) && onFloor(it) }
+                    ?: now.firstOrNull { feasible(it) && supported(it) && restsOnBuilt(it) } ?: now.firstOrNull { feasible(it) && supported(it) }
+                    ?: now.firstOrNull { feasible(it) } ?: now.first()
                 for (i in pick) freeDir(i)?.let { dirOf[i] = it }
                 raw += pick; pool.remove(pick); placed += pick
             }
