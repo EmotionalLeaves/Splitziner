@@ -1,0 +1,204 @@
+package splitziner.guide
+
+import splitziner.explode.BuildStep
+import splitziner.explode.ExplodeOptions
+import splitziner.explode.ExplodedView
+import splitziner.parts.CutListRow
+import splitziner.parts.Part
+import splitziner.sheet.DisplayList
+import splitziner.sheet.Furniture
+import splitziner.sheet.HAlign
+import splitziner.sheet.Image
+import splitziner.sheet.LineStyle
+import splitziner.sheet.StrokeFont
+import splitziner.sheet.VAlign
+import splitziner.view.ViewDef
+
+/** One step of the build guide, ready to lay out: a picture, what to gather, and what to do. */
+class GuideStep(
+    val number: Int,
+    val title: String,
+    val picture: DisplayList,
+    /** Instruction lines; the user can rewrite these. */
+    val text: List<String>,
+    /** "Item 3 PANEL .75 X 22.00 X 34.50" with how many this step uses. */
+    val parts: List<Pair<String, Int>>,
+    val check: String?,
+)
+
+/** What the user may change about a step's wording. */
+data class StepText(val title: String? = null, val lines: List<String>? = null, val check: String? = null)
+
+object GuideSteps {
+    /** Step pictures are drawn at this size in mm and scaled onto the page. */
+    const val PICTURE_W = 170.0
+    const val PICTURE_H = 115.0
+
+    /** How an instruction describes the side a part comes in from, given the way it leaves. */
+    private fun whereFrom(x: Double, y: Double, z: Double): String? = when {
+        z > 0.5 -> "from above"; z < -0.5 -> "from below"
+        y < -0.5 -> "from the front"; y > 0.5 -> "from the back"
+        x < -0.5 -> "from the left"; x > 0.5 -> "from the right"
+        else -> null
+    }
+
+    fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<Int, StepText> = emptyMap()): List<GuideStep> {
+        val drawn = parts.filter { !it.excluded }
+        val byId = drawn.associateBy { it.id }
+        // One view for every step, so the reader keeps their bearings.
+        val view: ViewDef = ExplodedView.pickView(drawn)
+        // And one framing: every picture leaves room for the whole finished object, so nothing jumps in size between steps.
+        val frame = ExplodedView.assembledBounds(drawn, view)
+        val done = LinkedHashSet<String>()
+        val out = ArrayList<GuideStep>()
+        for (st in steps) {
+            val cur = st.partIds.mapNotNull { byId[it] }
+            val count = LinkedHashMap<Int?, Int>()
+            for (p in cur) count[p.item] = (count[p.item] ?: 0) + 1
+            // This step's parts pulled out, earlier parts in place and greyed, later parts left out.
+            val scene = drawn.filter { it.id in done }.map { it.copy(explode = null) } +
+                cur.map { p -> p.copy(explode = if (st.step > 1) p.explode else null, qty = count[p.item] ?: 1) }
+            val pic = ExplodedView.render(
+                scene, PICTURE_W, PICTURE_H,
+                ExplodeOptions(balloons = true, arrows = st.step > 1, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = done.toSet(), textHeight = 3.4),
+                view, "step%02d".format(st.step), frame,
+            )
+            val lines = ArrayList<String>()
+            for ((item, n) in count) {
+                val sides = ArrayList<String>()
+                for (p in cur) if (p.item == item) p.explode?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
+                val where = when {
+                    st.step == 1 || sides.isEmpty() -> ""
+                    sides.size == 2 && sides.all { it.startsWith("from the ") } -> " from the ${sides[0].removePrefix("from the ")} and ${sides[1].removePrefix("from the ")}"
+                    else -> " " + sides.joinToString(", ")
+                }
+                val verb = if (st.step == 1) "Place" else "Fit"
+                val what = if (item != null) "item $item" else "the part"
+                lines += "$verb ${if (n > 1) "$n× " else ""}$what$where."
+            }
+            if (st.step > 1) lines += "Check it is square and seated against the parts already installed, then fasten."
+            val list = count.map { (item, n) -> "Item ${item ?: "-"} ${cur.first { it.item == item }.desc}" to n }
+            val o = overrides[st.step]
+            out += GuideStep(st.step, o?.title ?: if (st.step == 1) "Step 1: base" else "Step ${st.step}", pic, o?.lines ?: lines, list, o?.check)
+            done += st.partIds
+        }
+        return out
+    }
+}
+
+/** Lays the build guide out on pages. Sizes are millimetres; text keeps the writer's capitalisation. */
+object GuideLayout {
+    private const val NOTICE_BLUE = 0xFF005BBB.toInt()
+    private const val WHITE = 0xFFFFFFFF.toInt()
+    const val DRAFT_NOTICE = "Assembly order and materials are drafts generated from the 3D model. Confirm them before building."
+
+    class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false)
+
+    private class Pages(val w: Double, val h: Double, val title: String) {
+        val list = ArrayList<DisplayList>()
+        fun new(): DisplayList {
+            val p = DisplayList(w, h, "guide_page%02d".format(list.size + 1))
+            p.upperCase = false
+            p.text(12.0, h - 12, title.uppercase(), 3.0, vAlign = VAlign.TOP, bold = true)
+            p.line(10.0, h - 17, w - 10, h - 17)
+            list += p
+            return p
+        }
+    }
+
+    private fun para(p: DisplayList, x: Double, y: Double, text: String, h: Double, width: Double, bold: Boolean = false): Double {
+        var yy = y
+        for (ln in wrapMixed(text, h, width)) { p.text(x, yy, ln, h, vAlign = VAlign.TOP, bold = bold); yy -= h * 1.5 }
+        return yy
+    }
+
+    private fun wrapMixed(text: String, h: Double, width: Double): List<String> {
+        val lines = ArrayList<String>(); var cur = ""
+        for (word in text.split(' ').filter { it.isNotEmpty() }) {
+            val trial = if (cur.isEmpty()) word else "$cur $word"
+            if (cur.isNotEmpty() && StrokeFont.width(trial, h) > width) { lines += cur; cur = word } else cur = trial
+        }
+        if (cur.isNotEmpty()) lines += cur
+        return lines
+    }
+
+    /** A notice box in the style of a safety sign: blue signal panel, then the message. Returns the y below it. */
+    private fun notice(p: DisplayList, x: Double, y: Double, w: Double, text: String): Double {
+        val ph = 7.5
+        p.fill(doubleArrayOf(x, y - ph, x + w, y - ph, x + w, y, x, y), NOTICE_BLUE)
+        p.text(x + 3, y - ph / 2, "NOTICE", 4.0, vAlign = VAlign.CENTER, bold = true, argb = WHITE)
+        val lines = wrapMixed(text, 3.2, w - 6)
+        val bottom = y - ph - lines.size * 4.8 - 3
+        p.rect(x, bottom, x + w, y)
+        var yy = y - ph - 2
+        for (ln in lines) { p.text(x + 3, yy, ln, 3.2, vAlign = VAlign.TOP); yy -= 4.8 }
+        return bottom - 4
+    }
+
+    fun pages(info: Info, steps: List<GuideStep>, rows: List<CutListRow>, hero: DisplayList?): List<DisplayList> {
+        val w = if (info.a4) 210.0 else 215.9; val h = if (info.a4) 297.0 else 279.4
+        val pages = Pages(w, h, info.title)
+
+        // Cover.
+        var p = pages.new()
+        var y = h - 26
+        p.text(w / 2, y, info.title, 9.0, HAlign.CENTER, VAlign.TOP, bold = true); y -= 14
+        if (info.subtitle.isNotBlank()) { p.text(w / 2, y, info.subtitle, 4.0, HAlign.CENTER, VAlign.TOP); y -= 8 }
+        if (hero != null) { p.prims += Image(25.0, y - 95, w - 25, y, hero); y -= 100 }
+        for ((k, v) in listOf("FINISHED SIZE" to info.overallSize, "PARTS" to "${info.partCount}", "BUILD STEPS" to "${steps.size}")) {
+            p.text(25.0, y, "$k:", 3.2, vAlign = VAlign.TOP, bold = true); p.text(70.0, y, v, 3.2, vAlign = VAlign.TOP); y -= 6
+        }
+        y -= 3
+        y = notice(p, 25.0, y, w - 50, DRAFT_NOTICE)
+        val columns = ArrayList<Pair<String, List<String>>>()
+        if (info.tools.isNotEmpty()) columns += "TOOLS NEEDED" to info.tools
+        columns += "MATERIALS" to rows.map { "${it.qty} x ${it.description}" + if (it.material.isNotBlank()) " (${it.material})" else "" }
+        val colW = (w - 50 - (columns.size - 1) * 8) / columns.size
+        val top = y
+        var page = p
+        columns.forEachIndexed { ci, (head, items) ->
+            var pg = page; var x = 25.0 + ci * (colW + 8); var yy = top
+            pg.text(x, yy, head, 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7
+            for (it in items) {
+                val need = wrapMixed("• $it", 3.0, colW - 3).size * 4.5
+                // The page is full: carry the list on overleaf under a "continued" heading.
+                if (yy - need < 16) { pg = pages.new(); x = 25.0; yy = h - 26; pg.text(x, yy, "$head (CONTINUED)", 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7 }
+                yy = para(pg, x + 3, yy, "• $it", 3.0, colW - 3)
+            }
+            page = pg
+        }
+
+        // Steps: two to a page; one that needs more room than half a page gets a page to itself.
+        val usable = h - 17 - 8 - 14
+        fun textHeight(s: GuideStep, width: Double): Double =
+            s.text.sumOf { wrapMixed("0. $it", 3.2, width).size * 4.8 } + (if (s.check != null) wrapMixed("CHECK: ${s.check}", 3.2, width).size * 4.8 + 2 else 0.0)
+        fun listHeight(s: GuideStep, width: Double): Double = 6 + s.parts.sumOf { wrapMixed("${it.second}× ${it.first}", 2.9, width).size * 4.35 }
+        var slot = 2
+        var cursor = 0.0
+        for (s in steps) {
+            val fullW = w - 24
+            val picW = fullW * 0.62; val listW = fullW - picW - 6
+            val th = textHeight(s, fullW)
+            val minPic = 55.0
+            val wantsFull = 8 + maxOf(minPic, listHeight(s, listW)) + th + 6 > usable / 2
+            if (slot >= 2 || wantsFull) { p = pages.new(); slot = 0; cursor = h - 22 }
+            val blockH = if (wantsFull) usable else usable / 2
+            val topY = cursor
+            p.text(12.0, topY, s.title, 4.5, vAlign = VAlign.TOP, bold = true)
+            val picTop = topY - 8
+            val picBottom = topY - blockH + th + 6
+            p.prims += Image(12.0, picBottom, 12.0 + picW, picTop, s.picture)
+            var ly = picTop
+            p.text(12.0 + picW + 6, ly, "PARTS FOR THIS STEP", 3.0, vAlign = VAlign.TOP, bold = true); ly -= 6
+            for ((name, n) in s.parts) ly = para(p, 12.0 + picW + 6, ly, "$n× $name", 2.9, listW)
+            var ty = picBottom - 3
+            s.text.forEachIndexed { i, line -> ty = para(p, 12.0, ty, "${i + 1}. $line", 3.2, fullW) }
+            if (s.check != null) { ty -= 2; para(p, 12.0, ty, "CHECK: ${s.check}", 3.2, fullW, bold = true) }
+            if (wantsFull) slot = 2 else { slot++; cursor = topY - blockH - 4; if (slot == 1) p.line(12.0, cursor + 2, w - 12, cursor + 2, LineStyle.THIN) }
+        }
+
+        // Page numbers go on last, once the count is known.
+        pages.list.forEachIndexed { i, pg -> pg.text(w / 2, 8.0, "PAGE ${i + 1} OF ${pages.list.size}", 2.6, HAlign.CENTER, VAlign.CENTER) }
+        return pages.list
+    }
+}

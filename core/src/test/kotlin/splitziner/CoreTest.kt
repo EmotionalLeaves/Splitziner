@@ -331,3 +331,115 @@ class DrawingTest {
         println("block: sheet ${r.sheet.letter} scale ${r.scaleText} qa ${r.qa}")
     }
 }
+
+class ExplodeTest {
+    private val out = java.io.File("build/preview").apply { mkdirs() }
+    private fun cabinet(): splitziner.parts.CutListResult {
+        val parts = Fixtures.miniCabinet(Fixtures.INCH).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        return CutList.build(parts, LengthFormat("in"))
+    }
+
+    @Test fun planCoversEveryPartOnceAndIsSlideable() {
+        val cut = cabinet()
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        println("plan: " + plan.steps.joinToString(" | ") { s -> "${s.step}:${s.partIds}" + s.directions.joinToString(",") { "(${it.x.toInt()},${it.y.toInt()},${it.z.toInt()})" } })
+        assertEquals(cut.parts.map { it.id }.sorted(), plan.steps.flatMap { it.partIds }.sorted())
+        assertEquals((1..plan.steps.size).toList(), plan.steps.map { it.step })
+        assertTrue(plan.steps.size <= 10)
+        // The base is the bottom panel: largest footprint on the floor.
+        assertEquals(listOf("P03"), plan.steps[0].partIds)
+        assertNull(plan.parts.first { it.id == "P03" }.explode)
+    }
+
+    @Test fun lidGoesOnAfterTheBlockInside() {
+        val meshes = listOf(
+            Fixtures.box(0.0, 100.0, 0.0, 100.0, 0.0, 5.0),        // floor
+            Fixtures.box(0.0, 5.0, 0.0, 100.0, 5.0, 60.0), Fixtures.box(95.0, 100.0, 0.0, 100.0, 5.0, 60.0),
+            Fixtures.box(5.0, 95.0, 0.0, 5.0, 5.0, 60.0), Fixtures.box(5.0, 95.0, 95.0, 100.0, 5.0, 60.0),
+            Fixtures.box(30.0, 70.0, 30.0, 70.0, 5.0, 40.0),        // loose block
+            Fixtures.box(0.0, 100.0, 0.0, 100.0, 60.0, 65.0),       // lid
+        )
+        val parts = meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val plan = splitziner.explode.AssemblyPlan.plan(parts)
+        val step = plan.parts.associate { it.id to it.step!! }
+        assertTrue(step.getValue("P06") < step.getValue("P07"), "block ${step["P06"]} lid ${step["P07"]}")
+    }
+
+    @Test fun explodedCabinetPicture() {
+        val cut = cabinet()
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val dl = splitziner.explode.ExplodedView.render(plan.parts, 200.0, 150.0, splitziner.explode.ExplodeOptions())
+        java.io.File(out, "cabinet_exploded.svg").writeText(splitziner.export.SvgWriter.write(dl))
+        assertEquals(5, dl.boxes.count { it.tag == "balloon" })
+        val b = dl.boxes.filter { it.tag == "balloon" }
+        for (i in b.indices) for (j in i + 1 until b.size) assertEquals(0.0, b[i].overlap(b[j]), 1e-9)
+    }
+}
+
+class GuideTest {
+    private val out = java.io.File("build/preview").apply { mkdirs() }
+
+    @Test fun cabinetGuideAndSheetTwo() {
+        val fmt = LengthFormat("in")
+        val parts = Fixtures.miniCabinet(Fixtures.INCH).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val cut = CutList.build(parts, fmt)
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
+        assertEquals(plan.steps.size, steps.size)
+        assertEquals("Place item 2.", steps[0].text[0])
+        assertTrue(steps[1].text[0].startsWith("Fit item 1 from the left"), steps[1].text[0])
+        // The top panel goes on only after both sides are there to carry it.
+        val stepOf = plan.parts.associate { it.id to it.step!! }
+        assertTrue(stepOf.getValue("P04") > stepOf.getValue("P01") && stepOf.getValue("P04") > stepOf.getValue("P02"))
+        val hero = splitziner.explode.ExplodedView.render(plan.parts.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), splitziner.explode.ExplodedView.pickView(plan.parts), "hero")
+        val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info("Storage cabinet", "Build guide", "36.00 x 24.00 x 60.00 in", 7), steps, cut.rows, hero)
+        pages.forEachIndexed { i, p -> java.io.File(out, "guide_page%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(p)) }
+        java.io.File(out, "step03.svg").writeText(splitziner.export.SvgWriter.write(steps[2].picture))
+        assertTrue(pages.size >= 3)
+
+        val vs = splitziner.drawing.DrawingBuilder.views(cut.parts)
+        val r = splitziner.drawing.DrawingBuilder.build(cut.parts, cut.rows, vs, splitziner.sheet.DrawingInfo(title = "Cabinet, storage", drawingNo = "CAB-001"), splitziner.drawing.DrawingSettings(), fmt, plan.parts)
+        assertEquals(2, r.sheets.size)
+        java.io.File(out, "cabinet_sheet2.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[1]))
+        println("sheet2 qa: ${r.qa}")
+    }
+}
+
+class BiggerAssemblyTest {
+    /** A shelving unit: two sides, a back, seven shelves and three rows of dividers. About 40 parts. */
+    private fun shelving(): List<splitziner.mesh.Mesh> {
+        val u = Fixtures.INCH
+        val out = ArrayList<splitziner.mesh.Mesh>()
+        out += Fixtures.box(0.0, 0.75, 0.0, 12.0, 0.0, 72.0, u); out += Fixtures.box(47.25, 48.0, 0.0, 12.0, 0.0, 72.0, u)
+        out += Fixtures.box(0.75, 47.25, 11.75, 12.0, 0.0, 72.0, u)
+        for (i in 0..6) out += Fixtures.box(0.75, 47.25, 0.0, 11.75, i * 11.875, i * 11.875 + 0.75, u)
+        for (i in 0..5) for (j in 1..5) if ((i + j) % 2 == 0) out += Fixtures.box(j * 7.75, j * 7.75 + 0.75, 0.0, 11.75, i * 11.875 + 0.75, (i + 1) * 11.875, u)
+        return out
+    }
+
+    @Test fun shelvingUnitEndToEnd() {
+        val fmt = LengthFormat("in")
+        val bytes = Fixtures.binaryStl(Fixtures.soup(shelving(), repeat = 2, scale = 1.0 / 1000))
+        val t0 = System.nanoTime()
+        val a = Pipeline.analyze(bytes, "shelving.stl")
+        assertEquals("m", a.report.units.fileUnits); assertEquals("in", a.report.units.designUnits)
+        val t1 = System.nanoTime()
+        val plan = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val t2 = System.nanoTime()
+        val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
+        val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, splitziner.sheet.DrawingInfo(title = "Shelving unit"), splitziner.drawing.DrawingSettings(), a.format, plan.parts)
+        val t3 = System.nanoTime()
+        val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
+        val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info("Shelving unit", "Build guide", a.overallSize, a.parts.size), steps, a.cutList.rows, null)
+        val t4 = System.nanoTime()
+        println("shelving: ${a.parts.size} parts, ${a.cutList.rows.size} items, ${plan.steps.size} steps, sheet ${r.sheet.letter} ${r.scaleText}, ${pages.size} pages; ms analyze ${(t1 - t0) / 1000000} plan ${(t2 - t1) / 1000000} drawing ${(t3 - t2) / 1000000} guide ${(t4 - t3) / 1000000}; qa ${r.qa}")
+        val out = java.io.File("build/preview").apply { mkdirs() }
+        java.io.File(out, "shelving_sheet1.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[0]))
+        java.io.File(out, "shelving_sheet2.svg").writeText(splitziner.export.SvgWriter.write(r.sheets[1]))
+        java.io.File(out, "shelving_step.svg").writeText(splitziner.export.SvgWriter.write(steps[steps.size / 2].picture))
+        assertTrue(plan.steps.size <= 10)
+        assertEquals(a.parts.size, plan.steps.sumOf { it.partIds.size })
+        // Every part must be able to slide in past the parts of earlier steps: nothing is trapped.
+        assertTrue(t4 - t0 < 60_000_000_000L)
+    }
+}

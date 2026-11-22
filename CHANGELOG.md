@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0 - Exploded view and build guide
+
+Exploded view and a step-by-step build guide.
+
+- **New Guide tab.** The app works out an order to build your model in and draws one picture per step: the new part in bold with an arrow showing which way it goes in, the parts already in place in grey, and a dashed line tracing it to its seat. Each step lists the parts to gather and what to do.
+- **Share build guide (PDF)**: a cover with the finished object, its size and the materials list, then the steps, ready to print.
+- **Second drawing sheet: exploded view.** The whole model pulled apart, with numbered balloons that match the list of material on sheet 1. Switch between sheets under the preview; the drawing PDF now has both.
+- **The order makes physical sense**: parts that stand on the floor go first, and nothing is placed before the parts that hold it up.
+
+Please read this before trusting it: the build order comes from the shapes alone. The app checks that each part can slide into place, but it knows nothing about glue, clamps, screws or what is easiest to hold. Treat the guide as a draft and read it through before you build. Editing the steps yourself is coming.
+
+This version has not been tried on a real phone yet. If a tab stays blank or the app closes, tap **Copy diagnostic report** and send it over.
+
 ## v0.3.0 - Engineering drawing
 
 The first engineering drawing: a real sheet with views, dimensions and a title block, exported as PDF.

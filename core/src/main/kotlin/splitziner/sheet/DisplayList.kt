@@ -19,7 +19,7 @@ object Styles {
     fun width(s: LineStyle): Double = when (s) {
         LineStyle.THICK -> 0.6; LineStyle.THIN -> 0.3; LineStyle.HIDDEN -> 0.3; LineStyle.CENTER -> 0.3
         LineStyle.PHANTOM -> 0.3; LineStyle.CUT -> 0.8; LineStyle.BORDER -> 0.9; LineStyle.HATCH -> 0.25
-        LineStyle.OUTLINE -> 0.85; LineStyle.GHOST -> 0.3; LineStyle.TRACE -> 0.3
+        LineStyle.OUTLINE -> 0.7; LineStyle.GHOST -> 0.3; LineStyle.TRACE -> 0.3
     }
 
     /** Dash, gap, dash, gap... in mm; null for a solid line. */

@@ -59,6 +59,7 @@ import io.github.emotionalleaves.splitziner.render.PdfExporter
 import io.github.emotionalleaves.splitziner.render.SheetPreview
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import splitziner.export.CsvWriter
@@ -190,14 +191,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TabButton("3D", tab == 0, Modifier.weight(1f)) { tab = 0 }
-            TabButton("Parts", tab == 1, Modifier.weight(1f)) { tab = 1 }
-            TabButton("Cuts", tab == 2, Modifier.weight(1f)) { tab = 2 }
-            TabButton("Drawing", tab == 3, Modifier.weight(1.4f)) { tab = 3 }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("3D", "Parts", "Cut list", "Drawing", "Guide").forEachIndexed { i, label -> TabButton(label, tab == i, Modifier) { tab = i } }
         }
         if (tab == 3) {
             DrawingTab(open, state, vm, Modifier.weight(1f))
+        } else if (tab == 4) {
+            GuideTab(open, state, vm, Modifier.weight(1f))
         } else
         if (tab == 0) {
             val sel = a.parts.firstOrNull { it.id == selectedId }
@@ -392,8 +392,10 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
     val context = LocalContext.current
     var showInfo by remember { mutableStateOf(false) }
     var showQa by remember { mutableStateOf(false) }
+    var sheetIndex by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(open.analysis) { vm.ensureDrawing() }
     val d = state.drawing
+    val shown = if (d != null) sheetIndex.coerceIn(0, maxOf(d.sheets.size - 1, 0)) else 0
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = { showInfo = true }) { Text("Title block") }
@@ -403,13 +405,18 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             } else Spacer(Modifier.weight(1f))
         }
         Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
-            if (d != null && d.sheets.isNotEmpty()) SheetPreview(d.sheets[0], Modifier.fillMaxSize())
+            if (d != null && d.sheets.isNotEmpty()) SheetPreview(d.sheets[shown], Modifier.fillMaxSize())
             if (state.drawingBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
                     Text("Working out which edges are visible\u2026", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(6.dp))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
+            }
+        }
+        if (d != null && d.sheets.size > 1) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                d.sheets.indices.forEach { i -> TabButton(if (i == 0) "Sheet 1: views" else "Sheet ${i + 1}: exploded", shown == i, Modifier.weight(1f)) { sheetIndex = i } }
             }
         }
         Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
@@ -477,15 +484,49 @@ private fun TitleBlockDialog(meta: ProjectMeta, onDismiss: () -> Unit, onApply: 
     )
 }
 
-private fun sharePdf(context: Context, open: OpenProject, d: DrawingState) {
+private fun sharePdf(context: Context, open: OpenProject, d: DrawingState) = sharePdf(context, open, d.sheets, "drawing")
+
+private fun sharePdf(context: Context, open: OpenProject, sheets: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, kind: String) {
     try {
         val base = open.meta.drawingNo.ifBlank { open.meta.name }.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
-        val file = PdfExporter.write(context, d.sheets, "${base}_drawing.pdf")
+        val file = PdfExporter.write(context, sheets, "${base}_$kind.pdf")
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         val send = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(send, "Share drawing"))
+        context.startActivity(Intent.createChooser(send, "Share $kind"))
     } catch (e: Throwable) {
         Diagnostics.logError("share pdf", e)
         Toast.makeText(context, "Could not make the PDF", Toast.LENGTH_LONG).show()
+    }
+}
+
+
+@Composable
+private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifier: Modifier) {
+    val context = LocalContext.current
+    var page by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(open.analysis, state.guide == null) { vm.ensureGuide() }
+    val g = state.guide
+    val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
+    Column(modifier.fillMaxWidth()) {
+        Text("The build order is a draft worked out from the shapes alone. It does not know about glue, clamps or screws: read it through before you build.",
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
+            if (g != null && g.pages.isNotEmpty()) SheetPreview(g.pages[shown], Modifier.fillMaxSize())
+            if (state.guideBusy) {
+                Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
+                    Text("Working out the build order and drawing each step\u2026", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+        }
+        if (g != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { page = shown - 1 }, enabled = shown > 0) { Text("\u2190 Back") }
+                Text("Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                OutlinedButton(onClick = { page = shown + 1 }, enabled = shown < g.pages.size - 1) { Text("Next \u2192") }
+            }
+        }
+        Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) { Text("Share build guide (PDF)") }
     }
 }

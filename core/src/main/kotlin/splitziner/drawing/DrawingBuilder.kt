@@ -84,7 +84,11 @@ object DrawingBuilder {
 
     private class Layout(val sheet: SheetSize, val scale: Double, val fill: Double, val listOnSheet: Boolean)
 
-    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat): DrawingResult {
+    /**
+     * [planned] is the same parts carrying their assembly plan (explode directions and steps). When given
+     * for an assembly, a second sheet shows the exploded view with item balloons.
+     */
+    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, planned: List<Part>? = null): DrawingResult {
         val drawn = parts.filter { !it.excluded }
         val single = drawn.size <= 1
         val front = vs.views.getValue("front"); val top = vs.views.getValue("top"); val right = vs.views.getValue("right")
@@ -163,7 +167,8 @@ object DrawingBuilder {
         val dl = DisplayList(sheet.width, sheet.height, "sheet1")
         val notes = notesFor(info, sheet).toMutableList()
         if (!chosen.listOnSheet && rows.isNotEmpty()) notes += "SEE SEPARATE PARTS LIST PL-${info.drawingNo.ifBlank { "1" }}."
-        val title = Furniture.draw(dl, sheet, L, info, scaleText(s), fmt.units, 1, 1)
+        val sheetCount = if (planned != null && !single) 2 else 1
+        val title = Furniture.draw(dl, sheet, L, info, scaleText(s), fmt.units, 1, sheetCount)
         Furniture.notes(dl, sheet, L, info, notes)
         val listH = if (chosen.listOnSheet) ListOfMaterial.height(rows.size) else 0.0
         if (chosen.listOnSheet) ListOfMaterial.draw(dl, rows, sheet.fieldX1, title.top, L, single)
@@ -197,6 +202,22 @@ object DrawingBuilder {
         }
         if (overlaps > 0) qa += "$overlaps annotation overlap(s) on sheet 1; a larger sheet may read better"
         qa += dl.qa
-        return DrawingResult(listOf(dl), sheet, s, scaleText(s), qa)
+        val sheets = arrayListOf(dl)
+        if (sheetCount == 2) {
+            val d2 = DisplayList(sheet.width, sheet.height, "sheet2")
+            val t2 = Furniture.draw(d2, sheet, L, info, scaleText(s), fmt.units, 2, 2)
+            // Big assemblies show only their outer layer pulled away; the build guide shows every step.
+            val scene = splitziner.explode.ExplodedView.peel(planned!!.filter { !it.excluded })
+            val geo = splitziner.explode.ExplodedView.prepare(scene)
+            splitziner.explode.ExplodedView.drawInto(d2, geo, sheet.fieldX0 + 4, t2.top + 12, sheet.fieldX1 - 4, sheet.fieldY1 - 4, splitziner.explode.ExplodeOptions(textHeight = L.dims))
+            d2.text(sheet.fieldX0 + 8, t2.y0 + 14, "EXPLODED VIEW", L.descTitle, tag = "section")
+            d2.text(sheet.fieldX0 + 8, t2.y0 + 14 - L.dims * 1.6, "SCALE: NONE", L.dims)
+            // Every listed item must be pointed to at least once on the drawing.
+            val shown = d2.boxes.count { it.tag == "balloon" }
+            if (shown < rows.size) qa += "${rows.size - shown} item(s) are not identified by a balloon on sheet 2"
+            qa += d2.qa
+            sheets += d2
+        }
+        return DrawingResult(sheets, sheet, s, scaleText(s), qa)
     }
 }
