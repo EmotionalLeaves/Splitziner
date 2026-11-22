@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.49.0 - Back panels last, combined steps, tighter guide text
+
+- **Back panels go on last**, after the shelves they cover, so you square the case and fix the shelves while it is still open. They still go on before drawers and doors are hung.
+- **Like steps are combined.** Four shelves are one step ("Fit 4× item 3 (shelf) from the front"), drawn side by side with one arrow and a ×4 tag. A bookcase guide drops from 9 steps to 6.
+- **Rabbets and grooves are explained once.** Later steps say "Glue and pin item 1 (bottom) into its rabbet in item 3 (side), as in step 2" instead of repeating the whole paragraph.
+- **One item under several names is one line.** For example: "Glue item 3 (back panel) to item 2 (bottom, top and shelf)". The nightstand guide is a page shorter.
+- A back panel on a shelf's edge is pinned with brads, not "glued face to face and clamped".
+
 ## v0.48.0 - Tables built from end frames, no floating steps, tops fixed from underneath
 
 - **Tables and benches are built the way a woodworker would.** First you make the two end frames (two legs and the short apron) on the bench. Then you stand them up and join them with the long aprons, and the top goes on last. Before, step 1 left a single leg standing alone.
