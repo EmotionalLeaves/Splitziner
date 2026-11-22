@@ -1283,7 +1283,8 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
                     plan.leftOut.map { ShopLine(it, null) } +
                     listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()).map { ShopLine(it, null) }
                 val (cost, missing) = woodCost(context, buy)
-                ShopLists(wood, vm.hardwareFor(open).map { ShopLine(it, null) },
+                // Advice ("buy about 10% extra") is said under the list, not ticked off like a thing to buy.
+                ShopLists(wood, vm.hardwareFor(open).filterNot { it.startsWith("Buy about") || it.startsWith("Joined with") }.map { ShopLine(it, null) },
                     if (cost > 0) "Wood about ${money(cost)}" + (if (missing > 0) ", $missing without a price" else "") else null)
             }.onFailure { Diagnostics.logError("shopping list", it) }.getOrNull()
         }
@@ -1324,6 +1325,7 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
                                 }
                             }
                         }
+                        if (l.hardware.any { it.text.contains("screws") || it.text.contains("brads") }) item { Text("Buy about 10% extra screws and brads; a few always go astray.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }
                         item { Text("Sizes and counts are worked out from the model with workshop rules of thumb; check them against your plans before buying. Stock sizes come from the cutting plan.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp)) }
                     }
