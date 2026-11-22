@@ -318,8 +318,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 Text(open.meta.title.ifBlank { open.meta.name }, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val notes = r.warnings.size + (if (r.duplicatesRemoved > 0) 1 else 0)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${r.parts} part${if (r.parts == 1) "" else "s"}  \u00b7  ${a.overallSize}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    if (notes > 0) Text("  \u00b7  $notes note${if (notes == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
+                    Text("${r.parts} part${if (r.parts == 1) "" else "s"}\u2009\u00b7\u2009${a.overallSize}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (notes > 0) Text("\u2009\u00b7\u2009$notes note${if (notes == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
                 }
             }
             Box {
@@ -1649,9 +1649,9 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         // Filters by how serious, so a long list can be worked through one kind at a time.
         var only by remember { mutableStateOf<splitziner.check.Severity?>(null) }
         val counts = report.findings.groupingBy { it.severity }.eachCount()
-        if (counts.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (counts.size > 1) androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             androidx.compose.material3.FilterChip(selected = only == null, onClick = { only = null }, label = { Text("All ${report.findings.size}") })
-            for ((sev, word) in listOf(splitziner.check.Severity.PROBLEM to "Problems", splitziner.check.Severity.CHECK to "To check", splitziner.check.Severity.NOTE to "Notes")) {
+            for ((sev, word) in listOf(splitziner.check.Severity.PROBLEM to "Problems", splitziner.check.Severity.CHECK to "Checks", splitziner.check.Severity.NOTE to "Notes")) {
                 val n = counts[sev] ?: 0
                 if (n > 0) androidx.compose.material3.FilterChip(selected = only == sev, onClick = { only = if (only == sev) null else sev }, label = { Text("$word $n") })
             }
@@ -1676,7 +1676,8 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                         val long = f.detail.length > 180
                         Text(f.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = if (long && !whole) 3 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis)
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // Actions wrap onto a second line rather than run off the card's edge.
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (long) TextButton(onClick = { whole = !whole }) { Text(if (whole) "Less" else "More") }
                             if (f.partIds.isNotEmpty()) TextButton(onClick = { onShow(f.partIds[0]) }) { Text("Show in 3D") }
                             for (fix in f.fixes) TextButton(onClick = {

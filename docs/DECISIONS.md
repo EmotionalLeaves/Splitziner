@@ -276,3 +276,7 @@ Departures from the build spec, newest first.
 - Grooves cut the same but measured from different edges (a leg's two mortises) are listed apart.
 - When planning what blocks a part's way in, a notched part (under 85% of its box) counts only where it has material ahead of that part: a tread drops onto a stringer's step from above.
 - Lean angles and back slat names are only read from boards (at least 90% of their oriented box): a rod's box can turn any way about it.
+
+## v1.0
+- Version numbers go on from 0.99 to 1.0.0 (version code 10000, above 0.99's 9900); nothing else is meant by it.
+- Check tab: a finding's action buttons wrap onto a second line instead of running off the card, and the severity filters wrap too ("Checks" for short).

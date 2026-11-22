@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.0 - Tidier Check tab
+
+- Check tab: the buttons under a finding (More, Show in 3D, the fixes) wrap onto a new line instead of being cut off at the edge, and the filters fit on narrow screens.
+- The project header is a little tighter, so more of the overall size shows.
+- Version 1.0: just the number after 0.99.
+
 ## v0.99.0 - Mortise and tenon
 
 - Mortise and tenon: tenons drawn as parts of their own are recognised. The guide glues each tenon into its rail on the bench, then glues the rails into the legs' mortises. No screws or brackets, and no false "parts overlap" problem. Each leg's drawing and making steps give every mortise's size and position, and how to cut it.
