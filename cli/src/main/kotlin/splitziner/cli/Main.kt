@@ -81,6 +81,7 @@ fun main(args: Array<String>) {
             val info = splitziner.sheet.DrawingInfo(title = f.nameWithoutExtension, drawingNo = "TEST-1")
             var plan: splitziner.explode.PlanResult? = null
             time("plan") { plan = splitziner.explode.AssemblyPlan.plan(a.parts); println("plan      ${plan!!.steps.size} steps") }
+            if (System.getenv("STRETCH") != null) for (k in 0..2) println("stretch   axis $k: ${splitziner.edit.Editor.stretchPlane(a.parts, k)?.let { "at ${a.format.format(it.first)}, can shrink ${a.format.format(it.second)}" } ?: "none"}")
             if (System.getenv("STEPS") != null) for (st in plan!!.steps) println("step      ${st.step}${if (st.subassembly) " bench x${st.makeCount}" else ""}: ${st.partIds.size} parts, items ${st.items}")
             var plain = emptySet<Int>()
             time("drawing") {
