@@ -70,3 +70,13 @@ Departures from the build spec, newest first.
 - Overlay doors are found only when a box's front edges are behind all four sides (or a twin door on one side), so a desk's modesty panel on legs is not taken for a door.
 - Doors, drawers and adjustable shelves are taken off first when planning, so the guide fits them last, once the box is finished. Identical ones go in together in one step.
 - Adjustable shelves: 1.5 mm short each end, resting on 4 pins. Hole rows follow the common 32 mm system (37 mm in from the edges, 32 mm apart), given in millimetres in inch mode too, because jigs are made for it. Hole size is left to the pins bought (5 mm most common).
+
+## v0.40–0.43: professional outputs and look
+- Cutting plan: in metric, boards of sheet thickness are ripped from sheet when wide (150 mm or more), thin (12 mm or less), or when that sheet is bought anyway; filler boards that would cost an extra panel go back to lengths. In inches, boards that would need ripping from lumber come from a sheet already bought. The packer tries 3 piece orders x 3 split rules and keeps the fewest panels, then the emptiest last panel.
+- Applied drawer fronts (wider than the box) are not part of the drawer's bench unit: the box is hung, then the front is set with even gaps and screwed on from inside. Screw length is through the box end and up to 4 mm short of the front's face.
+- Doors, drawers and adjustable shelves leave the model straight out of the front in the plan and the exploded views. A whole drawer, merged into one mesh, is trusted to slide out on its slides.
+- A thin part flush with an edge of the part holding it sits in a rabbet; otherwise in a groove.
+- Drawing scales follow the units: inch halves (1/2, 1/4, 1/8, 1/16...); metric uses ISO 5455 (1/2, 1/5, 1/10, 1/20...). The largest view must be 80 mm or more before a sheet is accepted.
+- A part hidden in all three principal views (doors' clearance gaps ignored, 3 mm) makes the right view a full section, so it can be located.
+- Part names (Side, Top, Shelf, Rail...) are guesses from position and shape; a name from the file or the user always wins. Narrow boards (under 150 mm) are never shelves, sides or tops.
+- UI: fixed colours (drafting blue, amber) instead of wallpaper colours, so screenshots and guides look the same everywhere; all six tabs in one fixed row (smaller lettering under 380 dp) rather than a scrolling row that hid Guide and Check.
