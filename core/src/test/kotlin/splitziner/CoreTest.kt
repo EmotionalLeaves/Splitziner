@@ -1454,3 +1454,28 @@ class RolesTest {
         assertEquals("Top", tn["P01"]); assertEquals(4, tn.values.count { it == "Leg" }); assertEquals(4, tn.values.count { it == "Apron" })
     }
 }
+
+class ThreeMfTest {
+    private fun cube(id: Int, s: Double): String {
+        val v = listOf(0.0, s).flatMap { z -> listOf(0.0, s).flatMap { y -> listOf(0.0, s).map { x -> """<vertex x="$x" y="$y" z="$z"/>""" } } }
+        val f = listOf(intArrayOf(0, 2, 1), intArrayOf(1, 2, 3), intArrayOf(4, 5, 6), intArrayOf(5, 7, 6), intArrayOf(0, 1, 4), intArrayOf(1, 5, 4), intArrayOf(2, 6, 3), intArrayOf(3, 6, 7), intArrayOf(0, 4, 2), intArrayOf(2, 4, 6), intArrayOf(1, 3, 5), intArrayOf(3, 7, 5))
+        return """<object id="$id" type="model"><mesh><vertices>${v.joinToString("")}</vertices><triangles>${f.joinToString("") { """<triangle v1="${it[0]}" v2="${it[1]}" v3="${it[2]}"/>""" }}</triangles></mesh></object>"""
+    }
+
+    @Test fun twoObjectsPlacedInInchesBecomeTwoPartsInMillimetres() {
+        val xml = """<?xml version="1.0" encoding="UTF-8"?><model unit="inch" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>${cube(1, 2.0)}${cube(2, 1.0)}</resources>""" +
+            """<build><item objectid="1"/><item objectid="2" transform="1 0 0 0 1 0 0 0 1 10 0 0"/></build></model>"""
+        val bos = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(bos).use { z ->
+            z.putNextEntry(java.util.zip.ZipEntry("[Content_Types].xml")); z.write("<Types/>".toByteArray()); z.closeEntry()
+            z.putNextEntry(java.util.zip.ZipEntry("3D/3dmodel.model")); z.write(xml.toByteArray()); z.closeEntry()
+        }
+        val bytes = bos.toByteArray()
+        val raw = splitziner.io.StlReader.read(bytes, "source.stl")
+        assertEquals(24, raw.triangleCount)
+        val b = raw.bounds()
+        assertEquals(0.0, b.min.x, 1e-3); assertEquals(11 * 25.4, b.max.x, 1e-2); assertEquals(2 * 25.4, b.max.z, 1e-2)
+        val a = Pipeline.analyze(bytes, "chair.3mf")
+        assertEquals(2, a.parts.size)
+    }
+}

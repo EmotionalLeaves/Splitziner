@@ -421,7 +421,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // Woodworkers in inch countries read 3-1/2, not 3.50: new projects there start in fractions.
                     // A project file from Share project (a zip with the model and its settings) comes back whole.
                     val zipped = resolver.openInputStream(uri)?.use { s -> val b = ByteArray(2); s.read(b) == 2 && b[0] == 'P'.code.toByte() && b[1] == 'K'.code.toByte() } == true
-                    if (zipped) {
+                    // A 3MF model is a zip too: it has a .model file inside, and no project settings.
+                    val threeMf = zipped && (name.lowercase().endsWith(".3mf") || resolver.openInputStream(uri)?.use { s ->
+                        java.util.zip.ZipInputStream(s).use { z -> generateSequence { z.nextEntry }.take(200).any { it.name.lowercase().endsWith(".model") } }
+                    } == true)
+                    if (zipped && !threeMf) {
                         val m = resolver.openInputStream(uri)?.use { store.importProject(it) } ?: error("The file could not be opened.")
                         Diagnostics.log("imported project ${m.name}")
                         return@withContext m
@@ -436,9 +440,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val file = store.source(meta.id)
                     Diagnostics.log("import $name, ${file.length()} bytes")
                     val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }
-                    if (!name.lowercase().endsWith(".stl") && !name.lowercase().endsWith(".obj") && !StlReader.looksLikeStl(head, file.length())) {
+                    if (!name.lowercase().endsWith(".stl") && !name.lowercase().endsWith(".obj") && !name.lowercase().endsWith(".3mf") && !StlReader.looksLikeStl(head, file.length())) {
                         store.delete(meta.id)
-                        error("That file is not an STL or OBJ model.")
+                        error("That file is not an STL, OBJ or 3MF model.")
                     }
                     meta
                 }

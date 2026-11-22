@@ -35,6 +35,8 @@
                 <data android:mimeType="model/x.stl-binary" />
                 <data android:mimeType="model/x.stl-ascii" />
                 <data android:mimeType="model/obj" />
+                <data android:mimeType="model/3mf" />
+                <data android:mimeType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />
                 <data android:mimeType="application/zip" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
