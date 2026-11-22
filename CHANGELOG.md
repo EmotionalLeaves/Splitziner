@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.32.0 - Tidier screens
+
+Tidier screens.
+
+- **More room for the list and the model.** On the 3D, Cut list and Drawing tabs, the less-used actions now sit behind a **More…** button:
+  - 3D: Overall size, Changes.
+  - Cut list: Prices, CSV, CNC profiles.
+  - Drawing: sheet image, DXF, full-size templates.
+  The cut list on a small phone used to lose a third of the screen to buttons.
+- The home screen now says what the app does: a 3D model or a template in; checked parts, drawings, a build guide and a shopping list out.
+
 ## v0.31.0 - Pocket holes, hardware per step, gaps
 
 Pocket holes done right, hardware per step, and gaps you can read.
