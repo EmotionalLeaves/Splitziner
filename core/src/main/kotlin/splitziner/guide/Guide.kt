@@ -43,32 +43,47 @@ object GuideSteps {
      * in from each end of item 2 (side rail)". Read off the model along the longer part's length and up its height;
      * flush ends need no words, and a part held between two others (a cleat between the legs) is placed by them.
      */
-    fun placing(cur: List<Part>, fmt: splitziner.dims.LengthFormat, label: (Part) -> String): List<String> {
+    fun placing(cur: List<Part>, fmt: splitziner.dims.LengthFormat, label: (Part) -> String, built: List<Part> = emptyList(), skipItems: Set<Int?> = emptySet()): List<String> {
         val out = LinkedHashMap<String, MutableList<Double>>()
         val u = if (fmt.isInch) " in" else " mm"
         fun b(p: Part) = p.mesh.bounds
         fun touch(a: Part, c: Part) = (0..2).all { k -> b(a).min[k] <= b(c).max[k] + 0.5 && b(c).min[k] <= b(a).max[k] + 0.5 }
+        val bench = built.isEmpty()
+        val pool = cur + built
         for (s in cur) {
-            // The longest part it touches that is longer than it along its own length.
-            val host = cur.filter { it !== s && touch(it, s) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
+            if (s.item in skipItems) continue
+            // The longest part it touches that is longer than it along its own length; on the bench any part of the
+            // unit, in the build a part already there or going in with it.
+            val host = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
             val len = (0..2).maxByOrNull { k -> b(host).extents[k] }!!
-            for (k in listOf(len, 2).distinct()) {
+            // They meet face to face across one axis; the part is placed along the other two.
+            val contact = (0..2).minByOrNull { k -> minOf(b(s).max[k], b(host).max[k]) - maxOf(b(s).min[k], b(host).min[k]) }!!
+            for (k in (0..2).filter { it != contact }) {
                 if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
-                if (lo < -0.5 || hi < -0.5 || lo < 1.0 || hi < 1.0) continue
+                if (lo < 1.0 || hi < 1.0) continue
                 // Held on both sides along this axis by other parts: they place it.
-                val others = cur.filter { it !== s && it !== host && touch(it, s) }
+                val others = pool.filter { it !== s && it !== host && touch(it, s) }
                 if (others.any { o -> b(o).max[k] <= b(s).min[k] + 0.5 } && others.any { o -> b(o).min[k] >= b(s).max[k] - 0.5 }) continue
                 val near = minOf(lo, hi)
-                val where = if (k == 2) (if (lo <= hi) "up from the bottom edge" else "down from the top edge") else "from ${if (cur.count { it.item == s.item } > 1) "each end" else "the end"}"
+                val many = cur.count { it.item == s.item } > 1
+                // Centred: said so, which is how a maker would mark it.
+                if (kotlin.math.abs(lo - hi) < 1.0) { out.getOrPut("${label(s)}|centred on the ${if (k == 2) "height" else "width"}|${label(host)}") { ArrayList() } += -1.0; continue }
+                val where = when {
+                    k == 2 -> if (lo <= hi) "up from the bottom edge" else "down from the top edge"
+                    k == len -> "from ${if (many) "each end" else "the end"}"
+                    k == 1 -> if (lo <= hi) "from the front edge" else "from the back edge"
+                    else -> if (lo <= hi) "from the left edge" else "from the right edge"
+                }
                 out.getOrPut("${label(s)}|$where|${label(host)}") { ArrayList() } += near
             }
         }
         return out.entries.map { (key, ds) ->
             val (what, where, of) = key.split('|')
-            val d = ds.distinct().map { Math.round(it * 2) / 2.0 }.distinct()
-            if (d.size == 1) "Set ${if (ds.size > 1) "each $what" else what} ${fmt.format(d[0])}$u $where of $of."
-            else "Set ${ds.size}× $what ${d.joinToString(" and ") { fmt.format(it) + u }} $where of $of, as drawn."
+            val d = ds.map { Math.round(it * 2) / 2.0 }.distinct()
+            if (where.startsWith("centred")) "Centre ${if (ds.size > 1) "each $what" else what} on the ${where.substringAfterLast(' ')} of $of."
+            else if (d.size == 1) "Set ${if (ds.size > 1) "each $what" else what} ${fmt.format(d[0])}$u $where of $of."
+            else "Set ${ds.size}× $what ${d.dropLast(1).joinToString(", ") { fmt.format(it) + u }} and ${fmt.format(d.last())}$u $where of $of, as drawn."
         }
     }
 
@@ -249,6 +264,11 @@ object GuideSteps {
                             (if (level && axis != 2) ", ends lined up and square to each other;" else ", square to each other;") + " a helper, clamps or a prop holds them up until the next step ties them together."
                     } else lines += "Stand them in place, spaced to the overall sizes on the drawing and square to each other; a helper, clamps or a prop holds them up until the next step ties them together."
                 }
+            }
+            // Where loose parts sit on what is built, when nothing else in the step says (a toe-kick set back, a modesty panel set in).
+            if (fmt != null && !st.subassembly && !base) {
+                val built = drawn.filter { it.id in done }
+                if (built.isNotEmpty()) lines += placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold.toSet())
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })

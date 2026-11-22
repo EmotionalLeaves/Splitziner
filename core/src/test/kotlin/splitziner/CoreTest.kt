@@ -1600,7 +1600,7 @@ class PlacingTest {
         val leg1 = Part("P02", "Leg", box(19.0, 19.0, 0.0, 89.0, 89.0, 284.0), item = 5)
         val leg2 = Part("P03", "Leg", box(19.0, 1892.0, 0.0, 89.0, 89.0, 284.0), item = 5)
         val cleat = Part("P04", "Cleat", box(19.0, 108.0, 202.0, 19.0, 1784.0, 38.0), item = 7)
-        val lines = splitziner.guide.GuideSteps.placing(listOf(rail, leg1, leg2, cleat), splitziner.dims.LengthFormat("mm")) { p -> "item ${p.item} (${p.name.lowercase()})" }
+        val lines = splitziner.guide.GuideSteps.placing(listOf(rail, leg1, leg2, cleat), splitziner.dims.LengthFormat("mm"), { p: Part -> "item ${p.item} (${p.name.lowercase()})" })
         assertTrue(lines.contains("Set each item 5 (leg) 19 mm from each end of item 2 (side rail)."), lines.toString())
         assertTrue(lines.contains("Set item 7 (cleat) 44 mm down from the top edge of item 2 (side rail)."), lines.toString())
         assertTrue(lines.none { it.contains("cleat") && it.contains("end") }, "the legs place the cleat along the rail")
