@@ -61,7 +61,8 @@ object AssemblyPlan {
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val live = all.filter { !it.excluded }
         val units = live.groupBy { it.id.substringBefore('.') }
-        val subs = units.filter { it.value.size >= 2 }
+        // Two boards (an L, a pair of strips) are simply fitted one after the other; a bench step for them is a page of nothing.
+        val subs = units.filter { it.value.size >= MIN_SUB_PARTS }
         if (order != null || subs.isEmpty()) return planCore(all, maxSteps, order)
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
         val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
@@ -79,29 +80,39 @@ object AssemblyPlan {
                 subassembly = true, explodeOf = first.associate { it.id to benchExplode[it.id] }, makeCount = kind.size)
         }
         // The main build, with each sub-assembly as one rigid unit.
-        val unitParts = units.map { (root, ms) ->
-            if (ms.size == 1) ms[0] else Part(root, root, MeshOps.concatenate(ms.map { it.mesh }), item = ms[0].item)
+        val unitParts = units.flatMap { (root, ms) ->
+            if (root !in subs) ms else listOf(Part(root, root, MeshOps.concatenate(ms.map { it.mesh }), item = ms[0].item))
         }
         // The main build keeps a readable number of steps of its own, however many sub-assemblies there are.
-        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size))
+        // About three things fitted per step reads well; a step that places a whole pedestal and its drawers does not.
+        val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())))
         val unitOf = main.parts.associateBy { it.id }
         val steps = ArrayList<BuildStep>(bench)
         for (st in main.steps) {
-            val ids = st.partIds.flatMap { id -> units[id]?.map { it.id } ?: listOf(id) }
+            val ids = st.partIds.flatMap { id -> subs[id]?.map { it.id } ?: listOf(id) }
             steps += st.copy(step = steps.size + 1, partIds = ids, items = ids.mapNotNull { id -> live.first { it.id == id }.item }.distinct().sorted())
         }
         val firstMain = bench.size + 1
         val out = all.map { p ->
             if (p.excluded) p else {
-                val u = unitOf[p.id.substringBefore('.')]
+                val u = unitOf[p.id] ?: unitOf[p.id.substringBefore('.')]
                 p.copy(explode = u?.explode, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
             }
         }
         return PlanResult(out, steps)
     }
 
+    /** Boards from one drawn part are built on the bench only when there are at least this many of them. */
+    private const val MIN_SUB_PARTS = 3
+
     /** Fewest steps the main build is squeezed into when sub-assemblies take their own steps. */
     private const val MIN_MAIN_STEPS = 8
+
+    /** And at most this many, however many units there are; past it the guide is longer than the build. */
+    private const val MAX_MAIN_STEPS = 14
+
+    /** Most things one step of the main build fits from one direction. */
+    private const val MAX_GROUP = 5
 
     private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val parts = all.filter { !it.excluded }
@@ -218,8 +229,10 @@ object AssemblyPlan {
             val ds = DisjointSet(idx.size)
             for (a in idx.indices) for (b in a + 1 until idx.size) if (layer[idx[a]] == layer[idx[b]] && touches(idx[a], idx[b])) ds.union(a, b)
             val groups = idx.indices.groupBy { ds.find(it) }.values.map { g -> g.map { idx[it] }.toMutableList() }
-            // Parts dropped in from above first, then from the lowest up.
-            raw += groups.sortedWith(compareBy<MutableList<Int>>({ !(dirOf.getValue(it[0]).k == 2 && dirOf.getValue(it[0]).sign == 1) }, { g -> g.minOf { lo[it].z } }))
+            // A layer's parts can each leave on their own, so a big group may be fitted in several steps: lowest first,
+            // a few at a time, so one step never places a whole pedestal with its drawers.
+            val split = groups.flatMap { g -> if (g.size <= MAX_GROUP) listOf(g) else g.sortedBy { lo[it].z }.chunked(MAX_GROUP).map { it.toMutableList() } }
+            raw += split.sortedWith(compareBy<MutableList<Int>>({ !(dirOf.getValue(it[0]).k == 2 && dirOf.getValue(it[0]).sign == 1) }, { g -> g.minOf { lo[it].z } }))
         }
 
         var userBase: List<Int>? = null
@@ -282,7 +295,7 @@ object AssemblyPlan {
                 val sameDirs = a.map { dirOf.getValue(it) }.toSet() == b.map { dirOf.getValue(it) }.toSet()
                 val shareItem = a.map { parts[it].item ?: -it - 1 }.toSet().intersect(b.map { parts[it].item ?: -it - 1 }.toSet()).isNotEmpty()
                 return (if (touch) 0.0 else 2.0) + (if (sameDirs) 0.0 else 1.0) + (if (shareItem) 0.0 else 0.5) +
-                    0.6 * maxOf(0, a.size + b.size - target) + 0.02 * (a.size + b.size)
+                    0.6 * maxOf(0, a.size + b.size - target) + 0.02 * (a.size + b.size) + (if (a.size + b.size > MAX_GROUP) 4.0 else 0.0)
             }
             val k = (0 until raw.size - 1).minByOrNull { cost(it) }!!
             raw[k].addAll(raw[k + 1]); raw.removeAt(k + 1)

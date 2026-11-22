@@ -159,7 +159,7 @@ object Fastening {
             if (!glue && !faceToFace && aroundThr < MIN_INTO && aroundThr < around && method != JoinMethod.GLUE_AND_BRADS) {
                 val grooveDepth = minOf(GROOVE_SHARE * depth, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
-                val spec = if (canGroove && grooveDepth >= 3.0) "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}" else ""
+                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}"
                 joints.getOrPut(step) { ArrayList() } += Joint(into, thr, 0, spec, "thin", false)
                 continue
             }
@@ -169,7 +169,7 @@ object Fastening {
                 // The groove is cut in the face it meets, as wide as the thin part is thick; the thin part grows into it.
                 val grooveDepth = minOf(GROOVE_SHARE * tThrough, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
-                val spec = if (canGroove && grooveDepth >= 3.0) "${size(around, fmt)}|${size(grooveDepth, fmt)}" else ""
+                val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(around, fmt)}|${size(grooveDepth, fmt)}"
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, spec, "thin", false)
                 continue
             }
@@ -238,7 +238,8 @@ object Fastening {
             else if (j.kind == "thin") {
                 val (w, d) = j.size.split('|').let { if (it.size == 2) it[0] to it[1] else "" to "" }
                 if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
-                else "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
+                else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
+                else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
             else when (plan.method) {
                 JoinMethod.POCKET_SCREWS -> "Drill ${count(n)} pocket holes in ${key.first} and fix it to ${key.second} with ${j.size} pocket screws$times."
