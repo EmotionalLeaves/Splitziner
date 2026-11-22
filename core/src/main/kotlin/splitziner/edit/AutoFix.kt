@@ -119,9 +119,20 @@ object AutoFix {
                 val pick = listOfNotNull(ab?.let { Triple(a, b, it.second) }, ba?.let { Triple(b, a, it.second) })
                     .filter { cutSoFar(it.first, it.third) <= Editor.MAX_TRIM_SHARE }.minByOrNull { it.third }
                 if (pick == null) {
+                    // Neither passes through the other: one stops partway into it. Cutting it back to the other's face
+                    // makes a butt joint, if that costs little of it.
+                    val cb = listOfNotNull(runCatching { Editor.cutBack(a, b) }.getOrNull()?.let { Triple(a, b, it.second) }, runCatching { Editor.cutBack(b, a) }.getOrNull()?.let { Triple(b, a, it.second) })
+                        // Only the smaller part is cut: it is the one that enters the other. Shortening the bigger
+                        // one changes its size across its whole width, which is a design decision.
+                        // A hair's overlap (under 3.5 mm) is a part drawn a touch long: either may be trimmed.
+                        .filter { it.third > 0 && (c.depth < 3.5 || abs(it.first.mesh.volume) <= abs(it.second.mesh.volume)) && cutSoFar(it.first, it.third) <= Editor.MAX_TRIM_SHARE }.minByOrNull { it.third }
+                    if (cb != null) {
+                        push(Edit.CutBack(cb.first.id, cb.second.id), "Cut ${label(cb.first)} back so it stops at the face of ${label(cb.second)} (a butt joint): about ${Math.round(cb.third * 100).coerceAtLeast(1)}% of it removed.")
+                        continue
+                    }
                     left += "${label(a).replaceFirstChar { it.uppercase() }} and ${label(b)} overlap by about ${d(c.depth)} $u. " +
-                        (if (ab == null && ba == null) "Neither passes right through the other, so one needs a recess cut into it: that is a joint to design, not a trim."
-                        else "Cutting either back would remove more than a quarter of it in all, which changes the design.")
+                        (if (ab == null && ba == null) "Making it fit means shortening the larger part or cutting away much of the smaller one, which is a design decision. Cut a recess (a housing) in one to take the other, move one, or use the cut-back the Check tab offers."
+                        else "Making it fit means shortening the larger part or cutting away much of the smaller one, which is a design decision. The Check tab offers each cut and says how much it removes.")
                     continue
                 }
                 val key = "${itemOf(pick.first)}>${itemOf(pick.second)}"

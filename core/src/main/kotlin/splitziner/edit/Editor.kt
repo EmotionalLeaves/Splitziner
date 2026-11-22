@@ -29,6 +29,8 @@ sealed class Edit {
     /** Another copy of a part, shifted by [d]. */
     data class Duplicate(val id: String, val newId: String, val d: Vec3) : Edit()
     data class Delete(val ids: List<String>) : Edit()
+    /** Cut [id] back so it stops at the face of [by] instead of running into it: a butt joint. */
+    data class CutBack(val id: String, val by: String) : Edit()
     /** Replace each part by the plain boards it would be built from (see [Boards]). New pieces get ids "<id>.2", "<id>.3"... */
     data class SplitBoards(val ids: List<String>) : Edit()
 }
@@ -71,6 +73,36 @@ object Editor {
         return pa.with(outline = pieces[0]) to share
     }
 
+    /**
+     * [a] cut back to the face of [b] it runs into, and the share of [a] removed; null when [a] does not
+     * enter [b] from one side. The side it enters from is the one with the shallowest overlap.
+     */
+    fun cutBack(a: Part, b: Part): Pair<Mesh, Double>? {
+        val la = a.mesh.bounds; val lb = b.mesh.bounds
+        var best: Triple<Int, Boolean, Double>? = null
+        for (k in 0..2) {
+            val ov = minOf(la.max[k], lb.max[k]) - maxOf(la.min[k], lb.min[k])
+            if (ov <= 0) return null
+            // Enters from below (a starts before b) or from above (a ends after b), not both.
+            val below = la.min[k] < lb.min[k] - 1e-6 && la.max[k] <= lb.max[k] + 1e-6
+            val above = la.max[k] > lb.max[k] + 1e-6 && la.min[k] >= lb.min[k] - 1e-6
+            if (below == above) continue
+            if (best == null || ov < best.third) best = Triple(k, below, ov)
+        }
+        val (k, below, _) = best ?: return null
+        val axis = splitziner.math.Vec3.axis(k)
+        // Keep the side of the face that [a] comes from.
+        val n = if (below) axis else -axis
+        val origin = if (below) axis * lb.min[k] else axis * lb.max[k]
+        val view = splitziner.view.ViewDef("cut", n, splitziner.math.Vec3.axis((k + 1) % 3))
+        val face = splitziner.section.SectionBuilder.sectionPolygons(a.mesh, origin, view)
+        val cut = splitziner.section.SectionBuilder.clipBehind(a.mesh, origin, view, face)
+        if (cut.triangleCount == 0) return null
+        val v0 = abs(a.mesh.volume)
+        val share = if (v0 > 0) 1 - abs(cut.volume) / v0 else 1.0
+        return cut to share
+    }
+
     fun apply(parts: List<Part>, edits: List<Edit>): EditResult {
         var cur = parts.map { fresh(it, it.mesh) }
         val notes = ArrayList<String>()
@@ -107,6 +139,12 @@ object Editor {
                     is Edit.AddBox -> cur + Part(e.id, e.name, box(e.min, e.size))
                     is Edit.Duplicate -> cur.firstOrNull { it.id == e.id }?.let { cur + Part(e.newId, it.name, MeshOps.translated(it.mesh, e.d), material = it.material) } ?: cur
                     is Edit.Merge -> merge(cur, e, notes)
+                    is Edit.CutBack -> {
+                        val a = cur.firstOrNull { it.id == e.id }; val b = cur.firstOrNull { it.id == e.by }
+                        val r = if (a != null && b != null) cutBack(a, b) else null
+                        if (r == null) { notes += "${e.id} could not be cut back to ${e.by}"; cur }
+                        else cur.map { if (it.id == e.id) fresh(it, r.first) else it }
+                    }
                     is Edit.SplitBoards -> cur.flatMap { p ->
                         if (p.id !in e.ids) listOf(p) else {
                             val (r, why) = Boards.decompose(p.mesh)

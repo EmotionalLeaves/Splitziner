@@ -160,6 +160,7 @@ object EditJson {
         is splitziner.edit.Edit.Duplicate -> JSONObject().put("op", "copy").put("id", e.id).put("newId", e.newId).put("d", vec(e.d))
         is splitziner.edit.Edit.Delete -> JSONObject().put("op", "delete").put("ids", JSONArray(e.ids))
         is splitziner.edit.Edit.SplitBoards -> JSONObject().put("op", "boards").put("ids", JSONArray(e.ids))
+        is splitziner.edit.Edit.CutBack -> JSONObject().put("op", "cutback").put("id", e.id).put("by", e.by)
     }
 
     /** Null for a change this version does not know, so an older app skips it and keeps the rest. */
@@ -175,6 +176,7 @@ object EditJson {
             "copy" -> splitziner.edit.Edit.Duplicate(o.getString("id"), o.getString("newId"), vec(o.getJSONArray("d")))
             "delete" -> splitziner.edit.Edit.Delete(ids(o.getJSONArray("ids")))
             "boards" -> splitziner.edit.Edit.SplitBoards(ids(o.getJSONArray("ids")))
+            "cutback" -> splitziner.edit.Edit.CutBack(o.getString("id"), o.getString("by"))
             else -> null
         }
     }.getOrNull()

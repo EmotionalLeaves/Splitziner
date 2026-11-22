@@ -22,7 +22,7 @@ import kotlin.math.abs
 enum class Severity { PROBLEM, CHECK, NOTE }
 
 /** A change the app can make for the user to deal with a finding. */
-enum class FixKind { SET_THICKNESS, SQUARE_UP, SPLIT_BOARDS }
+enum class FixKind { SET_THICKNESS, SQUARE_UP, SPLIT_BOARDS, CUT_BACK }
 
 class Fix(val kind: FixKind, val label: String, val partIds: List<String>, val value: Double = 0.0)
 
@@ -239,10 +239,15 @@ object DesignCheck {
             // A few millimetres is usually a part drawn slightly too long; more than that changes how the thing goes together.
             val slight = c.depth < 3.5
             val same = pa.item == pb.item
+            // Offer to cut either one back to the other's face, where that is possible, saying how much each loses.
+            val cutFixes = listOfNotNull(
+                runCatching { splitziner.edit.Editor.cutBack(pa, pb) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pa.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pa.id, pb.id)) },
+                runCatching { splitziner.edit.Editor.cutBack(pb, pa) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pb.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pb.id, pa.id)) },
+            )
             out += Finding(if (slight) Severity.CHECK else Severity.PROBLEM,
                 (if (same) "Two of item ${pa.item}" else "Items ${minOf(pa.item ?: 0, pb.item ?: 0)} and ${maxOf(pa.item ?: 0, pb.item ?: 0)}") + (if (slight) " overlap slightly" else " occupy the same space"),
                 "They overlap by about ${d(c.depth)} $u" + (if (cs.size > 1) " in ${cs.size} places" else "") + (if (slight) ". Probably one was drawn a touch too long; trim it to fit when building." else ". Two solid parts cannot do that. If it is meant as a joint (a tenon, a housing), one part needs a matching recess; otherwise one of them must be shortened or moved."),
-                cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct())
+                cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct(), cutFixes)
         }
         if (n > 1) {
             val alone = (0 until n).filter { touching[it].isEmpty() }

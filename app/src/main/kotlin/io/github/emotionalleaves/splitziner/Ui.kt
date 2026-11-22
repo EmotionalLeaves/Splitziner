@@ -987,6 +987,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                                     splitziner.check.FixKind.SET_THICKNESS -> splitziner.edit.Edit.Thickness(fix.partIds, fix.value)
                                     splitziner.check.FixKind.SQUARE_UP -> splitziner.edit.Edit.SquareUp(fix.partIds)
                                     splitziner.check.FixKind.SPLIT_BOARDS -> splitziner.edit.Edit.SplitBoards(fix.partIds)
+                                    splitziner.check.FixKind.CUT_BACK -> splitziner.edit.Edit.CutBack(fix.partIds[0], fix.partIds[1])
                                 })
                             }) { Text(fix.label) }
                         }
