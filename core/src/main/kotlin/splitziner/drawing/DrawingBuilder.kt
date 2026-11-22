@@ -45,9 +45,16 @@ object DrawingBuilder {
     private const val ISO_MAX_PARTS = 150
     private const val ISO_MIN_MM = 70.0
 
-    /** Preferred scales come first in each direction; 1/50 and 1/100 are last resorts for very large objects. */
+    /** Preferred scales, largest first; 1/50 and 1/100 are last resorts for very large objects. */
     val SCALES = doubleArrayOf(20.0, 10.0, 4.0, 2.0, 1.0, 1 / 2.0, 1 / 4.0, 1 / 10.0, 1 / 20.0, 1 / 50.0, 1 / 100.0)
-    private val LAST_RESORT = setOf(1 / 50.0, 1 / 100.0)
+
+    /**
+     * The scales a drafter in these units would pick, largest first. Metric drawings step 1, 1/2, 1/5, 1/10 (ISO 5455);
+     * inch drawings halve each time (full, half, quarter, eighth), so nothing jumps from 1/4 straight to 1/10.
+     */
+    fun scalesFor(inch: Boolean): DoubleArray = if (inch) doubleArrayOf(4.0, 2.0, 1.0, 1 / 2.0, 1 / 4.0, 1 / 8.0, 1 / 16.0, 1 / 32.0, 1 / 64.0)
+        else doubleArrayOf(10.0, 5.0, 2.0, 1.0, 1 / 2.0, 1 / 5.0, 1 / 10.0, 1 / 20.0, 1 / 50.0, 1 / 100.0)
+    private val LAST_RESORT = setOf(1 / 50.0, 1 / 100.0, 1 / 64.0)
 
     /** Clearance around the group of views. */
     private const val CALL = 8.0
@@ -61,8 +68,8 @@ object DrawingBuilder {
     /** Parts per further exploded view: enough to show how they go together, few enough to read. */
     private const val PARTS_PER_EXTRA = 14
 
-    /** A view smaller than this on paper is too small to read. */
-    private const val MIN_VIEW_MM = 50.0
+    /** The largest view smaller than this on paper (mm) reads as a thumbnail; a larger sheet is tried first. */
+    private const val MIN_VIEW_MM = 80.0
 
     /** Views should fill at least this much of the space available to them. */
     private const val MIN_FILL = 0.55
@@ -94,7 +101,34 @@ object DrawingBuilder {
                 cut[v.name] = sec; map[v.name] = sec.lines
             }
         }
+        // A part hidden in all three views (a shelf behind doors, between the sides, under the top) would be neither
+        // seen nor located: the side view is cut open so its position can be read and dimensioned.
+        if (sections == "auto" && meshes.size > 1 && ViewDef.RIGHT.name !in cut && buried(meshes)) {
+            val v = ViewDef.RIGHT
+            val sec = runCatching { splitziner.section.SectionBuilder.build(meshes, v, "${SECTION_LETTERS[cut.size]}") }.getOrNull()
+            if (sec != null) { cut[v.name] = sec; map[v.name] = sec.lines }
+        }
         return ViewSet(scene, map, cut)
+    }
+
+    /** Whether some part is covered in the front, top and right views alike by parts in front of, above and beside it. */
+    private fun buried(meshes: List<Mesh>): Boolean {
+        val b = meshes.map { it.bounds }
+        val gf = org.locationtech.jts.geom.GeometryFactory()
+        fun rect(x0: Double, y0: Double, x1: Double, y1: Double) = gf.toGeometry(org.locationtech.jts.geom.Envelope(x0, x1, y0, y1))
+        // Looking along axis k from the side where coordinates are [larger] (or smaller): the others project to (a, c).
+        fun covered(i: Int, k: Int, larger: Boolean): Boolean {
+            val (a, c) = (0..2).filter { it != k }
+            val me = rect(b[i].min[a] + 0.5, b[i].min[c] + 0.5, b[i].max[a] - 0.5, b[i].max[c] - 0.5)
+            if (me.isEmpty || me.area <= 0) return false
+            val cover = b.indices.filter { j -> j != i && (if (larger) b[j].min[k] >= b[i].max[k] - 0.5 else b[j].max[k] <= b[i].min[k] + 0.5) }
+                .map { j -> rect(b[j].min[a], b[j].min[c], b[j].max[a], b[j].max[c]) }
+            if (cover.isEmpty()) return false
+            // A door's few millimetres of clearance do not let anyone see in.
+            return runCatching { org.locationtech.jts.operation.union.CascadedPolygonUnion.union(cover).buffer(3.0).covers(me) }.getOrDefault(false)
+        }
+        // Front looks from small Y, top from large Z, right from large X.
+        return b.indices.any { i -> covered(i, 1, false) && covered(i, 2, true) && covered(i, 0, true) }
     }
 
     private class Margins(val left: Double, val right: Double, val top: Double, val bottom: Double)
@@ -223,7 +257,7 @@ object DrawingBuilder {
         val pinned = SheetSize.byLetter(settings.sheet)
         // "AB": the smallest sheet that works, but no bigger than B (11 x 17 in), which a home or office printer takes.
         val candidates = if (pinned != null) listOf(pinned) else if (settings.sheet == "AB") SheetSize.AUTO.take(2) else SheetSize.AUTO
-        val scales = if (settings.scale != null) doubleArrayOf(settings.scale) else SCALES
+        val scales = if (settings.scale != null) doubleArrayOf(settings.scale) else scalesFor(fmt.isInch)
         var chosen: Layout? = null
         for ((ci, sheet) in candidates.withIndex()) {
             val listH = ListOfMaterial.height(rows.size)

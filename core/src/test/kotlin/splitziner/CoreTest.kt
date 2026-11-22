@@ -317,7 +317,7 @@ class DrawingTest {
         println("cabinet: sheet ${r.sheet.letter} scale ${r.scaleText} qa ${r.qa}")
         assertEquals(svg, splitziner.export.SvgWriter.write(r.sheets[0]))
         for (word in listOf("NASA", "GSFC", "GODDARD")) assertFalse(svg.contains(word))
-        assertTrue(r.scale in splitziner.drawing.DrawingBuilder.SCALES.toList())
+        assertTrue(r.scale in splitziner.drawing.DrawingBuilder.scalesFor(true).toList())
     }
 
     @Test fun steppedBlockSheet() {

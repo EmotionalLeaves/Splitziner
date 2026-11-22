@@ -164,8 +164,12 @@ object DimDrawer {
     fun margin(g: DimGroup, th: Double): Double {
         val widest = g.items.maxOf { StrokeFont.width(it.text, th) }
         return if (g.style == "ordinate") FIRST + widest + 6 + (if (g.horizontal) 0.0 else 0.0)
-        else FIRST + pitch(g, th) * (g.items.size - 1) + (if (g.horizontal) th else widest + 1.5) + 3
+        else first(g, th) + pitch(g, th) * (g.items.size - 1) + (if (g.horizontal) th else widest + 1.5) + 3
     }
+
+    /** Distance from the view to the first dimension line: a vertical value centred on its line must clear the view. */
+    private fun first(g: DimGroup, th: Double): Double =
+        if (g.horizontal) FIRST else maxOf(FIRST, g.items.maxOf { StrokeFont.width(it.text, th) } / 2 + 3.5)
 
     /**
      * [toPaper] maps view coordinates to the sheet; [box] is the view's paper box (x0,y0,x1,y1);
@@ -217,7 +221,7 @@ object DimDrawer {
 
         val step = pitch(g, th)
         g.items.forEachIndexed { i, it ->
-            val off = edge + sign * (FIRST + step * i)
+            val off = edge + sign * (first(g, th) + step * i)
             val p = anchorOf(it)
             val tw = StrokeFont.width(it.text, th)
             if (g.horizontal) {
@@ -252,7 +256,9 @@ object DimDrawer {
             // Horizontal: the value sits beyond the second extension line. Vertical: beside the line, on the
             // side away from the view, where the spacing between dimension lines leaves room for it.
             if (horiz) dl.text(bx + 6, by, text, th, HAlign.LEFT, VAlign.CENTER, tag = "dim")
-            else dl.text(ax + outward * 1.5, my, text, th, if (outward < 0) HAlign.RIGHT else HAlign.LEFT, VAlign.CENTER, tag = "dim")
+            // Vertical: above the upper extension line, on the side away from the view, so neither extension line
+            // runs through the value.
+            else dl.text(ax + outward * 1.5, by + 5 + th / 2, text, th, if (outward < 0) HAlign.RIGHT else HAlign.LEFT, VAlign.CENTER, tag = "dim")
         }
     }
 }
