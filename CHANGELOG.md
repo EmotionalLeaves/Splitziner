@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.84.0 - Face frames, pocket screws, pedestal desks
+
+- **Face frames** are built properly: stiles and rails are joined flat on the bench with pocket screws on the back (or dowels), then glued and pinned to the front of the finished case, before doors and drawers.
+- **Pedestal desks and similar builds** start from the pedestal, and a far end panel goes in with the part that joins it, not propped up on its own from the first step.
+- **Pocket screws where they belong**: only for ends and edges meeting a face. Slats on cleats, boards lying on supports and thin backs get ordinary screws or brads.
+
 ## v0.83.0 - Tested on complex furniture
 
 Tested against much more complicated furniture: a six-drawer dresser, a kitchen base cabinet, a bunk bed, a pedestal desk and a face-frame bookcase. What that fixed:
