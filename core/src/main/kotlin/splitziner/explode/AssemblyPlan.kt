@@ -69,6 +69,9 @@ object AssemblyPlan {
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         legFrames(live).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
+        val ff = live.filter { it.name == "Stile" || it.name == "Face frame rail" }
+        if (ff.size >= 3 && ff.any { it.name == "Stile" } && ff.any { it.name == "Face frame rail" }) for (p in ff) out[p.id] = "faceframe"
         return out
     }
 
@@ -306,6 +309,7 @@ object AssemblyPlan {
         fun touch(a: String, b: String): Boolean { val x = boundsOf[a] ?: return false; val y = boundsOf[b] ?: return false; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
         val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
         val built = HashSet<String>(); var carry: BuildStep? = null
+        val pending = ArrayList<String>()
         for ((n, st0) in steps.withIndex()) {
             var st = st0
             fun onFloor(id: String) = (boundsOf[id]?.min?.z ?: Double.MAX_VALUE) <= floor + 1.0
@@ -314,7 +318,11 @@ object AssemblyPlan {
             // their step (the slats that tie them) stays a step of its own.
             val base = out.lastOrNull()
             if (carry == null && base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { onFloor(it) }) {
-                val standing = st.partIds.filter { id -> onFloor(id) && built.none { touch(id, it) } }
+                // Only pieces the next parts tie to the base straight away (a bed's slats, a table's aprons): one that
+                // stands alone until the very end (a desk's far end panel) waits for its own step.
+                val soon = st.partIds + (steps.getOrNull(n + 1)?.partIds ?: emptyList())
+                val standing = st.partIds.filter { id -> onFloor(id) && built.none { touch(id, it) } &&
+                    soon.any { t -> t != id && touch(t, id) && base.partIds.any { bp -> touch(t, bp) } } }
                 if (standing.isNotEmpty()) {
                     out[out.size - 1] = base.copy(partIds = base.partIds + standing)
                     built += standing
@@ -323,16 +331,30 @@ object AssemblyPlan {
                     st = st.copy(partIds = st.partIds - standing.toSet())
                 }
             }
+            // A piece standing on the floor that nothing holds yet (a desk's far end panel, fitted with a back panel)
+            // waits for the step that joins it, which the rest of its step goes on without it.
+            if (carry == null && base != null && n < steps.size - 1 && st.partIds.size > 1) {
+                val loners = st.partIds.filter { id -> onFloor(id) && built.none { touch(id, it) } && st.partIds.none { o -> o != id && touch(o, id) } }
+                if (loners.isNotEmpty() && loners.size < st.partIds.size) { pending += loners; st = st.copy(partIds = st.partIds - loners.toSet()) }
+            }
             val alone = carry == null && built.isNotEmpty() && n < steps.size - 1 &&
                 st.partIds.all { id -> onFloor(id) } &&
                 st.partIds.none { id -> built.any { touch(id, it) } }
             built += st.partIds
             if (alone) { carry = st; continue }
-            val merged = carry?.let { c -> st.copy(partIds = c.partIds + st.partIds, directions = (c.directions + st.directions).distinct(), items = (c.items + st.items).distinct().sorted()) } ?: st
-            carry?.let { renumber[it.step] = out.size + 1 }
-            carry = null
-            out += merged.copy(step = out.size + 1); renumber[st.step] = out.size
+            // What waits goes in with the first step that touches it, the one that ties it in.
+            val c = carry
+            val ties = c != null && st.partIds.any { id -> c.partIds.any { touch(id, it) } }
+            val merged = if (c != null && ties) st.copy(partIds = c.partIds + st.partIds, directions = (c.directions + st.directions).distinct(), items = (c.items + st.items).distinct().sorted()) else st
+            if (c != null && ties) { renumber[c.step] = out.size + 1; carry = null }
+            val takes = pending.isNotEmpty() && st.partIds.any { id -> pending.any { touch(id, it) } }
+            val withPending = if (takes) merged.copy(partIds = pending.toList() + merged.partIds) else merged
+            out += withPending.copy(step = out.size + 1); renumber[st.step] = out.size
+            if (takes) { for (id in pending) moved[id] = out.size; pending.clear() }
         }
+        // Nothing ever tied it: it goes in last, as it was.
+        carry?.let { out += it.copy(step = out.size + 1); renumber[it.step] = out.size }
+        if (pending.isNotEmpty()) { out += steps.first().copy(step = out.size + 1, partIds = pending.toList(), subassembly = false, directions = emptyList()); for (id in pending) moved[id] = out.size }
         return out to renumber
     }
 
@@ -391,11 +413,15 @@ object AssemblyPlan {
         // board that happens to have the wider footprint; a table from a leg, a cabinet from its bottom.
         // A part lying flat on the floor under a good share of the whole footprint (a cabinet's bottom) wins outright.
         val modelFoot = (allHi.x - allLo.x) * (allHi.y - allLo.y)
-        val onFloor = (0 until n).filter { lo[it].z <= allLo.z + tol }
+        // A face frame is never where the build starts: it goes on the finished case.
+        val onFloor = (0 until n).filter { lo[it].z <= allLo.z + tol && parts[it].id != "faceframe" }.ifEmpty { (0 until n).filter { lo[it].z <= allLo.z + tol } }
         fun foot(i: Int) = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y)
         fun lyingFlat(i: Int) = (hi[i].z - lo[i].z) <= minOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y)
         val flatBase = onFloor.filter { lyingFlat(it) && foot(it) >= 0.25 * modelFoot }.maxByOrNull { foot(it) }
-        val base = flatBase ?: onFloor.maxByOrNull { foot(it) * (hi[it].z - lo[it].z) } ?: 0
+        // Equal candidates (a pedestal desk's three uprights) go by how much they touch: the build starts where
+        // the most is joined, not from an end panel that waits alone until the top goes on.
+        fun contacts(i: Int) = (0 until n).count { j -> j != i && (0..2).all { lo[i][it] <= hi[j][it] + tol && lo[j][it] <= hi[i][it] + tol } }
+        val base = flatBase ?: onFloor.maxWithOrNull(compareBy<Int> { Math.round(foot(it) * (hi[it].z - lo[it].z) / 1e4) }.thenBy { contacts(it) }) ?: 0
 
         // Shadow of every part along each axis, shrunk a little so parts that only touch do not count as overlapping.
         // Worked out only for parts some test needs; with hundreds of parts most pairs never get that far.
@@ -596,7 +622,8 @@ object AssemblyPlan {
             fun below(i: Int) = adj[i].filter { j -> hi[j].z <= lo[i].z + tol }
             fun restsOnBuilt(g: List<Int>) = g.all { i -> lo[i].z <= allLo.z + tol || below(i).all { it in placed || it in g } }
             // Hung parts wait for the box to be finished, and applied drawer fronts for their drawers.
-            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 2; g.any { parts[it].id in hungIds } -> 1; else -> 0 }
+            // A face frame goes on the finished case, before the doors and drawers that hang in it.
+            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 3; g.any { parts[it].id in hungIds } -> 2; g.any { parts[it].id == "faceframe" } -> 1; else -> 0 }
             while (pool.isNotEmpty()) {
                 val low = pool.minOf { rank(it) }
                 // Bottom up where there is a choice: a bunk bed's lower deck before the upper one closes it in.

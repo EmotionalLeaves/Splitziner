@@ -191,6 +191,27 @@ object Fastening {
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
                 continue
             }
+            // Face frames: stiles and rails are joined to each other with pocket screws from the back, the usual way, as
+            // screws through a stile's edge would show; the frame is glued and pinned to the case's front edges, and the
+            // edges of shelves behind it need nothing.
+            val ffA = thr.name == "Stile" || thr.name == "Face frame rail"; val ffB = into.name == "Stile" || into.name == "Face frame rail"
+            if (ffA && ffB) {
+                val n = 2
+                // The pocket holes go in the rail's ends, on the back; the screws run into the stile.
+                val stile = if (thr.name == "Stile") thr else into; val rail = if (stile === thr) into else thr
+                joints.getOrPut(step) { ArrayList() } += Joint(stile, rail, n, if (fmt.isInch) "1-1/4 in" else "32 mm", "pocket screws", false)
+                totals["${if (fmt.isInch) "1-1/4 in" else "32 mm"} pocket screws"] = (totals["${if (fmt.isInch) "1-1/4 in" else "32 mm"} pocket screws"] ?: 0) + n
+                continue
+            }
+            if (ffA != ffB) {
+                if (length < 150.0) continue
+                val ffPart = if (ffA) thr else into; val other = if (ffA) into else thr
+                val sz = pick(19.05 + 15.0, fmt, true) ?: ""
+                val n = maxOf(2, ceil(length / SPACING).toInt())
+                joints.getOrPut(step) { ArrayList() } += Joint(ffPart, other, n, sz, "front", false)
+                if (sz.isNotEmpty()) totals["$sz brads"] = (totals["$sz brads"] ?: 0) + n
+                continue
+            }
             val glue = length < SMALLEST
             var count = maxOf(2, ceil(length / SPACING).toInt())
             var size = ""; var kind = ""
@@ -444,7 +465,6 @@ object Fastening {
         plan.all.filter { it.kind == "thin" && it.size.count { c -> c == '|' } >= 1 }.mapNotNull { it.through.item }.distinct().sorted()
 
     fun pocketHoles(plan: FastenPlan): Map<Int, Int> {
-        if (plan.method != JoinMethod.POCKET_SCREWS) return emptyMap()
         val out = sortedMapOf<Int, Int>()
         for (j in plan.all) if (!j.glueOnly && j.kind == "pocket screws") { val it = j.into.item ?: continue; out[it] = (out[it] ?: 0) + j.count }
         return out
@@ -565,6 +585,8 @@ object Fastening {
                 else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
+            else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
+            else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in its ends, on the back of the frame$times (or glue and dowel them)."
             else when (plan.method) {
                 // Pocket holes go in the part whose end or edge meets the other's face, on a side that will not show.
                 JoinMethod.POCKET_SCREWS -> "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through the pocket holes in its end$times."
@@ -577,7 +599,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" -> "glue and brads"
+                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

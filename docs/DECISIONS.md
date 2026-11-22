@@ -180,3 +180,7 @@ Departures from the build spec, newest first.
 - Where there is a choice, the build goes bottom up, so a bunk bed's lower deck is finished before the upper rails go on. "Rails before slats" only moves rails at the slats' level.
 - Spacing is given per level (each deck of slats), and parts resting on supports get no height offset.
 - Exploded pictures cap a part's travel by its second-largest size (a door's width), not its length. A 6 ft cleat no longer flies a cleat-length away and shrinks the picture.
+
+## v0.84
+- A face frame (stiles and rails flat across the front) is its own sub-assembly. It is made flat on the bench, with pocket screws through the rails' ends on the back (or glue and dowels). It goes on the finished case before doors and drawers, glued to the front edges and pinned with brads set below the surface. Screws through a stile's edge, which would show, are no longer suggested, and a face frame is never the starting piece.
+- Equal starting candidates (a pedestal desk's three uprights) go by how many parts they touch. A piece standing alone that nothing ties in until later (a desk's far end panel) waits for the step that joins it, instead of being propped up from step 1 or fitted with an unrelated back panel.
