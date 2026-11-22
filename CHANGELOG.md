@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.94.0 - Mitres and hutches
+
+- Mitres: picture frames and mitred boxes are recognised. The cut list says "ENDS CUT AT 45° (MITRE)" or "(BEVEL)", the drawing says which way to set the saw and that length is point to point, and the guide glues the corners properly: a band clamp for flat frames, the tape-and-fold method for boxes, then brads, splines or V-nails. No more "mark the notches with a jigsaw" or paper templates for angled ends (splayed legs fixed too).
+- Hutches: a desk with shelves on top builds the hutch as its own unit on the bench (back panel last), then sets it on from above and screws it up through the desk top from underneath. The desk top is called a top, and isn't screwed through its face.
+- Trestle tables: steps now say "make 2 trestle ends" and "set out the 2 trestle ends".
+- Placing lines no longer repeat themselves for matching shelves beside different uprights.
+- Metric counterbore depths are given in whole millimetres.
+
 ## v0.93.0 - Round and oval tops, trestles, wardrobes
 
 - Round tops: no more 20 pages of paper template. The drawing gives one "36 DIA" and the steps tell you to swing an 18 in radius with a trammel (or a pencil on a string), then true the edge with a router on a circle jig.

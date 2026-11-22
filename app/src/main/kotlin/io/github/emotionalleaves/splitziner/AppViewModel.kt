@@ -302,7 +302,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val ba = splitziner.guide.GuideLayout.beforeAndAfter(
                         runCatching { splitziner.cutplan.EdgeBanding.estimate(a.parts).items }.getOrDefault(emptyList()),
                         splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(),
-                        fasten?.byStep?.values?.flatten()?.any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") } ?: true,
+                        fasten?.byStep?.values?.flatten()?.any { !it.glueOnly && it.kind in setOf("screws", "pocket screws", "under", "up", "counterbored", "cabinets") } ?: true,
                         fasten?.let { splitziner.joinery.Fastening.pocketHoles(it) } ?: emptyMap(),
                         runCatching { splitziner.drawing.PartDrawings.pinItems(a.parts).toList() }.getOrDefault(emptyList()),
                         fasten?.let { splitziner.joinery.Fastening.grooveItems(it) } ?: emptyList(),

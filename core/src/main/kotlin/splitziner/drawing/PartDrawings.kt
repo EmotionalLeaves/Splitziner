@@ -165,7 +165,13 @@ object PartDrawings {
 
     private fun angleNotes(row: CutListRow): List<String> {
         val m = Regex("""ENDS CUT AT (.*)$""").find(row.description) ?: return emptyList()
-        return listOf("BOTH ENDS CUT AT ${m.groupValues[1]} OFF SQUARE, PARALLEL TO EACH OTHER. ${if (m.groupValues[1].contains("COMPOUND")) "SET BOTH THE MITRE AND THE BEVEL." else "SET THE MITRE ONLY."} LENGTH IS MEASURED ALONG THE LONG EDGE.")
+        val v = m.groupValues[1]; val deg = v.substringBefore(" (")
+        return listOf(when {
+            v.endsWith("(MITRE)") -> "BOTH ENDS MITRED AT $deg, OPPOSITE WAYS. SET THE MITRE ONLY. LENGTH IS MEASURED ALONG THE LONG EDGE, POINT TO POINT."
+            v.endsWith("(BEVEL)") -> "BOTH ENDS BEVELLED AT $deg ACROSS THE THICKNESS, OPPOSITE WAYS (A MITRED CORNER). TILT THE BLADE ONLY. LENGTH IS MEASURED ON THE OUTSIDE FACE, POINT TO POINT."
+            v.contains("COMPOUND") -> "BOTH ENDS CUT AT $v OFF SQUARE, PARALLEL TO EACH OTHER. SET BOTH THE MITRE AND THE BEVEL. LENGTH IS MEASURED ALONG THE LONG EDGE."
+            else -> "BOTH ENDS CUT AT $v OFF SQUARE, PARALLEL TO EACH OTHER. SET THE MITRE ONLY. LENGTH IS MEASURED ALONG THE LONG EDGE."
+        })
     }
 
     fun detailNote(items: Set<Int>, drawingNo: String): String? {

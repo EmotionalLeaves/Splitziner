@@ -73,6 +73,8 @@ object AssemblyPlan {
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
         // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
         modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
+        // A case standing on another's top (a desk's hutch, a dresser's mirror stand) is built whole, then set on.
+        upperUnit(live)?.let { ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "upper" }
         // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
         val ff = live.filter { it.name == "Stile" || it.name == "Face frame rail" }
         if (ff.size >= 3 && ff.any { it.name == "Stile" } && ff.any { it.name == "Face frame rail" }) for (p in ff) out[p.id] = "faceframe"
@@ -161,6 +163,31 @@ object AssemblyPlan {
         return if (ends.flatten().toSet().size == ends.size * 3) ends else emptyList()
     }
 
+    /**
+     * The parts of a case that stands on the top of the piece below it (a hutch on a desk): all of them above that
+     * top, touching each other, four or more, with at least one standing on it. Null when there is none.
+     */
+    fun upperUnit(live: List<Part>): List<String>? {
+        if (live.size < 8) return null
+        fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
+        fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+        val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+        // The lower top: a big flat part spanning most of the width, with parts standing on it.
+        for (top in live.filter { flat(it) && it.mesh.bounds.extents.x >= 0.8 * all.extents.x && it.mesh.bounds.max.z < all.max.z - 100.0 }.sortedByDescending { it.mesh.bounds.extents.x * it.mesh.bounds.extents.y }) {
+            val tz = top.mesh.bounds.max.z
+            val above = live.filter { it !== top && it.mesh.bounds.min.z >= tz - 0.5 }
+            val below = live.filter { it !== top && it.mesh.bounds.max.z <= top.mesh.bounds.min.z + 0.5 }
+            // Everything is either above or below the top: nothing passes through it.
+            if (above.size < 4 || below.size < 2 || above.size + below.size + 1 != live.size) continue
+            if (above.none { touch(it, top) }) continue
+            // One connected group.
+            val seen = HashSet<String>(); val q = ArrayDeque(listOf(above[0]))
+            while (q.isNotEmpty()) { val p = q.removeFirst(); if (!seen.add(p.id)) continue; above.filter { it.id !in seen && touch(it, p) }.forEach { q += it } }
+            if (seen.size == above.size) return above.map { it.id }
+        }
+        return null
+    }
+
     fun legFrames(live: List<Part>): List<List<String>> {
         val legs = live.filter { it.name.endsWith("eg") && '.' !in it.id }
         if (legs.size < 4 || legs.size % 2 != 0) return emptyList()
@@ -227,12 +254,15 @@ object AssemblyPlan {
             val first = kind.first()
             if (first.size > BIG_SUB) {
                 // A whole cabinet is too much for one picture: it is built in a few bench steps, as on its own.
-                val inner = planCore(first, maxSteps = minOf(5, maxOf(2, ceil(first.size / 3.0).toInt())))
-                val ex = inner.parts.associate { it.id to it.explode }
+                // Its back panel goes on last, once the case is together, as in the main build.
+                val backs = first.filter { it.name == "Back panel" }.takeIf { first.size - it.size >= 3 }.orEmpty()
+                val inner = planCore(first - backs.toSet(), maxSteps = minOf(5, maxOf(2, ceil(first.size / 3.0).toInt())))
+                val ex = inner.parts.associate { it.id to it.explode } + backs.associate { it.id to Vec3(0.0, 1.0, 0.0) * maxOf(it.mesh.bounds.extents.z, 50.0) * 0.5 }
                 val start = bench.size + 1
                 // The piece laid down first goes in with the first parts joined to it, not on a page of its own.
-                val isteps = if (inner.steps.size >= 2 && inner.steps[0].partIds.size == 1)
-                    listOf(inner.steps[1].copy(partIds = inner.steps[0].partIds + inner.steps[1].partIds)) + inner.steps.drop(2) else inner.steps
+                val isteps = (if (inner.steps.size >= 2 && inner.steps[0].partIds.size == 1)
+                    listOf(inner.steps[1].copy(partIds = inner.steps[0].partIds + inner.steps[1].partIds)) + inner.steps.drop(2) else inner.steps) +
+                    (if (backs.isEmpty()) emptyList() else listOf(BuildStep(0, backs.map { it.id }, listOf(Vec3(0.0, 1.0, 0.0)), backs.mapNotNull { it.item }.distinct().sorted())))
                 for ((k, ist) in isteps.withIndex()) {
                     val ids = ist.partIds.filter { id -> first.any { it.id == id } }
                     if (ids.isEmpty()) continue
@@ -768,6 +798,10 @@ object AssemblyPlan {
             val pool = ArrayList(raw); raw.clear()
             fun freeDir(i: Int): Dir? {
                 val d0 = dirOf.getValue(i)
+                // A board laid on top of what is built (a desk top on its ends, with a hutch to come on it) goes on
+                // from above, though in the finished piece something above stops it lifting off.
+                if (d0.k != 2 && (lyingFlat(i) || parts[i].id == "upper") && placed.any { j -> touches(i, j) && hi[j].z <= lo[i].z + tol } &&
+                    placed.none { j -> touches(i, j) && lo[j].z < hi[i].z - tol && hi[j].z > lo[i].z + tol } && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 return if (blockers(i, d0, placed).isEmpty()) d0 else dirs(i).firstOrNull { blockers(i, it, placed).isEmpty() }
             }
             fun feasible(g: List<Int>) = g.all { freeDir(it) != null }

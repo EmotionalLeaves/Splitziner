@@ -21,6 +21,7 @@ enum class Work(val label: String, val with: Set<Tool>, val slowly: Set<Tool> = 
     SHEET_CUT("long cuts across sheet material", setOf(Tool.CIRCULAR_SAW, Tool.TABLE_SAW, Tool.CNC), setOf(Tool.JIGSAW, Tool.HAND_SAW)),
     CURVED_CUT("curved cuts", setOf(Tool.JIGSAW, Tool.BAND_SAW, Tool.ROUTER, Tool.CNC)),
     NOTCH("notches or angled cuts", setOf(Tool.JIGSAW, Tool.BAND_SAW, Tool.HAND_SAW, Tool.CNC), setOf(Tool.CIRCULAR_SAW)),
+    ANGLE_CUT("ends cut at an angle (mitres, bevels)", setOf(Tool.MITER_SAW, Tool.TABLE_SAW, Tool.CNC), setOf(Tool.HAND_SAW, Tool.CIRCULAR_SAW)),
     CUTOUT("an opening cut inside the part", setOf(Tool.JIGSAW, Tool.ROUTER, Tool.CNC)),
     HOLES("round holes", setOf(Tool.DRILL, Tool.DRILL_PRESS, Tool.CNC)),
     EDGE_SHAPE("rounded or bevelled edges", setOf(Tool.ROUTER, Tool.CNC), setOf(Tool.SANDER)),

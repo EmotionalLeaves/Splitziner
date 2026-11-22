@@ -55,7 +55,8 @@ object PartDescriber {
         val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
         val order = e.indices.sortedBy { e[it] }
         val a0 = obb.axes[order[0]]; val a1 = obb.axes[order[1]]; val a2 = obb.axes[order[2]]
-        if (e[order[2]] < 3 * e[order[1]]) return null
+        // Long against its width; a mitred box side can be only twice as long as it is high.
+        if (e[order[2]] < 1.8 * e[order[1]]) return null
         val n = m.faceNormals; val area = m.faceAreas
         var endArea = 0.0; var sideArea = 0.0
         val angles = ArrayList<Pair<Double, Double>>()
@@ -72,6 +73,27 @@ object PartDescriber {
         // Square ends, or ends not flat (a tenon, a rounded end): not this.
         if (maxOf(x0, x1) < 1.0 || angles.any { abs(it.first - x0) > 1.0 || abs(it.second - x1) > 1.0 }) return null
         return x0 to x1
+    }
+
+    /**
+     * True when a stick's two angled ends lean opposite ways (a mitred frame's piece, a trapezoid), false when they
+     * are parallel (a splayed leg sawn level top and bottom).
+     */
+    fun mirroredEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Boolean {
+        val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val order = e.indices.sortedBy { e[it] }
+        val a0 = obb.axes[order[0]]; val a1 = obb.axes[order[1]]; val a2 = obb.axes[order[2]]
+        val n = m.faceNormals; val area = m.faceAreas
+        // Each end's lean across the thickness and the width, as the slope of its face; weighted by area.
+        val lean = Array(2) { DoubleArray(2) }
+        for (t in 0 until m.triangleCount) {
+            val v = Vec3(n[3 * t], n[3 * t + 1], n[3 * t + 2]); val along = v dot a2
+            if (abs(along) <= 0.5) continue
+            val end = if (along > 0) 1 else 0
+            lean[end][0] += area[t] * (v dot a0) / along; lean[end][1] += area[t] * (v dot a1) / along
+        }
+        // Parallel planes have the same slope seen from each end; mirrored ones the opposite.
+        return (0..1).any { k -> lean[0][k] * lean[1][k] < 0 && abs(lean[0][k]) > 1e-6 }
     }
 
     fun describe(m: Mesh, fmt: LengthFormat): PartDescription {
@@ -118,7 +140,10 @@ object PartDescriber {
         angledEnds(m, obb)?.let { (a1, a2) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             fun deg(v: Double) = (Math.round(v * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
-            val ends = if (a1 >= 0.5 && a2 >= 0.5) "ENDS CUT AT ${deg(a1)} AND ${deg(a2)} (COMPOUND)" else "ENDS CUT AT ${deg(maxOf(a1, a2))}"
+            // Opposite ways: a mitre across the width (a picture frame) or a bevel across the thickness (a box side).
+            val mirrored = mirroredEnds(m, obb)
+            val ends = if (a1 >= 0.5 && a2 >= 0.5) "ENDS CUT AT ${deg(a1)} AND ${deg(a2)} (COMPOUND)"
+                else if (mirrored) "ENDS CUT AT ${deg(maxOf(a1, a2))} (${if (a1 > a2) "BEVEL" else "MITRE"})" else "ENDS CUT AT ${deg(maxOf(a1, a2))}"
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, $ends")
         }
         if (fill > SOLID_FILL) {

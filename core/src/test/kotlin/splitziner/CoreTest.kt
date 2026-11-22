@@ -1675,3 +1675,51 @@ class TrestleTest {
         assertTrue(f.hardware.any { it.contains("3/8 in wood plugs") }, f.hardware.toString())
     }
 }
+
+class MitreTest {
+    /** A 16 x 20 in picture frame of 2 in moulding, its four sides mitred at the corners. */
+    private fun frame(): List<splitziner.mesh.Mesh> {
+        val W = 406.4; val H = 508.0; val w = 50.8; val t = 19.05
+        fun prism(xy: List<Pair<Double, Double>>): splitziner.mesh.Mesh {
+            val n = xy.size; val v = ArrayList<Double>(); val tri = ArrayList<Int>()
+            for (z in listOf(0.0, t)) for ((x, y) in xy) { v += x; v += y; v += z }
+            for (i in 1 until n - 1) { tri += listOf(0, i + 1, i); tri += listOf(n, n + i, n + i + 1) }
+            for (i in 0 until n) { val j = (i + 1) % n; tri += listOf(i, j, n + j); tri += listOf(i, n + j, n + i) }
+            return splitziner.mesh.Mesh(v.toDoubleArray(), tri.toIntArray())
+        }
+        return listOf(prism(listOf(0.0 to 0.0, W to 0.0, W - w to w, w to w)), prism(listOf(w to H - w, W - w to H - w, W to H, 0.0 to H)),
+            prism(listOf(0.0 to 0.0, w to w, w to H - w, 0.0 to H)), prism(listOf(W to 0.0, W to H, W - w to H - w, W - w to w)))
+    }
+
+    @Test fun mitredFrameIsCutAndGluedAsMitres() {
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(frame())), "frame.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertTrue(a.cutList.rows.all { it.description.endsWith("ENDS CUT AT 45° (MITRE)") }, a.cutList.rows.map { it.description }.toString())
+        val inch = LengthFormat("in", "fraction")
+        val row = a.cutList.rows.first()
+        val how = splitziner.check.HowTo.steps(row, a.parts.first { it.id == row.memberIds[0] }, inch, null)
+        assertTrue(how.any { it.startsWith("Mitre both ends at 45°, opposite ways") }, how.toString())
+        assertTrue(how.none { it.contains("notches") }, how.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, inch)
+        assertEquals(4, f.all.count { it.kind == "mitre" }, f.all.map { it.kind }.toString())
+    }
+}
+
+class HutchTest {
+    @Test fun hutchIsBuiltWholeAndSetOnTheDeskTop() {
+        val T = 19.05; val W = 1524.0; val D = 609.6; val H = 742.95; val hd = 304.8; val hh = 914.4; val y0 = D - hd
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = listOf(b(0.0, 0.0, 0.0, T, D, H - T), b(W - T, 0.0, 0.0, T, D, H - T), b(0.0, 0.0, H - T, W, D, T), b(T, D - 50.8 - T, 254.0, W - 2 * T, T, H - T - 254.0),
+            b(0.0, y0, H, T, hd, hh), b(W - T, y0, H, T, hd, hh), b(T, y0, H + hh - T, W - 2 * T, hd - 6.35, T), b(W / 2 - T / 2, y0, H, T, hd - 6.35, hh - T),
+            b(T, y0, H + 381.0, W / 2 - 1.5 * T, hd - 6.35, T), b(W / 2 + T / 2, y0, H + 381.0, W / 2 - 1.5 * T, hd - 6.35, T), b(T, D - 6.35, H, W - 2 * T, 6.35, hh - T))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "desk.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val top = a.parts.first { kotlin.math.abs(it.mesh.bounds.max.z - H) < 1 && it.mesh.bounds.extents.x > W - 1 }
+        assertEquals("Top", top.name)
+        assertEquals(7, splitziner.explode.AssemblyPlan.upperUnit(a.parts)?.size)
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        // The desk top is not screwed through its face, and the hutch is screwed up through it from below.
+        assertTrue(f.all.none { it.through.id == top.id && it.kind == "screws" }, f.all.filter { it.through.id == top.id }.map { it.kind }.toString())
+        assertTrue(f.all.any { it.through.id == top.id && it.kind == "under" })
+    }
+}

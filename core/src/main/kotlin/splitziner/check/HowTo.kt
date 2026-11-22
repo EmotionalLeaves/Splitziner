@@ -40,6 +40,17 @@ object HowTo {
                     (if (big && tool.contains("circular")) ", clamping a straight board as a fence" else "") + (if (row.grain) ", with the grain along the ${d(row.l)} $u length" else "") + "."
             }
         }
+        if (Work.ANGLE_CUT in w.work) {
+            val v = Regex("""ENDS CUT AT (.*)$""").find(row.description)?.groupValues?.get(1) ?: ""
+            val deg = v.substringBefore(" (").lowercase()
+            val saw = pick(Work.ANGLE_CUT)
+            out += when {
+                v.endsWith("(MITRE)") -> "Mitre both ends at $deg, opposite ways, with a $saw: cut one end, measure ${d(row.l)} $u along the long edge to the point and cut the other. Cut a test pair from scrap first and check that two make a square corner."
+                v.endsWith("(BEVEL)") -> "Bevel both ends at $deg across the thickness, opposite ways, with a $saw with the blade tilted: cut one end, measure ${d(row.l)} $u along the outside face to the point and cut the other. Cut a test pair from scrap first and check that two make a square corner."
+                v.contains("COMPOUND") -> "Cut both ends at ${v.substringBefore(" (").lowercase()} off square (a compound cut: set both the mitre and the bevel), parallel to each other, with a $saw; measure ${d(row.l)} $u along the long edge."
+                else -> "Cut both ends at $deg off square, parallel to each other, with a $saw; measure ${d(row.l)} $u along the long edge."
+            }
+        }
         if (Work.NOTCH in w.work) out += "Mark the notches from the drawing and cut them with a ${pick(Work.NOTCH)}, staying just inside the line; pare or sand to it."
         val circle = runCatching { splitziner.drawing.FullSize.circleDiameter(part.mesh) }.getOrNull()
         val oval = if (circle == null) runCatching { splitziner.drawing.FullSize.oval(part.mesh) }.getOrNull() else null

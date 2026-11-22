@@ -95,6 +95,8 @@ object FullSize {
         val out = ArrayList<DisplayList>(); val items = ArrayList<Int>(); val tooBig = ArrayList<Int>()
         for (row in rows) {
             val p = byItem[row.item]?.firstOrNull() ?: continue
+            // Ends sawn at an angle are set on the saw, not traced from paper.
+            if (row.description.contains("ENDS CUT AT")) continue
             val pr = runCatching { Prisms.of(p.mesh) }.getOrNull() ?: continue
             var g = pr.outline
             if (g.isEmpty || !shaped(g)) continue
