@@ -428,13 +428,22 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             // Roughly what it weighs, from the materials the user has set; typical densities, so only an estimate.
             val wt = remember(a.cutList.rows) { splitziner.material.Materials.weight(a.parts, a.cutList.rows) }
             val cost = remember(a, priceVersion) { runCatching { woodCost(context, splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, a.format)), a.format)) }.getOrNull() }
-            if (cost != null && cost.first > 0) Text("Wood costs about ${money(cost.first)}" + if (cost.second > 0) " (${cost.second} kind${if (cost.second == 1) "" else "s"} of stock not priced)" else "", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-            Text(
-                if (wt.unknownItems.size == a.cutList.rows.size) "Set a material (tap an item) to get a weight estimate."
-                else "Weighs about ${splitziner.material.Materials.format(wt.kg, a.format.isInch)} (typical densities)" +
-                    if (wt.unknownItems.isEmpty()) "." else if (wt.unknownItems.size > 6) ", not counting ${wt.unknownItems.size} items with no material, or one the app does not know."
-                    else ", not counting item${if (wt.unknownItems.size == 1) "" else "s"} ${wt.unknownItems.joinToString(", ")}: no material, or one the app does not know.",
-                style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+            // What to buy, first: the stock the cutting plan uses, what it costs and roughly what the piece weighs.
+            val buy = remember(a) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, a.format)), a.format) }.getOrDefault(emptyList()) }
+            Card(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("To buy", style = MaterialTheme.typography.titleSmall)
+                    for (b in buy.take(4)) Text("\u2022 ${b.line.replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (buy.size > 4) Text("and ${buy.size - 4} more: see the cutting plan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (cost != null && cost.first > 0) Text("About ${money(cost.first)} of wood" + if (cost.second > 0) " (${cost.second} kind${if (cost.second == 1) "" else "s"} of stock not priced)" else "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        if (wt.unknownItems.size == a.cutList.rows.size) "Set a material (tap an item) to get a weight estimate."
+                        else "Weighs about ${splitziner.material.Materials.format(wt.kg, a.format.isInch)} (typical densities)" +
+                            if (wt.unknownItems.isEmpty()) "." else if (wt.unknownItems.size > 6) ", not counting ${wt.unknownItems.size} items with no material, or one the app does not know."
+                            else ", not counting item${if (wt.unknownItems.size == 1) "" else "s"} ${wt.unknownItems.joinToString(", ")}: no material, or one the app does not know.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
             val partById = remember(a) { a.parts.associateBy { it.id } }
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
@@ -443,11 +452,14 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             // What the parts are called (Side, Shelf, Drawer side...), when they have names.
                             val names = row.name.ifBlank { row.memberIds.mapNotNull { partById[it] }.filter { it.name != it.id }.map { it.name }.distinct().sorted().let { if (it.isEmpty()) "" else it.take(3).joinToString(" / ") + if (it.size > 3) "…" else "" } }
-                            if (names.isNotEmpty()) Text(names, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
-                            Text(row.description, style = MaterialTheme.typography.bodyMedium)
-                            Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  ·  grain along length" else "", style = MaterialTheme.typography.bodySmall)
+                            Text(names.ifBlank { row.description.substringBefore(' ').lowercase().replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.titleSmall)
+                            // "Panel 18 x 600 x 1500, notched", in the units shown.
+                            val desc = row.description.lowercase().replaceFirstChar { it.uppercase() }
+                            Text(desc.substringBefore(',') + " ${a.format.unitLabel}" + (if (desc.contains(',')) "," + desc.substringAfter(',') else ""), style = MaterialTheme.typography.bodyMedium)
+                            Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  \u00b7  grain along length" else "", style = MaterialTheme.typography.bodySmall,
+                                color = if (row.material.isBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("×${row.qty}", style = MaterialTheme.typography.titleMedium)
+                        Text("\u00d7${row.qty}", style = MaterialTheme.typography.titleMedium)
                     }
                     HorizontalDivider()
                 }
