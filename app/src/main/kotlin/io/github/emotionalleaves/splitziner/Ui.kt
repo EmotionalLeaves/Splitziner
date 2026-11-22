@@ -127,7 +127,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
     var confirmDelete by remember { mutableStateOf<ProjectMeta?>(null) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Splitziner", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Turn an STL into parts, a cut list and drawings.", style = MaterialTheme.typography.bodyMedium)
+        Text("Turn a 3D model or a template into something you can build: checked parts, drawings, a build guide and a shopping list.", style = MaterialTheme.typography.bodyMedium)
         state.update?.let { u ->
             Card(Modifier.fillMaxWidth().padding(top = 10.dp).clickable { vm.installUpdate() }) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
