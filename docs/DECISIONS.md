@@ -325,3 +325,7 @@ Departures from the build spec, newest first.
 
 ## v1.12
 - A plain block with blind pockets (a leg's mortises: each opening on one face only, one per face) is drawn with them cut out, built as an exact mesh (the face round each opening as four trapezoids, so no T-junctions), so its views show the mortises, hidden where out of sight, and the dimensions place them.
+
+## v1.13
+- "Before you build" names grooves, rabbets and mortises together ("cut the grooves, rabbets and mortises that item 2 needs"); it said "grooves" for a leg that only has mortises.
+- A part's second mortise of the same size is told in one line ("cut the other mortise … the same size, at …"), the method having just been given.

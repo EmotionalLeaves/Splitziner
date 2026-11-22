@@ -474,7 +474,7 @@ object GuideLayout {
         before += glued
         if (thinItems.isNotEmpty()) before += "Thin panels are held in a groove or rabbet, or against a glued strip (a cleat): the steps say where. If you choose grooves or rabbets, cut them in ${list(thinItems)} now, while the boards are loose, and add their depth to the thin panels."
         if (pinItems.isNotEmpty()) before += "Drill the shelf-pin holes in ${list(pinItems.sorted())} (${if (pinItems.size == 1) "its drawing gives" else "their drawings give"} the rows) before anything is joined, with a jig or a drilling guide so the rows match."
-        if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (${if (groovedItems.size == 1) "its drawing gives" else "their drawings give"} the sizes) before anything is joined: it is far easier on a loose board."
+        if (groovedItems.isNotEmpty()) before += "Cut the grooves, rabbets and mortises that ${list(groovedItems.sorted())} ${if (groovedItems.size == 1) "needs" else "need"} (${if (groovedItems.size == 1) "its drawing gives" else "their drawings give"} the sizes) before anything is joined: it is far easier on a loose board."
         if (pocketHoles.isNotEmpty()) before += "Drill the pocket holes with the jig set to each board's thickness, on faces that will not show: " +
             pocketHoles.entries.joinToString("; ") { (i, n) -> "item $i, $n holes in all" } + ". Each goes in the end that meets another part's face."
         if (dowels != null) {

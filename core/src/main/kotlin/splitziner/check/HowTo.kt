@@ -67,6 +67,7 @@ object HowTo {
         }
         if (Work.EDGE_SHAPE in w.work) out += "Round or bevel the edges with a ${pick(Work.EDGE_SHAPE)}; test the setting on an offcut first."
         if (Work.THICKNESS in w.work) out += "Plane it down to ${d(row.t)} $u with a ${pick(Work.THICKNESS)}, taking light passes off both faces."
+        val mortiseSizes = HashSet<String>()
         for (g in grooves) {
             // "GROOVE FOR ITEM 3: 1/4 DEEP X 3/4 WIDE X 11-3/4 LONG (3 PLACES), 3, 15-3/4 AND 29-1/2 FROM THE BOTTOM END ..."
             // or "RABBET FOR ITEM 2: 1/4 DEEP X 1/4 WIDE X 45 LONG, ALONG THE BACK EDGE (AS ASSEMBLED)."
@@ -74,6 +75,9 @@ object HowTo {
             val places = m.groupValues[6].takeIf { it.isNotEmpty() }?.let { " in $it places" } ?: ""
             // Positions carry their unit as the sizes do: "at 3 in, 15-3/4 in and 29-1/2 in from the bottom end".
             val where = m.groupValues[7].takeIf { it.isNotEmpty() }?.lowercase()?.replace(Regex("""(\d)(,| and| from)"""), "$1 $u$2")?.let { w -> if (w.startsWith("along")) w else "at $w" } ?: "where its drawing shows"
+            // A second mortise of the same size (a leg's other face) is told briefly: the method was just given.
+            val size = m.groupValues.subList(2, 6).joinToString("|")
+            if (m.groupValues[1] == "MORTISE" && !mortiseSizes.add(size)) { out += "Cut the other mortise for item ${m.groupValues[2]}$places the same size, $where."; continue }
             out += if (m.groupValues[1] == "MORTISE") "Cut a mortise for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} $u deep, ${m.groupValues[4].lowercase()} $u wide, ${m.groupValues[5].lowercase()} $u long, $where. Drill out most of it with a ${m.groupValues[4].lowercase()} $u bit, a row of holes to depth, then pare the sides and square the ends with a chisel (or rout it with a fence). Test the tenon's fit: snug by hand, not hammered."
                 else "Cut a ${m.groupValues[1].lowercase()} for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} $u deep, ${m.groupValues[4].lowercase()} $u wide, ${m.groupValues[5].lowercase()} $u long, $where, with a ${grooveTool()}."
         }

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.13.0 - Mortise wording
+
+- Clearer wording for mortised legs: "Before you build" mentions mortises, and the second mortise of the same size is a one-line step instead of repeating the whole method.
+
 ## v1.12.0 - Mortises on the drawings
 
 - Leg drawings show their mortises: the slots are drawn (hidden lines where you can't see them) and dimensioned, not only described in the notes.
