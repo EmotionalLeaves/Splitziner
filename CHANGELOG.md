@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.56.0 - Drawing set index notes
+
+- **The assembly drawing now says where the detail drawings are.** For example: "Detail drawings: item 4 on TEST-1-4". In a big set, the items are given as ranges, with the numbering pattern. Together with the plain-boards note, every item is accounted for.
+- **Sheet names in the drawing viewer are easier to read:** "Item 13: Apron, board 1/2 x 3 x 68, notched".
+
 ## v0.55.0 - Notches dimensioned; jump to any sheet or page
 
 - **Part drawings now dimension notches that face down or forward**, such as a toe-kick notch cut from a cabinet side. Before, those notches were drawn but had no dimensions.
