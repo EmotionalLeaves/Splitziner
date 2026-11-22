@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Engine tests + APK
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test & build
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace :core:test :app:assembleRelease 2>&1 | tee build-output.txt
+
+      - name: Report the result on the commit
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "### CI $STATUS"
+            if [ "$STATUS" != "success" ]; then
+              echo '```'
+              grep -A3 -E "^e: |error:|FAILED|What went wrong|AssertionError" build-output.txt | head -100 || true
+              echo '```'
+              echo 'Tail:'
+              echo '```'
+              tail -40 build-output.txt
+              echo '```'
+            fi
+          } | head -c 60000 > result.md
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -f body="$(cat result.md)" > /dev/null
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            core/build/reports/tests
+            core/build/golden-actual
+          if-no-files-found: ignore
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: splitziner-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

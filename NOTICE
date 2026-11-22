@@ -1,0 +1,2 @@
+Splitziner uses the JTS Topology Suite (Eclipse Distribution License 1.0 / Eclipse Public License 2.0),
+Kotlin and kotlinx.coroutines (Apache License 2.0), and AndroidX / Jetpack Compose (Apache License 2.0).
