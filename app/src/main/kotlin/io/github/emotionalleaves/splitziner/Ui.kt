@@ -333,9 +333,15 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick = { playing = !playing; playStep = 1 }) { Text(if (playing) "Show all" else "Build steps") }
                 OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
-                OutlinedButton(onClick = { showSize = true }, enabled = state.busyLabel == null) { Text("Overall size") }
                 if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
-                if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { showChanges = true }, enabled = state.busyLabel == null) { Text("Changes (${open.meta.edits.size})") }
+                Box {
+                    var more by remember { mutableStateOf(false) }
+                    OutlinedButton(onClick = { more = true }, enabled = state.busyLabel == null) { Text("More\u2026") }
+                    androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                        androidx.compose.material3.DropdownMenuItem(text = { Text("Overall size") }, onClick = { more = false; showSize = true })
+                        if (open.meta.edits.isNotEmpty()) androidx.compose.material3.DropdownMenuItem(text = { Text("Changes (${open.meta.edits.size})") }, onClick = { more = false; showChanges = true })
+                    }
+                }
             }
         } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
@@ -904,8 +910,8 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
-    "Changes" to "On the 3D tab, Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
-    "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
+    "Changes" to "On the 3D tab, More > Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
+    "Overall size" to "On the 3D tab, More > Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
     "Full-size templates" to "On the Drawing tab, More > Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
     "Prices" to "On the Cut list tab, More > Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",

@@ -242,7 +242,7 @@ class SmokeTest {
             shot("n02_bookcase_guide")
             println("SMOKE bookcase parts=${a.parts.size} items=${a.cutList.rows.size} guide steps=${vm.state.value.guide!!.stepCount}")
             // Overall size: the dialog, then 6 in (152.4 mm) wider through the same edit it makes.
-            tap("3D"); tap("Overall size"); shot("n03_overall_size"); tap("Cancel")
+            tap("3D"); tap("More\u2026"); tap("Overall size"); shot("n03_overall_size"); tap("Cancel")
             val w0 = a.bounds.extents.x
             val plane = splitziner.edit.Editor.stretchPlane(a.parts, 0)!!
             vm.addEdits(listOf(splitziner.edit.Edit.Stretch(0, plane.first, 152.4)))
