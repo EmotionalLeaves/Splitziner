@@ -977,7 +977,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                     val stock = splitziner.cutplan.StockSettings(minOf(w, l) * unit, maxOf(w, l) * unit, b * unit, k * unit, rotate)
                     val rows = open.analysis.cutList.rows
                     val plan = splitziner.cutplan.CutPlanner.plan(rows, stock)
-                    val pages = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt)
+                    val pages = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
                     sharePdf(context, open, pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "cutting_plan")
                     onDismiss()
                 } catch (e: Throwable) {

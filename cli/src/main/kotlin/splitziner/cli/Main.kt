@@ -122,8 +122,9 @@ fun main(args: Array<String>) {
             }
             time("cutplan") {
                 val cp = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, splitziner.cutplan.StockSettings.defaultFor(a.format))
-                splitziner.cutplan.CutPlanLayout.pages(cp, a.cutList.rows, f.nameWithoutExtension, a.format).forEachIndexed { i, d -> File(out, "cutplan%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
+                splitziner.cutplan.CutPlanLayout.pages(cp, a.cutList.rows, f.nameWithoutExtension, a.format, extraBuy = listOfNotNull(splitziner.cutplan.EdgeBanding.line(a.parts, a.format))).forEachIndexed { i, d -> File(out, "cutplan%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("cutplan   ${splitziner.cutplan.CutPlanner.shoppingList(cp, a.format)} leftOut ${cp.leftOut.size}")
+                println("banding   ${splitziner.cutplan.EdgeBanding.line(a.parts, a.format)}")
             }
         }
     } catch (e: Exception) {

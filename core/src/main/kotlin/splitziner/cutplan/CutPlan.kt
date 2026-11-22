@@ -208,7 +208,7 @@ object CutPlanLayout {
         return lines
     }
 
-    fun pages(r: CutPlanResult, rows: List<CutListRow>, title: String, fmt: LengthFormat, a4: Boolean = !fmt.isInch): List<DisplayList> {
+    fun pages(r: CutPlanResult, rows: List<CutListRow>, title: String, fmt: LengthFormat, a4: Boolean = !fmt.isInch, extraBuy: List<String> = emptyList()): List<DisplayList> {
         val w = if (a4) 210.0 else 215.9; val h = if (a4) 297.0 else 279.4
         val list = ArrayList<DisplayList>()
         fun page(): DisplayList {
@@ -235,7 +235,7 @@ object CutPlanLayout {
         p.text(20.0, y, "STOCK ASSUMED", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5
         y = para(p, 23.0, y, "Sheets ${d(s.sheetW)} x ${d(s.sheetL)}, or a half or quarter of one where everything fits (many stores sell these). Boards and rods in lengths of ${d(s.boardL)}. Saw cut ${d(s.kerf)} wide." + (if (s.rotate) " Panels may be turned to fit." else " Panels keep their length along the sheet."), 3.0, w - 46) - 4
         p.text(20.0, y, "TO BUY", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5
-        val buy = CutPlanner.shoppingList(r, fmt)
+        val buy = CutPlanner.shoppingList(r, fmt) + extraBuy
         for (b in buy.ifEmpty { listOf("Nothing in this project is cut from sheets or lengths.") }) y = para(p, 23.0, y, "• $b", 3.0, w - 46)
         if (r.leftOut.isNotEmpty()) {
             y -= 4; p.text(20.0, y, "NOT IN THE PLAN", 3.5, vAlign = VAlign.TOP, bold = true); y -= 6.5

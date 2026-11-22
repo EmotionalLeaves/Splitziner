@@ -1076,3 +1076,12 @@ class ProfileDxfTest {
         assertTrue(ys.max() - ys.min() >= 720.0 - 1e-6)
     }
 }
+
+class EdgeBandingTest {
+    @Test fun countsOnlyFreeFrontSideAndTopEdges() {
+        // One upright 600 x 18 x 900 panel standing alone: front? its thin axis is Y, so its edges are left, right and top.
+        val p = Part("P1", "P", Fixtures.box(0.0, 600.0, 0.0, 18.0, 0.0, 900.0)).copy(kind = splitziner.parts.PartKind.PANEL, item = 1)
+        val est = splitziner.cutplan.EdgeBanding.estimate(listOf(p))
+        assertEquals((900.0 + 900.0 + 600.0) * 1.1, est.lengthMm, 1e-6)
+    }
+}
