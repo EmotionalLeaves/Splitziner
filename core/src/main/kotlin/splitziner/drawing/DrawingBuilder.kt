@@ -41,6 +41,10 @@ class DrawingResult(val sheets: List<DisplayList>, val sheet: SheetSize, val sca
 class ViewSet(val scene: Mesh, val views: Map<String, ViewLines>, val sections: Map<String, splitziner.section.SectionGeometry> = emptyMap())
 
 object DrawingBuilder {
+    /** A pictorial view is added to sheet 1 only for assemblies up to this many parts, and only in a gap this big (mm). */
+    private const val ISO_MAX_PARTS = 150
+    private const val ISO_MIN_MM = 70.0
+
     /** Preferred scales come first in each direction; 1/50 and 1/100 are last resorts for very large objects. */
     val SCALES = doubleArrayOf(20.0, 10.0, 4.0, 2.0, 1.0, 1 / 2.0, 1 / 4.0, 1 / 10.0, 1 / 20.0, 1 / 50.0, 1 / 100.0)
     private val LAST_RESORT = setOf(1 / 50.0, 1 / 100.0)
@@ -395,6 +399,36 @@ object DrawingBuilder {
             if (a.overlap(c) > 0.5) overlaps++
         }
         if (overlaps > 0) qa += "$overlaps annotation overlap(s) on sheet 1; a larger sheet may read better"
+        // A pictorial view in a free corner of the sheet, as drafters add when there is room: it shows what
+        // the three views add up to. Left off very large assemblies, where it would cost seconds for a small picture.
+        if (drawn.size <= ISO_MAX_PARTS) runCatching {
+            val tm = margins("top", groups, th, vs.sections, callouts); val rm = margins("right", groups, th, vs.sections, callouts)
+            val ot = origin.getValue("top"); val orr = origin.getValue("right")
+            val nb = Furniture.notes(DisplayList(1.0, 1.0), sheet, L, info, notes, draw = false)
+            val ceiling = (nb?.get(1) ?: (sheet.fieldY1 - Furniture.revisionBlockHeight(info))) - 6
+            val x1 = sheet.fieldX1 - 4
+            // Two candidate gaps: above the right view (beside the top view), or right of the right view down to the list.
+            val above = doubleArrayOf(maxOf(ot[0] + wt * s + tm.right + CALL, orr[0] - rm.left) + 6, orr[1] + hr * s + rm.top + CALL + 6, x1, ceiling)
+            val besideX = orr[0] + wr * s + rm.right + CALL + 6
+            val besideBottom = sheet.fieldY0 + Furniture.TITLE_HEIGHT + listH + 6
+            val beside = doubleArrayOf(besideX, besideBottom, x1, ceiling)
+            fun fair(b: DoubleArray) = b[2] - b[0] >= ISO_MIN_MM && b[3] - b[1] >= ISO_MIN_MM * 0.7
+            val box = listOf(above, beside).filter { fair(it) }.maxByOrNull { b -> minOf(b[2] - b[0], 1.5 * (b[3] - b[1])) * (b[3] - b[1]) }
+            if (box != null) {
+                val x0 = box[0]; val y0 = box[1]; val y1 = box[3]; val x1b = box[2]
+                val geo = splitziner.explode.ExplodedView.prepare(drawn.map { it.copy(explode = null) })
+                val mark = dl.prims.size
+                splitziner.explode.ExplodedView.drawInto(dl, geo, x0, y0 + L.dims * 2.5, x1b, y1, splitziner.explode.ExplodeOptions(balloons = false, textHeight = th))
+                // The title goes just under the picture as drawn, not at the bottom of the gap it was centred in.
+                var bx0 = Double.MAX_VALUE; var bx1 = -Double.MAX_VALUE; var by0 = Double.MAX_VALUE
+                for (pr in dl.prims.subList(mark, dl.prims.size)) {
+                    val xy = when (pr) { is splitziner.sheet.Segments -> pr.xy; is splitziner.sheet.Polyline -> pr.xy; is splitziner.sheet.Fill -> pr.xy; else -> null } ?: continue
+                    for (q in xy.indices step 2) { bx0 = minOf(bx0, xy[q]); bx1 = maxOf(bx1, xy[q]); by0 = minOf(by0, xy[q + 1]) }
+                }
+                val (cx, ty) = if (bx0 < bx1) (bx0 + bx1) / 2 to by0 - L.dims * 2.5 else (x0 + x1b) / 2 to y0
+                dl.text(cx, maxOf(y0, ty), "PICTORIAL VIEW, SCALE: NONE", L.dims, splitziner.sheet.HAlign.CENTER, tag = "section")
+            }
+        }.onFailure { qa += "Pictorial view left off: ${it.message}" }
         qa += dl.qa
         val sheets = arrayListOf(dl)
         for ((pi, page) in listPages.withIndex()) {
