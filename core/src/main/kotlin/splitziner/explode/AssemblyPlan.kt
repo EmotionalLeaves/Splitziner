@@ -498,6 +498,14 @@ object AssemblyPlan {
             // frame), they are set out with it: placed, not fitted from a direction they never travel. The rest of
             // their step (the slats that tie them) stays a step of its own.
             val base = out.lastOrNull()
+            // Flat pieces laid out apart (a picture frame's long sides) and the flat pieces that join them (its short
+            // sides) are one glue-up on the bench: laid out together and closed in one go.
+            fun flat(id: String) = boundsOf[id]?.extents?.let { it.z <= minOf(it.x, it.y) } == true
+            if (base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { flat(it) } && st.partIds.all { flat(it) } &&
+                !st.subassembly && boundsOf.values.maxOf { it.max.z } - floor < 100.0 && boundsOf.values.all { it.min.z <= floor + 1.0 }) {
+                out[out.size - 1] = base.copy(partIds = base.partIds + st.partIds, directions = (base.directions + st.directions).distinct(), items = (base.items + st.items).distinct().sorted())
+                built += st.partIds; renumber[st.step] = out.size; continue
+            }
             // Repeated cabinets are all set out in a row at the start, then joined to each other.
             if (base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.any { it.startsWith("module") }) {
                 val mods = st.partIds.filter { it.startsWith("module") }

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.0 - One-step frame glue-ups
+
+- Picture frames (anything that lies flat as a whole) are laid out and glued up in one step, instead of being split over two.
+- Tenoned rails read naturally: "Glue the tenons into 2 aprons", then "the 2 aprons from step 2".
+
 ## v1.0.0 - Tidier Check tab
 
 - Check tab: the buttons under a finding (More, Show in 3D, the fixes) wrap onto a new line instead of being cut off at the edge, and the filters fit on narrow screens.

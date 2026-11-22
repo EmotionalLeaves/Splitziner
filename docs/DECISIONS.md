@@ -280,3 +280,7 @@ Departures from the build spec, newest first.
 ## v1.0
 - Version numbers go on from 0.99 to 1.0.0 (version code 10000, above 0.99's 9900); nothing else is meant by it.
 - Check tab: a finding's action buttons wrap onto a second line instead of running off the card, and the severity filters wrap too ("Checks" for short).
+
+## v1.1
+- A piece that lies flat on the bench as a whole (under 100 mm high, every part on the floor and lying flat: a picture frame) is laid out and glued up in one step.
+- A rail built on the bench with only its tenons glued in is called by the rail's name ("glue the tenons into 2 aprons", "the 2 aprons from step 2").

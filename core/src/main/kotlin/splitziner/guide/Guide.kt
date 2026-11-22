@@ -170,10 +170,13 @@ object GuideSteps {
         val faceBench = steps.filter { st -> st.subassembly && st.partIds.any { byId[it]?.name == "Stile" } }.map { it.step }.toSet()
         // Repeated cabinets in a row: each built whole, called a cabinet when it is one (sides and a bottom).
         val moduleBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it]?.startsWith("module") == true } }.map { it.step }.toSet()
+        // A rail with its tenons glued in: called by the rail's name ("the 2 aprons from step 2").
+        val tenonRail = steps.filter { st -> st.subassembly && st.partIds.any { byId[it]?.name == "Tenon" } && st.partIds.count { byId[it]?.name != "Tenon" } == 1 }
+            .associate { st -> st.step to (st.partIds.mapNotNull { byId[it] }.first { it.name != "Tenon" }.name.lowercase()) }
         // A case built whole and set on the top of the piece below: a hutch.
         val upperBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it] == "upper" } }.map { it.step }.toSet()
         val cabinetWord = drawn.any { keyOf[it.id]?.startsWith("module") == true && it.name in setOf("Bottom", "Side", "Divider") }
-        fun unitWord(bench: Int, n: Int) = if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
+        fun unitWord(bench: Int, n: Int) = if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -360,6 +363,7 @@ object GuideSteps {
                         val seq = seqOf(st); val k = seq.indexOfFirst { it.step == st.step } + 1
                         "Step ${st.step}: build ${if (st.makeCount > 1) "${st.makeCount} ${unitWord(st.step, 2)}" else "the ${unitWord(st.step, 1)}"}" + (if (seq.size > 1) " ($k of ${seq.size}): $names" else " from $names")
                     }
+                    else if (st.step in tenonRail) "Step ${st.step}: glue the tenons into ${if (st.makeCount > 1) "${st.makeCount} ${unitWord(st.step, 2)}" else "the ${unitWord(st.step, 1)}"} ($names)"
                     else if (st.step in trestleBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} trestle ends from" else "make the trestle end from"} $names"
                     else if (st.step in frameBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} frames from" else "make the frame from"} $names"
                     else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
