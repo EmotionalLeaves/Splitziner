@@ -1061,3 +1061,18 @@ class TemplatesTest {
         }
     }
 }
+
+class ProfileDxfTest {
+    @Test fun flatPartsBecomeClosedProfilesFullSize() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val meshes = t.build(splitziner.edit.Templates.defaults(t, false))
+        val cut = CutList.build(meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }, fmt)
+        val r = splitziner.export.ProfileDxf.write(cut.parts, cut.rows, fmt)
+        assertEquals(cut.rows.size, r.profiles, "left out ${r.leftOut}")
+        assertTrue(r.dxf.contains("CUT_OUTSIDE") && r.dxf.trimEnd().endsWith("EOF"))
+        // The side panel's 720 mm height is in the file at full size.
+        val ys = Regex("""\n20\n(-?[0-9.]+)\n""").findAll(r.dxf).map { it.groupValues[1].toDouble() }.toList()
+        assertTrue(ys.max() - ys.min() >= 720.0 - 1e-6)
+    }
+}

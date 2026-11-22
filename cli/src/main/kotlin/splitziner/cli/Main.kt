@@ -90,6 +90,11 @@ fun main(args: Array<String>) {
                 r.sheets.forEachIndexed { i, d -> File(out, "sheet${i + 1}.svg").writeText(splitziner.export.SvgWriter.write(d)) }
                 println("drawing   sheet ${r.sheet.letter} at ${r.scaleText} qa ${r.qa}")
             }
+            time("profiles") {
+                val pr = splitziner.export.ProfileDxf.write(a.parts, a.cutList.rows, a.format)
+                File(out, "profiles.dxf").writeText(pr.dxf)
+                println("profiles  ${pr.profiles} flat items, left out ${pr.leftOut}")
+            }
             time("details") {
                 val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format, plain)
                 println("details   ${items.size} drawn, ${plain.size} plain items left to the list")

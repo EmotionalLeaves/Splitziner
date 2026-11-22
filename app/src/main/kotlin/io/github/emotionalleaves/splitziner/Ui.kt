@@ -363,9 +363,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     for (w in a.cutList.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(onClick = { showCutPlan = true }, modifier = Modifier.weight(1f)) { Text("Cutting plan") }
-                OutlinedButton(onClick = { shareCsv(context, open) }, modifier = Modifier.weight(1f)) { Text("Share CSV") }
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
+                OutlinedButton(onClick = { shareCsv(context, open) }) { Text("Share CSV") }
+                OutlinedButton(onClick = { shareProfiles(context, open) }) { Text("CNC profiles") }
             }
         }
     }
@@ -845,6 +846,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
@@ -865,6 +867,24 @@ private val HELP = listOf(
 
 
 private fun baseName(open: OpenProject) = open.meta.drawingNo.ifBlank { open.meta.name }.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
+
+/** Full-size outlines of every flat item as DXF, for a CNC router or laser. */
+private fun shareProfiles(context: Context, open: OpenProject) {
+    try {
+        val a = open.analysis
+        val r = splitziner.export.ProfileDxf.write(a.parts, a.cutList.rows, a.format)
+        if (r.profiles == 0) { Toast.makeText(context, "No flat parts to cut", Toast.LENGTH_LONG).show(); return }
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val base = open.meta.name.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }
+        val file = File(dir, "${base}_profiles.dxf")
+        file.writeText(r.dxf)
+        Toast.makeText(context, "${r.profiles} profiles, full size in millimetres" + if (r.leftOut.isEmpty()) "" else "; items ${r.leftOut.joinToString(", ")} are not flat and are left out", Toast.LENGTH_LONG).show()
+        shareFile(context, file, "application/dxf", "Share cutting profiles")
+    } catch (e: Throwable) {
+        Diagnostics.logError("share profiles", e)
+        Toast.makeText(context, "Could not make the profiles", Toast.LENGTH_LONG).show()
+    }
+}
 
 private fun shareFile(context: Context, file: File, mime: String, title: String) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
