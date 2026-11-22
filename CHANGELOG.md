@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.83.0 - Tested on complex furniture
+
+Tested against much more complicated furniture: a six-drawer dresser, a kitchen base cabinet, a bunk bed, a pedestal desk and a face-frame bookcase. What that fixed:
+- **Face frames** are recognised (stiles and rails), and sides under an overhanging top stay "sides".
+- **Drawers**: fronts are screwed through the box end with short screws; a whole chest of drawers is hung in one step; slide positions are measured up from the cabinet bottom, once per row.
+- **Doors** go on in their own step, never mixed with the case.
+- **Tops** between the sides are screwed through the sides; no brackets into a thin back panel.
+- **Bunk beds and other tall builds** go together bottom up, deck by deck, with slat spacing for each deck.
+- **Clearer pictures**: long strips no longer fly far off and shrink the drawing.
+
 ## v0.82.0 - Solid wood, glued up
 
 - **Solid wood done right**: choose oak, pine or another timber and wide panels are planned as boards glued edge to edge, not as a 4 × 8 sheet of oak (which isn't sold). The cutting plan buys the boards, and "Before you build" explains the glue-up. Solid wood skips edge banding.
