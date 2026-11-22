@@ -351,12 +351,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             if (c.moveToFirst() && !c.isNull(0)) name = c.getString(0)
                         }
                     }
-                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("The file could not be opened.")
-                    Diagnostics.log("import $name, ${bytes.size} bytes")
-                    if (!name.lowercase().endsWith(".stl") && !StlReader.looksLikeStl(bytes.copyOf(minOf(bytes.size, 1024)), bytes.size.toLong())) {
+                    val meta = resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened.")
+                    val file = store.source(meta.id)
+                    Diagnostics.log("import $name, ${file.length()} bytes")
+                    val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }
+                    if (!name.lowercase().endsWith(".stl") && !StlReader.looksLikeStl(head, file.length())) {
+                        store.delete(meta.id)
                         error("That file is not an STL.")
                     }
-                    store.create(name, bytes)
+                    meta
                 }
                 analyze(meta, deleteOnFailure = true)
             } catch (e: Throwable) {
@@ -391,10 +394,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(busyLabel = "Reading triangles", busyFraction = 0.05f, error = null) }
         try {
             val analysis = withContext(Dispatchers.Default) {
-                val bytes = store.source(meta.id).readBytes()
-                Pipeline.analyze(bytes, meta.fileName, meta.options()) { f, label ->
+                Pipeline.analyze(store.source(meta.id), meta.options(), { f, label ->
                     _state.update { it.copy(busyLabel = label, busyFraction = f.toFloat()) }
-                }
+                }, meta.fileName)
             }
             val r = analysis.report
             Diagnostics.log("analysis: ${r.faces} tris, ${r.method}, ${r.bodies} bodies, ${r.parts} parts, units ${r.units.fileUnits}/${r.units.designUnits} margin ${r.units.margin}, ${analysis.timingsMs}")

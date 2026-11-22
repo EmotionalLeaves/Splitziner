@@ -50,50 +50,13 @@ object BodySplitter {
 
     /** [unitsOverride] is "mm", "cm", "in" or "m" when the user has chosen; null to guess. */
     fun split(raw: RawModel, unitsOverride: String? = null, displayOverride: String? = null): SplitResult {
-        val soup = raw.soup
         val nF = raw.triangleCount
-        val all = Aabb.of(soup)
+        val all = raw.bounds()
         val sc0 = maxOf(all.extents.x, all.extents.y, all.extents.z).let { if (it > 0) it else 1.0 }
 
-        // Vertices that land on the same point of a very fine grid are the same vertex.
-        val cell = sc0 * 1e-7
-        val indexer = PointIndexer(nF)
-        val fi = IntArray(nF * 3)
-        var verts = DoubleArray(maxOf(nF, 8) * 3)
-        for (i in 0 until nF * 3) {
-            val before = indexer.size
-            val id = indexer.idOf(Math.round(soup[3 * i] / cell), Math.round(soup[3 * i + 1] / cell), Math.round(soup[3 * i + 2] / cell))
-            if (id == before) {
-                if (3 * id + 3 > verts.size) verts = verts.copyOf(verts.size * 2)
-                verts[3 * id] = soup[3 * i]; verts[3 * id + 1] = soup[3 * i + 1]; verts[3 * id + 2] = soup[3 * i + 2]
-            }
-            fi[i] = id
-        }
-
-        val areas = DoubleArray(nF) { MeshOps.triangleArea(soup, it) }
-        val maxArea = areas.maxOrNull() ?: 0.0
-        val degenerate = (0 until nF).count { areas[it] <= maxArea * 1e-10 }
-
-        // Exporters sometimes write every body two or three times over. Exact repeats are dropped
-        // triangle by triangle before anything else, so each body is seen once. Only triangles with
-        // the same winding count as repeats: two boards stacked face to face share triangles that
-        // face opposite ways, and both must be kept.
-        val triIndex = PointIndexer(nF)
-        var ut = IntArray(nF * 3)              // unique triangles' vertex ids, in first-seen order
-        var mult = IntArray(nF)                // how many times each was stored
-        var nU = 0
-        for (t in 0 until nF) {
-            if (areas[t] <= maxArea * 1e-10) continue
-            var a = fi[3 * t]; var b = fi[3 * t + 1]; var c = fi[3 * t + 2]
-            if (a == b || b == c || c == a) continue
-            // Rotate so the smallest id leads; the cyclic order (and so the winding) is kept.
-            if (b < a && b < c) { val x = a; a = b; b = c; c = x } else if (c < a && c < b) { val x = a; a = c; c = b; b = x }
-            val before = triIndex.size
-            val id = triIndex.idOf(a.toLong(), b.toLong(), c.toLong())
-            if (id == before) { ut[3 * id] = fi[3 * t]; ut[3 * id + 1] = fi[3 * t + 1]; ut[3 * id + 2] = fi[3 * t + 2]; nU = id + 1 }
-            mult[id]++
-        }
-        ut = ut.copyOf(nU * 3); mult = mult.copyOf(nU)
+        // Indexing has its own function so its large lookup tables are freed when it returns.
+        val ix = index(raw, sc0)
+        val verts = ix.verts; val ut = ix.ut; val mult = ix.mult; val nU = ix.nU; val degenerate = ix.degenerate; val warningsIn = ix.warnings
 
         var method = METHOD_FILE_ORDER
         var groups = splitByFileOrder(verts, ut, nU, sc0, all.center)
@@ -105,27 +68,30 @@ object BodySplitter {
         val groupCopies = groups.map { g -> g.map { mult[it] }.sorted()[g.size / 2] }
 
         // Build one mesh per body from the shared vertex ids.
-        val built = groups.mapIndexed { i, faces -> bodyMesh(verts, ut, faces) to groupCopies[i] }.filter { it.first.triangleCount > 0 }
-        val rawBodies = built.map { it.first }
+        val remap = IntArray(verts.size / 3) { -1 }
+        val rawBodies = ArrayList<Mesh?>(); val bodyCopies = ArrayList<Int>()
+        for ((i, faces) in groups.withIndex()) { val m = bodyMesh(verts, ut, faces, remap); if (m.triangleCount > 0) { rawBodies += m; bodyCopies += groupCopies[i] } }
 
-        val bodyBounds = rawBodies.fold(null as Aabb?) { acc, m -> acc?.union(m.bounds) ?: m.bounds } ?: all
+        val bodyBounds = rawBodies.fold(null as Aabb?) { acc, m -> acc?.union(m!!.bounds) ?: m!!.bounds } ?: all
         val ext = bodyBounds.extents
         val size = maxOf(ext.x, ext.y, ext.z).let { if (it > 0) it else 1.0 }
         var units = if (unitsOverride != null) UnitGuess.fixed(unitsOverride, size)
-        else UnitGuesser.guess(UnitGuesser.lengthsOf(rawBodies, size), size)
+        else UnitGuesser.guess(UnitGuesser.lengthsOf(rawBodies.map { it!! }, size), size)
         if (displayOverride != null) units = units.copy(designUnits = displayOverride)
 
         var fixed = 0
         val cleaned = ArrayList<Mesh>()
         val cleanedCopies = ArrayList<Int>()
-        for ((bi, b) in rawBodies.withIndex()) {
-            var m = MeshOps.scaled(b, units.scale)
+        for (bi in rawBodies.indices) {
+            var m = MeshOps.scaled(rawBodies[bi]!!, units.scale)
+            // Each stage replaces the last; the earlier copies are let go at once.
+            rawBodies[bi] = null
             if (!m.isWatertight) {
                 val f = TJunctionFixer.fix(m)
                 if (f.isWatertight || f.triangleCount >= m.triangleCount) { if (f.isWatertight) fixed++; m = f }
             }
             if (m.isWatertight) m = MeshOps.fixWinding(m)
-            if (m.triangleCount >= MIN_FACES) { cleaned += m; cleanedCopies += built[bi].second }
+            if (m.triangleCount >= MIN_FACES) { cleaned += m; cleanedCopies += bodyCopies[bi] }
         }
 
         // The same body stored more than once is one part, not several.
@@ -151,7 +117,7 @@ object BodySplitter {
             val id = "P%02d".format(i + 1)
             Part(id = id, name = id, mesh = m, copies = copies[i])
         }
-        val warnings = ArrayList(raw.warnings)
+        val warnings = ArrayList(warningsIn)
         if (removed > 0) warnings += "$removed coincident duplicate bodies removed (same body stored more than once in the file)"
         val open = parts.count { !it.watertight }
         if (open > 0) warnings += "$open part(s) have gaps in their surface; their volume and cut faces may be unreliable"
@@ -295,16 +261,75 @@ object BodySplitter {
         return if (comps.size >= 2 && comps.size <= maxOf(2, nU / 8)) comps else listOf(IntArray(nU) { it })
     }
 
-    private fun bodyMesh(verts: DoubleArray, fi: IntArray, faces: IntArray): Mesh {
-        val remap = HashMap<Int, Int>(faces.size * 2)
-        val v = ArrayList<Double>(faces.size * 3)
+    private class Indexed(val verts: DoubleArray, val ut: IntArray, val mult: IntArray, val nU: Int, val degenerate: Int, val warnings: List<String>)
+
+    private fun index(raw: RawModel, sc0: Double): Indexed {
+        val nF = raw.triangleCount
+        // Vertices that land on the same point of a very fine grid are the same vertex.
+        val cell = sc0 * 1e-7
+        // A closed surface has about half as many vertices as triangles; the tables grow if there are more.
+        val indexer = PointIndexer(maxOf(nF / 2, 16))
+        val fi = IntArray(nF * 3)
+        var verts = DoubleArray(maxOf(nF / 2, 8) * 3)
+        for (i in 0 until nF * 3) {
+            val before = indexer.size
+            val x = raw.coord(3 * i); val y = raw.coord(3 * i + 1); val z = raw.coord(3 * i + 2)
+            val id = indexer.idOf(Math.round(x / cell), Math.round(y / cell), Math.round(z / cell))
+            if (id == before) {
+                if (3 * id + 3 > verts.size) verts = verts.copyOf(verts.size * 2)
+                verts[3 * id] = x; verts[3 * id + 1] = y; verts[3 * id + 2] = z
+            }
+            fi[i] = id
+        }
+        verts = verts.copyOf(indexer.size * 3)
+
+        val areas = FloatArray(nF) { raw.area(it).toFloat() }
+        // Everything needed from the raw triangles is in [verts], [fi] and [areas] now.
+        val warnings = raw.warnings
+        raw.release()
+        val maxArea = (areas.maxOrNull() ?: 0f).toDouble()
+        val degenerate = (0 until nF).count { areas[it] <= maxArea * 1e-10 }
+
+        // Exporters sometimes write every body two or three times over. Exact repeats are dropped
+        // triangle by triangle before anything else, so each body is seen once. Only triangles with
+        // the same winding count as repeats: two boards stacked face to face share triangles that
+        // face opposite ways, and both must be kept.
+        val triIndex = PointIndexer(nF)
+        var ut = IntArray(nF * 3)              // unique triangles' vertex ids, in first-seen order
+        var mult = IntArray(nF)                // how many times each was stored
+        var nU = 0
+        for (t in 0 until nF) {
+            if (areas[t] <= maxArea * 1e-10) continue
+            var a = fi[3 * t]; var b = fi[3 * t + 1]; var c = fi[3 * t + 2]
+            if (a == b || b == c || c == a) continue
+            // Rotate so the smallest id leads; the cyclic order (and so the winding) is kept.
+            if (b < a && b < c) { val x = a; a = b; b = c; c = x } else if (c < a && c < b) { val x = a; a = c; c = b; b = x }
+            val before = triIndex.size
+            val id = triIndex.idOf(a.toLong(), b.toLong(), c.toLong())
+            if (id == before) { ut[3 * id] = fi[3 * t]; ut[3 * id + 1] = fi[3 * t + 1]; ut[3 * id + 2] = fi[3 * t + 2]; nU = id + 1 }
+            mult[id]++
+        }
+        ut = ut.copyOf(nU * 3); mult = mult.copyOf(nU)
+
+        return Indexed(verts, ut, mult, nU, degenerate, warnings)
+    }
+
+    private fun bodyMesh(verts: DoubleArray, fi: IntArray, faces: IntArray, remap: IntArray): Mesh {
+        // [remap] is shared between bodies and handed back all -1, so building many bodies costs no extra memory.
+        var v = DoubleArray(maxOf(faces.size / 2, 4) * 3); var nv = 0
         val tris = IntArray(faces.size * 3)
         for ((j, t) in faces.withIndex()) for (k in 0..2) {
             val g = fi[3 * t + k]
-            val local = remap.getOrPut(g) { val id = v.size / 3; v += verts[3 * g]; v += verts[3 * g + 1]; v += verts[3 * g + 2]; id }
+            var local = remap[g]
+            if (local < 0) {
+                local = nv++; remap[g] = local
+                if (3 * nv > v.size) v = v.copyOf(v.size * 2)
+                v[3 * local] = verts[3 * g]; v[3 * local + 1] = verts[3 * g + 1]; v[3 * local + 2] = verts[3 * g + 2]
+            }
             tris[3 * j + k] = local
         }
-        return MeshOps.removeDegenerate(Mesh(v.toDoubleArray(), tris))
+        for (t in faces) for (k in 0..2) remap[fi[3 * t + k]] = -1
+        return MeshOps.removeDegenerate(Mesh(v.copyOf(3 * nv), tris))
     }
 
     private fun bucketKey(m: Mesh, q: Double): Long {

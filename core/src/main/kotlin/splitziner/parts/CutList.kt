@@ -111,7 +111,7 @@ object CutList {
         for (p in parts) {
             if (p.excluded) continue
             val d = PartDescriber.describe(p.mesh, fmt)
-            if (!p.mesh.isWatertight) warnings += "${p.name} has gaps in its surface, so its shape is estimated"
+            if (!p.watertight) warnings += "${p.name} has gaps in its surface, so its shape is estimated"
             val vol = abs(p.mesh.volume)
             // Sizes are sorted, so identical parts match in any orientation and when mirrored.
             val g = groups.firstOrNull {

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.0 - Much larger STL files
+
+Much larger and more complex STL files.
+
+- **Big files open.** Files are now read straight from storage instead of being loaded into memory whole, and kept at the precision STL files store, which halves the memory needed. Tested under a phone-sized memory limit with a 2-million-triangle sculpted shape (was: out of memory), a 1.5-million-triangle cabinet, and a 600-part assembly with 2.1 million triangles (was: out of memory).
+- **Heavy models are simplified for drawing, and say so.** Above about 400,000 triangles, the app works with a lighter copy. It keeps sharp corners and flat faces exact, and never lets a surface move by more than 0.05% of the model's size (0.24 mm on a 600 mm assembly). The notes under the file name state the figure. If simplifying a part would move it more than that, the part is left as it is.
+- **Planning assemblies with hundreds of parts** is about 80 times faster (600 parts: 139 s → 1.7 s).
+- Known limits: a 600-part guide still takes tens of seconds on a phone, and sizes on tiny parts in a huge model can shift in the last decimal (a 4.0 mm ring read as 4.1).
+
 ## v0.12.0 - Update from inside the app
 
 Update from inside the app.

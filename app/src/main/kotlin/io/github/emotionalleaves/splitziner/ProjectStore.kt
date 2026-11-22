@@ -66,10 +66,11 @@ class ProjectStore(context: Context) {
         (root.listFiles() ?: emptyArray()).mapNotNull { d -> runCatching { read(File(d, "project.json")) }.getOrNull() }
             .sortedByDescending { it.createdAt }
 
-    fun create(fileName: String, bytes: ByteArray): ProjectMeta {
+    /** Copies the file in from [input] without holding it in memory. */
+    fun create(fileName: String, input: java.io.InputStream): ProjectMeta {
         val id = UUID.randomUUID().toString()
         dir(id).mkdirs()
-        source(id).writeBytes(bytes)
+        source(id).outputStream().use { input.copyTo(it, 1 shl 16) }
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val meta = ProjectMeta(id, fileName.substringBeforeLast('.'), fileName, System.currentTimeMillis(), date = today)
         save(meta)

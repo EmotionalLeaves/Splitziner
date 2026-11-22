@@ -25,7 +25,7 @@ fun main(args: Array<String>) {
     }
     try {
         val f = File(file ?: error("no input file"))
-        val a = Pipeline.analyze(f.readBytes(), f.name, AnalysisOptions(fileUnits = units, displayUnits = display))
+        val a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display))
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
         val r = a.report

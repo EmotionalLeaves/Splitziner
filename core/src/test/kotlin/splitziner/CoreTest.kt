@@ -582,8 +582,9 @@ class ScrambledCabinetTest {
         val bodies = Fixtures.miniCabinet(Fixtures.INCH)
         val raw = Fixtures.soup(bodies, interleave = true)
         val shuffled = (0 until raw.triangleCount).shuffled(Random(11))
-        val soup = DoubleArray(raw.soup.size)
-        shuffled.forEachIndexed { i, t -> raw.soup.copyInto(soup, 9 * i, 9 * t, 9 * t + 9) }
+        val src = raw.soup
+        val soup = DoubleArray(src.size)
+        shuffled.forEachIndexed { i, t -> src.copyInto(soup, 9 * i, 9 * t, 9 * t + 9) }
         val r = BodySplitter.split(splitziner.io.RawModel(soup + soup, "scrambled", emptyList()), "mm")
         assertEquals(BodySplitter.METHOD_COMPONENTS, r.report.method)
         assertEquals(7, r.parts.size)
@@ -841,5 +842,37 @@ class VersionsTest {
         assertFalse(v.isNewer("v0.11.0", "0.11.0")); assertFalse(v.isNewer("v0.10.9", "0.11.0")); assertFalse(v.isNewer("nightly", "0.11.0"))
         assertTrue(v.isNewer("v0.11.0", "0.0.1-dev"))
         assertEquals("• Check tab. It looks.", v.plainNotes("- **Check tab.** It looks.\n\n**Install:** open this page"))
+    }
+}
+
+class SimplifyTest {
+    @Test fun keepsBoxCornersAndBoundsCurvedError() {
+        // A finely divided board: its size must survive simplification exactly.
+        val fine = splitziner.edit.Editor.box(Vec3(0.0, 0.0, 0.0), Vec3(19.0, 600.0, 1500.0)).let { b ->
+            var m = b; repeat(5) { m = subdivide(m) }; m
+        }
+        val s = splitziner.mesh.Simplify.run(fine, fine.triangleCount / 10)
+        println("simplify board: ${fine.triangleCount} -> ${s.mesh.triangleCount}, error ${s.maxError}")
+        // Accuracy wins over the budget: a thin board stops short of the target rather than bend its edges.
+        assertTrue(s.mesh.triangleCount <= fine.triangleCount / 2, "${fine.triangleCount} -> ${s.mesh.triangleCount}, error ${s.maxError}")
+        assertEquals(19.0, s.mesh.extents.x, 1e-6); assertEquals(600.0, s.mesh.extents.y, 1e-6); assertEquals(1500.0, s.mesh.extents.z, 1e-6)
+        assertTrue(s.maxError < 1e-6, "flat board error ${s.maxError}")
+        assertEquals(fine.volume, s.mesh.volume, fine.volume * 1e-6)
+        // A smooth rod: the reported error really bounds how far its radius moved.
+        val rod = Fixtures.cylinder(20.0, 0.0, 100.0, sides = 2000)
+        val r = splitziner.mesh.Simplify.run(rod, 800)
+        val e = r.mesh.extents
+        assertTrue(abs(e.x - 40.0) <= 2 * r.maxError + 1e-6, "width ${e.x} error ${r.maxError}")
+        assertTrue(r.maxError < 0.5)
+    }
+
+    private fun subdivide(m: splitziner.mesh.Mesh): splitziner.mesh.Mesh {
+        val soup = ArrayList<Double>()
+        for (t in 0 until m.triangleCount) {
+            val a = m.vertex(m.triangles[3 * t]); val b = m.vertex(m.triangles[3 * t + 1]); val c = m.vertex(m.triangles[3 * t + 2])
+            val ab = (a + b) * 0.5; val bc = (b + c) * 0.5; val ca = (c + a) * 0.5
+            for (tri in listOf(listOf(a, ab, ca), listOf(ab, b, bc), listOf(ca, bc, c), listOf(ab, bc, ca))) for (p in tri) { soup += p.x; soup += p.y; soup += p.z }
+        }
+        return MeshOps.fromSoup(soup.toDoubleArray(), 1e-9)
     }
 }

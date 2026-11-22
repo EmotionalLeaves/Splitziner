@@ -44,6 +44,8 @@ object AssemblyPlan {
      * automatic order is then skipped; each part is still given the first direction it can slide in
      * from past the parts of earlier steps. Parts the list does not mention are added as a last step.
      */
+    private fun byAxisX(lo: List<Vec3>, n: Int) = (0 until n).sortedBy { lo[it].x }
+
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val parts = all.filter { !it.excluded }
         val n = parts.size
@@ -61,28 +63,47 @@ object AssemblyPlan {
         }
 
         // Shadow of every part along each axis, shrunk a little so parts that only touch do not count as overlapping.
-        val shadows: List<List<Geometry>> = (0..2).map { k ->
+        // Worked out only for parts some test needs; with hundreds of parts most pairs never get that far.
+        val shadowCache = Array(3) { arrayOfNulls<Geometry>(n) }
+        fun shadow(k: Int, i: Int): Geometry = shadowCache[k][i] ?: run {
             val view = ViewDef("axis$k", Vec3.axis(k), Vec3.axis((k + 1) % 3))
-            parts.map { Silhouette.outline(it.mesh, view).buffer(-tol) }
+            Silhouette.outline(parts[i].mesh, view).buffer(-tol).also { shadowCache[k][i] = it }
         }
 
         fun touches(a: Int, b: Int) = (0..2).all { lo[a][it] <= hi[b][it] + tol && lo[b][it] <= hi[a][it] + tol }
-        val adj = (0 until n).map { i -> (0 until n).filter { j -> j != i && touches(i, j) } }
+        val adj = (0 until n).map { i -> ArrayList<Int>() }
+        run {
+            // Sweep along X: only parts whose X ranges meet can touch.
+            val order = byAxisX(lo, n)
+            for ((p, i) in order.withIndex()) for (q in p + 1 until order.size) {
+                val j = order[q]
+                if (lo[j].x > hi[i].x + tol) break
+                if (touches(i, j)) { adj[i] += j; adj[j] += i }
+            }
+        }
 
-        fun blockers(i: Int, d: Dir, among: Set<Int>): List<Int> {
+        // Which parts are in the way of part i sliding along d never changes, so each answer is worked out once.
+        // Boxes are sorted along each axis so only parts that could possibly be in the way are tested.
+        val byAxis = (0..2).map { a -> (0 until n).sortedBy { lo[it][a] }.toIntArray() }
+        val blockCache = HashMap<Long, IntArray>()
+        fun allBlockers(i: Int, d: Dir): IntArray = blockCache.getOrPut(i.toLong() * 8 + d.k * 2 + (if (d.sign > 0) 1 else 0)) {
             val out = ArrayList<Int>()
-            for (j in among) {
+            // Candidates must overlap on the first of the other axes; scan only parts starting before i ends there.
+            val a0 = if (d.k == 0) 1 else 0
+            for (j in byAxis[a0]) {
+                if (lo[j][a0] >= hi[i][a0] - tol) break
                 if (j == i) continue
                 // Must overlap on both other axes to be in the way at all.
                 if ((0..2).any { a -> a != d.k && (lo[j][a] >= hi[i][a] - tol || hi[j][a] <= lo[i][a] + tol) }) continue
                 // Parts entirely behind the direction of travel are not in the way.
                 val behind = if (d.sign > 0) hi[j][d.k] <= lo[i][d.k] + tol else lo[j][d.k] >= hi[i][d.k] - tol
                 if (behind) continue
-                val a = shadows[d.k][i]; val b = shadows[d.k][j]
+                val a = shadow(d.k, i); val b = shadow(d.k, j)
                 if (!a.isEmpty && !b.isEmpty && a.intersects(b) && a.intersection(b).area > tol * tol) out += j
             }
-            return out
+            out.toIntArray()
         }
+        fun blockers(i: Int, d: Dir, among: Set<Int>): List<Int> = allBlockers(i, d).filter { it in among }
 
         fun dirs(i: Int): List<Dir> {
             val e = hi[i] - lo[i]

@@ -17,7 +17,7 @@ grep -q "^## v$VERSION" CHANGELOG.md && { echo "v$VERSION is already in CHANGELO
   tail -n +3 CHANGELOG.md
 } > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
 git add -A
-git commit -q -m "$MSG" -m "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+git commit -q -m "$MSG" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01L2awDHVcadkP4yGdqFTruj"
 git -c push.negotiate=true push -q -u origin main
 echo "pushed v$VERSION ($(git rev-parse --short HEAD))"
