@@ -800,6 +800,8 @@ object AssemblyPlan {
                 val d0 = dirOf.getValue(i)
                 // A board laid on top of what is built (a desk top on its ends, with a hutch to come on it) goes on
                 // from above, though in the finished piece something above stops it lifting off.
+                // A tread goes down onto its stringers' notches.
+                if (d0.k != 2 && parts[i].name == "Tread" && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 if (d0.k != 2 && (lyingFlat(i) || parts[i].id == "upper") && placed.any { j -> touches(i, j) && hi[j].z <= lo[i].z + tol } &&
                     placed.none { j -> touches(i, j) && lo[j].z < hi[i].z - tol && hi[j].z > lo[i].z + tol } && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 return if (blockers(i, d0, placed).isEmpty()) d0 else dirs(i).firstOrNull { blockers(i, it, placed).isEmpty() }

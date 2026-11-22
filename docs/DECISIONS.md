@@ -266,3 +266,7 @@ Departures from the build spec, newest first.
 ## v0.97
 - The assembly drawing gets a note giving each item set off upright (more than 1°, up to 45°) and which way: leaning back or forward, left or right, or splayed when it leans both ways. The views show the angle but do not dimension it. Read from the part's own box axes, rounded to 1/2°.
 - Boards leaned back more than 3° above the lower third of the piece are a seat's back: long level ones are back slats, upright ones back supports.
+
+## v0.98
+- Parts whose boxes overlap but which meet face to face (a tread on a notched stringer's step) are found by matching opposite flat faces in the same plane, so they get fixings instead of "then fasten".
+- A notched side carrying flat boards at two or more heights is a stringer; the boards are treads. Treads are screwed down (people stand on them), never bracketed from below, and go on from above.

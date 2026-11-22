@@ -183,6 +183,17 @@ object Roles {
                 else -> continue
             }
         }
+        // Steps: a notched side carrying flat boards at two or more heights on its notches is a stringer, and the
+        // boards are treads (a step stool, a short stair).
+        for (p in live) {
+            if (out[p.id] != "Side") continue
+            val b = p.mesh.bounds
+            if (kotlin.math.abs(p.mesh.volume) > 0.85 * b.extents.x * b.extents.y * b.extents.z) continue
+            val on = live.filter { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && touches(p, o) &&
+                o.mesh.bounds.min.z >= b.min.z + 1.0 && o.mesh.bounds.min.z <= b.max.z + 1.0 }
+            if (on.map { Math.round(it.mesh.bounds.min.z) }.distinct().size < 2) continue
+            out[p.id] = "Stringer"; for (o in on) out[o.id] = "Tread"
+        }
         // A seat's back: boards leaned back off upright above the seat, the long ones slats, the upright ones supports.
         for (p in live) {
             if (out[p.id] == "Leg" || out[p.id] == "Centre leg") continue

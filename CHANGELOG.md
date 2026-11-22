@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.98.0 - Stringers and treads
+
+- Step stools and short stairs: notched sides are called stringers and the boards on them treads. Treads are screwed down into the stringers instead of hung on brackets.
+- Parts that sit in a notch or step of another part now get proper fixing instructions instead of "then fasten".
+
 ## v0.97.0 - Angles on the drawing
 
 - Assembly drawings now say the angle of anything set off upright, like "items 1 and 6 are set 15° off upright, leaning back", or a stool's splayed legs, so you don't have to guess it from the picture.

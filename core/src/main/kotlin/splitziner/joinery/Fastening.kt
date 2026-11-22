@@ -216,7 +216,7 @@ object Fastening {
             // Parts set at an angle (a bench's leaned-back slats on their back supports) overlap as boxes but may
             // meet face to face in their own frame: measured along one part's own axes, they abut there.
             if (gap > 2.0) {
-                val tilt = tiltedContact(a, b) ?: continue
+                val tilt = tiltedContact(a, b) ?: faceContact(a, b) ?: continue
                 val (tA, tB, len) = tilt
                 val (thr, into, tT, dep) = if (tA <= tB) listOf(a, b, tA, tB) else listOf(b, a, tB, tA)
                 thr as Part; into as Part; tT as Double; dep as Double
@@ -351,7 +351,7 @@ object Fastening {
                 }
             }
             // Slats (a bench seat's, a bed's) are screwed down into what they rest on, never bracketed from below.
-            val topDown = k == 2 && thr.name != "Slat" && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            val topDown = k == 2 && thr.name != "Slat" && thr.name != "Tread" && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
             // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
             // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.
             if (topDown && (0..2).minOf { ax -> rel.hi[idx.getValue(into.id)][ax] - rel.lo[idx.getValue(into.id)][ax] } < 9.0) continue
@@ -671,6 +671,39 @@ object Fastening {
             return Triple(sa[k].second - sa[k].first, sb[k].second - sb[k].first, (0..2).filter { it != k }.maxOf { over[it] })
         }
         return null
+    }
+
+    /**
+     * Where two parts whose boxes overlap (a tread on a notched stringer's step) still meet face to face: a face of
+     * one lies on an opposite face of the other, in the same plane, over some area. Gives each part's size across
+     * the contact and the contact's longest side, or null.
+     */
+    private fun faceContact(a: Part, b: Part): Triple<Double, Double, Double>? {
+        // Flat faces by (axis, side, plane), each with the box of its triangles in the other two axes.
+        fun faces(p: Part, sign: Int): Map<Pair<Int, Long>, DoubleArray> {
+            val m = p.mesh; val n = m.faceNormals; val v = m.vertices; val t = m.triangles
+            val out = HashMap<Pair<Int, Long>, DoubleArray>()
+            for (f in 0 until m.triangleCount) for (k in 0..2) {
+                if (n[3 * f + k] * sign < 0.999) continue
+                val c = v[3 * t[3 * f] + k]
+                val key = k to Math.round(c * 2)
+                val (u, w) = (0..2).filter { it != k }
+                val r = out.getOrPut(key) { doubleArrayOf(Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE) }
+                for (q in 0..2) { val vi = t[3 * f + q]; r[0] = minOf(r[0], v[3 * vi + u]); r[1] = minOf(r[1], v[3 * vi + w]); r[2] = maxOf(r[2], v[3 * vi + u]); r[3] = maxOf(r[3], v[3 * vi + w]) }
+            }
+            return out
+        }
+        val fa = faces(a, 1); val fb = faces(b, -1); val fa2 = faces(a, -1); val fb2 = faces(b, 1)
+        var best: Triple<Double, Double, Double>? = null; var bestArea = 0.0
+        for ((x, y) in listOf(fa to fb, fa2 to fb2)) for ((key, ra) in x) {
+            val rb = y[key] ?: continue
+            val du = minOf(ra[2], rb[2]) - maxOf(ra[0], rb[0]); val dw = minOf(ra[3], rb[3]) - maxOf(ra[1], rb[1])
+            if (du <= 1.0 || dw <= 1.0 || du * dw <= bestArea) continue
+            bestArea = du * dw
+            val k = key.first
+            best = Triple(a.mesh.bounds.extents[k], b.mesh.bounds.extents[k], maxOf(du, dw))
+        }
+        return best
     }
 
     /** What the chosen method drives into an edge, for "too thin to take …". */
