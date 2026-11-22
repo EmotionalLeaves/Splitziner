@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.70.0 - Tidier guides for graduated drawers
+
+- **Graduated chests of drawers have a shorter guide:** the drawer fronts, which differ in size, now go on in one step ("Step 10: 4 drawer fronts") instead of three. Step titles count drawers and parts of the same name together ("hang the 2 drawers").
+
 ## v0.69.0 - Spacing in the guide
 
 - **The guide gives the spacing** for parts set out evenly, such as slats or a bookcase's shelves: "Space the slats (item 4) 3-7/16 in apart, evenly; a spacer block cut to 3-7/16 in keeps every gap the same."
