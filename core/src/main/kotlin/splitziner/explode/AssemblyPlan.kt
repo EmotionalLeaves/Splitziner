@@ -210,10 +210,19 @@ object AssemblyPlan {
         val remaining = (0 until n).filter { it != base }.toMutableSet()
         val layers = ArrayList<LinkedHashMap<Int, Dir>>()
         val dirOf = HashMap<Int, Dir>()
+        // Doors and drawers are hung once the box is finished: taken off first, so they go on last.
+        val hungIds = runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Drawers.find(parts).flatMap { it.ids } }.getOrDefault(emptyList()).toSet()
+        val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         while (remaining.isNotEmpty()) {
             val present = remaining + base
             var free = LinkedHashMap<Int, Dir>()
             for (i in remaining.sorted()) for (d in dirs(i)) if (blockers(i, d, present).isEmpty()) { free[i] = d; break }
+            val hungFree = free.filterKeys { it in hung }
+            if (hungFree.isNotEmpty()) {
+                val take = LinkedHashMap(hungFree)
+                layers += take; remaining -= take.keys; dirOf += take; hung -= take.keys
+                continue
+            }
             if (free.isEmpty()) {
                 // Interlocked: let go of whichever part is held by the fewest others.
                 var best: Triple<Int, Int, Dir>? = null

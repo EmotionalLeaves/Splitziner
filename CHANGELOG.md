@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.35.0 - Doors, hinges and handles
+
+- **Doors.** Add a door to any opening (More… → Add shelf, divider or door, then pick Door). It is set in the opening with a 2 mm gap all round. Doors are found in models you open too: set in an opening, or over the front of a box (overlay doors), alone or as a pair.
+- **Hinges and handles.** Each door gets 2, 3 or 4 concealed hinges by its height (a common cabinetmakers' rule), shown in the check, the guide step and the shopping list. Every door and drawer now adds a handle or knob to the hardware list; the style is up to you.
+- **Doors and drawers go on last.** The build guide now hangs doors and drawers after the box is finished, instead of before the top goes on.
+- **Cabinet template with doors.** New design → Cabinet has Doors (0, 1 or 2) and "Doors over the front" (0 = set in, 1 = over the front). With set-in doors the shelf is set back so the doors close.
+- A door that sits over the front is never screwed on in the guide; it only hangs on its hinges.
+
 ## v0.34.0 - Add shelves and dividers
 
 Add shelves and dividers in one go.

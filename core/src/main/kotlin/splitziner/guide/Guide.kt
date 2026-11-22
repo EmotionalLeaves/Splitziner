@@ -169,6 +169,8 @@ object GuideSteps {
                     else -> "${j.size} ${j.kind}"
                 }
                 hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides") 1 else j.count)
+                // Each drawer and door gets a handle; its style is the maker's choice.
+                if (j.kind == "slides" || j.kind == "hinges") hw[splitziner.joinery.Fastening.HANDLE] = (hw[splitziner.joinery.Fastening.HANDLE] ?: 0) + 1
             }
             val need = (if (st.makeCount > 1) list.map { (k, v) -> k to v * st.makeCount } else list) +
                 hw.map { (k, v) -> k.replaceFirstChar { it.uppercase() } to v * maxOf(1, st.makeCount) }

@@ -35,20 +35,32 @@ object Templates {
             if (back > 0) out += box(t, d - back, kick, inner, back, h - kick)
             out
         },
-        Template("cabinet", "Cabinet", "A box with sides, top, bottom, one shelf, a back and inset doors (0, 1 or 2): a cupboard.", listOf(
+        Template("cabinet", "Cabinet", "A box with sides, top, bottom, one shelf, a back and doors (0, 1 or 2), set in the opening or over the front: a cupboard.", listOf(
             Field("w", "Width", 600.0, 24.0), Field("h", "Height", 720.0, 30.0), Field("d", "Depth", 560.0, 24.0), Field("t", "Board thickness", 18.0, 0.75), Field("back", "Back thickness (0 for none)", 6.0, 0.25),
-            Field("doors", "Doors (0, 1 or 2)", 0.0, 0.0, count = true),
+            Field("doors", "Doors (0, 1 or 2)", 0.0, 0.0, count = true), Field("overlay", "Doors over the front (0 = set in, 1 = over)", 0.0, 0.0, count = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val back = v.getValue("back")
             val doors = (v["doors"] ?: 0.0).toInt().coerceIn(0, 2)
             val inner = w - 2 * t; val dIn = d - back
             // With doors the shelf is set back behind them.
-            val shelfY = if (doors > 0) t + 2.0 else 0.0
-            val out = arrayListOf(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h),
+            val over = doors > 0 && (v["overlay"] ?: 0.0) >= 0.5
+            val shelfY = if (doors > 0 && !over) t + 2.0 else 0.0
+            val out = arrayListOf<splitziner.mesh.Mesh>(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h),
                 box(t, 0.0, 0.0, inner, dIn, t), box(t, 0.0, h - t, inner, dIn, t), box(t, shelfY, (h - t) / 2, inner, dIn - 20.0 - shelfY, t))
             if (back > 0) out += box(t, d - back, t, inner, back, h - 2 * t)
+            val g = 2.0
+            if (over) {
+                // Doors over the front (full overlay): the box moves back by the door thickness, and the doors cover
+                // the sides' front edges, 2 mm in from the outside and 2 mm apart as a pair.
+                val moved = out.map { splitziner.mesh.MeshOps.translated(it, Vec3(0.0, t, 0.0)) }
+                out.clear(); out += moved
+                val dh = h - 2 * g
+                if (doors == 1) out += box(g, 0.0, g, w - 2 * g, t, dh)
+                else { val dw = (w - 3 * g) / 2; out += box(g, 0.0, g, dw, t, dh); out += box(2 * g + dw, 0.0, g, dw, t, dh) }
+                return@Template out
+            }
             // Inset doors, 2 mm clear all round and between a pair.
-            val g = 2.0; val dh = h - 2 * t - 2 * g
+            val dh = h - 2 * t - 2 * g
             if (doors == 1) out += box(t + g, 0.0, t + g, inner - 2 * g, t, dh)
             if (doors == 2) { val dw = (inner - 3 * g) / 2; out += box(t + g, 0.0, t + g, dw, t, dh); out += box(t + 2 * g + dw, 0.0, t + g, dw, t, dh) }
             out

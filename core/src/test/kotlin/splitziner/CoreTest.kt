@@ -1299,3 +1299,43 @@ class CabinetDoorsTest {
         assertTrue(rep.problems == 0, rep.findings.map { it.title }.toString())
     }
 }
+
+class HandlesTest {
+    @Test fun eachDoorGetsAHandleAfterTheHinges() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("doors" to 2.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val cut = CutList.build(parts, fmt)
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val hw = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt).hardware
+        val h = hw.indexOfFirst { it.contains("handles or knobs") }
+        assertTrue(h >= 0 && hw[h].startsWith("2 "), hw.toString())
+        assertTrue(h > hw.indexOfFirst { it.contains("hinges") }, hw.toString())
+    }
+}
+
+class OverlayDoorsTest {
+    @Test fun doorsOverTheFrontAreHungNotScrewed() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        for (n in 1..2) {
+            val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("doors" to n.toDouble()) + ("overlay" to 1.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+            assertEquals(n, splitziner.check.Doors.find(parts).size)
+            val cut = CutList.build(parts, fmt)
+            val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+            assertTrue(rep.problems == 0, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title + ": " + it.detail }.toString())
+            val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+            val f = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+            val doorIds = splitziner.check.Doors.find(cut.parts).map { it.id }.toSet()
+            assertTrue(f.byStep.values.flatten().none { (it.through.id in doorIds || it.into.id in doorIds) && it.kind != "hinges" })
+        }
+    }
+
+    @Test fun aModestyPanelOnLegsIsNotADoor() {
+        // Two legs and a top, with a thin panel screwed to the legs' front faces: nothing behind its bottom edge.
+        val box = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> splitziner.edit.Editor.box(splitziner.math.Vec3(x, y, z), splitziner.math.Vec3(w, d, h)) }
+        val parts = listOf(box(0.0, 18.0, 0.0, 50.0, 50.0, 720.0), box(950.0, 18.0, 0.0, 50.0, 50.0, 720.0), box(0.0, 18.0, 720.0, 1000.0, 600.0, 25.0),
+            box(0.0, 0.0, 400.0, 1000.0, 18.0, 300.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        assertEquals(0, splitziner.check.Doors.find(parts).size)
+    }
+}
