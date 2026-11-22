@@ -102,3 +102,12 @@ Departures from the build spec, newest first.
 - A step that rests on supports fitted later has the step with those supports moved before it. Sub-assemblies are judged by their own boards, not their overall box.
 - New templates: Workbench and Bed frame. Both are built from end or side frames, with any cleats included in the frame.
 - Boards and rods may be bought in the stock length or a quarter and a half longer (8, 10 and 12 ft, kept exact; metric rounded down to 100 mm, so 2.4, 3.0 and 3.6 m). Each kind of board uses the one length that buys the least wood (ties go to fewer pieces, then the shorter length). A length only partly used is bought in the shortest length that still holds its pieces. This can be turned off in the cutting plan.
+
+## v0.62–0.69: printing, text and spacing
+- Printing goes through Android's own print screen, using the same PDF as Share. Each drawing sheet keeps its own paper size where the printer allows.
+- Guide step titles name what goes on, with role names and counts ("4 shelves", "hang the 4 drawers"). A step that fits more than three different things keeps a plain "Step N".
+- Plain fixings from one part into several are written as one line, with the total count and the number of joints. Hung parts (doors, drawers, slides, pins, applied fronts) keep a line per part.
+- Counts up to twelve are written as words. Above twelve they are written "24 × 5/8 in", so a count never runs into a size.
+- Template sizes are checked before a project is made: a part with less than 1 mm on any side means the sizes don't fit.
+- Rails joining legs are side rails (along the long way, at the outside within a leg's thickness), end rails (across), or a centre rail (not at the outside).
+- Even spacing is stated once, in the first step that lays any of the parts. It applies to three or more like parts lying flat with gaps of at least 3 mm that are equal within 1.5 mm.
