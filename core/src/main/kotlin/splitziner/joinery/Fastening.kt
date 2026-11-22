@@ -313,6 +313,26 @@ object Fastening {
     private fun count(n: Int): String = listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").getOrElse(n) { "$n" }
 
     /** Per item, how many pocket holes to drill before assembly (in the part whose end meets the other). */
+    /**
+     * Per item, the grooves and rabbets to cut in it for the thin parts it holds, as lines for "Making the parts".
+     * They are the guide's own option (a cleat does instead), so each says so.
+     */
+    fun cutLines(plan: FastenPlan, itemName: (Part) -> String): Map<Int, List<String>> {
+        val out = LinkedHashMap<Int, MutableList<String>>()
+        for ((key, js) in plan.all.filter { it.kind == "thin" && it.size.split('|').size >= 2 }.groupBy { Triple(it.through.item, it.into.item, it.size) }) {
+            val host = key.first ?: continue
+            val parts = key.third.split('|'); val rabbet = parts.getOrNull(2) == "rabbet"
+            val thin = itemName(js[0].into)
+            // Joints over all copies of the item; the maker cuts each copy alike.
+            val copies = maxOf(1, js[0].through.qty)
+            val each = maxOf(1, js.size / copies)
+            val places = if (each > 1) " ($each on each)" else ""
+            out.getOrPut(host) { ArrayList() } += if (rabbet) "For $thin, if you set it in a rabbet: cut a rabbet ${parts[0]} wide and ${parts[1]} deep along the edge where it sits$places."
+                else "For $thin, if you set it in a groove: cut a groove ${parts[0]} wide and ${parts[1]} deep where its edge meets this part$places."
+        }
+        return out
+    }
+
     /** Items that get a groove or rabbet for a thin part, if the maker takes that option over a cleat. */
     fun grooveItems(plan: FastenPlan): List<Int> =
         plan.all.filter { it.kind == "thin" && it.size.count { c -> c == '|' } >= 1 }.mapNotNull { it.through.item }.distinct().sorted()

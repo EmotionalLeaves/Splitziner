@@ -9,7 +9,8 @@ import splitziner.parts.Part
  * Workshop practice written down; it says which tool for each step and what to watch for.
  */
 object HowTo {
-    fun steps(row: CutListRow, part: Part, fmt: LengthFormat, tools: Set<Tool>?, grooves: List<String> = emptyList()): List<String> {
+    /** [extra] are further cuts to make in this item (rabbets and grooves for thin parts), told before the copies. */
+    fun steps(row: CutListRow, part: Part, fmt: LengthFormat, tools: Set<Tool>?, grooves: List<String> = emptyList(), extra: List<String> = emptyList()): List<String> {
         val w = runCatching { DesignCheck.workFor(part, fmt) }.getOrNull() ?: return emptyList()
         val d = { v: Double -> fmt.format(v) }
         val u = if (fmt.isInch) "in" else "mm"
@@ -54,6 +55,7 @@ object HowTo {
             val places = m.groupValues[6].takeIf { it.isNotEmpty() }?.let { " in $it places" } ?: ""
             out += "Cut a groove for item ${m.groupValues[1]}$places: ${m.groupValues[2].lowercase()} deep, ${m.groupValues[3].lowercase()} wide, ${m.groupValues[4].lowercase()} long, where its drawing shows, with a ${grooveTool()}."
         }
+        out += extra
         if (row.qty > 1) out += "Make ${row.qty} the same; cutting them together, or setting a stop, keeps them identical."
         out += "Label it ${row.item} on a face that will not show."
         return out

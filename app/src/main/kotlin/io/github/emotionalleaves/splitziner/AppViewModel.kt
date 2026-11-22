@@ -305,7 +305,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         fasten?.let { splitziner.joinery.Fastening.grooveItems(it) } ?: emptyList())
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
                         hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
-                        before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta)))
+                        before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta), fasten))
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
@@ -381,14 +381,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** How to make one item, for the cut list and the guide. */
-    fun howTo(a: splitziner.pipeline.Analysis, row: CutListRow, tools: Set<splitziner.check.Tool>?): List<String> {
+    fun howTo(a: splitziner.pipeline.Analysis, row: CutListRow, tools: Set<splitziner.check.Tool>?, extra: List<String> = emptyList()): List<String> {
         val p = a.parts.firstOrNull { it.id == row.memberIds.firstOrNull() } ?: return emptyList()
-        return runCatching { splitziner.check.HowTo.steps(row, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)) }.getOrDefault(emptyList())
+        return runCatching { splitziner.check.HowTo.steps(row, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format), extra) }.getOrDefault(emptyList())
     }
 
     /** Items that need more than cutting to size, with their steps. */
-    fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?): List<Pair<String, List<String>>> =
-        a.cutList.rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools))?.let { "Item ${r.item}: ${r.description}" to it } }
+    fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?, fasten: splitziner.joinery.FastenPlan? = null): List<Pair<String, List<String>>> {
+        val cuts = fasten?.let { f -> runCatching { splitziner.joinery.Fastening.cutLines(f) { p -> "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${p.name.lowercase()})" else "") } }.getOrNull() } ?: emptyMap()
+        return a.cutList.rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools, cuts[r.item].orEmpty()))?.let { "Item ${r.item}" + (if (r.name.isNotBlank()) " (${r.name.lowercase()})" else "") + ": ${r.description}" to it } }
+    }
 
     /**
      * Draws the model small, as the drawings show it, for its card in the project list. In the background and
