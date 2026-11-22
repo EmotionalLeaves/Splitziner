@@ -233,10 +233,10 @@ object GuideLayout {
             var pg = page; var x = 25.0 + ci * (colW + 8); var yy = top
             pg.text(x, yy, head, 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7
             for (it in items) {
-                val need = wrapMixed("• $it", 3.0, colW - 3).size * 4.5
+                val need = wrapHanging("• $it", 3.0, colW - 3, 3.0).size * 4.5
                 // The page is full: carry the list on overleaf under a "continued" heading.
                 if (yy - need < 16) { pg = pages.new(); x = 25.0; yy = h - 26; pg.text(x, yy, "$head (CONTINUED)", 3.5, vAlign = VAlign.TOP, bold = true); yy -= 7 }
-                yy = para(pg, x + 3, yy, "• $it", 3.0, colW - 3)
+                yy = para(pg, x + 3, yy, "• $it", 3.0, colW - 3, hang = 3.0)
             }
             page = pg
         }
