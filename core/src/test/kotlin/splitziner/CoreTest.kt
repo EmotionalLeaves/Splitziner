@@ -259,3 +259,14 @@ class PipelineTest {
         assertTrue(ms < 30_000, "split took $ms ms")
     }
 }
+
+class ViewTest {
+    @Test fun boxHasTwelveFeatureEdgesAndCylinderOnlyItsRims() {
+        val box = Fixtures.box(0.0, 1.0, 0.0, 2.0, 0.0, 3.0)
+        assertEquals(12, splitziner.view.EdgeExtractor.featureEdges(box).size)
+        val cyl = Fixtures.cylinder(5.0, 0.0, 10.0, 64)
+        assertEquals(128, splitziner.view.EdgeExtractor.featureEdges(cyl).size)
+        val g = splitziner.view.ViewerGeometry.build(box, box.bounds.center, 1.0)
+        assertEquals(12 * 18, g.triangles.size); assertEquals(12 * 6, g.lines.size)
+    }
+}

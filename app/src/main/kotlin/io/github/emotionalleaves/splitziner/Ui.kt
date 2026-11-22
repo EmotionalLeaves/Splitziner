@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.emotionalleaves.splitziner.gl.ModelView
 import splitziner.export.CsvWriter
 import splitziner.parts.CutListRow
 import splitziner.parts.ItemOverride
@@ -157,6 +158,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showUnits by remember { mutableStateOf(r.units.lowConfidence && open.meta.fileUnits == null) }
     var editPart by remember { mutableStateOf<Part?>(null) }
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var editRow by remember { mutableStateOf<CutListRow?>(null) }
     val context = LocalContext.current
 
@@ -182,10 +184,25 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TabButton("Parts", tab == 0, Modifier.weight(1f)) { tab = 0 }
-            TabButton("Cut list", tab == 1, Modifier.weight(1f)) { tab = 1 }
+            TabButton("3D", tab == 0, Modifier.weight(1f)) { tab = 0 }
+            TabButton("Parts", tab == 1, Modifier.weight(1f)) { tab = 1 }
+            TabButton("Cut list", tab == 2, Modifier.weight(1f)) { tab = 2 }
         }
         if (tab == 0) {
+            val sel = a.parts.firstOrNull { it.id == selectedId }
+            ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp))
+            if (sel == null) {
+                Text("Drag to turn, pinch to zoom, two fingers to move. Tap a part to select it.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 6.dp))
+            } else {
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${sel.name}  \u00b7  item ${sel.item ?: "-"}  \u00d7${sel.qty}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(sel.desc, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    TextButton(onClick = { editPart = sel }) { Text("Edit") }
+                }
+            }
+        } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
                 items(a.parts, key = { it.id }) { p ->
                     Column(Modifier.fillMaxWidth().clickable { editPart = p }.padding(vertical = 8.dp)) {

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0 - 3D view
+
+See your model in 3D, with every part in its own colour.
+
+- **New 3D tab** on the project screen. Drag with one finger to turn the model, pinch to zoom, drag with two fingers to move it.
+- **Tap a part to select it.** It lights up, and its name, item number and size appear underneath, with an Edit button to rename it or leave it out.
+- **Identical parts share a colour**, so matching boards are easy to spot.
+- **Front, Top, Right and 3D buttons** jump to standard views.
+
+This version has not been tried on a real phone yet. If the 3D tab shows nothing or the app closes, tap **Copy diagnostic report** and send it over.
+
 ## v0.1.0 - Import, parts and cut list
 
 First version. Open an STL of a whole assembly and see what it is made of.
