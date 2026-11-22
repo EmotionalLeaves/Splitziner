@@ -52,7 +52,13 @@ private const val FOV = 35.0
  * [selectedId] is the part to highlight; [onSelect] is called with a part id, or null for empty space.
  */
 @Composable
-fun ModelView(analysis: Analysis, selectedId: String?, onSelect: (String?) -> Unit, modifier: Modifier = Modifier) {
+fun ModelView(
+    analysis: Analysis, selectedId: String?, onSelect: (String?) -> Unit, modifier: Modifier = Modifier,
+    /** Per part id, how far it moves when fully pulled apart (model mm); null until worked out. */
+    offsets: Map<String, Vec3>? = null,
+    /** 0 = assembled, 1 = fully pulled apart. */
+    explode: Float = 0f,
+) {
     val renderer = remember { ModelRenderer() }
     val viewHolder = remember { arrayOfNulls<GLSurfaceView>(1) }
     val dark = isSystemInDarkTheme()
@@ -65,19 +71,23 @@ fun ModelView(analysis: Analysis, selectedId: String?, onSelect: (String?) -> Un
     val ext = analysis.bounds.extents
     val unit = 1.0 / maxOf(ext.x, ext.y, ext.z, 1e-9)
 
-    LaunchedEffect(analysis) {
+    val currentOffsets = rememberUpdatedState(offsets)
+    val currentExplode = rememberUpdatedState(explode)
+    LaunchedEffect(analysis, offsets) {
         val scene = withContext(Dispatchers.Default) {
             analysis.parts.map { p ->
                 val color = PALETTE[(((p.item ?: 1) - 1) % PALETTE.size + PALETTE.size) % PALETTE.size]
-                ScenePart(ViewerGeometry.build(p.mesh, center, unit), color, !p.excluded)
+                val o = offsets?.get(p.id) ?: Vec3.ZERO
+                ScenePart(ViewerGeometry.build(p.mesh, center, unit), color, !p.excluded, floatArrayOf((o.x * unit).toFloat(), (o.y * unit).toFloat(), (o.z * unit).toFloat()))
             }
         }
         renderer.setScene(scene)
         viewHolder[0]?.requestRender()
     }
-    LaunchedEffect(selectedId, analysis, dark) {
+    LaunchedEffect(selectedId, analysis, dark, explode) {
         renderer.selected = analysis.parts.indexOfFirst { it.id == selectedId }
         renderer.darkBackground = dark
+        renderer.explode = explode
         viewHolder[0]?.requestRender()
     }
 
@@ -114,7 +124,9 @@ fun ModelView(analysis: Analysis, selectedId: String?, onSelect: (String?) -> Un
                     var best: Part? = null; var bestT = Double.MAX_VALUE
                     for (p in a.parts) {
                         if (p.excluded) continue
-                        val t = p.mesh.bvh.firstHit(near, dir)?.t ?: continue
+                        // A pulled-apart part is hit where it is drawn: shift the ray back by the part's travel instead of moving the mesh.
+                        val shift = (currentOffsets.value?.get(p.id) ?: Vec3.ZERO) * currentExplode.value.toDouble()
+                        val t = p.mesh.bvh.firstHit(near - shift, dir)?.t ?: continue
                         if (t < bestT) { bestT = t; best = p }
                     }
                     best

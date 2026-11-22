@@ -591,3 +591,21 @@ class ScrambledCabinetTest {
         assertEquals(bodies.sumOf { it.volume }, r.parts.sumOf { it.mesh.volume }, 1e-3)
     }
 }
+
+class PartDrawingTest {
+    @Test fun oneDetailSheetPerItem() {
+        val fmt = LengthFormat("in")
+        val meshes = Fixtures.miniCabinet(Fixtures.INCH).toMutableList()
+        meshes += Fixtures.rotatedZ(Fixtures.box(0.0, 30.0 * Fixtures.INCH, 0.0, 2.0 * Fixtures.INCH, 0.0, 0.75 * Fixtures.INCH), 30.0)   // a brace lying at an angle
+        val cut = CutList.build(meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }, fmt)
+        val sheets = splitziner.drawing.PartDrawings.build(cut.parts, cut.rows, splitziner.sheet.DrawingInfo(title = "Cabinet, storage", drawingNo = "CAB-001"), splitziner.drawing.DrawingSettings(), fmt)
+        assertEquals(cut.rows.size, sheets.size)
+        val out = java.io.File("build/preview").apply { mkdirs() }
+        sheets.forEachIndexed { i, r -> java.io.File(out, "item%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(r.sheets[0])) }
+        println("items: " + sheets.joinToString { "${it.sheet.letter} ${it.scaleText}" })
+        // The angled brace is squared up: its drawing shows its true 30 x 2 x .75 size.
+        val brace = splitziner.drawing.PartDrawings.squaredUp(meshes.last())
+        assertEquals(30.0 * Fixtures.INCH, brace.extents.x, 0.01); assertEquals(0.75 * Fixtures.INCH, brace.extents.y, 0.01); assertEquals(2.0 * Fixtures.INCH, brace.extents.z, 0.01)
+        assertEquals(meshes.last().volume, brace.volume, 1e-3)
+    }
+}

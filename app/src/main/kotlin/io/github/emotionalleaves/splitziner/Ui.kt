@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +42,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -167,6 +169,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var showUnits by remember { mutableStateOf(r.units.lowConfidence && open.meta.fileUnits == null) }
     var editPart by remember { mutableStateOf<Part?>(null) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pull by remember { mutableFloatStateOf(0f) }
+    var showHelp by remember { mutableStateOf(false) }
     var editRow by remember { mutableStateOf<CutListRow?>(null) }
     val context = LocalContext.current
 
@@ -174,6 +178,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = vm::closeProject) { Text("← Back") }
             Text(open.meta.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showHelp = true }) { Text("Help") }
         }
         BusyBar(state)
         Card(Modifier.fillMaxWidth()) {
@@ -201,7 +206,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         } else
         if (tab == 0) {
             val sel = a.parts.firstOrNull { it.id == selectedId }
-            ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp))
+            ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), offsets = state.explodeOffsets, explode = pull)
+            if (a.parts.count { !it.excluded } > 1) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pull apart", style = MaterialTheme.typography.bodySmall)
+                    Slider(value = pull, onValueChange = { pull = it; if (it > 0f) vm.ensureExplodeOffsets() }, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                }
+            }
             if (sel == null) {
                 Text("Drag to turn, pinch to zoom, two fingers to move. Tap a part to select it.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 6.dp))
             } else {
@@ -258,6 +269,16 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") }
     }
 
+    if (showHelp) AlertDialog(
+        onDismissRequest = { showHelp = false },
+        confirmButton = { TextButton(onClick = { showHelp = false }) { Text("OK") } },
+        title = { Text("What to trust, and what to check") },
+        text = {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for ((head, body) in HELP) { Text(head, fontWeight = FontWeight.Bold); Text(body, style = MaterialTheme.typography.bodyMedium) }
+            }
+        },
+    )
     if (showUnits) UnitsDialog(open, onDismiss = { showUnits = false }) { file, display, style ->
         showUnits = false
         vm.update { it.copy(fileUnits = file, displayUnits = display, inchStyle = style) }
@@ -400,7 +421,7 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(onClick = { showInfo = true }) { Text("Title block") }
             if (d != null) {
-                Text("Sheet ${d.sheetLetter}, ${d.scaleText}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text("Assembly on sheet ${d.sheetLetter} at ${d.scaleText}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 if (d.qa.isNotEmpty()) TextButton(onClick = { showQa = true }) { Text("${d.qa.size} note${if (d.qa.size == 1) "" else "s"}") }
             } else Spacer(Modifier.weight(1f))
         }
@@ -415,8 +436,13 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             }
         }
         if (d != null && d.sheets.size > 1) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                d.sheets.indices.forEach { i -> TabButton(if (i == 0) "Sheet 1: views" else "Sheet ${i + 1}: exploded", shown == i, Modifier.weight(1f)) { sheetIndex = i } }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { sheetIndex = shown - 1 }, enabled = shown > 0) { Text("\u2190") }
+                Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                    Text(d.labels.getOrElse(shown) { "Sheet ${shown + 1}" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${shown + 1} of ${d.sheets.size}", style = MaterialTheme.typography.bodySmall)
+                }
+                OutlinedButton(onClick = { sheetIndex = shown + 1 }, enabled = shown < d.sheets.size - 1) { Text("\u2192") }
             }
         }
         Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
@@ -631,3 +657,15 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
         )
     }
 }
+
+
+private val HELP = listOf(
+    "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
+    "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap Change on the project screen.",
+    "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
+    "Dimensions" to "Everything is measured from the lower-left-front corner. Which faces really matter for fit is a design decision the app can't make.",
+    "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
+    "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
+    "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
+    "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
+)

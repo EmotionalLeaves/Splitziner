@@ -15,7 +15,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** One part ready to draw: its buffers, its colour, and whether it is shown. */
-class ScenePart(val geometry: PartGeometry, val color: FloatArray, val visible: Boolean)
+class ScenePart(
+    val geometry: PartGeometry, val color: FloatArray, val visible: Boolean,
+    /** How far this part moves when the model is fully pulled apart, in the scene's scaled units. */
+    val offset: FloatArray = floatArrayOf(0f, 0f, 0f),
+)
 
 /** Orbit camera with world Z kept up. Angles in degrees; the model is pre-scaled to about one unit across. */
 class OrbitCamera {
@@ -43,6 +47,9 @@ class ModelRenderer : GLSurfaceView.Renderer {
     val camera = OrbitCamera()
     @Volatile var selected = -1
     @Volatile var darkBackground = false
+
+    /** 0 = assembled, 1 = fully pulled apart. */
+    @Volatile var explode = 0f
 
     private var pending: List<ScenePart>? = null
     private val lock = Any()
@@ -103,6 +110,8 @@ class ModelRenderer : GLSurfaceView.Renderer {
         GLES20.glUniform3f(GLES20.glGetUniformLocation(program, "uLight"), l.x.toFloat(), l.y.toFloat(), l.z.toFloat())
         val aPos = GLES20.glGetAttribLocation(program, "aPos"); val aNor = GLES20.glGetAttribLocation(program, "aNormal")
         val uColor = GLES20.glGetUniformLocation(program, "uColor")
+        val uOffset = GLES20.glGetUniformLocation(program, "uOffset")
+        val ex = explode
         // Push faces back slightly so the crease lines drawn on top of them do not flicker.
         GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL); GLES20.glPolygonOffset(1f, 1f)
         GLES20.glEnableVertexAttribArray(aPos); GLES20.glEnableVertexAttribArray(aNor)
@@ -112,6 +121,7 @@ class ModelRenderer : GLSurfaceView.Renderer {
             b.position(0); GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 24, b)
             b.position(3); GLES20.glVertexAttribPointer(aNor, 3, GLES20.GL_FLOAT, false, 24, b)
             val c = p.color
+            GLES20.glUniform3f(uOffset, p.offset[0] * ex, p.offset[1] * ex, p.offset[2] * ex)
             if (i == selected) GLES20.glUniform3f(uColor, 1f, 0.82f, 0.25f) else GLES20.glUniform3f(uColor, c[0], c[1], c[2])
             GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, p.geometry.triangles.size / 6)
         }
@@ -123,11 +133,13 @@ class ModelRenderer : GLSurfaceView.Renderer {
         val lc = if (darkBackground) 0.05f else 0.12f
         GLES20.glUniform3f(GLES20.glGetUniformLocation(lineProgram, "uColor"), lc, lc, lc)
         val lPos = GLES20.glGetAttribLocation(lineProgram, "aPos")
+        val lOffset = GLES20.glGetUniformLocation(lineProgram, "uOffset")
         GLES20.glEnableVertexAttribArray(lPos)
         GLES20.glLineWidth(2f)
         for (i in parts.indices) {
             val p = parts[i]; if (!p.visible || p.geometry.lines.isEmpty()) continue
             val b = lineBuffers[i]; b.position(0)
+            GLES20.glUniform3f(lOffset, p.offset[0] * ex, p.offset[1] * ex, p.offset[2] * ex)
             GLES20.glVertexAttribPointer(lPos, 3, GLES20.GL_FLOAT, false, 12, b)
             GLES20.glDrawArrays(GLES20.GL_LINES, 0, p.geometry.lines.size / 3)
         }
@@ -161,15 +173,15 @@ class ModelRenderer : GLSurfaceView.Renderer {
 
     private companion object {
         const val VERT = """
-            uniform mat4 uMvp; attribute vec3 aPos; attribute vec3 aNormal; varying vec3 vNormal;
-            void main() { vNormal = aNormal; gl_Position = uMvp * vec4(aPos, 1.0); }"""
+            uniform mat4 uMvp; uniform vec3 uOffset; attribute vec3 aPos; attribute vec3 aNormal; varying vec3 vNormal;
+            void main() { vNormal = aNormal; gl_Position = uMvp * vec4(aPos + uOffset, 1.0); }"""
         // abs() lights both sides of a face, so a part with inside-out triangles still reads as solid.
         const val FRAG = """
             precision mediump float; uniform vec3 uColor; uniform vec3 uLight; varying vec3 vNormal;
             void main() { float d = abs(dot(normalize(vNormal), uLight)); gl_FragColor = vec4(uColor * (0.38 + 0.62 * d), 1.0); }"""
         const val LINE_VERT = """
-            uniform mat4 uMvp; attribute vec3 aPos;
-            void main() { gl_Position = uMvp * vec4(aPos, 1.0); }"""
+            uniform mat4 uMvp; uniform vec3 uOffset; attribute vec3 aPos;
+            void main() { gl_Position = uMvp * vec4(aPos + uOffset, 1.0); }"""
         const val LINE_FRAG = """
             precision mediump float; uniform vec3 uColor;
             void main() { gl_FragColor = vec4(uColor, 1.0); }"""

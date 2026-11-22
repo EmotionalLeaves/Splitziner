@@ -28,7 +28,7 @@ class OpenProject(val meta: ProjectMeta, val analysis: Analysis)
 /** The build guide for the open project, laid out on pages. */
 class GuideState(val pages: List<PreparedSheet>, val stepCount: Int, val steps: List<splitziner.explode.BuildStep>)
 
-class DrawingState(val sheets: List<PreparedSheet>, val sheetLetter: String, val scaleText: String, val qa: List<String>)
+class DrawingState(val sheets: List<PreparedSheet>, val labels: List<String>, val sheetLetter: String, val scaleText: String, val qa: List<String>)
 
 data class UiState(
     val projects: List<ProjectMeta> = emptyList(),
@@ -42,6 +42,8 @@ data class UiState(
     val drawingBusy: Boolean = false,
     val guide: GuideState? = null,
     val guideBusy: Boolean = false,
+    /** Per part id, how far it travels when the 3D view is fully pulled apart (model mm). */
+    val explodeOffsets: Map<String, splitziner.math.Vec3>? = null,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -80,6 +82,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         guideJob?.cancel()
         _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false) }
         ensureGuide()
+    }
+
+    private var explodeJob: Job? = null
+
+    /** Works out how far each part moves when the 3D view is pulled apart. Called the first time the slider is touched. */
+    fun ensureExplodeOffsets() {
+        val open = _state.value.open ?: return
+        if (_state.value.explodeOffsets != null || explodeJob?.isActive == true) return
+        explodeJob = viewModelScope.launch {
+            try {
+                val offsets = withContext(Dispatchers.Default) {
+                    val pl = planOf(open.analysis, open.meta.stepOrder)
+                    splitziner.explode.ExplodedView.offsetsById(pl.parts.filter { !it.excluded })
+                }
+                _state.update { it.copy(explodeOffsets = offsets) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Diagnostics.logError("explode offsets", e)
+                _state.update { it.copy(explodeOffsets = emptyMap()) }
+            }
+        }
     }
 
     /** Builds the step-by-step guide for the open project. Safe to call whenever the Guide tab is shown. */
@@ -132,7 +156,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val planned = runCatching { planOf(a, open.meta.stepOrder).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()
                     val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")
-                    DrawingState(r.sheets.map { PreparedSheet.of(it) }, r.sheet.letter, r.scaleText, r.qa)
+                    val sheets = ArrayList(r.sheets); val qa = ArrayList(r.qa)
+                    val labels = ArrayList(r.sheets.indices.map { if (it == 0) "Sheet 1: views" else "Sheet ${it + 1}: exploded view" })
+                    // One detail drawing per item, when there is more than one part to detail.
+                    if (a.parts.count { !it.excluded } > 1) runCatching {
+                        val t2 = System.nanoTime()
+                        val items = splitziner.drawing.PartDrawings.build(a.parts, a.cutList.rows, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format)
+                        items.forEachIndexed { i, d -> sheets += d.sheets; labels += d.sheets.map { "Item ${a.cutList.rows[i].item}: ${a.cutList.rows[i].description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
+                        Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms")
+                    }.onFailure { Diagnostics.logError("part drawings", it) }
+                    DrawingState(sheets.map { PreparedSheet.of(it) }, labels, r.sheet.letter, r.scaleText, qa)
                 }
                 _state.update { it.copy(drawing = result, drawingBusy = false) }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -151,7 +184,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         store.save(meta)
         // The guide's cover carries the title, so it is rebuilt the next time it is opened.
         guideJob?.cancel()
-        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false) }
+        explodeJob?.cancel()
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false, explodeOffsets = null) }
         ensureDrawing(force = true)
     }
 
@@ -159,7 +193,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissCrash() { Diagnostics.clearCrash(); _state.update { it.copy(crashReport = null) } }
     fun closeProject() {
         drawingJob?.cancel(); guideJob?.cancel(); viewSet = null; viewSetFor = null; plan = null; planFor = null
-        _state.update { it.copy(open = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false) }
+        _state.update { it.copy(open = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, explodeOffsets = null) }
     }
 
     fun importFrom(uri: Uri) {
@@ -225,7 +259,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val saved = meta.copy(partCount = analysis.parts.size)
             store.save(saved)
             drawingJob?.cancel(); guideJob?.cancel()
-            _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false) }
+            _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, explodeOffsets = null) }
         } catch (e: Throwable) {
             if (deleteOnFailure) store.delete(meta.id)
             fail("analysis", e)

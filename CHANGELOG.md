@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.0 - Part drawings and pull-apart 3D
+
+A drawing for every part, and a pull-apart slider in 3D.
+
+- **Detail drawings.** After the assembly sheets, the drawing set now has one sheet per item in the cut list: that part on its own, drawn from the front, top and side with its dimensions, numbered after your drawing number (for example CAB-001-3) and noting how many to make. Parts that sit at an angle in the model are squared up first, so their true length, width and thickness are shown. Use the arrows under the preview to page through; the PDF contains them all.
+- **Pull apart slider** under the 3D view. Slide it to watch the model come apart along the same directions the build guide uses. You can still tap parts while it is apart.
+- **Help** button on the project screen: a plain list of what you can trust (sizes, counts) and what you need to check (units, round features, tolerances, build order).
+
 ## v0.6.1 - Sturdier part splitting
 
 Much sturdier part splitting for awkward files.

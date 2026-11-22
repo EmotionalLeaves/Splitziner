@@ -138,6 +138,15 @@ object ExplodedView {
         return offs
     }
 
+    /** Per part id, how far it moves when the model is pulled apart for an interactive 3D view. */
+    fun offsetsById(parts: List<Part>, minTravelShare: Double = 0.15): Map<String, Vec3> {
+        val view = pickView(parts)
+        val outlines = parts.map { Silhouette.outline(it.mesh, view) }
+        val whole = parts.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
+        val o = planOffsets(parts, view, outlines, minTravelShare * (whole?.diagonal ?: 0.0))
+        return parts.indices.associate { parts[it].id to o[it] }
+    }
+
     /** [fitBounds] (minX, minY, maxX, maxY in view coordinates) is included in the picture's extent, so a series of pictures can share one framing. */
     fun prepare(parts: List<Part>, view: ViewDef? = null, fitBounds: DoubleArray? = null, minTravelShare: Double = 0.12): ExplodedGeometry {
         val v = view ?: pickView(parts)
