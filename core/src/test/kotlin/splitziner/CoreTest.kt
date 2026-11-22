@@ -1621,3 +1621,11 @@ class EdgeGluedPanelTest {
         assertEquals(null, splitziner.cutplan.CutPlanner.edgeGlue(row.copy(t = 6.35), true))
     }
 }
+
+class NamesTest {
+    @Test fun fileNamesReadAsNames() {
+        assertEquals("Kitchen run", splitziner.text.Names.fromFile("kitchen_run.stl"))
+        assertEquals("BunkBed v2", splitziner.text.Names.fromFile("BunkBed-v2.obj"))
+        assertEquals("My desk", splitziner.text.Names.fromFile("My desk.3mf"))
+    }
+}

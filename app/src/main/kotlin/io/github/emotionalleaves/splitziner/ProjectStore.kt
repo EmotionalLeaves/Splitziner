@@ -84,7 +84,7 @@ class ProjectStore(context: Context) {
         dir(id).mkdirs()
         source(id).outputStream().use { input.copyTo(it, 1 shl 16) }
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-        val meta = ProjectMeta(id, fileName.substringBeforeLast('.'), fileName, System.currentTimeMillis(), date = today)
+        val meta = ProjectMeta(id, splitziner.text.Names.fromFile(fileName), fileName, System.currentTimeMillis(), date = today)
         save(meta)
         return meta
     }
