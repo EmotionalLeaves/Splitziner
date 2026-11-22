@@ -926,7 +926,8 @@ private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: 
                     IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
                     Column(Modifier.weight(1f)) {
                         Text("Step ${at + 1} of ${work.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(st.title.substringAfter(": ", st.title).replaceFirstChar { it.uppercase() }.let { if (it.startsWith("Step ")) "Fit the parts" else it },
+                        // A step with no title of its own is named by its first instruction ("Fit item 1 (side) from the left").
+                        Text(st.title.substringAfter(": ", st.title).replaceFirstChar { it.uppercase() }.let { if (it.startsWith("Step ")) (st.text.firstOrNull()?.trimEnd('.') ?: "Fit the parts") else it },
                             style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     if (at in done) Text("Done", style = MaterialTheme.typography.labelLarge, color = successColors().second,
@@ -939,7 +940,8 @@ private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: 
                 LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp)) {
                     if (st.parts.isNotEmpty()) {
                         item { Text("You need", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
-                        items(st.parts) { Text("\u2022 $it", style = MaterialTheme.typography.bodyMedium) }
+                        // "Item 1 (side) PANEL 18 X 600 X 1500" in ordinary type, as on the Parts tab.
+                        items(st.parts) { Text("\u2022 " + it.replace(Regex("""^(.*?\)) ([A-Z]+ [0-9].*)$""")) { m -> m.groupValues[1] + " " + m.groupValues[2].lowercase() }, style = MaterialTheme.typography.bodyMedium) }
                     }
                     item { Text("What to do", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
                     items(st.text.size) { i ->
