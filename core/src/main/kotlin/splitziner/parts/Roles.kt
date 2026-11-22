@@ -81,6 +81,10 @@ object Roles {
                     b.max.y >= all.max.y - 1.0 -> if (t <= 10.0) "Back panel" else "Back"
                     b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 -> "Kick board"
                     b.min.y <= all.min.y + 1.0 -> "Front"
+                    // Standing in the back half, hung from the underside of a top and clear of the floor:
+                    // the panel that stiffens a desk and screens the legs, which furniture makers call a modesty panel.
+                    (b.min.y + b.max.y) / 2 > all.min.y + 0.5 * all.extents.y && b.min.z > all.min.z + 0.25 * h &&
+                        live.any { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 } -> "Modesty panel"
                     else -> "Panel"
                 }
                 else -> continue
