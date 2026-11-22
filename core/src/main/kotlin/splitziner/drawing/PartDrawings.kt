@@ -178,7 +178,8 @@ object PartDrawings {
     fun grooveNotes(p: Part, parts: List<Part>, housed: List<Pair<String, String>>, fmt: LengthFormat): List<String> {
         val byId = parts.associateBy { it.id }
         val d = { v: Double -> fmt.format(v) }
-        return housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
+        class G(val text: String, val at: Double?, val from: String)
+        val gs = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
             val q = byId[pid] ?: return@mapNotNull null
             val a = p.mesh.bounds; val b = q.mesh.bounds
             val e = doubleArrayOf(minOf(a.max.x, b.max.x) - maxOf(a.min.x, b.min.x), minOf(a.max.y, b.max.y) - maxOf(a.min.y, b.min.y), minOf(a.max.z, b.max.z) - maxOf(a.min.z, b.min.z))
@@ -188,9 +189,21 @@ object PartDrawings {
             val qe = doubleArrayOf(b.extents.x, b.extents.y, b.extents.z)
             val out = (0..2).filter { e[it] < qe[it] - 0.01 }
             val k = out.minByOrNull { e[it] } ?: (0..2).minByOrNull { e[it] }!!
-            val rest = (0..2).filter { it != k }.map { e[it] }.sorted()
-            "GROOVE FOR ITEM ${q.item}: ${d(e[k])} DEEP X ${d(rest[0])} WIDE X ${d(rest[1])} LONG, WHERE ITEM ${q.item} MEETS IT ON THE ASSEMBLY DRAWING"
-        }.groupingBy { it }.eachCount().map { (t, n) -> if (n > 1) "$t ($n PLACES)." else "$t." }
+            val rest = (0..2).filter { it != k }.sortedBy { e[it] }
+            // Where it is: from the part's lower end (or edge) to the near side of the groove, across its width.
+            val w = rest[0]; val lo = maxOf(a.min[w], b.min[w]) - a.min[w]
+            val atEdge = lo < 0.5 || a.max[w] - (lo + a.min[w] + e[w]) < 0.5
+            val atMin = lo < 0.5
+            val edgeName = when (w) { 2 -> if (atMin) "BOTTOM END" else "TOP END"; 1 -> if (atMin) "FRONT EDGE" else "BACK EDGE"; else -> if (atMin) "LEFT EDGE" else "RIGHT EDGE" }
+            val from = if (w == 2) "THE BOTTOM END" else if (a.extents[w] >= maxOf(a.extents.x, a.extents.y, a.extents.z) - 0.5) "ONE END" else "THE FRONT EDGE"
+            G("${if (atEdge) "RABBET" else "GROOVE"} FOR ITEM ${q.item}: ${d(e[k])} DEEP X ${d(e[w])} WIDE X ${d(e[rest[1]])} LONG", if (atEdge) null else lo, if (atEdge) edgeName else from)
+        }
+        return gs.groupBy { it.text }.map { (t, g) ->
+            val ats = g.mapNotNull { it.at }.distinct().sorted()
+            val where = if (ats.isEmpty()) "ALONG THE ${g[0].from} (AS ASSEMBLED)"
+                else "${ats.dropLast(1).joinToString(", ") { d(it) }}${if (ats.size > 1) " AND " else ""}${d(ats.last())} FROM ${g[0].from} (AS ASSEMBLED) TO THE NEAR SIDE OF ${if (ats.size > 1) "EACH" else "THE"} GROOVE"
+            "$t${if (g.size > 1) " (${g.size} PLACES)" else ""}, $where."
+        }
     }
 
     /** Detail drawings for every item except those in [skip], each with the row it details. */
