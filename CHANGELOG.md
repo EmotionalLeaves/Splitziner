@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.57.0 - Cleaner balloons
+
+- **Balloon leaders no longer cross** in exploded views and guide pictures. When a leader would cross one already drawn, its balloon is moved, so every number points clearly at its own part.
+
 ## v0.56.0 - Drawing set index notes
 
 - **The assembly drawing now says where the detail drawings are.** For example: "Detail drawings: item 4 on TEST-1-4". In a big set, the items are given as ranges, with the numbering pattern. Together with the plain-boards note, every item is accounted for.
