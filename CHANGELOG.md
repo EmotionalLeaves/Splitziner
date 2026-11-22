@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.47.0 - Rabbet and groove cuts per part, cleaner exploded views and cutting plans
+
+- **Making the parts** now lists each rabbet and groove to cut in each item for the thin panels it holds (back panel, drawer bottoms), with how many on each piece. Item headings show the part's name.
+- **Exploded views** draw applied drawer fronts in front of their drawer boxes, with a clear gap. Before, the fronts could end up between the boxes and the case.
+- **Cutting plans** label every piece. Narrow strips such as a kick board show their item number, and tall, narrow pieces show their size along the piece instead of over the edge.
+- Drawings are dated the day they are drawn, unless you set a date.
+- Joint notes for boards say "too thin to take screws at its edge", which is accurate for drawer sides as well as back panels.
+
 ## v0.46.0 - All levels dimensioned
 
 - **Every drawer level is dimensioned.** Assembly drawings can now dimension up to 8 heights per direction, switching to compact ordinate dimensions (values read from one zero line) when there are more than 5. The chest of drawers' section shows all four drawer heights instead of three. Bigger models such as a desk get a section with their depths.
