@@ -288,7 +288,7 @@ class SmokeTest {
                 rule.waitUntil(30_000) { rule.onAllNodesWithText("Guide").fetchSemanticsNodes().isNotEmpty() }
                 rule.onAllNodesWithText("Guide").onFirst().performClick(); rule.waitForIdle()
                 waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
-                shot("d0${listOf("cabinet", "shelves", "drawers").indexOf(key) + 1}_${key}_guide")
+                shot("t0${listOf("cabinet", "shelves", "drawers").indexOf(key) + 1}_${key}_guide")
                 when (key) { "cabinet" -> assertEquals(2, doors); "shelves" -> assertEquals(4, pins); else -> assertEquals(4, drawers) }
                 vm.closeProject(); rule.waitForIdle()
             }
