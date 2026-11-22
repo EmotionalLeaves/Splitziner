@@ -372,13 +372,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 val last = pp?.steps?.maxOfOrNull { it.step } ?: 1
                 // Bench steps are built away from the model; in 3D the step shows where those parts end up.
                 val st = pp?.steps?.firstOrNull { it.step == playStep }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { playStep = (playStep - 1).coerceAtLeast(1) }, enabled = playStep > 1) { Text("\u2190") }
-                    Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                        Text(if (pp == null) "Working out the build order\u2026" else "Step $playStep of $last" + if (st?.subassembly == true) " (made on the bench)" else "", style = MaterialTheme.typography.bodyMedium)
-                        if (st != null) Text("Items ${st.items.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    OutlinedButton(onClick = { playStep = (playStep + 1).coerceAtMost(last) }, enabled = playStep < last) { Text("\u2192") }
+                Box(Modifier.padding(vertical = 4.dp)) {
+                    PagerBar(if (pp == null) "Working out the build order\u2026" else "Step $playStep of $last",
+                        (if (st?.subassembly == true) "Made on the bench  \u00b7  " else "") + (st?.let { "items ${it.items.joinToString(", ")}" } ?: ""),
+                        playStep > 1, playStep < last, { playStep = (playStep - 1).coerceAtLeast(1) }, { playStep = (playStep + 1).coerceAtMost(last) })
                 }
             }
             if (a.parts.count { !it.excluded } > 1 && !playing) {
