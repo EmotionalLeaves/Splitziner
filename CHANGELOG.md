@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 - Stronger leg joints
+
+- Workbenches and tables with thick legs: the aprons and rails are pocket-screwed into the legs from their hidden faces, instead of long counterbored screws driven through the legs into the rails' end grain. That's 32 fewer plugs on the workbench template.
+- Thin back panels (6 mm) get brads instead of "too small for fasteners".
+- Parts that meet at an angle without sharing a flat face still get screw steps.
+
 ## v1.2.0 - Sliding doors and L desks
 
 - Sliding doors are recognised. They run in a double track (on the shopping list, cut to the opening) with flush pulls, instead of being screwed to the case as panels.

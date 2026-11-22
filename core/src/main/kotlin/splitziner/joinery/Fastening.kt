@@ -100,8 +100,10 @@ object Fastening {
 
     /** The longest stock length not over [mm]; null when even the shortest is too long. */
     private fun pick(mm: Double, fmt: LengthFormat, brads: Boolean): String? {
-        return if (fmt.isInch) (if (brads) BRAD_IN else SCREW_IN).lastOrNull { it * 25.4 <= mm + 0.5 }?.let { fraction(it) }
-        else (if (brads) BRAD_MM else SCREW_MM).lastOrNull { it <= mm + 0.5 }?.let { "${it.toInt()} mm" }
+        // A brad a hair longer than ideal still holds a 6 mm back panel: the shortest sold is taken within 10%.
+        val slack = if (brads) maxOf(0.5, 0.1 * mm) else 0.5
+        return if (fmt.isInch) (if (brads) BRAD_IN else SCREW_IN).lastOrNull { it * 25.4 <= mm + slack }?.let { fraction(it) }
+        else (if (brads) BRAD_MM else SCREW_MM).lastOrNull { it <= mm + slack }?.let { "${it.toInt()} mm" }
     }
 
     /** A groove goes this share of the way into the grooved part: a common rule for housings is a third to a half. */
@@ -220,7 +222,21 @@ object Fastening {
             // Parts set at an angle (a bench's leaned-back slats on their back supports) overlap as boxes but may
             // meet face to face in their own frame: measured along one part's own axes, they abut there.
             if (gap > 2.0) {
-                val tilt = tiltedContact(a, b) ?: faceContact(a, b) ?: continue
+                val tilt = tiltedContact(a, b) ?: faceContact(a, b) ?: run {
+                    // They touch without sharing a face and without overlapping (a square-cut rail against a splayed
+                    // leg): screwed through the part it meets end-on, into its end.
+                    // A slight overlap (under 3.5 mm, a square end against a sloping face) still counts as meeting.
+                    if (rel.clashes.any { c -> ((c.a == i && c.b == j) || (c.a == j && c.b == i)) && c.depth >= 3.5 }) return@run null
+                    fun endInside(p: Part, o: Part): Boolean {
+                        val pb = p.mesh.bounds; val ob = o.mesh.bounds; val ax = (0..2).maxByOrNull { pb.extents[it] }!!
+                        val c = pb.center
+                        return listOf(pb.min[ax], pb.max[ax]).any { e -> val q = (0..2).map { if (it == ax) e else c[it] }; (0..2).all { k -> q[k] >= ob.min[k] - 2.0 && q[k] <= ob.max[k] + 2.0 } }
+                    }
+                    val endOn = if (endInside(a, b)) a else if (endInside(b, a)) b else return@run null
+                    val other = if (endOn === a) b else a
+                    val tO = (0..2).minOf { other.mesh.bounds.extents[it] }; val tE = endOn.mesh.bounds.extents.let { e -> listOf(e.x, e.y, e.z).sorted()[2] }
+                    Triple(if (other === a) tO else tE, if (other === b) tO else tE, 60.0)
+                } ?: continue
                 val (tA, tB, len) = tilt
                 val (thr, into, tT, dep) = if (tA <= tB) listOf(a, b, tA, tB) else listOf(b, a, tB, tA)
                 thr as Part; into as Part; tT as Double; dep as Double
@@ -473,6 +489,16 @@ object Fastening {
                     // COUNTERBORE_LEAVE of wood, and a glued wooden plug hides it afterwards.
                     val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
                     if (!brads && tThrough + MIN_BITE > longest) {
+                        // A board rail meeting a thick leg end-on (a workbench's apron) is pocket-screwed from its
+                        // inside face into the leg: far stronger than a long screw driven through the leg into its end grain.
+                        val railT = (0..2).minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
+                        val railLong = (0..2).maxByOrNull { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] } == k
+                        if (railLong && railT <= 25.5) {
+                            val ps = if (fmt.isInch) fraction(when { railT < 16 -> 1.0; railT < 22 -> 1.25; else -> 1.5 }) else "${when { railT < 16 -> 25; railT < 22 -> 32; else -> 38 }} mm"
+                            joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, ps, "pocket screws", false)
+                            totals["$ps pocket screws"] = (totals["$ps pocket screws"] ?: 0) + count
+                            continue
+                        }
                         val cs = pick(COUNTERBORE_LEAVE + minOf(1.5 * COUNTERBORE_LEAVE, depth - 3.0), fmt, false)
                         // A counterbore deeper than 2 in (a screw down through a 5-1/2 in rail) is no longer practical.
                         if (cs == null || tThrough - COUNTERBORE_LEAVE < 3.0 || tThrough - COUNTERBORE_LEAVE > COUNTERBORE_MAX) {
@@ -883,7 +909,7 @@ object Fastening {
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
-            else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in its ends, on the back of the frame$times (or glue and dowel them)."
+            else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in ${if (key.second.contains(" and ")) "their" else "its"} ends, on the ${if (j.through.name == "Stile" || j.into.name == "Stile") "back of the frame" else "face that will not show"}$times (or glue and dowel them)."
             else if (j.kind == "screws" && plan.method != JoinMethod.SCREWS) "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."
             else if (j.kind == "brads" && plan.method != JoinMethod.GLUE_AND_BRADS && plan.method != JoinMethod.SCREWS) "Glue ${key.first} to ${key.second} and fix with ${sized(n, j.size)} brads or small screws$times."
             else when (plan.method) {

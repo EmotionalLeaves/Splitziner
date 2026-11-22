@@ -289,3 +289,8 @@ Departures from the build spec, newest first.
 - Sliding doors: thin panels (over 150 mm each way) where one runs just behind another (under 6 mm apart), overlapping it by more than 5 mm but less than half its width over most of its height, each with something above and below. They are hung last, nothing is screwed to them, and they run in a double track set as long as the opening, with flush pulls so they pass each other.
 - Two panels at least 300 mm wide meeting edge to edge over 300 mm or more (an L desk's tops) are pulled together with worktop connector bolts from underneath, one per 300 mm, at least two, with biscuits or dowels to keep the faces level. Narrower edge joints stay glued.
 - A 3/4 in panel standing at the back but less than half the piece's width (an L desk's return end) is a side, not a back.
+
+## v1.3
+- A board rail (no thicker than 1 in) meeting a leg too thick to screw through end-on is pocket-screwed from its hidden face into the leg instead of counterbored: a long screw through a leg into a rail's end grain holds poorly. Counterbores stay for thick-to-thick joints (a trestle's post on its foot).
+- Brads: the shortest sold is taken when it is within 10% of the ideal length, so a 6 mm back panel gets 5/8 in (15 mm) brads instead of "glue only".
+- Parts that touch without sharing a face or overlapping more than 3.5 mm (a square-cut end against a sloping face) are screwed through the part met end-on.
