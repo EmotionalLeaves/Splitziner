@@ -44,6 +44,9 @@ class CheckReport(val findings: List<Finding>, val work: List<ItemWork>, val too
  * shapes alone. It knows nothing of wood species, glue, screws or loads, and says so where that matters.
  */
 object DesignCheck {
+    /** A cut-back that would take away more than this share of a part is a redesign, not a trim, and is not offered. */
+    private const val MAX_CUT_BACK = 0.25
+
     /** Thicknesses sheet goods and planed boards are commonly sold in. */
     val STOCK_IN = doubleArrayOf(0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0, 1.25, 1.5)
     val STOCK_MM = doubleArrayOf(3.0, 4.0, 6.0, 9.0, 12.0, 15.0, 18.0, 19.0, 22.0, 25.0, 30.0, 38.0, 40.0)
@@ -253,8 +256,8 @@ object DesignCheck {
             val same = pa.item == pb.item
             // Offer to cut either one back to the other's face, where that is possible, saying how much each loses.
             val cutFixes = listOfNotNull(
-                runCatching { splitziner.edit.Editor.cutBack(pa, pb) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pa.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pa.id, pb.id)) },
-                runCatching { splitziner.edit.Editor.cutBack(pb, pa) }.getOrNull()?.let { Fix(FixKind.CUT_BACK, "Cut item ${pb.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pb.id, pa.id)) },
+                runCatching { splitziner.edit.Editor.cutBack(pa, pb) }.getOrNull()?.takeIf { it.second <= MAX_CUT_BACK }?.let { Fix(FixKind.CUT_BACK, "Cut item ${pa.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pa.id, pb.id)) },
+                runCatching { splitziner.edit.Editor.cutBack(pb, pa) }.getOrNull()?.takeIf { it.second <= MAX_CUT_BACK }?.let { Fix(FixKind.CUT_BACK, "Cut item ${pb.item} back (${Math.round(it.second * 100).coerceAtLeast(1)}% of it)", listOf(pb.id, pa.id)) },
             )
             // Or keep it as drawn and cut a groove for it: the overlap is then the joint.
             val (small, big) = if (abs(pa.mesh.volume) <= abs(pb.mesh.volume)) pa to pb else pb to pa

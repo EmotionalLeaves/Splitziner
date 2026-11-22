@@ -71,6 +71,9 @@ object DrawingBuilder {
     /** The largest view smaller than this on paper (mm) reads as a thumbnail; a larger sheet is tried first. */
     private const val MIN_VIEW_MM = 80.0
 
+    /** The best view's narrow side must be at least this on paper (mm), else a larger sheet is tried. */
+    private const val MIN_NARROW_MM = 8.0
+
     /** Views should fill at least this much of the space available to them. */
     private const val MIN_FILL = 0.55
 
@@ -282,7 +285,9 @@ object DrawingBuilder {
             val s = scales.firstOrNull { place(sheet, it, lh).fits } ?: continue
             val fill = place(sheet, s, lh).fill
             val big = maxOf(wf, hf) * s
-            val ok = pinned != null || settings.scale != null || (big >= MIN_VIEW_MM && fill >= MIN_FILL) || s == scales.first()
+            // A long, narrow part (a 68 in apron 3 in deep) also needs its narrow side readable, or a notch in it is lost.
+            val narrow = maxOf(minOf(wf, hf), minOf(wt, ht), minOf(wr, hr)) * s
+            val ok = pinned != null || settings.scale != null || (big >= MIN_VIEW_MM && narrow >= MIN_NARROW_MM && fill >= MIN_FILL) || s == scales.first()
             if (ok || ci == candidates.size - 1) { chosen = Layout(sheet, s, fill, listFits); break }
         }
         val qa = ArrayList<String>()
@@ -298,10 +303,15 @@ object DrawingBuilder {
         val dl = DisplayList(sheet.width, sheet.height, "sheet1")
         val notes = notesFor(info, sheet).toMutableList()
         // A list too long for the views' sheet goes on sheets of its own, straight after it.
-        val listPages: List<List<CutListRow>> = if (chosen.listOnSheet || rows.isEmpty()) emptyList() else {
-            val per = maxOf(1, ListOfMaterial.rowsIn(sheet.fieldY1 - 6 - (sheet.fieldY0 + Furniture.TITLE_HEIGHT + 4)))
-            rows.chunked(per)
-        }
+        // Its sheets are the smallest that take the list's width and a fair share of its rows, not the views' sheet:
+        // a few lines in the corner of an E sheet is a waste of paper, and a parts list is read from a printout.
+        fun listRows(sh: SheetSize) = maxOf(1, ListOfMaterial.rowsIn(sh.fieldY1 - 6 - (sh.fieldY0 + Furniture.TITLE_HEIGHT + 4)))
+        val listSheet = if (chosen.listOnSheet || rows.isEmpty() || pinned != null) sheet else SheetSize.AUTO.filter { it.width <= sheet.width + 1e-6 }.firstOrNull { sh ->
+            val ll = Lettering.of(sh, settings.strictLettering)
+            ListOfMaterial.width(rows, ll, single) <= sh.fieldWidth - 8 && (listRows(sh) >= rows.size || listRows(sh) >= 20)
+        } ?: sheet
+        val LL = Lettering.of(listSheet, settings.strictLettering)
+        val listPages: List<List<CutListRow>> = if (chosen.listOnSheet || rows.isEmpty()) emptyList() else rows.chunked(listRows(listSheet))
         if (listPages.isNotEmpty()) notes += "LIST OF MATERIAL ON SHEET${if (listPages.size > 1) "S 2 TO ${listPages.size + 1}" else " 2"}."
         val sheetCount = if (planned != null && !single) 2 else 1
         val title = Furniture.draw(dl, sheet, L, info, scaleText(s), fmt.units, 1, sheetCount)
@@ -514,10 +524,10 @@ object DrawingBuilder {
         qa += dl.qa
         val sheets = arrayListOf(dl)
         for ((pi, page) in listPages.withIndex()) {
-            val d = DisplayList(sheet.width, sheet.height, "list${pi + 1}")
-            val t = Furniture.draw(d, sheet, L, info, scaleText(s), fmt.units, sheets.size + 1, 0)
-            val top = ListOfMaterial.draw(d, page, sheet.fieldX1, t.top + 4, L, single)
-            if (listPages.size > 1) d.text(sheet.fieldX1 - 2, top + 3, "CONTINUED: ${pi + 1} OF ${listPages.size}", L.dims, splitziner.sheet.HAlign.RIGHT)
+            val d = DisplayList(listSheet.width, listSheet.height, "list${pi + 1}")
+            val t = Furniture.draw(d, listSheet, LL, info, "NONE", fmt.units, sheets.size + 1, 0)
+            val top = ListOfMaterial.draw(d, page, listSheet.fieldX1, t.top + 4, LL, single)
+            if (listPages.size > 1) d.text(listSheet.fieldX1 - 2, top + 3, "CONTINUED: ${pi + 1} OF ${listPages.size}", LL.dims, splitziner.sheet.HAlign.RIGHT)
             sheets += d
         }
         if (sheetCount == 2) {
