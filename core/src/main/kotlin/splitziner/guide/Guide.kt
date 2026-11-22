@@ -167,7 +167,28 @@ object GuideLayout {
     private const val WHITE = 0xFFFFFFFF.toInt()
     const val DRAFT_NOTICE = "Assembly order and materials are drafts generated from the 3D model. Confirm them before building."
 
-    class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false, val hardware: List<String> = emptyList())
+    class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false, val hardware: List<String> = emptyList(),
+        /** Work done before the first step, and after the last: a page of its own between the cover and the steps. */
+        val before: List<String> = emptyList(), val after: List<String> = emptyList())
+
+    /**
+     * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
+     * [housedItems] items that need a groove cut; [screws] whether anything is screwed (screw holes to fill).
+     */
+    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean): Pair<List<String>, List<String>> {
+        fun list(i: List<Int>) = if (i.size == 1) "item ${i[0]}" else "items ${i.dropLast(1).joinToString(", ")} and ${i.last()}"
+        val before = ArrayList<String>()
+        before += "Cut every part to the cut list, and pencil its item number on a face that will not show."
+        if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (their drawings give the sizes) before anything is joined: it is far easier on a loose board."
+        if (bandItems.isNotEmpty()) before += "If the panels are plywood or particleboard, iron edge banding onto the edges that will show on ${list(bandItems.sorted())} and trim it flush. Banded edges are easier to do now than once it is built."
+        before += "Sand the faces that will be hard to reach once it is together."
+        before += "Do a dry run of each step, without glue, before the real one."
+        val after = ArrayList<String>()
+        if (screws) after += "Fill any screw holes on show with wood filler and sand flush."
+        after += "Sand everything smooth, finer each pass, and break the sharp edges."
+        after += "Wipe off the dust and apply the finish you have chosen, following its tin."
+        return before to after
+    }
 
     private class Pages(val w: Double, val h: Double, val title: String) {
         val list = ArrayList<DisplayList>()
@@ -251,6 +272,17 @@ object GuideLayout {
                 yy = para(pg, x + 3, yy, "• $it", 3.0, colW - 3, hang = 3.0)
             }
             page = pg
+        }
+
+        // The work before the first step and after the last, on a page of its own.
+        if (info.before.isNotEmpty() || info.after.isNotEmpty()) {
+            val pg = pages.new(); var yy = h - 26
+            for ((head, items) in listOf("BEFORE YOU BUILD" to info.before, "WHEN IT IS TOGETHER" to info.after)) {
+                if (items.isEmpty()) continue
+                pg.text(25.0, yy, head, 4.0, vAlign = VAlign.TOP, bold = true); yy -= 8
+                items.forEachIndexed { i, t -> yy = para(pg, 28.0, yy, "${i + 1}. $t", 3.2, w - 56, hang = 4.0) - 1.5 }
+                yy -= 6
+            }
         }
 
         // Steps: two to a page; one that needs more room than half a page gets a page to itself.

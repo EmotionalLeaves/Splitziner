@@ -294,8 +294,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                     // The cover lists the tools the parts call for, named from the maker's own tools once they have chosen them.
                     val tools = runCatching { (_state.value.check ?: splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta), housed = a.housed)).toolsNeeded }.getOrDefault(emptyList())
+                    val ba = splitziner.guide.GuideLayout.beforeAndAfter(
+                        runCatching { splitziner.cutplan.EdgeBanding.estimate(a.parts).items }.getOrDefault(emptyList()),
+                        splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(),
+                        fasten?.byStep?.values?.flatten()?.any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") } ?: true)
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
-                        hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it })
+                        hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
+                        before = ba.first, after = ba.second)
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
