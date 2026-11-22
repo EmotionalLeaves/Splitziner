@@ -38,10 +38,13 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tan
 
-/** Twelve colours that stay apart from each other; identical parts (same item) share one. */
+/**
+ * Twelve muted colours, timber and slate tones, that stay apart from each other but let the shape read first;
+ * identical parts (same item) share one. The selected part is drawn in bright amber, which none of these is.
+ */
 private val PALETTE = listOf(
-    0xE6A15C, 0x6FA8DC, 0x93C47D, 0xC27BA0, 0xF1C232, 0x76A5AF,
-    0xE06666, 0x8E7CC3, 0xB6B66B, 0x6D9EEB, 0xD5A6BD, 0xA2C4C9,
+    0xD9B98C, 0x9DB4CC, 0xA9C2A0, 0xC9A27E, 0xB8A9C9, 0xD8C89A,
+    0x8FB3B0, 0xC79C8E, 0xA7B9D6, 0xCDB48E, 0x9FB79A, 0xBFA7A0,
 ).map { c -> floatArrayOf(((c shr 16) and 255) / 255f, ((c shr 8) and 255) / 255f, (c and 255) / 255f) }
 
 /** Field of view used by the renderer, in degrees. */
