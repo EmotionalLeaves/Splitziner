@@ -233,3 +233,6 @@ Departures from the build spec, newest first.
 ## v0.91
 - Hardware totals give gauged screws as sold, after the count: "26 screws, #8 x 1-1/2 in" or "18 screws, 4 x 40 mm". Before it read "26 × 4 x 40 mm screws".
 - `scripts/fuzz-templates.py` builds every template with random sizes (half to double each default, random options) and checks for crashes and odd text ("null", "item -", "(0 joints)"). 120 runs found none. Sizes that cannot fit are refused with a message, as intended.
+
+## v0.92
+- Full-size paper templates are made only for outlines with curves or angled edges. An outline of square-cut straight edges only (a frame, an L, a notched slab) is quicker and truer to mark out with a rule and a square, so its detail drawing is enough. On the sample desk this cut the full-size pages from 100 to 25.
