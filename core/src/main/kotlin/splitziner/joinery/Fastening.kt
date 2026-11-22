@@ -69,7 +69,19 @@ object Fastening {
         else (if (brads) BRAD_MM else SCREW_MM).lastOrNull { it <= mm + 0.5 }?.let { "${it.toInt()} mm" }
     }
 
-    fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat): FastenPlan {
+    /** A groove goes this share of the way into the grooved part: a common rule for housings is a third to a half. */
+    private const val GROOVE_SHARE = 0.4
+
+    /** And never deeper than this (mm, 3/8 in): deeper grooves weaken the part for no gain in hold. */
+    private const val GROOVE_MAX = 9.5
+
+    /** Tools that cut a groove along a board. */
+    private val GROOVERS = setOf(Tool.ROUTER, Tool.TABLE_SAW, Tool.CNC)
+
+    private fun size(mm: Double, fmt: LengthFormat): String =
+        if (fmt.isInch) fraction(maxOf(0.125, mm / 25.4)) else "${Math.round(maxOf(1.0, mm) * 2) / 2.0}".removeSuffix(".0") + " mm"
+
+    fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat, tools: Set<Tool>? = null): FastenPlan {
         val live = parts.filter { !it.excluded }
         val rel = DesignCheck.relations(live)
         val stepOf = HashMap<String, Int>()
@@ -96,6 +108,15 @@ object Fastening {
             val (thr, into, tThrough, depth) = if (ea <= eb) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
             thr as Part; into as Part; tThrough as Double; depth as Double
             val step = maxOf(stepOf[a.id] ?: 0, stepOf[b.id] ?: 0)
+            // Two boards lying in one plane and meeting edge to edge (a panel widened by a strip): nothing can be
+            // driven through a board's width, so the edges are glued and clamped.
+            fun thinAxis(n: Int) = (0..2).minByOrNull { ax -> hi[n][ax] - lo[n][ax] }!!
+            // Ends meeting edges (the corners of a frame) are not this: there a screw goes through the edge into the end.
+            fun longAxis(n: Int) = (0..2).maxByOrNull { ax -> hi[n][ax] - lo[n][ax] }!!
+            if (thinAxis(i) == thinAxis(j) && thinAxis(i) != k && longAxis(i) != k && longAxis(j) != k && length >= SMALLEST) {
+                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "edge", true)
+                continue
+            }
             val glue = length < SMALLEST
             var count = maxOf(2, ceil(length / SPACING).toInt())
             var size = ""; var kind = ""
@@ -115,10 +136,25 @@ object Fastening {
             // The wood around the screw in the part it goes into: that part's thinner size across the screw.
             val ii = idx.getValue(into.id)
             val around = (0..2).filter { it != k }.minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
+            // The same holds for the part the screw would pass through: a 1/4 in board met on its edge would have the
+            // screw running along inside it, and splits. Then that part is the thin one, set into the other.
+            val ti = idx.getValue(thr.id)
+            val aroundThr = (0..2).filter { it != k }.minOf { ax -> rel.hi[ti][ax] - rel.lo[ti][ax] }
+            if (!glue && !faceToFace && aroundThr < MIN_INTO && aroundThr < around && method != JoinMethod.GLUE_AND_BRADS) {
+                val grooveDepth = minOf(GROOVE_SHARE * depth, GROOVE_MAX)
+                val canGroove = tools == null || tools.any { it in GROOVERS }
+                val spec = if (canGroove && grooveDepth >= 3.0) "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}" else ""
+                joints.getOrPut(step) { ArrayList() } += Joint(into, thr, 0, spec, "thin", false)
+                continue
+            }
             if (!glue && !faceToFace && around < MIN_INTO && method != JoinMethod.GLUE_AND_BRADS) {
                 // The part it would go into is meeting edge-on and too thin to hold anything: nothing can be driven
                 // into that edge. It is glued, in a groove or against a cleat, which is a joint for the maker to choose.
-                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, "", "thin", false)
+                // The groove is cut in the face it meets, as wide as the thin part is thick; the thin part grows into it.
+                val grooveDepth = minOf(GROOVE_SHARE * tThrough, GROOVE_MAX)
+                val canGroove = tools == null || tools.any { it in GROOVERS }
+                val spec = if (canGroove && grooveDepth >= 3.0) "${size(around, fmt)}|${size(grooveDepth, fmt)}" else ""
+                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, spec, "thin", false)
                 continue
             }
             if (!glue) when (method) {
@@ -167,6 +203,9 @@ object Fastening {
         return FastenPlan(method, joints, hardware)
     }
 
+    /** Counts as words up to twelve ("two 2-1/2 in screws"), so a count never runs into a size. */
+    private fun count(n: Int): String = listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").getOrElse(n) { "$n" }
+
     /** The lines a step gets instead of "then fasten". */
     fun lines(plan: FastenPlan, step: Int, itemName: (Part) -> String, maxLines: Int = 4): List<String> {
         val js = plan.byStep[step].orEmpty()
@@ -176,19 +215,32 @@ object Fastening {
         val groups = js.groupBy { Triple(itemName(it.through), itemName(it.into), it.size + it.glueOnly) }
         for ((key, g) in groups.entries.take(maxLines)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
-            out += if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
-            else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with $n corner brackets$times."
-            else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with $n ${j.size} brads$times."
-            else if (j.kind == "thin") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners: set it in a groove, or glue a small strip (a cleat) alongside to hold it."
+            out += if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
+            else if (j.glueOnly) "Glue ${key.first} to ${key.second}$times; the joint is too small for fasteners."
+            else if (j.kind == "brackets") "Fix ${key.first} to ${key.second} from underneath with ${count(n)} corner brackets$times."
+            else if (j.kind == "laminate") "Glue ${key.first} face to face on ${key.second}, clamp, and pin with ${count(n)} ${j.size} brads$times."
+            else if (j.kind == "thin") {
+                val (w, d) = j.size.split('|').let { if (it.size == 2) it[0] to it[1] else "" to "" }
+                if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to screw into$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
+                else "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
+            }
             else when (plan.method) {
-                JoinMethod.POCKET_SCREWS -> "Drill ${n} pocket holes in ${key.first} and fix it to ${key.second} with ${j.size} pocket screws$times."
-                JoinMethod.DOWELS -> "Glue and dowel ${key.first} to ${key.second}: $n ${j.size}$times. Clamp until dry."
-                JoinMethod.GLUE_AND_BRADS -> "Glue ${key.first} to ${key.second} and pin with $n ${j.size} brads$times."
-                JoinMethod.SCREWS -> if (j.kind == "brads") "Glue ${key.first} to ${key.second} and fix with $n ${j.size} brads or small screws$times."
-                    else "Drill pilot holes through ${key.first} and screw it to ${key.second} with $n ${j.size} screws$times."
+                JoinMethod.POCKET_SCREWS -> "Drill ${count(n)} pocket holes in ${key.first} and fix it to ${key.second} with ${j.size} pocket screws$times."
+                JoinMethod.DOWELS -> "Glue and dowel ${key.first} to ${key.second}: ${count(n)} ${j.size}$times. Clamp until dry."
+                JoinMethod.GLUE_AND_BRADS -> "Glue ${key.first} to ${key.second} and pin with ${count(n)} ${j.size} brads$times."
+                JoinMethod.SCREWS -> if (j.kind == "brads") "Glue ${key.first} to ${key.second} and fix with ${count(n)} ${j.size} brads or small screws$times."
+                    else "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${count(n)} ${j.size} screws$times."
             }
         }
-        if (groups.size > maxLines) out += "Fasten the other ${groups.size - maxLines} joint${if (groups.size - maxLines == 1) "" else "s"} of this step the same way."
+        if (groups.size > maxLines) {
+            // Name the rest, so the reader knows which joints "the same way" means.
+            fun how(j: Joint) = when {
+                j.kind == "edge" -> "edge glued"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" -> "brackets"; j.kind == "laminate" -> "glue and brads"
+                else -> "${count(j.count)} ${j.size} ${j.kind}"
+            }
+            val rest = groups.entries.drop(maxLines).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
+            out += "Also join, item to item: ${rest.joinToString(", ")}."
+        }
         return out
     }
 }

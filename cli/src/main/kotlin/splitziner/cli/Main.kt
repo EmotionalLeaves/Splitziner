@@ -90,7 +90,7 @@ fun main(args: Array<String>) {
             time("guide") {
                 val pl = plan!!
                 val method = splitziner.joinery.JoinMethod.defaultFor(tools)
-                val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format)
+                val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, tools)
                 println("hardware  ${method.label}: ${fasten.hardware}")
                 if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
                 val steps = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, emptyMap(), fasten)
