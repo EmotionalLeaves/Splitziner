@@ -421,13 +421,25 @@ object Fastening {
         }
         // Joints of the same kind between the same items are told once.
         // One item under several names (item 2 as bottom, top and shelf) is one line: "item 2 (bottom, top and shelf)".
-        val groups0 = (js - cut.toSet()).groupBy { Triple(itemName(it.through), it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
+        // Plain fixings from one part into several (a side screwed to the bottom and the kick board) are one line;
+        // hung parts and the like keep a line per part, as their wording is about that part.
+        val plainKinds = setOf("screws", "brads", "pocket screws", "dowels", "corner", "brackets", "laminate", "")
+        val groups0 = (js - cut.toSet()).groupBy { Triple(itemName(it.through), if (it.kind in plainKinds || it.glueOnly) "*" else it.into.item?.let { n -> "#$n" } ?: itemName(it.into), it.size + it.glueOnly + it.kind) }
         fun joined(names: List<String>): String {
             if (names.size == 1) return names[0]
             val m = names.map { Regex("""^(.*?) \((.*)\)$""").find(it) }
-            if (m.any { it == null } || m.map { it!!.groupValues[1] }.distinct().size != 1) return names.dropLast(1).joinToString(", ") + " and " + names.last()
-            val inner = m.map { it!!.groupValues[2] }
-            return "${m[0]!!.groupValues[1]} (" + inner.dropLast(1).joinToString(", ") + " and " + inner.last() + ")"
+            if (m.any { it == null }) return names.dropLast(1).joinToString(", ") + " and " + names.last()
+            // One item under several names: "item 2 (bottom, top and shelf)".
+            if (m.map { it!!.groupValues[1] }.distinct().size == 1) {
+                val inner = m.map { it!!.groupValues[2] }.distinct()
+                return "${m[0]!!.groupValues[1]} (" + (if (inner.size == 1) inner[0] else inner.dropLast(1).joinToString(", ") + " and " + inner.last()) + ")"
+            }
+            // Several items under one name: "items 42 and 43 (post)".
+            if (m.map { it!!.groupValues[2] }.distinct().size == 1 && m.all { it!!.groupValues[1].startsWith("item ") }) {
+                val nums = m.map { it!!.groupValues[1].removePrefix("item ") }
+                return "items " + nums.dropLast(1).joinToString(", ") + " and " + nums.last() + " (${m[0]!!.groupValues[2]})"
+            }
+            return names.dropLast(1).joinToString(", ") + " and " + names.last()
         }
         val groups = groups0.entries.associate { (k, g) -> Triple(k.first, joined(g.map { itemName(it.into) }.distinct()), k.third) to g }
         val room = maxOf(1, maxLines - out.size)
