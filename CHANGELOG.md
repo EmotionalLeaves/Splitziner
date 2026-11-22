@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.73.0 - Centre legs named
+
+- Legs set in from every outside edge, such as the two under a bed's centre rail, are now named **Centre leg** in the cut list, the drawings and the guide, so they can't be confused with the corner legs.
+
 ## v0.72.0 - About and licences
 
 - **About and licences** is now on the first screen's menu (⋮). It says what the app does and what happens to your files: they stay on your phone unless you share them, and the only thing the app fetches is news of a newer version. It also lists the open source software the app uses and their licences.
