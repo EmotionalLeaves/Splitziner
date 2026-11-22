@@ -258,6 +258,39 @@ class SmokeTest {
         }
     }
 
+    /** A complicated project: a run of four kitchen cabinets with doors, drawers and one worktop (69 parts, in mm). */
+    @Test fun kitchenRunBuildsAsCabinets() {
+        val inst = InstrumentationRegistry.getInstrumentation()
+        val ctx = inst.targetContext
+        val file = File(ctx.cacheDir, "smoke_kitchen_run.stl")
+        inst.context.assets.open("kitchen_run.stl").use { input -> file.outputStream().use { input.copyTo(it) } }
+        val intent = Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.fromFile(file))
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            waitFor(vm, 240_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            assertEquals(69, vm.state.value.open!!.analysis.parts.size)
+            fun tap(label: String) {
+                rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
+                rule.onAllNodesWithText(label).onFirst().performClick()
+                rule.waitForIdle()
+            }
+            if (rule.onAllNodesWithText("Cancel").fetchSemanticsNodes().isNotEmpty()) tap("Cancel")
+            val t0 = System.currentTimeMillis()
+            tap("Guide")
+            waitFor(vm, 300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            val guide = vm.state.value.guide!!
+            shot("k01_guide")
+            assertTrue("pages ${guide.pages.size}", guide.pages.size >= 6)
+            assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_kitchen_guide.pdf").length() > 20_000)
+            println("SMOKE kitchen run guide steps=${guide.stepCount} pages=${guide.pages.size} in ${System.currentTimeMillis() - t0} ms")
+            assertNull(Diagnostics.lastCrash())
+            assertNull(vm.state.value.error)
+        }
+    }
+
     /** Starting a design from a template, the way a person would: New design, pick Bookcase, Create. */
     @Test fun newBookcaseFromTemplate() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
