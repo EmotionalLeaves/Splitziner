@@ -152,7 +152,8 @@ object GuideSteps {
                 lines += how
             }
             val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
-                count.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })} ${loose.first { it.item == item }.desc}" to n }
+                // In ordinary type, as the rest of the guide is: "Item 3 (top): panel 3/4 x 11-3/4 x 30-1/2".
+                count.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })}: ${loose.first { it.item == item }.desc.lowercase()}" to n }
             val o = overrides[stepKey(st.partIds)]
             val auto = when {
                 st.subassembly -> {
