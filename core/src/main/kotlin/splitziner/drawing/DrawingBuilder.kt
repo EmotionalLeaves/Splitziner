@@ -193,7 +193,9 @@ object DrawingBuilder {
      * for an assembly, a second sheet shows the exploded view with item balloons.
      */
     /** [extraHoles] are holes drilled into a single part that its model does not have (hinge cups). */
-    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, planned: List<Part>? = null, extraHoles: List<Hole> = emptyList()): DrawingResult {
+    fun build(parts: List<Part>, rows: List<CutListRow>, vs: ViewSet, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, planned: List<Part>? = null, extraHoles: List<Hole> = emptyList(),
+              /** Letters marking features the notes refer to ("OPENING A"): letter, model point, feature size (mm). */
+              tags: List<Triple<String, splitziner.math.Vec3, Double>> = emptyList()): DrawingResult {
         val drawn = parts.filter { !it.excluded }
         val single = drawn.size <= 1
         val front = vs.views.getValue("front"); val top = vs.views.getValue("top"); val right = vs.views.getValue("right")
@@ -337,6 +339,20 @@ object DrawingBuilder {
             }
         }
 
+        // Lettered openings: the letter sits in the opening in the front view, or beside it on a short leader.
+        if (tags.isNotEmpty()) {
+            val o = origin.getValue("front"); val b = vs.views.getValue("front").bounds; val def = defs.getValue("front")
+            for ((letter, at, size) in tags) {
+                val q = def.project(at); val cx = o[0] + (q.x - b[0]) * s; val cy = o[1] + (q.y - b[1]) * s
+                if (size * s > th * 1.6) dl.text(cx, cy, letter, th, splitziner.sheet.HAlign.CENTER, splitziner.sheet.VAlign.CENTER, tag = "dim")
+                else {
+                    // The leader points into the part, away from its nearer edge, so the letter never sits on the outline.
+                    val midY = o[1] + (b[3] - b[1]) * s / 2; val dy = if (cy > midY) -1.0 else 1.0
+                    dl.line(cx, cy, cx + 4, cy + 4 * dy)
+                    dl.text(cx + 4.8, cy + 4.8 * dy, letter, th, splitziner.sheet.HAlign.LEFT, if (dy > 0) splitziner.sheet.VAlign.BOTTOM else splitziner.sheet.VAlign.TOP, tag = "dim")
+                }
+            }
+        }
         // Holes: centre lines in every view, and a note with the size where the hole shows as a circle.
         if (holes.isNotEmpty()) {
             for ((name, lines) in vs.views) {

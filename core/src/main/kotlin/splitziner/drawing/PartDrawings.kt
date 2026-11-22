@@ -186,7 +186,7 @@ object PartDrawings {
                 notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
-            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh))
+            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))
             r.sheets.forEach { it.qa.clear() }
             out += row to DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
         }
@@ -198,6 +198,24 @@ object PartDrawings {
      * each opening is and how big. Read from a slice through the middle of the part's thickness, in the front view's
      * terms (from the lower left corner of the part as drawn). Openings are given by the box around them.
      */
+    /** Where each lettered opening of a flat part is, so the drawing can mark it with its letter ("A", "B"...). */
+    fun openingTags(laid: Mesh): List<Triple<String, Vec3, Double>> {
+        val ext = laid.extents
+        if (ext.y > 0.35 * minOf(ext.x, ext.z)) return emptyList()
+        val loops = runCatching { splitziner.section.Slicer.sectionLoops(laid, Vec3(0.0, ext.y / 2, 0.0), Vec3(0.0, 1.0, 0.0)) }.getOrNull() ?: return emptyList()
+        if (loops.size < 3) return emptyList()
+        fun area(l: List<splitziner.math.Vec2>) = abs(splitziner.section.Slicer.loopArea(l))
+        val outer = loops.maxByOrNull { area(it) }!!
+        val ou0 = outer.minOf { it.x }; val ou1 = outer.maxOf { it.x }; val ov0 = outer.minOf { it.y }; val ov1 = outer.maxOf { it.y }
+        val holes = loops.filter { it !== outer && it.all { p -> p.x > ou0 && p.x < ou1 && p.y > ov0 && p.y < ov1 } && area(it) > 1e-4 * area(outer) }
+            .sortedWith(compareBy({ it.minOf { p -> p.y } }, { it.minOf { p -> p.x } }))
+        if (holes.size < 2) return emptyList()
+        return holes.mapIndexed { i, h ->
+            val u0 = h.minOf { it.x }; val u1 = h.maxOf { it.x }; val v0 = h.minOf { it.y }; val v1 = h.maxOf { it.y }
+            Triple("${'A' + i}", Vec3((v0 + v1) / 2, ext.y / 2, (u0 + u1) / 2), minOf(v1 - v0, u1 - u0))
+        }
+    }
+
     fun outlineNotes(laid: Mesh, fmt: LengthFormat): List<String> {
         val ext = laid.extents
         if (ext.y > 0.35 * minOf(ext.x, ext.z)) return emptyList()       // not a flat part
