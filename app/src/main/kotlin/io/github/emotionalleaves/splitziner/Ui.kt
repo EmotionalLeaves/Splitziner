@@ -334,12 +334,13 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 OutlinedButton(onClick = { shareCsv(context, open) }, modifier = Modifier.weight(1f)) { Text("Share CSV") }
             }
         }
-        TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") }
     }
 
     if (showHelp) AlertDialog(
         onDismissRequest = { showHelp = false },
         confirmButton = { TextButton(onClick = { showHelp = false }) { Text("OK") } },
+        // For reporting a problem; kept here so it does not take a line of every screen.
+        dismissButton = { TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") } },
         title = { Text("What to trust, and what to check") },
         text = {
             Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {

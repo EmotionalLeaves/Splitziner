@@ -88,6 +88,19 @@ object Fastening {
         // A part's step is the step it is joined in: its bench step if it has one, else its main step.
         for (st in steps.sortedByDescending { it.step }) for (id in st.partIds) stepOf[id] = st.step
         for (st in steps) if (st.subassembly) for (id in st.partIds) stepOf[id] = st.step
+        // Bench steps list only the first copy's parts; every copy of that kind is made there.
+        val benchOf = HashMap<String, Int>()
+        // A unit is the boards that came from one drawn part: "P02", "P02.2", "P02.3"...
+        val units = live.groupBy { it.id.substringBefore('.') }.filter { it.value.size >= 2 }
+        val unitKind = units.mapValues { (_, ms) -> ms.mapNotNull { it.item }.sorted() }
+        for (st in steps) if (st.subassembly) {
+            val kind = live.filter { it.id in st.partIds }.mapNotNull { it.item }.sorted()
+            for ((root, k) in unitKind) if (k == kind) for (p in units.getValue(root)) benchOf.putIfAbsent(p.id, st.step)
+        }
+        for ((id, st) in benchOf) stepOf[id] = st
+        // The main step a part goes in: its own step if it is loose, its sub-assembly's placing step otherwise.
+        val mainSteps = steps.filter { !it.subassembly }
+        fun mainOf(p: Part): Int = p.step?.takeIf { s -> mainSteps.any { it.step == s } } ?: mainSteps.firstOrNull { p.id in it.partIds }?.step ?: (stepOf[p.id] ?: 0)
         // Copies of a sub-assembly made in one bench step: their parts are joined in that step too.
         val idx = live.withIndex().associate { it.value.id to it.index }
         val joints = HashMap<Int, MutableList<Joint>>()
@@ -107,7 +120,10 @@ object Fastening {
             val ea = hi[i][k] - lo[i][k]; val eb = hi[j][k] - lo[j][k]
             val (thr, into, tThrough, depth) = if (ea <= eb) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
             thr as Part; into as Part; tThrough as Double; depth as Double
-            val step = maxOf(stepOf[a.id] ?: 0, stepOf[b.id] ?: 0)
+            // Parts of one sub-assembly are joined on the bench. Anything else is joined in the main build, when the
+            // later of the two is put in place: a frame is not screwed to a part it has not met yet.
+            val sameUnit = a.id.substringBefore('.') == b.id.substringBefore('.') && benchOf.containsKey(a.id) && benchOf.containsKey(b.id)
+            val step = if (sameUnit) maxOf(stepOf[a.id] ?: 0, stepOf[b.id] ?: 0) else maxOf(mainOf(a), mainOf(b))
             // Two boards lying in one plane and meeting edge to edge (a panel widened by a strip): nothing can be
             // driven through a board's width, so the edges are glued and clamped.
             fun thinAxis(n: Int) = (0..2).minByOrNull { ax -> hi[n][ax] - lo[n][ax] }!!

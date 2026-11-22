@@ -111,7 +111,7 @@ object GuideSteps {
                 lines += if (run.size == 1) "${fits[i].first} ${run[0]}${fits[i].second}."
                 else {
                     // "items 3, 4 and 7" rather than "item 3, item 4 and item 7"; counts keep their own words.
-                    val names = run.map { it.removePrefix("item ") }
+                    val names = run.map { r -> Regex("""^(\d+)× item (\S+)$""").find(r)?.let { m -> "${m.groupValues[2]} (${m.groupValues[1]}×)" } ?: r.removePrefix("item ") }
                     val joined = names.dropLast(1).joinToString(", ") + " and " + names.last()
                     "${fits[i].first} items $joined${fits[i].second}, in that order."
                 }
