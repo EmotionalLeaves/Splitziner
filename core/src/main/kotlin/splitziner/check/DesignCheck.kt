@@ -290,6 +290,12 @@ object DesignCheck {
                 (if (n == 1) "Item $it0 is a door. It hangs on $hinges hinges" else "Item $it0 is $n doors. Each hangs on $hinges hinges") +
                     ", which are hardware and not in the model. Concealed (cup) hinges need a 35 mm hole in the back of the door; follow the hinges' own template.", ds.map { it.id })
         }
+        // A very wide door pulls on its hinges and swings far out into the room: cabinetmakers split it in two.
+        for (dr in doors) {
+            val p = live.first { it.id == dr.id }; val w = maxOf(p.mesh.bounds.extents.x, p.mesh.bounds.extents.y)
+            if (w > Doors.MAX_WIDTH) out += Finding(Severity.CHECK, "Wide door (item ${p.item})",
+                "Item ${p.item} is a door ${d(w)} $u wide. Doors much over ${if (fmt.isInch) "24 in" else "600 mm"} wide tend to sag on their hinges and swing a long way out; a pair of doors meeting in the middle is the usual answer (a rule of thumb, not a calculation).", listOf(p.id))
+        }
         // Adjustable shelves rest on shelf pins, hardware again.
         val pinned = runCatching { ShelfPins.find(live) }.getOrDefault(emptyList())
         run { val idx = live.indices.associateBy { live[it].id }; for (id in pinned) idx[id]?.let { onSlides += it } }

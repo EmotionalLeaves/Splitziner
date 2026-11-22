@@ -13,6 +13,9 @@ object Doors {
 
     class Door(val id: String, val height: Double, val hingeLeft: Boolean)
 
+    /** Wider than this (mm) a single door is unusual; the common rule of thumb is about 600 mm (24 in). */
+    const val MAX_WIDTH = 620.0
+
     /** Hinges by door height: two up to 900 mm, three to 1500, four beyond (common cabinetmakers' rule). */
     fun hinges(height: Double) = when { height <= 900 -> 2; height <= 1500 -> 3; else -> 4 }
 

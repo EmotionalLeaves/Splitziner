@@ -1479,3 +1479,16 @@ class ThreeMfTest {
         assertEquals(2, a.parts.size)
     }
 }
+
+class WideDoorTest {
+    @Test fun aWideSingleDoorIsQueried() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        for ((n, want) in listOf(1 to true, 2 to false)) {
+            val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("w" to 900.0) + ("doors" to n.toDouble())).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+            val cut = CutList.build(parts, fmt)
+            val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+            assertEquals(want, rep.findings.any { it.title.startsWith("Wide door") })
+        }
+    }
+}
