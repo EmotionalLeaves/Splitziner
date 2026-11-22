@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.41.0 - Drawings at proper scales, sections for hidden parts
+
+- **Drawings at proper scales.** Inch drawings now step full, 1/2, 1/4, 1/8, 1/16; metric drawings step 1/2, 1/5, 1/10, 1/20. Before, a cabinet jumped straight from 1/4 to 1/10 and came out as a postage stamp on a big sheet. Each assembly's largest view is now at least 80 mm across.
+- **Hidden parts are shown and located.** When a part can't be seen in any view (a shelf behind doors, between the sides, under the top), the side view becomes Section A-A, so the shelf's height is drawn and dimensioned.
+- **Cleaner dimensions.** Vertical dimension values no longer overlap the view they measure. A short vertical dimension puts its value clear of the extension lines.
+- **Openings are lettered** on detail drawings (A, B...), so "Opening A" in the notes can be found on the view.
+- **Better part names.** A desk's top is "Top" even with a monitor shelf above it. Narrow strips are rails or uprights, never shelves or sides.
+- Includes v0.40.0 (cutting plan, applied drawer fronts, new guide cover).
+
 ## v0.40.0 - Professional cutting plan, applied drawer fronts, new guide cover
 
 - **Cutting plan, much tighter.** In metric, drawer sides, drawer fronts and other boards of sheet thickness are now ripped from the sheet instead of bought as lengths of an odd width (12 x 191.5 is not sold anywhere). A board that would need a whole extra panel just for itself is bought as a length after all. In inches, boards that would have to be ripped from lumber come from the sheet you are buying anyway. The packer now tries several layouts and keeps the best one, so the chest of drawers' 18 mm parts fit one sheet instead of a sheet plus a quarter sheet. Sheets hang from the top of the page, and short pieces get their size on one line.
