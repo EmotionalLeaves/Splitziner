@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.7.0 - Clearer 3D view
+
+- 3D view: the Front / Top / Right / 3D buttons now sit in a row along the top, so they no longer cover the end of a wide model.
+- Watching the build steps in 3D: each step's title shows in full (up to two lines) instead of being cut off.
+
 ## v1.6.0 - Tidier exploded views
 
 - Exploded drawings are much tidier on big pieces: a bookcase's shelves are pulled out together in neat columns instead of a staircase down the page, and a chest's drawers come out side by side.

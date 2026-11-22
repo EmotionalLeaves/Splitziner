@@ -413,7 +413,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 Box(Modifier.padding(vertical = 4.dp)) {
                     PagerBar(if (pp == null) "Working out the build order\u2026" else "Step $playStep of $last",
                         // The guide's own title for the step when the guide is made ("the back panel"), else its items.
-                        (if (st?.subassembly == true) "Made on the bench  \u00b7  " else "") + (state.guide?.work?.getOrNull(playStep - 1)?.title?.takeIf { it.contains(": ") }?.substringAfter(": ")
+                        // The step's own title already says when it is made on the bench ("make 2 frames ...").
+                        (state.guide?.work?.getOrNull(playStep - 1)?.title?.takeIf { it.contains(": ") }?.substringAfter(": ")
                             ?: st?.let { "items ${it.items.joinToString(", ")}" } ?: ""),
                         playStep > 1, playStep < last, { playStep = (playStep - 1).coerceAtLeast(1) }, { playStep = (playStep + 1).coerceAtMost(last) })
                 }
@@ -2171,7 +2172,8 @@ private fun PagerBar(title: String, sub: String, canBack: Boolean, canNext: Bool
         Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxWidth().then(if (jump.size > 2) Modifier.clickable { menu = true } else Modifier).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(title + if (jump.size > 2) " \u25be" else "", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Two lines, so a step's title ("the kick board, the bottom and the divider") reads whole.
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 jump.forEachIndexed { i, label -> DropdownMenuItem(text = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }, onClick = { menu = false; onJump(i) }) }

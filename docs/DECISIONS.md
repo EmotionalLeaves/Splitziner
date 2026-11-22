@@ -304,3 +304,7 @@ Departures from the build spec, newest first.
 
 ## v1.6
 - In the exploded views, parts of one item pulled the same way move as one group even when they are fitted over several steps (a bookcase's shelves), and alike drawer boxes move as one group: pulled out the same distance, side by side, instead of each clearing the last and spilling down the page.
+
+## v1.7
+- 3D view: the Front / Top / Right / 3D buttons sit in one row along the top of the view instead of down its right edge, where they covered the end of a wide model on a phone.
+- Build steps in 3D: the caption is the step's own title over up to two lines; the "Made on the bench" prefix went, as bench steps' titles already say so.

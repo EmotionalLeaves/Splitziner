@@ -205,8 +205,9 @@ fun ModelView(
                 }
             },
         )
-        // Small view buttons down the right edge, so they do not sit over the model on a narrow phone.
-        androidx.compose.foundation.layout.Column(Modifier.align(Alignment.TopEnd).padding(4.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+        // Small view buttons in one row along the top, where a framed model leaves room; down the side they sat
+        // over the model's end on a narrow phone.
+        androidx.compose.foundation.layout.Row(Modifier.align(Alignment.TopEnd).padding(horizontal = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp)) {
             fun look(az: Float, el: Float) { cam.reset(); cam.azimuth = az; cam.elevation = el; redraw() }
             for ((label, az, el) in listOf(Triple("Front", 0f, 0f), Triple("Top", 0f, 89f), Triple("Right", 90f, 0f), Triple("3D", 35f, 25f))) {
                 androidx.compose.material3.Surface(
