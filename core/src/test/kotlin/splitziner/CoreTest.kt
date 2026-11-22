@@ -961,6 +961,45 @@ class SubassemblyTest {
     }
 }
 
+class FurnitureTemplatesTest {
+    private fun parts(key: String, inch: Boolean = true): List<Part> {
+        val t = splitziner.edit.Templates.byKey(key)
+        val ps = t.build(splitziner.edit.Templates.defaults(t, inch)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val roles = splitziner.parts.Roles.names(ps)
+        val named = ps.map { p -> roles[p.id]?.let { p.copy(name = it) } ?: p }
+        return CutList.build(named, LengthFormat("in")).parts
+    }
+
+    @Test fun bedPartsAreNamedForWhatTheyAre() {
+        val names = parts("bed").map { it.name }.toSet()
+        for (n in listOf("Slat", "Cleat", "Leg", "Side rail", "End rail", "Centre rail")) assertTrue(n in names, "$n in $names")
+    }
+
+    @Test fun slatsTouchTheCentreRailTheyCross() {
+        val ps = parts("bed")
+        val rel = splitziner.check.DesignCheck.relations(ps)
+        val centre = ps.indexOfFirst { it.name == "Centre rail" }
+        val slats = ps.indices.filter { ps[it].name == "Slat" }
+        assertTrue(slats.all { centre in rel.touching[it] }, "every slat rests on the centre rail")
+    }
+
+    @Test fun tablesAreBuiltFromEndFramesAndTopsAreNotScrewedThrough() {
+        val ps = parts("table")
+        val plan = splitziner.explode.AssemblyPlan.plan(ps)
+        assertTrue(plan.steps[0].subassembly && plan.steps[0].makeCount == 2, plan.steps.map { it.partIds }.toString())
+        val f = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in"))
+        val top = plan.parts.first { it.name == "Top" }
+        assertTrue(f.all.none { it.through === top && it.kind == "screws" }, "the top is fixed from underneath")
+    }
+
+    @Test fun shelvesGoInTogetherAndTheBackLast() {
+        val plan = splitziner.explode.AssemblyPlan.plan(parts("shelves"))
+        val byId = plan.parts.associateBy { it.id }
+        assertTrue(plan.steps.last().partIds.all { byId.getValue(it).name == "Back panel" }, plan.steps.map { it.partIds }.toString())
+        assertTrue(plan.steps.any { st -> st.partIds.size >= 4 && st.partIds.all { byId.getValue(it).name == "Shelf" } }, "the shelves share one step")
+    }
+}
+
 class NotchDimensionTest {
     @Test fun aToeKickNotchIsDimensionedOnItsPartDrawing() {
         // A cabinet side with a toe-kick notch cut from its bottom front corner: the notch's top faces down and its
