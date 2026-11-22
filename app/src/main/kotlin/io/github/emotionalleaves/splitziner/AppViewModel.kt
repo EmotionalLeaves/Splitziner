@@ -311,16 +311,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val t1 = System.nanoTime()
                     // The exploded sheet needs the assembly plan; if planning fails the drawing still gets its first sheet.
                     val planned = runCatching { planOf(a, open.meta.stepOrder).parts }.onFailure { Diagnostics.logError("plan", it) }.getOrNull()
-                    val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format, planned)
+                    // Plain square boards need no detail drawing; a general note on the assembly says which they are.
+                    val details = a.parts.count { !it.excluded } > 1
+                    val plain = if (details) runCatching { splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) }.getOrDefault(emptySet()) else emptySet()
+                    val baseInfo = open.meta.drawingInfo(BuildConfig.VERSION_NAME)
+                    val info = splitziner.drawing.PartDrawings.plainNote(plain)?.let { baseInfo.copy(notes = baseInfo.notes + it) } ?: baseInfo
+                    val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, info, open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")
                     val sheets = ArrayList(r.sheets); val qa = ArrayList(r.qa)
                     val labels = ArrayList(r.sheets.mapIndexed { i, d -> "Sheet ${i + 1}: " + when { i == 0 -> "views"; d.name.startsWith("list") -> "list of material"; else -> "exploded view" } })
                     // One detail drawing per item, when there is more than one part to detail.
-                    if (a.parts.count { !it.excluded } > 1) runCatching {
+                    if (details) runCatching {
                         val t2 = System.nanoTime()
-                        val items = splitziner.drawing.PartDrawings.build(a.parts, a.cutList.rows, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format)
-                        items.forEachIndexed { i, d -> sheets += d.sheets; labels += d.sheets.map { "Item ${a.cutList.rows[i].item}: ${a.cutList.rows[i].description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
-                        Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms")
+                        val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, baseInfo, open.meta.drawingSettings(), a.format, plain)
+                        for ((row, d) in items) { sheets += d.sheets; labels += d.sheets.map { "Item ${row.item}: ${row.description}" }; qa += d.qa.filter { q -> !q.contains("Hidden lines") } }
+                        Diagnostics.log("part drawings: ${items.size} in ${(System.nanoTime() - t2) / 1_000_000} ms, ${plain.size} plain items left to the list")
                     }.onFailure { Diagnostics.logError("part drawings", it) }
                     DrawingState(sheets.map { PreparedSheet.of(it) }, labels, r.sheet.letter, r.scaleText, qa, sheets)
                 }

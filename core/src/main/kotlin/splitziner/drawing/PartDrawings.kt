@@ -39,10 +39,40 @@ object PartDrawings {
         return Mesh(v, mesh.triangles)
     }
 
-    fun build(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat): List<DrawingResult> {
+    /**
+     * Items that are plain square boards or panels: no notch, hole or shaping. The list of material gives
+     * everything needed to cut them, so a sheet each would only repeat three numbers. Shops do not draw these.
+     */
+    fun plainItems(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat): Set<Int> {
         val byId = parts.associateBy { it.id }
-        val out = ArrayList<DrawingResult>()
+        return rows.filter { row ->
+            if (row.kind != splitziner.parts.PartKind.BOARD && row.kind != splitziner.parts.PartKind.PANEL) return@filter false
+            val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
+            val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
+            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE")
+        }.map { it.item }.toSet()
+    }
+
+    /** A general note for the assembly drawing naming the items that have no detail drawing, in ranges ("3-5, 9"). */
+    fun plainNote(items: Set<Int>): String? {
+        if (items.isEmpty()) return null
+        val sorted = items.sorted(); val runs = ArrayList<String>()
+        var a = sorted[0]; var b = a
+        for (i in sorted.drop(1)) { if (i == b + 1) b = i else { runs += if (a == b) "$a" else "$a-$b"; a = i; b = i } }
+        runs += if (a == b) "$a" else "$a-$b"
+        val which = if (items.size == 1) "ITEM ${runs[0]} IS A PLAIN SQUARE BOARD" else "ITEMS ${runs.joinToString(", ")} ARE PLAIN SQUARE BOARDS"
+        return "$which: CUT TO THE SIZES IN THE LIST OF MATERIAL. NO DETAIL DRAWING."
+    }
+
+    fun build(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat): List<DrawingResult> =
+        items(parts, rows, info, settings, fmt, emptySet()).map { it.second }
+
+    /** Detail drawings for every item except those in [skip], each with the row it details. */
+    fun items(parts: List<Part>, rows: List<CutListRow>, info: DrawingInfo, settings: DrawingSettings, fmt: LengthFormat, skip: Set<Int>): List<Pair<CutListRow, DrawingResult>> {
+        val byId = parts.associateBy { it.id }
+        val out = ArrayList<Pair<CutListRow, DrawingResult>>()
         for (row in rows) {
+            if (row.item in skip) continue
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: continue
             val laid = p.copy(mesh = squaredUp(p.mesh))
             val vs = DrawingBuilder.views(listOf(laid), settings.sections)
@@ -55,7 +85,7 @@ object PartDrawings {
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = "auto"), fmt)
             r.sheets.forEach { it.qa.clear() }
-            out += DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
+            out += row to DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
         }
         return out
     }

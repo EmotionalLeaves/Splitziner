@@ -445,8 +445,22 @@ object DrawingBuilder {
                 if (got.none { it in missing }) continue
                 shown += got; sheets += d; extra++
             }
-            val unshown = rows.count { it.item !in shown }
-            if (unshown > 0) qa += "$unshown item(s) are not identified by a balloon on any sheet"
+            // Items still hidden (inside a frame, under a top, behind the grey earlier parts) get one last view:
+            // just those parts, pulled apart from each other with nothing around them.
+            val hidden = rows.map { it.item }.filter { it !in shown }.toSet()
+            if (hidden.isNotEmpty()) {
+                val alone = live.filter { it.item in hidden }
+                val d = DisplayList(sheet.width, sheet.height, "sheet${sheets.size + 1}")
+                val t = Furniture.draw(d, sheet, L, info, scaleText(s), fmt.units, sheets.size + 1, 0)
+                val spread = runCatching { splitziner.explode.AssemblyPlan.plan(alone.map { it.copy(explode = null, step = null) }).parts }.getOrDefault(alone)
+                val g = splitziner.explode.ExplodedView.prepare(spread, splitziner.explode.ExplodedView.pickView(live))
+                val got = splitziner.explode.ExplodedView.drawInto(d, g, sheet.fieldX0 + 4, t.top + 12, sheet.fieldX1 - 4, sheet.fieldY1 - 4, splitziner.explode.ExplodeOptions(textHeight = L.dims))
+                d.text(sheet.fieldX0 + 8, t.y0 + 14, "DETAIL OF HIDDEN PARTS", L.descTitle, tag = "section")
+                d.text(sheet.fieldX0 + 8, t.y0 + 14 - L.dims * 1.6, "PARTS NOT SEEN IN THE OTHER EXPLODED VIEWS, SHOWN ON THEIR OWN. SCALE: NONE", L.dims)
+                if (got.any { it in hidden }) { shown += got; sheets += d }
+            }
+            val unshown = rows.map { it.item }.filter { it !in shown }
+            if (unshown.isNotEmpty()) qa += "Item(s) ${unshown.joinToString(", ")} are not identified by a balloon on any sheet"
         }
         // Sheet 1 states how many sheets the drawing has; that is only known now.
         val total = sheets.size

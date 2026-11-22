@@ -73,15 +73,19 @@ fun main(args: Array<String>) {
             val info = splitziner.sheet.DrawingInfo(title = f.nameWithoutExtension, drawingNo = "TEST-1")
             var plan: splitziner.explode.PlanResult? = null
             time("plan") { plan = splitziner.explode.AssemblyPlan.plan(a.parts); println("plan      ${plan!!.steps.size} steps") }
+            var plain = emptySet<Int>()
             time("drawing") {
                 val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
-                val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, info, splitziner.drawing.DrawingSettings(), a.format, plan?.parts)
+                plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format)
+                val noted = splitziner.drawing.PartDrawings.plainNote(plain)?.let { info.copy(notes = info.notes + it) } ?: info
+                val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(), a.format, plan?.parts)
                 r.sheets.forEachIndexed { i, d -> File(out, "sheet${i + 1}.svg").writeText(splitziner.export.SvgWriter.write(d)) }
                 println("drawing   sheet ${r.sheet.letter} at ${r.scaleText} qa ${r.qa}")
             }
             time("details") {
-                val items = splitziner.drawing.PartDrawings.build(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format)
-                items.forEachIndexed { i, d -> File(out, "item%02d.svg".format(a.cutList.rows[i].item)).writeText(splitziner.export.SvgWriter.write(d.sheets[0])); if (d.qa.isNotEmpty()) println("detail    ${d.qa}") }
+                val items = splitziner.drawing.PartDrawings.items(a.parts, a.cutList.rows, info, splitziner.drawing.DrawingSettings(), a.format, plain)
+                println("details   ${items.size} drawn, ${plain.size} plain items left to the list")
+                for ((row, d) in items) { File(out, "item%02d.svg".format(row.item)).writeText(splitziner.export.SvgWriter.write(d.sheets[0])); if (d.qa.isNotEmpty()) println("detail    ${d.qa}") }
             }
             time("guide") {
                 val pl = plan!!
