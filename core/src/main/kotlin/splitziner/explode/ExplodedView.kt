@@ -99,7 +99,7 @@ object ExplodedView {
             val across = dirs.values.sumOf { (it cross n).length } / dirs.size
             val side = dirs.values.sumOf { Math.signum(it dot n) * 0.25 }
             // Seeing the top and the front is what people expect of a pictorial.
-            val score = across + side + (if (sz > 0) 0.3 else 0.0) + (if (sy > 0) 0.4 else 0.0)
+            val score = across + side + (if (sz > 0) 0.3 else 0.0) + (if (sy > 0) 0.6 else 0.0)
             if (score > bestScore + 1e-9) { bestScore = score; best = ViewDef("exploded", n, x) }
         }
         return best!!

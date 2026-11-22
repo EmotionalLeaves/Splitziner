@@ -119,6 +119,8 @@ object GuideSteps {
                     unitCounts = unitCount.values.flatMap { us -> us.flatMap { u -> u.map { it.id to us.size } } }.toMap()),
                 view, "step%02d".format(st.step), stepFrame,
             )
+            // A picture drawn from behind (the side the parts go in from) says so, or "from the back" reads as a mistake.
+            if (view.n.y > 0.1) pic.text(2.0, 2.0, "SEEN FROM THE BACK", 2.6, vAlign = VAlign.BOTTOM)
             val lines = ArrayList<String>()
             for ((bench, us) in unitCount) {
                 val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
