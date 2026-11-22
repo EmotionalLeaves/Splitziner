@@ -359,7 +359,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         Text("${row.item}", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
                         Column(Modifier.weight(1f)) {
                             Text(row.description, style = MaterialTheme.typography.bodyMedium)
-                            Text(if (row.material.isBlank()) "Tap to set material" else row.material, style = MaterialTheme.typography.bodySmall)
+                            Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  ·  grain along length" else "", style = MaterialTheme.typography.bodySmall)
                         }
                         Text("×${row.qty}", style = MaterialTheme.typography.titleMedium)
                     }
@@ -537,9 +537,10 @@ private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOve
     var spec by remember { mutableStateOf(row.materialSpec) }
     var partNo by remember { mutableStateOf(row.partNo) }
     var forAll by remember { mutableStateOf(false) }
+    var grain by remember { mutableStateOf(row.grain) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onApply(ItemOverride(material.trim(), spec.trim(), partNo.trim()), forAll && material.isNotBlank()) }) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { onApply(ItemOverride(material.trim(), spec.trim(), partNo.trim(), grain), forAll && material.isNotBlank()) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         title = { Text("Item ${row.item}") },
         text = {
@@ -556,6 +557,10 @@ private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOve
                 }
                 OutlinedTextField(value = spec, onValueChange = { spec = it }, label = { Text("Material spec or grade") }, singleLine = true)
                 OutlinedTextField(value = partNo, onValueChange = { partNo = it }, label = { Text("Part number") }, singleLine = true)
+                Row(Modifier.fillMaxWidth().clickable { grain = !grain }, verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(checked = grain, onCheckedChange = { grain = it })
+                    Text("Grain runs along its length (the cutting plan never turns it on the sheet)", style = MaterialTheme.typography.bodySmall)
+                }
             }
         },
     )
@@ -888,7 +893,7 @@ private val HELP = listOf(
     "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
     "Joining" to "On the Guide tab, Joining picks how parts are fixed: screws, pocket screws, glue and dowels, or glue and brads. It starts from what your tools allow. Each step then says which part is fixed to which, with what and how many, and the cover lists the hardware to buy. A screw goes through the thinner part and into the other about 1.5 times that thickness, never far enough to come out the far side, one every 10 in or so. Tops are fixed from underneath with brackets, and parts too thin for a screw are glued in a groove or against a cleat. These are rules of thumb, not a strength calculation.",
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
-    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about grain, defects or offcuts you already own.",
+    "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
 )

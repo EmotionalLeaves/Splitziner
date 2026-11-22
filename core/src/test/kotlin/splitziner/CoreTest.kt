@@ -1210,3 +1210,15 @@ class RotateTest {
         assertTrue(r.mesh.volume > 0)
     }
 }
+
+class GrainTest {
+    @Test fun aGrainPieceIsNeverTurned() {
+        val fmt = LengthFormat("mm")
+        // 1100 wide x 600 long: it only fits a 1220 x 2440 sheet turned... unless grain is set, when it fits upright too.
+        val parts = listOf(Part("P1", "P", Fixtures.box(0.0, 1100.0, 0.0, 600.0, 0.0, 18.0)), Part("P2", "P", Fixtures.box(0.0, 1100.0, 0.0, 600.0, 100.0, 118.0)))
+        val rows = CutList.build(parts, fmt, mapOf(CutList.itemKey(PartKind.PANEL, 18.0, 600.0, 1100.0) to splitziner.parts.ItemOverride(grain = true))).rows
+        assertTrue(rows.all { it.grain })
+        val r = splitziner.cutplan.CutPlanner.plan(rows, splitziner.cutplan.StockSettings())
+        assertTrue(r.sheets.flatMap { it.pieces }.none { it.rotated })
+    }
+}

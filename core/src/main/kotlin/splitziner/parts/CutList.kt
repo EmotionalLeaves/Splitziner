@@ -22,6 +22,8 @@ data class CutListRow(
     val kind: PartKind,
     val t: Double, val w: Double, val l: Double,
     val memberIds: List<String>,
+    /** The grain must run along this part's length. */
+    val grain: Boolean = false,
 )
 
 /** Total length to buy of one stock cross-section, before saw kerf and waste. */
@@ -101,7 +103,8 @@ object PartDescriber {
 }
 
 /** Per-item fields the user fills in; keyed by [CutList.itemKey]. */
-data class ItemOverride(val material: String = "", val materialSpec: String = "", val partNo: String = "")
+/** [grain]: the grain must run along the part's length, so the cutting plan never turns it on the sheet. */
+data class ItemOverride(val material: String = "", val materialSpec: String = "", val partNo: String = "", val grain: Boolean = false)
 
 object CutList {
     private val KIND_ORDER = mapOf(PartKind.PANEL to 0, PartKind.BOARD to 1, PartKind.SHAPED to 2, PartKind.ROD to 3)
@@ -139,7 +142,7 @@ object CutList {
                 item = item, qty = g.members.size, partNo = o.partNo, description = g.d.desc,
                 material = o.material, materialSpec = o.materialSpec,
                 stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind,
-                t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id },
+                t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id }, grain = o.grain,
             )
         }
         val outParts = parts.map { p ->
