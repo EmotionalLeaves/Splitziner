@@ -287,7 +287,9 @@ object AssemblyPlan {
             val opposite = last != null && last.directions.size == 1 && st.directions.size == 1 &&
                 last.directions[0].x == -st.directions[0].x && last.directions[0].y == -st.directions[0].y && last.directions[0].z == -st.directions[0].z
             val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
-                (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) && last.partIds.size + st.partIds.size <= MAX_GROUP
+                (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) &&
+                // Drawers and their fronts go in all together, a chest's worth: hanging them is the same job each time.
+                last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" }) MAX_DRAWERS else MAX_GROUP)
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
@@ -366,6 +368,9 @@ object AssemblyPlan {
 
     /** Most things one step of the main build fits from one direction. */
     private const val MAX_GROUP = 5
+
+    /** Drawers (or their fronts) hung in one step, at most. */
+    private const val MAX_DRAWERS = 12
 
     /** [hungGiven], when not null, names the parts hung last (doors, drawers made whole, shelves on pins) instead of finding them. */
     private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null, hungFirst: Set<String> = emptySet(),
@@ -608,7 +613,9 @@ object AssemblyPlan {
                 val touch = a.any { x -> b.any { y -> touches(x, y) } }
                 val sameDirs = a.map { dirOf.getValue(it) }.toSet() == b.map { dirOf.getValue(it) }.toSet()
                 val shareItem = a.map { parts[it].item ?: -it - 1 }.toSet().intersect(b.map { parts[it].item ?: -it - 1 }.toSet()).isNotEmpty()
-                return (if (touch) 0.0 else 2.0) + (if (sameDirs) 0.0 else 1.0) + (if (shareItem) 0.0 else 0.5) +
+                // Doors and drawers are hung on their own, never in a step with the box they hang in.
+                val hungMix = (a.any { parts[it].id in hungIds } || b.any { parts[it].id in hungIds }) && !(a.all { parts[it].id in hungIds } && b.all { parts[it].id in hungIds })
+                return (if (hungMix) 50.0 else 0.0) + (if (touch) 0.0 else 2.0) + (if (sameDirs) 0.0 else 1.0) + (if (shareItem) 0.0 else 0.5) +
                     0.6 * maxOf(0, a.size + b.size - target) + 0.02 * (a.size + b.size) + (if (a.size + b.size > MAX_GROUP) 4.0 else 0.0)
             }
             val k = (0 until raw.size - 1).minByOrNull { cost(it) }!!

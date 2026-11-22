@@ -39,6 +39,21 @@ object Roles {
         // Legs first: square posts standing on the floor, at least twice as tall as they are thick (a bed's legs are
         // short). Rails are then known by the legs they join.
         val legs = HashSet<String>()
+        // A face frame: narrow strips lying flat across the front of a case, their backs against its front edges.
+        // Upright ones are stiles, level ones rails; neither is a leg, whatever it stands on.
+        for (p in live) {
+            if (p.id in out) continue
+            val b = p.mesh.bounds; val e = b.extents
+            // At the front: nothing overlapping it side to side and up and down stands further forward.
+            val front = live.none { o -> o !== p && o.mesh.bounds.max.y <= b.min.y + 0.5 && o.mesh.bounds.min.x < b.max.x - 0.5 && o.mesh.bounds.max.x > b.min.x + 0.5 &&
+                o.mesh.bounds.min.z < b.max.z - 0.5 && o.mesh.bounds.max.z > b.min.z + 0.5 }
+            // Flat to the front (a square leg is not a stile).
+            if (!front || e.y > 0.7 * minOf(e.x, e.z) || maxOf(e.x, e.z) < 4 * minOf(e.x, e.z) || minOf(e.x, e.z) > 6 * e.y) continue
+            val behind = live.count { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 &&
+                o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.z < b.max.z && o.mesh.bounds.max.z > b.min.z }
+            if (behind == 0) continue
+            out[p.id] = if (e.z > e.x) "Stile" else "Face frame rail"
+        }
         for (p in live) {
             if (p.id in out) continue
             val e = p.mesh.bounds.extents; val dims = listOf(e.x, e.y, e.z).sorted()
@@ -117,7 +132,14 @@ object Roles {
                         else -> "Shelf"
                     }
                 }
-                e.x <= t + 0.01 -> if (b.min.x <= all.min.x + 1.0 || b.max.x >= all.max.x - 1.0) "Side" else "Divider"
+                // A side has nothing beside it further out that overlaps it front to back and up and down (an
+                // overhanging top only sits on it); a divider has panels on both sides.
+                e.x <= t + 0.01 -> {
+                    fun beyond(left: Boolean) = live.any { o -> o !== p && (if (left) o.mesh.bounds.max.x <= b.min.x + 0.5 else o.mesh.bounds.min.x >= b.max.x - 0.5) &&
+                        o.mesh.bounds.min.y < b.max.y - 0.5 && o.mesh.bounds.max.y > b.min.y + 0.5 && o.mesh.bounds.min.z < b.max.z - 0.5 && o.mesh.bounds.max.z > b.min.z + 0.5 &&
+                        o.mesh.bounds.extents.x <= minOf(o.mesh.bounds.extents.y, o.mesh.bounds.extents.z) }
+                    if (b.min.x <= all.min.x + 1.0 || b.max.x >= all.max.x - 1.0 || !beyond(true) || !beyond(false)) "Side" else "Divider"
+                }
                 e.y <= t + 0.01 -> when {
                     b.max.y >= all.max.y - 1.0 -> if (t <= 10.0) "Back panel" else "Back"
                     b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 -> "Kick board"

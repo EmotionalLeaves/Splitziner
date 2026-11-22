@@ -30,7 +30,7 @@ enum class JoinMethod(val label: String, val needs: Set<Tool>) {
 
 /** One joint: [through] is fastened into [into]; [count] fasteners of [size]. */
 /** [at]: for slides, where the cabinet half goes, "down|back" from the cabinet side's top and front edges, formatted. */
-class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean, val at: String = "")
+class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean, val at: String = "", val ref: Part? = null)
 
 /** [byStep] tells each step's joints (one copy of a sub-assembly made several times); [all] is every joint in the piece. */
 class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>, val all: List<Joint> = byStep.values.flatten())
@@ -157,6 +157,8 @@ object Fastening {
                 val ia = idx.getValue(front.id); val ib = idx.getValue(box.id)
                 val kk = (0..2).minByOrNull { ax -> minOf(rel.hi[ia][ax], rel.hi[ib][ax]) - maxOf(rel.lo[ia][ax], rel.lo[ib][ax]) }!!
                 val tBox = rel.hi[ib][kk] - rel.lo[ib][kk]; val tFront = rel.hi[ia][kk] - rel.lo[ia][kk]
+                // Only the box end, whose face meets the front, is screwed through; a side touching it end-on is not.
+                if (tBox > (0..2).minOf { ax -> rel.hi[ib][ax] - rel.lo[ib][ax] } + 0.5) continue
                 // Through the box end and most of the way into the front, never out of its face.
                 val sz = pick(tBox + minOf(1.5 * tBox, tFront - 4.0), fmt, false)?.let { gauged(it, tBox, fmt) } ?: ""
                 val wide = (0..2).filter { it != kk }.maxOf { ax -> minOf(rel.hi[ia][ax], rel.hi[ib][ax]) - maxOf(rel.lo[ia][ax], rel.lo[ib][ax]) }
@@ -206,6 +208,9 @@ object Fastening {
             val openTop = wideTop && thr.name != "Slat" && rel.lo.indices.none { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 &&
                 minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
             val topDown = k == 2 && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
+            // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.
+            if (topDown && (0..2).minOf { ax -> rel.hi[idx.getValue(into.id)][ax] - rel.lo[idx.getValue(into.id)][ax] } < 9.0) continue
             // A cleat is screwed along the board it carries; where its ends butt legs, nothing more is needed.
             run {
                 val cleat = if (thr.name == "Cleat") thr else if (into.name == "Cleat") into else null
@@ -218,14 +223,17 @@ object Fastening {
                     if ((hi[bi].z - lo[bi].z) > minOf(hi[bi].x - lo[bi].x, hi[bi].y - lo[bi].y)) return false
                     val ax = if (hi[bi].x - lo[bi].x >= hi[bi].y - lo[bi].y) 0 else 1
                     val len = hi[bi][ax] - lo[bi][ax]
-                    val under = rel.lo.indices.filter { n -> n != bi && kotlin.math.abs(hi[n].z - lo[bi].z) < 1.0 &&
+                    // Supports are real boards: a 1/4 in back panel's edge under a top holds nothing up.
+                    val under = rel.lo.indices.filter { n -> n != bi && kotlin.math.abs(hi[n].z - lo[bi].z) < 1.0 && (0..2).minOf { hi[n][it] - lo[n][it] } >= 12.0 &&
                         minOf(hi[n].x, hi[bi].x) > maxOf(lo[n].x, lo[bi].x) && minOf(hi[n].y, hi[bi].y) > maxOf(lo[n].y, lo[bi].y) }
                     // Held under each end by separate pieces (slats on two cleats), or along both long edges
                     // (a shelf on front and back stretchers); a cabinet bottom on one kick board is neither.
                     val ends = under.filter { n -> hi[n][ax] - lo[n][ax] < 0.5 * len }
                     val byEnds = ends.any { n -> lo[n][ax] <= lo[bi][ax] + 0.15 * len } && ends.any { n -> hi[n][ax] >= hi[bi][ax] - 0.15 * len }
                     val ax2 = 1 - ax; val wid = hi[bi][ax2] - lo[bi][ax2]
-                    val a = under.firstOrNull { n -> lo[n][ax2] <= lo[bi][ax2] + 0.25 * wid }; val b = under.firstOrNull { n -> hi[n][ax2] >= hi[bi][ax2] - 0.25 * wid && n != a }
+                    // Along both long edges means two narrow pieces (front and back stretchers), not one divider the full depth.
+                    val edges = under.filter { n -> hi[n][ax2] - lo[n][ax2] < 0.5 * wid }
+                    val a = edges.firstOrNull { n -> lo[n][ax2] <= lo[bi][ax2] + 0.25 * wid }; val b = edges.firstOrNull { n -> hi[n][ax2] >= hi[bi][ax2] - 0.25 * wid && n != a }
                     return byEnds || (a != null && b != null)
                 }
                 val ii0 = idx.getValue(into.id)
@@ -328,9 +336,14 @@ object Fastening {
             val bHi = splitziner.math.Vec3(boxParts.maxOf { it.mesh.bounds.max.x }, boxParts.maxOf { it.mesh.bounds.max.y }, boxParts.maxOf { it.mesh.bounds.max.z })
             val side = live.filter { it.id !in dr.ids && it.mesh.bounds.max.x <= bLo.x + 0.5 && it.mesh.bounds.min.z <= bLo.z && it.mesh.bounds.max.z >= bHi.z &&
                 it.mesh.bounds.min.y <= bLo.y + 1.0 && it.mesh.bounds.max.y >= bHi.y - 1.0 }.maxByOrNull { it.mesh.bounds.max.x }
+            // Measured up from the panel the drawers stand over (the cabinet bottom), which every column of drawers
+            // shares, rather than from the top of whatever upright is beside each one.
+            val allDrawerIds = drawers.flatMap { it.ids }.toSet()
+            val floorRef = live.filter { it.id !in allDrawerIds && it.mesh.bounds.max.z <= bLo.z + 0.5 && it.mesh.bounds.min.x < bHi.x && it.mesh.bounds.max.x > bLo.x &&
+                it.mesh.bounds.min.y < bHi.y && it.mesh.bounds.max.y > bLo.y }.maxByOrNull { it.mesh.bounds.max.z }
             val u = if (fmt.isInch) " in" else " mm"
-            val at = side?.let { c -> "${fmt.format(c.mesh.bounds.max.z - (bLo.z + bHi.z) / 2)}$u|${fmt.format(maxOf(0.0, bLo.y - c.mesh.bounds.min.y))}$u" } ?: ""
-            joints.getOrPut(ps.filter { it.id in dr.boxIds }.maxOfOrNull { mainOf(it) } ?: step) { ArrayList() }.add(0, Joint(box, front ?: box, 1, len, "slides", false, at))
+            val at = side?.let { c -> "${fmt.format((bLo.z + bHi.z) / 2 - (floorRef?.mesh?.bounds?.max?.z ?: c.mesh.bounds.min.z))}$u|${fmt.format(maxOf(0.0, bLo.y - c.mesh.bounds.min.y))}$u" } ?: ""
+            joints.getOrPut(ps.filter { it.id in dr.boxIds }.maxOfOrNull { mainOf(it) } ?: step) { ArrayList() }.add(0, Joint(box, front ?: box, 1, len, "slides", false, at, floorRef ?: side))
             totals["pair of $len drawer slides"] = (totals["pair of $len drawer slides"] ?: 0) + 1
             totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
         }
@@ -520,12 +533,16 @@ object Fastening {
             else if (j.kind == "slides") {
                 val handle = j.into === j.through
                 // Where the cabinet halves go: a level line down from the top of each side, front end set back as the box is.
-                val ats = g.sortedByDescending { it.through.mesh.bounds.max.z }.map { it.at }.filter { it.isNotEmpty() }.map { it.split('|') }
-                val mark = if (ats.size != g.size || ats.isEmpty()) "" else {
-                    val downs = ats.map { it[0] }; val backs = ats.map { it[1] }.distinct()
+                val sorted = g.sortedBy { it.through.mesh.bounds.min.z }
+                val ats = sorted.map { it.at }.filter { it.isNotEmpty() }.map { it.split('|') }
+                val refs = sorted.mapNotNull { it.ref }.distinctBy { it.item ?: it.id }
+                val mark = if (ats.size != g.size || ats.isEmpty() || refs.size != 1) "" else {
+                    // Drawers side by side share heights: each height is drawn once, for every drawer at it.
+                    val ups = ats.map { it[0] }.distinct(); val backs = ats.map { it[1] }.distinct()
+                    val from = "up from the top of ${itemName(refs[0])}"
                     val back = if (backs.size == 1) (if (backs[0].startsWith("0 ") || backs[0] == "0") ", its front end flush with the front edge" else ", its front end ${backs[0]} back from the front edge") else ""
-                    if (downs.size == 1) " Draw a level line on each side of the cabinet ${downs[0]} down from its top edge; the centre of the slide's cabinet half goes on it$back. Centre the drawer halves on the drawer's sides, flush with its front."
-                    else " Draw level lines on each side of the cabinet ${downs.dropLast(1).joinToString(", ")} and ${downs.last()} down from its top edge, one for each drawer from the top; the centre of each slide's cabinet half goes on its line$back. Centre the drawer halves on the drawers' sides, flush with their fronts."
+                    if (ups.size == 1) " Draw a level line inside the cabinet on each side of the opening, ${ups[0]} $from; the centre of the slide's cabinet half goes on it$back. Centre the drawer halves on the drawer's sides, flush with its front."
+                    else " Draw level lines inside the cabinet on each side of the openings, ${ups.dropLast(1).joinToString(", ")} and ${ups.last()} $from, one for each row of drawers from the bottom; the centre of each slide's cabinet half goes on its line$back. Centre the drawer halves on the drawers' sides, flush with their fronts."
                 }
                 if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it.$mark" + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
                 else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer.$mark" + (if (handle) " Fit its handle or knob in the middle of the front." else "")

@@ -54,7 +54,8 @@ object GuideSteps {
         val bench = built.isEmpty()
         val pool = cur + built
         for (s in cur) {
-            if (s.item in skipItems) continue
+            // Doors and drawer fronts are placed by their hinges or by eye, with even gaps; offsets would only mislead.
+            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front") continue
             // The longest part it touches that is longer than it along its own length; on the bench any part of the
             // unit, in the build a part already there or going in with it.
             val host = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
@@ -150,7 +151,8 @@ object GuideSteps {
             val units = if (st.subassembly) emptyMap() else cur.groupBy { unit(it) }.filter { (root, _) -> root in unitOf && benchOf.containsKey(kind(unitOf.getValue(root))) }
             val loose = cur.filter { unit(it) !in units }
             val count = LinkedHashMap<Int?, Int>()
-            for (p in loose) count[p.item] = (count[p.item] ?: 0) + 1
+            // Named bottom up, so nothing is listed before what it sits on (the kick board, then the bottom, then the divider on it).
+            for (p in loose.sortedBy { it.mesh.bounds.min.z }) count[p.item] = (count[p.item] ?: 0) + 1
             val unitCount = LinkedHashMap<Int, MutableList<List<Part>>>()
             for ((root, ms) in units) unitCount.getOrPut(benchOf.getValue(kind(unitOf.getValue(root)))) { ArrayList() } += ms
             // This step's parts pulled out, earlier parts in place and greyed, later parts left out.

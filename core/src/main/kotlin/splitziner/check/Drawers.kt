@@ -60,7 +60,9 @@ object Drawers {
             if (!("L" in sides && "R" in sides && ("F" in sides || "B" in sides))) continue
             // Open top: no other part lies over the box within its height.
             val set = all.toSet()
-            val lidded = live.indices.any { j -> j !in set && lo[j].z < bh.z - 1 && hi[j].z > bh.z - 0.25 * (bh.z - bl.z) && lo[j].x < bh.x - 1 && hi[j].x > bl.x + 1 && lo[j].y < bh.y - 1 && hi[j].y > bl.y + 1 && ext(j).z < 30 && lo[j].z > bl.z + 0.5 * (bh.z - bl.z) }
+            // Judged by the box: an overlay front may reach up past a rail over the drawer that is not a lid.
+            val boxTop = box.maxOf { hi[it].z }; val boxFront = box.minOf { lo[it].y }
+            val lidded = live.indices.any { j -> j !in set && lo[j].z < boxTop - 1 && hi[j].z > boxTop - 0.25 * (boxTop - bl.z) && lo[j].x < bh.x - 1 && hi[j].x > bl.x + 1 && lo[j].y < bh.y - 1 && hi[j].y > boxFront + 1 && ext(j).z < 30 && lo[j].z > bl.z + 0.5 * (boxTop - bl.z) }
             if (lidded) continue
             // In an opening: something outside the box on both sides over most of its height and depth.
             fun beside(left: Boolean): Double? = live.indices.filter { j -> j !in set &&
