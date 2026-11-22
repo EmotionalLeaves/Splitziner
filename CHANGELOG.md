@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.46.0 - All levels dimensioned
+
+- **Every drawer level is dimensioned.** Assembly drawings can now dimension up to 8 heights per direction, switching to compact ordinate dimensions (values read from one zero line) when there are more than 5. The chest of drawers' section shows all four drawer heights instead of three. Bigger models such as a desk get a section with their depths.
+- **Help** now covers the build pack and doors, drawers and shelf pins, and points to the project menu (⋮) for Units, Which way is up and Share project.
+- Includes v0.45.0 (Share build pack). That's confirmed on the test phone: all five files in the zip.
+
 ## v0.45.0 - Share build pack
 
 - **Share build pack.** Project menu (⋮) → Share build pack puts everything you need in one zip: the drawings and the build guide as PDFs, the cutting plan PDF, the cut list (CSV) and the shopping list. It's ready to send to a printer, a friend or yourself.
