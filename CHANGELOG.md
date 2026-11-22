@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.87.0 - Complex project test on device
+
+- Bookcases with several bays sharing uprights are built as one piece, not as separate "cabinets".
+- Every release is now also tested on a phone with a large, complicated project (a four-cabinet kitchen run).
+
 ## v0.86.0 - Runs of cabinets
 
 - **Runs of cabinets**: identical cabinets side by side (a kitchen run) are recognised. The guide builds them all together over a few bench steps, then sets them out in a row and screws them to each other (no glue, so they come apart to move), then fits the worktop, doors and drawers.
