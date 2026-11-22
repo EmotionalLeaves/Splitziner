@@ -147,6 +147,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importFrom(uri) }
     var confirmDelete by remember { mutableStateOf<ProjectMeta?>(null) }
     var renaming by remember { mutableStateOf<ProjectMeta?>(null) }
+    var showAbout by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         // Header: the app's name and what it does, with the rarely used things in a menu.
@@ -160,6 +161,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Check for updates") }, onClick = { menu = false; vm.checkForUpdate() })
                     DropdownMenuItem(text = { Text("Copy diagnostic report") }, onClick = { menu = false; copy(context, vm.diagnosticReport()) })
+                    DropdownMenuItem(text = { Text("About and licences") }, onClick = { menu = false; showAbout = true })
                     DropdownMenuItem(text = { Text("Version ${BuildConfig.VERSION_NAME}") }, onClick = { menu = false }, enabled = false)
                 }
             }
@@ -217,6 +219,24 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
         }
     }
     UpdateDialogs(state, vm)
+    if (showAbout) AlertDialog(
+        onDismissRequest = { showAbout = false },
+        confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } },
+        title = { Text("Splitziner ${BuildConfig.VERSION_NAME}") },
+        text = {
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Turns a 3D model of furniture into parts, drawings, a build guide, a cut list, a cutting plan and a shopping list, all on the phone. Nothing is sent anywhere; your files stay on this phone unless you share them.", style = MaterialTheme.typography.bodyMedium)
+                Text("Drawings follow a common engineering drawing layout. They are generated, not checked by a person: see Help, What to trust.", style = MaterialTheme.typography.bodySmall)
+                Text("Open source software used", fontWeight = FontWeight.Bold)
+                for ((what, licence) in listOf(
+                    "JTS Topology Suite (geometry)" to "Eclipse Public License 2.0 / Eclipse Distribution License 1.0",
+                    "Kotlin and kotlinx.coroutines, kotlinx.serialization" to "Apache License 2.0",
+                    "AndroidX, Jetpack Compose and Material 3" to "Apache License 2.0",
+                    "Material icons" to "Apache License 2.0",
+                )) { Column { Text(what, style = MaterialTheme.typography.bodyMedium); Text(licence, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            }
+        },
+    )
     renaming?.let { p ->
         var name by remember(p) { mutableStateOf(p.name) }
         AlertDialog(
