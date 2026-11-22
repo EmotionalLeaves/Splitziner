@@ -71,7 +71,16 @@ object Roles {
             if (upright && e.z < 0.3 * h && b.min.z > all.min.z + 0.3 * h && live.any { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 }) {
                 out[p.id] = "Apron"; continue
             }
-            if (onEdge && joinsLegs) { out[p.id] = "Rail"; continue }
+            if (onEdge && joinsLegs) {
+                // Round the outside, named by the side it runs along (side rails the long way, end rails across);
+                // one down the middle is the centre rail.
+                val legT = live.filter { it.id in legs }.maxOf { o -> o.mesh.bounds.extents.let { minOf(it.x, it.y) } }
+                val along = if (e.x >= e.y) 0 else 1; val across = 1 - along
+                val outer = b.min[across] <= all.min[across] + legT + 1.0 || b.max[across] >= all.max[across] - legT - 1.0
+                val longWay = if (all.extents.x >= all.extents.y) 0 else 1
+                out[p.id] = if (!outer) "Centre rail" else if (along == longWay) "Side rail" else "End rail"
+                continue
+            }
             // Several narrow boards alike, lying flat side by side: slats (a bed's, a bench seat's).
             if (dims[1] < NARROW && e.z <= t + 0.01 && live.count { o -> o.mesh.bounds.extents.let { oe -> kotlin.math.abs(oe.x - e.x) < 0.5 && kotlin.math.abs(oe.y - e.y) < 0.5 && kotlin.math.abs(oe.z - e.z) < 0.5 } } >= 4) {
                 out[p.id] = "Slat"; continue

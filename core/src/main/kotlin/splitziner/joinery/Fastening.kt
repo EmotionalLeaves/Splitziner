@@ -218,7 +218,7 @@ object Fastening {
                 if (k == 0 || k == 1) { if (restsAtBothEnds(ti0) && (hi[ti0].z - lo[ti0].z) < (hi[ii0].z - lo[ii0].z)) continue; if (restsAtBothEnds(ii0) && (hi[ii0].z - lo[ii0].z) < (hi[ti0].z - lo[ti0].z)) continue }
             }
             // A leg's end under a top held by aprons needs nothing of its own: the aprons carry the top.
-            if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name == "Rail") && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
+            if (topDown && into.name == "Leg" && live.any { o -> (o.name == "Apron" || o.name.endsWith("ail")) && idx[o.id]?.let { n -> lo[n].z <= hi[ti0].z && hi[n].z >= lo[ti0].z - 2.0 && hi[n].z <= lo[ti0].z + 2.0 } == true }) continue
             if (topDown && !glue) {
                 count = maxOf(2, ceil(length / (2 * SPACING)).toInt())
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, "corner brackets", "brackets", false)

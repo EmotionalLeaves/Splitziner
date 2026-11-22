@@ -85,7 +85,7 @@ object AssemblyPlan {
         fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }
         // Rails on edge only: a board lying flat across two legs (a slat) is not part of a frame.
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
-        val rails = live.filter { (it.name == "Apron" || it.name == "Rail") && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
+        val rails = live.filter { (it.name == "Apron" || it.name.endsWith("ail")) && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
         val legIds = legs.map { it.id }.toSet()
         // Rails one way whose leg pairs cover every leg once: an apron and a stretcher between the same two legs
         // are one pair, so a frame can have both.
@@ -131,7 +131,7 @@ object AssemblyPlan {
                     val b = p.mesh.bounds
                     val overlapsAbove = u.any { o -> o !== p && o.mesh.bounds.min.z >= b.max.z - 0.5 &&
                         minOf(o.mesh.bounds.max.x, b.max.x) > maxOf(o.mesh.bounds.min.x, b.min.x) && minOf(o.mesh.bounds.max.y, b.max.y) > maxOf(o.mesh.bounds.min.y, b.min.y) }
-                    benchExplode[p.id] = if (e != null && (p.name == "Apron" || p.name == "Rail") && kotlin.math.abs(e.z) < 0.1 * e.length && b.extents.z < maxOf(b.extents.x, b.extents.y) &&
+                    benchExplode[p.id] = if (e != null && (p.name == "Apron" || p.name.endsWith("ail")) && kotlin.math.abs(e.z) < 0.1 * e.length && b.extents.z < maxOf(b.extents.x, b.extents.y) &&
                         kotlin.math.abs(if (b.extents.x >= b.extents.y) e.x else e.y) < 0.5 * e.length && b.max.z >= unitTop - 0.5 && !overlapsAbove) Vec3(0.0, 0.0, e.length) else e
                 }
                 ids += u.map { it.id }
@@ -193,7 +193,7 @@ object AssemblyPlan {
         val byId = units.associateBy { it.id }
         fun names(id: String) = members[id]?.map { it.name } ?: listOfNotNull(byId[id]?.name)
         val slatOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n == "Slat" } } }
-        val railOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n == "Rail" || n == "Apron" } } }
+        val railOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n.endsWith("ail") || n == "Apron" } } }
         val firstSlat = slatOnly.indexOfFirst { it }
         if (firstSlat < 0) return steps to steps.associate { it.step to it.step }
         val rails = steps.indices.filter { it > firstSlat && railOnly[it] }
