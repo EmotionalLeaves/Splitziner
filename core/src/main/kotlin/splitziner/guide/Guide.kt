@@ -177,12 +177,43 @@ object GuideSteps {
                     lines += "Space $what $g apart, evenly; a spacer block cut to $g keeps every gap the same."
                 }
             }
-            // Pieces set out apart (two end frames, a desk's two sides) stand alone until the next step ties them.
+            // Pieces set out apart (two end frames, a desk's two sides) stand alone until the next step ties them, so the
+            // step says how far apart they go, read off the model: outside to outside, and any piece between them.
             if (base && cur.size > 1) {
-                val seen = HashSet<Int>(); val stack = ArrayDeque(listOf(0))
                 fun near(a: Part, b: Part) = (0..2).all { k -> a.mesh.bounds.min[k] <= b.mesh.bounds.max[k] + 0.5 && b.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 0.5 }
-                while (stack.isNotEmpty()) { val k = stack.removeLast(); if (!seen.add(k)) continue; for (m in cur.indices) if (m !in seen && near(cur[k], cur[m])) stack += m }
-                if (seen.size < cur.size) lines += "Stand them in place, spaced to the overall sizes on the drawing and square to each other; a helper, clamps or a prop holds them up until the next step ties them together."
+                val comps = ArrayList<List<Part>>(); val left = cur.toMutableList()
+                while (left.isNotEmpty()) {
+                    val c = arrayListOf(left.removeAt(0)); var grew = true
+                    while (grew) { grew = false; val more = left.filter { o -> c.any { near(it, o) } }; if (more.isNotEmpty()) { c += more; left.removeAll(more.toSet()); grew = true } }
+                    comps += c
+                }
+                if (comps.size > 1) {
+                    fun lo(c: List<Part>, k: Int) = c.minOf { it.mesh.bounds.min[k] }
+                    fun hi(c: List<Part>, k: Int) = c.maxOf { it.mesh.bounds.max[k] }
+                    // The axis they stand apart along: where no two of them overlap.
+                    val axis = (0..2).firstOrNull { k -> comps.indices.all { i -> comps.indices.all { j -> i == j || hi(comps[i], k) <= lo(comps[j], k) + 0.5 || hi(comps[j], k) <= lo(comps[i], k) + 0.5 } } }
+                    fun label(c: List<Part>): String {
+                        val u = units.entries.firstOrNull { (_, ms) -> ms.any { it in c } }
+                        if (u != null) { val bench = benchOf.getValue(kind(unitOf.getValue(u.key))); return "the ${unitWord(bench, 1)} from step $bench" }
+                        return c.first().let { "item ${it.item ?: "-"}" + named(listOf(it)) }
+                    }
+                    if (fmt != null && axis != null) {
+                        val sorted = comps.sortedBy { lo(it, axis) }
+                        val u = if (fmt.isInch) " in" else " mm"
+                        val span = hi(sorted.last(), axis) - lo(sorted.first(), axis)
+                        val mid = (lo(sorted.first(), axis) + hi(sorted.last(), axis)) / 2
+                        val between = sorted.drop(1).dropLast(1).map { c ->
+                            val centre = (lo(c, axis) + hi(c, axis)) / 2
+                            if (kotlin.math.abs(centre - mid) < 2.0) "${label(c)} centred between them"
+                            else "${label(c)} ${fmt.format(lo(c, axis) - hi(sorted.first(), axis))}$u in from ${label(sorted.first())}"
+                        }
+                        // The outer two lined up end to end along the other level axis (a bed's side frames), when the model has them so.
+                        val other = (0..1).firstOrNull { it != axis }
+                        val level = other != null && kotlin.math.abs(lo(sorted.first(), other) - lo(sorted.last(), other)) < 1.0 && kotlin.math.abs(hi(sorted.first(), other) - hi(sorted.last(), other)) < 1.0
+                        lines += "Stand them ${fmt.format(span)}$u apart, outside to outside" + (if (between.isEmpty()) "" else ", with " + between.joinToString(" and ")) +
+                            (if (level && axis != 2) ", ends lined up and square to each other;" else ", square to each other;") + " a helper, clamps or a prop holds them up until the next step ties them together."
+                    } else lines += "Stand them in place, spaced to the overall sizes on the drawing and square to each other; a helper, clamps or a prop holds them up until the next step ties them together."
+                }
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
