@@ -392,7 +392,9 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 val st = pp?.steps?.firstOrNull { it.step == playStep }
                 Box(Modifier.padding(vertical = 4.dp)) {
                     PagerBar(if (pp == null) "Working out the build order\u2026" else "Step $playStep of $last",
-                        (if (st?.subassembly == true) "Made on the bench  \u00b7  " else "") + (st?.let { "items ${it.items.joinToString(", ")}" } ?: ""),
+                        // The guide's own title for the step when the guide is made ("the back panel"), else its items.
+                        (if (st?.subassembly == true) "Made on the bench  \u00b7  " else "") + (state.guide?.work?.getOrNull(playStep - 1)?.title?.takeIf { it.contains(": ") }?.substringAfter(": ")
+                            ?: st?.let { "items ${it.items.joinToString(", ")}" } ?: ""),
                         playStep > 1, playStep < last, { playStep = (playStep - 1).coerceAtLeast(1) }, { playStep = (playStep + 1).coerceAtMost(last) })
                 }
             }
