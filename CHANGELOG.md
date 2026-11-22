@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.40.0 - Professional cutting plan, applied drawer fronts, new guide cover
+
+- **Cutting plan, much tighter.** In metric, drawer sides, drawer fronts and other boards of sheet thickness are now ripped from the sheet instead of bought as lengths of an odd width (12 x 191.5 is not sold anywhere). A board that would need a whole extra panel just for itself is bought as a length after all. In inches, boards that would have to be ripped from lumber come from the sheet you are buying anyway. The packer now tries several layouts and keeps the best one, so the chest of drawers' 18 mm parts fit one sheet instead of a sheet plus a quarter sheet. Sheets hang from the top of the page, and short pieces get their size on one line.
+- **Applied drawer fronts are fitted the way cabinetmakers do it.** The drawer box is made and hung first. Then the front is held in place with even gaps and screwed on from inside, with the right screw length. Before, the front was glued and pinned to the box on the bench, which makes the gaps impossible to set.
+- **Drawers and doors come out of the front** in exploded views and step pictures, whole, instead of flying up through the carcass. A step that fits four drawers says "×4" once, not one tag per board.
+- **Rabbets where they belong.** A thin panel at the edge of another part (a back panel at the back of the sides, a drawer bottom at the bottom edge) is set in a rabbet, not a groove. A thin part held in several parts is explained once ("cut a rabbet in items 6 and 7"), and "Before you build" reminds you to cut grooves and rabbets while the boards are loose.
+- **New guide cover.** A parts table (item, quantity, name, size, material) on the cover, hardware beside the summary, and the picture sized so everything fits. No more page with a single leftover line.
+- **Names in the drawings' list of material** ("SIDE, PANEL 18 X 450 X 900"), and a Name column in the cut list CSV.
+- **The sag check covers shelves on pins**, which are held only at their ends.
+- Includes v0.39.0 (3MF files, named guide steps, fastener count fix).
+
 ## v0.39.0 - 3MF, named guide steps, hardware count fix
 
 - **Open 3MF files.** 3MF is the zipped format many modelling and slicing apps export. Each object becomes its own part, placed where the file puts it, with sizes converted to millimetres from the file's unit. Import it, or open it from another app.
