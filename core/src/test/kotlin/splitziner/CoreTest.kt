@@ -1339,3 +1339,38 @@ class OverlayDoorsTest {
         assertEquals(0, splitziner.check.Doors.find(parts).size)
     }
 }
+
+class ShelfPinsTest {
+    @Test fun adjustableShelvesRestOnPins() {
+        val fmt = LengthFormat("mm")
+        val t = splitziner.edit.Templates.byKey("shelves")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("pins" to 1.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        assertEquals(4, splitziner.check.ShelfPins.find(parts).size)
+        val cut = CutList.build(parts, fmt)
+        val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
+        assertTrue(rep.problems == 0, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title + ": " + it.detail }.toString())
+        assertTrue(rep.findings.any { it.title.contains("adjustable shelves") })
+        val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
+        val f = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+        assertTrue(f.hardware.any { it == "16 × shelf pins" }, f.hardware.toString())
+        // The sides get a detail drawing with the hole rows.
+        val sideItem = cut.parts.first { it.id == "P01" }.item!!
+        assertTrue(sideItem in splitziner.drawing.PartDrawings.pinItems(cut.parts))
+        assertTrue(sideItem !in splitziner.drawing.PartDrawings.plainItems(cut.parts, cut.rows, fmt))
+        val note = splitziner.drawing.PartDrawings.pinNotes(cut.parts.first { it.id == "P01" }, cut.parts, fmt).single()
+        assertTrue(note.contains("2 ROWS OF") && note.contains("37 MM") && note.contains("32 MM APART"), note)
+        // Fixed shelves are not on pins.
+        val fixed = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        assertEquals(0, splitziner.check.ShelfPins.find(fixed).size)
+    }
+}
+
+class AddPinnedShelfTest {
+    @Test fun aShelfAddedOnPinsIsAdjustable() {
+        val t = splitziner.edit.Templates.byKey("shelves")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("n" to 0.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val (mn, sz) = splitziner.edit.Editor.shelfAt(parts, 900.0, 18.0, pins = true)!!
+        val withShelf = parts + Part("S1", "Shelf", splitziner.edit.Editor.box(mn, sz))
+        assertEquals(listOf("S1"), splitziner.check.ShelfPins.find(withShelf))
+    }
+}

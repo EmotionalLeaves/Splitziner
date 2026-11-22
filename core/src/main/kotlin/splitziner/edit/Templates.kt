@@ -18,12 +18,15 @@ object Templates {
     private fun box(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double) = Editor.box(Vec3(x, y, z), Vec3(w, d, h))
 
     val ALL: List<Template> = listOf(
-        Template("shelves", "Bookcase", "Two sides, a top and bottom between them, evenly spaced shelves, a back panel and a kick board.", listOf(
+        Template("shelves", "Bookcase", "Two sides, a top and bottom between them, evenly spaced shelves (fixed or on pins), a back panel and a kick board.", listOf(
             Field("w", "Width", 800.0, 32.0), Field("h", "Height", 1800.0, 72.0), Field("d", "Depth", 300.0, 12.0),
             Field("t", "Board thickness", 18.0, 0.75), Field("n", "Shelves", 4.0, 4.0, count = true), Field("back", "Back thickness (0 for none)", 6.0, 0.25),
+            Field("pins", "Shelves on pins (0 = fixed, 1 = adjustable)", 0.0, 0.0, count = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val back = v.getValue("back")
             val n = v.getValue("n").toInt().coerceIn(0, 20)
+            // Adjustable shelves are 1.5 mm short at each end so they drop in onto their pins.
+            val pg = if ((v["pins"] ?: 0.0) >= 0.5) 1.5 else 0.0
             val inner = w - 2 * t; val dIn = d - back
             val kick = 3 * t + 40.0
             val out = arrayListOf(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h),
@@ -31,7 +34,7 @@ object Templates {
             // Shelves evenly spaced in the clear height between bottom and top.
             val clear0 = kick + t; val clear1 = h - t
             val gap = (clear1 - clear0 - n * t) / (n + 1)
-            for (i in 1..n) out += box(t, 0.0, clear0 + i * gap + (i - 1) * t, inner, dIn, t)
+            for (i in 1..n) out += box(t + pg, 0.0, clear0 + i * gap + (i - 1) * t, inner - 2 * pg, dIn, t)
             if (back > 0) out += box(t, d - back, kick, inner, back, h - kick)
             out
         },

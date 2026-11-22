@@ -80,7 +80,11 @@ object Editor {
      * middle of the model when null), as deep as both reach front to back. Null when there are no uprights both
      * sides at that height, or the space is already taken.
      */
-    fun shelfAt(parts: List<Part>, z: Double, t: Double, x: Double? = null): Pair<Vec3, Vec3>? = fillAt(parts, 2, 0, z, t, x)
+    fun shelfAt(parts: List<Part>, z: Double, t: Double, x: Double? = null, pins: Boolean = false): Pair<Vec3, Vec3>? =
+        fillAt(parts, 2, 0, z, t, x)?.let { (mn, sz) -> if (pins) Vec3(mn.x + PIN_GAP, mn.y, mn.z) to Vec3(sz.x - 2 * PIN_GAP, sz.y, sz.z) else mn to sz }
+
+    /** An adjustable shelf is this much short at each end (mm), so it drops in onto its pins and lifts out again. */
+    const val PIN_GAP = 1.5
 
     /** An upright divider [t] mm thick centred at [x], between the shelves (or top and bottom) above and below the middle. */
     fun dividerAt(parts: List<Part>, x: Double, t: Double, z: Double? = null): Pair<Vec3, Vec3>? = fillAt(parts, 0, 2, x + t / 2, t, z)

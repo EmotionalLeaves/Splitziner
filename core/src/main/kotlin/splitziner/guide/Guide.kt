@@ -164,7 +164,7 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> "concealed hinges"
+                    "brackets", "corner" -> "corner brackets"; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> "concealed hinges"; "pins" -> "shelf pins"
                     "laminate" -> "${j.size} brads"; "dowels" -> j.size; "thin", "edge", "housed" -> continue
                     else -> "${j.size} ${j.kind}"
                 }
@@ -197,11 +197,12 @@ object GuideLayout {
      * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
      * [housedItems] items that need a groove cut; [screws] whether anything is screwed (screw holes to fill).
      */
-    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap()): Pair<List<String>, List<String>> {
+    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList()): Pair<List<String>, List<String>> {
         fun list(i: List<Int>) = if (i.size == 1) "item ${i[0]}" else "items ${i.dropLast(1).joinToString(", ")} and ${i.last()}"
         val before = ArrayList<String>()
         before += "Cut every part to the cut list, and pencil its item number on a face that will not show."
-        if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (their drawings give the sizes) before anything is joined: it is far easier on a loose board."
+        if (pinItems.isNotEmpty()) before += "Drill the shelf-pin holes in ${list(pinItems.sorted())} (${if (pinItems.size == 1) "its drawing gives" else "their drawings give"} the rows) before anything is joined, with a jig or a drilling guide so the rows match."
+        if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (${if (groovedItems.size == 1) "its drawing gives" else "their drawings give"} the sizes) before anything is joined: it is far easier on a loose board."
         if (pocketHoles.isNotEmpty()) before += "Drill the pocket holes with the jig set to each board's thickness, on faces that will not show: " +
             pocketHoles.entries.joinToString("; ") { (i, n) -> "item $i, $n holes in all" } + ". Each goes in the end that meets another part's face."
         if (bandItems.isNotEmpty()) before += "If the panels are plywood or particleboard, iron edge banding onto the edges that will show on ${list(bandItems.sorted())} and trim it flush. Banded edges are easier to do now than once it is built."

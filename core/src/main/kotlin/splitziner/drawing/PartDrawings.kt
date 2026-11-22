@@ -51,7 +51,35 @@ object PartDrawings {
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
             p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE")
-        }.map { it.item }.toSet()
+        }.map { it.item }.toSet() - pinItems(parts)
+    }
+
+    /** Items drilled for shelf pins: these always get a detail sheet, which gives the holes. */
+    fun pinItems(parts: List<Part>): Set<Int> {
+        val byId = parts.associateBy { it.id }
+        return runCatching { splitziner.check.ShelfPins.uprights(parts).keys.mapNotNull { byId[it]?.item }.toSet() }.getOrDefault(emptySet())
+    }
+
+    /**
+     * Notes for the shelf-pin holes in upright [p]: two rows in the face toward the shelves, in the common 32 mm
+     * system, running from three holes below the lowest shelf to three above the highest so each can move.
+     */
+    fun pinNotes(p: Part, parts: List<Part>, fmt: LengthFormat): List<String> {
+        val ups = runCatching { splitziner.check.ShelfPins.uprights(parts) }.getOrDefault(emptyMap())
+        val byId = parts.associateBy { it.id }
+        val shelves = ups[p.id]?.mapNotNull { byId[it] } ?: return emptyList()
+        if (shelves.isEmpty()) return emptyList()
+        val u = p.mesh.bounds; val d = { v: Double -> fmt.format(v) }
+        val pitch = splitziner.check.ShelfPins.PITCH
+        val lo = maxOf(u.min.z + pitch, shelves.minOf { it.mesh.bounds.min.z } - 3 * pitch)
+        val hi = minOf(u.max.z - pitch, shelves.maxOf { it.mesh.bounds.min.z } + 3 * pitch)
+        val n = ((hi - lo) / pitch).toInt() + 1
+        // A divider with shelves both sides is drilled in both faces (the rows offset, or the holes meet).
+        val both = shelves.any { it.mesh.bounds.center.x > u.center.x } && shelves.any { it.mesh.bounds.center.x < u.center.x }
+        val where = if (both) "4 ROWS OF $n, 2 IN EACH FACE (OFFSET ONE FACE'S ROWS SO THE HOLES DO NOT MEET)" else "2 ROWS OF $n IN THE FACE TOWARD THE SHELVES"
+        return listOf("SHELF PIN HOLES FOR ITEM ${shelves.mapNotNull { it.item }.distinct().joinToString(", ")}: $where, " +
+            "${splitziner.check.ShelfPins.SETBACK.toInt()} MM FROM THE FRONT AND BACK EDGES, ${pitch.toInt()} MM APART, THE FIRST ${d(lo - u.min.z)} FROM THE BOTTOM END AS ASSEMBLED. " +
+            "DIAMETER AND DEPTH TO SUIT THE PINS (5 MM DIAMETER IS COMMON). NOT THROUGH.")
     }
 
     /** A general note for the assembly drawing naming the items that have no detail drawing, in ranges ("3-5, 9"). */
@@ -106,7 +134,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt)

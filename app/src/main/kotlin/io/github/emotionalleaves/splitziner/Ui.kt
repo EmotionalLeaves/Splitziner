@@ -1482,6 +1482,7 @@ private fun ShelfDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitz
     var where by remember { mutableStateOf(sizeText(fmt, a.bounds.extents.z / 2)) }
     var t by remember { mutableStateOf(sizeText(fmt, if (fmt.isInch) 19.05 else 18.0)) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var pins by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = {
@@ -1490,7 +1491,7 @@ private fun ShelfDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitz
             val r = when (kind) {
                 1 -> splitziner.edit.Editor.dividerAt(a.parts, a.bounds.min.x + v * unit, th * unit)
                 2 -> splitziner.edit.Editor.doorAt(a.parts, a.bounds.center.x, a.bounds.min.z + v * unit, th * unit)
-                else -> splitziner.edit.Editor.shelfAt(a.parts, a.bounds.min.z + v * unit, th * unit)
+                else -> splitziner.edit.Editor.shelfAt(a.parts, a.bounds.min.z + v * unit, th * unit, pins = pins)
             }
             if (r == null) { msg = when (kind) {
                 1 -> "No room for a divider there: there must be a shelf (or top and bottom) above and below it, and nothing already in the way."
@@ -1513,6 +1514,10 @@ private fun ShelfDialog(open: OpenProject, onDismiss: () -> Unit, onAdd: (splitz
                 }, style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(where, { where = it; msg = null }, label = { Text(when (kind) { 1 -> "Centre, from the left end, ${fmt.unitLabel}"; 2 -> "A height inside the opening, ${fmt.unitLabel}"; else -> "Height of its top from the floor, ${fmt.unitLabel}" }) }, singleLine = true)
                 OutlinedTextField(t, { t = it; msg = null }, label = { Text("Thickness, ${fmt.unitLabel}") }, singleLine = true)
+                if (kind == 0) Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(pins, { pins = it })
+                    Text("Adjustable, on shelf pins (1.5 mm short each end; pins go on the hardware list)", style = MaterialTheme.typography.bodySmall)
+                }
                 msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },

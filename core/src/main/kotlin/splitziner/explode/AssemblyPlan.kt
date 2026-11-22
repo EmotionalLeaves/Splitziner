@@ -210,8 +210,8 @@ object AssemblyPlan {
         val remaining = (0 until n).filter { it != base }.toMutableSet()
         val layers = ArrayList<LinkedHashMap<Int, Dir>>()
         val dirOf = HashMap<Int, Dir>()
-        // Doors and drawers are hung once the box is finished: taken off first, so they go on last.
-        val hungIds = runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Drawers.find(parts).flatMap { it.ids } }.getOrDefault(emptyList()).toSet()
+        // Doors, drawers and adjustable shelves go in once the box is finished: taken off first, so they go on last.
+        val hungIds = runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Drawers.find(parts).flatMap { it.ids } + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         while (remaining.isNotEmpty()) {
             val present = remaining + base
@@ -247,12 +247,18 @@ object AssemblyPlan {
             layers += take; remaining -= take.keys; dirOf += take
         }
 
+        // Identical doors or adjustable shelves going in together are fitted in one step.
+        fun sameHung(a: Int, b: Int): Boolean {
+            if (parts[a].id !in hungIds || parts[b].id !in hungIds) return false
+            val ea = (hi[a] - lo[a]).let { listOf(it.x, it.y, it.z).sorted() }; val eb = (hi[b] - lo[b]).let { listOf(it.x, it.y, it.z).sorted() }
+            return (0..2).all { kotlin.math.abs(ea[it] - eb[it]) < 0.5 }
+        }
         // Sub-assemblies: in one layer, parts leaving the same way that touch each other.
         val raw = ArrayList<MutableList<Int>>()
         for (layer in layers.reversed()) {
             val idx = layer.keys.toList()
             val ds = DisjointSet(idx.size)
-            for (a in idx.indices) for (b in a + 1 until idx.size) if (layer[idx[a]] == layer[idx[b]] && touches(idx[a], idx[b])) ds.union(a, b)
+            for (a in idx.indices) for (b in a + 1 until idx.size) if (layer[idx[a]] == layer[idx[b]] && (touches(idx[a], idx[b]) || sameHung(idx[a], idx[b]))) ds.union(a, b)
             val groups = idx.indices.groupBy { ds.find(it) }.values.map { g -> g.map { idx[it] }.toMutableList() }
             // A layer's parts can each leave on their own, so a big group may be fitted in several steps: lowest first,
             // a few at a time, so one step never places a whole pedestal with its drawers.

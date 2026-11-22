@@ -63,3 +63,10 @@ Departures from the build spec, newest first.
 - **A drawer is an open-topped box (bottom, walls on left, right and front or back, nothing over it) sitting between parts on both sides within 100 mm.** It is built on the bench as one sub-assembly and slid in whole; it floats in the model because slides are hardware, so the check does not call it unconnected. A pair of slides is added to the hardware, at the longest 2 in (50 mm) step that fits its depth, and less than 12 mm a side is flagged for ball-bearing slides.
 - **Back panels (thin front to back, at the back of a piece with depth) are taken to stand against a wall** and get no edge banding.
 - **A door is a thin panel at the front of an opening, 0.5 to 6 mm clear of the parts either side and touching nothing**: it hangs on hinges, which are hardware. Hinges are counted by height (two to 900 mm, three to 1500 mm, four beyond) as concealed cup hinges, the common kind for sheet-goods cabinets. Doors added in the app are inset with 2 mm clear all round.
+
+## v0.35–0.36: doors, handles, shelf pins
+- Hinge count by door height (2 to 900 mm, 3 to 1500, 4 beyond) is a common cabinetmakers' rule, not a calculation; hinge cup size (35 mm) and positions follow the hinges' own template.
+- Every door and drawer adds one handle or knob to the hardware list. Style and size are left to the maker, as the model has none.
+- Overlay doors are found only when a box's front edges are behind all four sides (or a twin door on one side), so a desk's modesty panel on legs is not taken for a door.
+- Doors, drawers and adjustable shelves are taken off first when planning, so the guide fits them last, once the box is finished. Identical ones go in together in one step.
+- Adjustable shelves: 1.5 mm short each end, resting on 4 pins. Hole rows follow the common 32 mm system (37 mm in from the edges, 32 mm apart), given in millimetres in inch mode too, because jigs are made for it. Hole size is left to the pins bought (5 mm most common).

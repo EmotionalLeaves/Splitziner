@@ -298,7 +298,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         runCatching { splitziner.cutplan.EdgeBanding.estimate(a.parts).items }.getOrDefault(emptyList()),
                         splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(),
                         fasten?.byStep?.values?.flatten()?.any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") } ?: true,
-                        fasten?.let { splitziner.joinery.Fastening.pocketHoles(it) } ?: emptyMap())
+                        fasten?.let { splitziner.joinery.Fastening.pocketHoles(it) } ?: emptyMap(),
+                        runCatching { splitziner.drawing.PartDrawings.pinItems(a.parts).toList() }.getOrDefault(emptyList()))
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
                         hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
                         before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta)))

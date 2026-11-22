@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.36.0 - Adjustable shelves on pins
+
+- **Adjustable shelves on pins.** Add shelf now has "Adjustable, on shelf pins": the shelf is 1.5 mm short at each end and rests on 4 pins. New design → Bookcase has "Shelves on pins" too. Shelves like this are also found in models you open.
+- **Pin holes on the drawings.** The sides that carry adjustable shelves get their own drawing with the hole rows: 37 mm in from the front and back edges, 32 mm apart (the common 32 mm system that shelf-pin jigs use), and where the first hole goes. "Before you build" reminds you to drill them while the boards are loose.
+- **Shelf pins in the hardware list and guide.** 4 per shelf, fitted in the last step: "push four shelf pins into the holes at the height you want".
+- **Identical doors or shelves in one step.** A pair of doors, or a stack of adjustable shelves, now go in together in one guide step instead of one step each.
+- Includes v0.35.0 (doors, hinges and handles).
+
 ## v0.35.0 - Doors, hinges and handles
 
 - **Doors.** Add a door to any opening (More… → Add shelf, divider or door, then pick Door). It is set in the opening with a 2 mm gap all round. Doors are found in models you open too: set in an opening, or over the front of a box (overlay doors), alone or as a pair.

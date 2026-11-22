@@ -289,6 +289,16 @@ object DesignCheck {
                 (if (n == 1) "Item $it0 is a door. It hangs on $hinges hinges" else "Item $it0 is $n doors. Each hangs on $hinges hinges") +
                     ", which are hardware and not in the model. Concealed (cup) hinges need a 35 mm hole in the back of the door; follow the hinges' own template.", ds.map { it.id })
         }
+        // Adjustable shelves rest on shelf pins, hardware again.
+        val pinned = runCatching { ShelfPins.find(live) }.getOrDefault(emptyList())
+        run { val idx = live.indices.associateBy { live[it].id }; for (id in pinned) idx[id]?.let { onSlides += it } }
+        for ((it0, ids) in pinned.groupBy { id -> live.first { it.id == id }.item }) {
+            val many = ids.size > 1
+            out += Finding(Severity.NOTE, if (many) "${ids.size} adjustable shelves (item $it0)" else "Adjustable shelf (item $it0)",
+                (if (many) "Item $it0 is ${ids.size} shelves that each rest" else "Item $it0 is a shelf that rests") + " on ${ShelfPins.PINS} shelf pins, which are hardware and not in the model. " +
+                    "Drill two rows of holes in the inside of each upright, ${ShelfPins.SETBACK.toInt()} mm in from the front and back edges and ${ShelfPins.PITCH.toInt()} mm apart (the common 32 mm system, which shelf-pin jigs are made for, in inch shops too), " +
+                    "the size the pins need (5 mm is the most common) and no deeper than the pins. A jig or a pegboard offcut keeps the rows level.", ids)
+        }
         if (n > 1) {
             val alone = (0 until n).filter { touching[it].isEmpty() && it !in onSlides }
             if (alone.isNotEmpty()) out += Finding(Severity.PROBLEM, "${alone.size} part${if (alone.size == 1) " touches" else "s touch"} nothing",

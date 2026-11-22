@@ -271,6 +271,31 @@ class SmokeTest {
         }
     }
 
+    /** A cabinet with a pair of doors over the front, and a bookcase with shelves on pins: hardware, last steps. */
+    @Test fun doorsAndShelfPins() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            for ((key, values) in listOf("cabinet" to mapOf("doors" to 2.0, "overlay" to 1.0), "shelves" to mapOf("pins" to 1.0))) {
+                val t = splitziner.edit.Templates.byKey(key)
+                vm.newDesign(key, splitziner.edit.Templates.defaults(t, false) + values)
+                waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null && vm.state.value.open!!.meta.name.isNotEmpty()) || vm.state.value.error != null }
+                assertNull(vm.state.value.error)
+                val a = vm.state.value.open!!.analysis
+                val doors = splitziner.check.Doors.find(a.parts).size; val pins = splitziner.check.ShelfPins.find(a.parts).size
+                val hw = vm.hardwareFor(vm.state.value.open!!)
+                println("SMOKE $key doors=$doors pinned shelves=$pins hardware=$hw")
+                rule.waitUntil(30_000) { rule.onAllNodesWithText("Guide").fetchSemanticsNodes().isNotEmpty() }
+                rule.onAllNodesWithText("Guide").onFirst().performClick(); rule.waitForIdle()
+                waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+                shot("d0${if (key == "cabinet") 1 else 2}_${key}_guide")
+                if (key == "cabinet") assertEquals(2, doors) else assertEquals(4, pins)
+                vm.closeProject(); rule.waitForIdle()
+            }
+            assertNull(Diagnostics.lastCrash())
+        }
+    }
+
     /** An OBJ file (Y up, two objects) opens as two parts standing the right way up. */
     @Test fun objFileOpens() {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
