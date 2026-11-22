@@ -265,9 +265,13 @@ object DesignCheck {
         // --- The whole thing. ---
         if (live.isNotEmpty()) {
             val floor = lo.minOf { it.z }
-            // Weight is taken as proportional to volume: every part the same material. Good enough to spot a top-heavy design.
+            // Weight follows volume times the typical density of each item's material when every item has a known one;
+            // otherwise every part is taken as the same material. Good enough to spot a top-heavy design.
+            val rho = rows.associate { it.item to splitziner.material.Materials.density(it.material) }
+            val byMaterial = live.all { p -> p.item != null && rho[p.item] != null }
+            val basis = if (byMaterial) "using each item's material" else "taking every part as the same material"
             var m = 0.0; var cx = 0.0; var cy = 0.0
-            for (p in live) { val v = if (p.watertight) abs(p.mesh.volume) else p.t * p.w * p.l * 0.5; val c = p.mesh.bounds.center; m += v; cx += v * c.x; cy += v * c.y }
+            for (p in live) { val v = (if (p.watertight) abs(p.mesh.volume) else p.t * p.w * p.l * 0.5) * (if (byMaterial) rho.getValue(p.item)!! else 1.0); val c = p.mesh.bounds.center; m += v; cx += v * c.x; cy += v * c.y }
             val feet = ArrayList<Vec2>()
             for (p in live) if (p.mesh.bounds.min.z <= floor + 2.0) for (v in 0 until p.mesh.vertexCount) if (p.mesh.vertices[3 * v + 2] <= floor + 2.0) feet += Vec2(p.mesh.vertices[3 * v], p.mesh.vertices[3 * v + 1])
             val hull = OrientedBounds.convexHull(feet)
@@ -281,8 +285,8 @@ object DesignCheck {
                     margin = minOf(margin, e.x * (c.y - p.y) - e.y * (c.x - p.x))
                 }
                 val size = Math.hypot(hi.maxOf { it.x } - lo.minOf { it.x }, hi.maxOf { it.y } - lo.minOf { it.y })
-                if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover (taking every part as the same material). It needs a wider base, a counterweight, or fixing to a wall.")
-                else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint (taking every part as the same material). A push or a load on the overhang could tip it.")
+                if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover ($basis). It needs a wider base, a counterweight, or fixing to a wall.")
+                else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }
         val sagging = HashSet<Int?>()
