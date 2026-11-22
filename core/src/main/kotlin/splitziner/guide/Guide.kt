@@ -241,8 +241,10 @@ object GuideSteps {
                     if (whole != null) gapTold += item else { levelTold += levelKey; levelItems += item }
                     val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
                     // Named from the parts going in now (the shelves), not every part of the item (its bottom and top too).
-                    val nm = cur.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
-                    val what = if (nm != null) "the ${if (nm.endsWith("helf")) nm.dropLast(1) + "ves" else if (nm.endsWith("s")) nm else nm + "s"} (item $item)" else "the item $item parts"
+                    val nms = cur.filter { it.item == item && it.name != it.id }.map { it.name.lowercase() }.distinct()
+                    val nm = nms.singleOrNull()
+                    fun pl(w: String) = if (cur.count { it.item == item && it.name.lowercase() == w } < 2) w else if (w.endsWith("helf")) w.dropLast(1) + "ves" else if (w.endsWith("s")) w else w + "s"
+                    val what = if (nm == null && nms.size in 2..3) "the " + nms.dropLast(1).joinToString(", ") { pl(it) } + " and " + pl(nms.last()) + " (item $item)" else if (nm != null) "the ${if (nm.endsWith("helf")) nm.dropLast(1) + "ves" else if (nm.endsWith("s")) nm else nm + "s"} (item $item)" else "the item $item parts"
                     lines += "Space $what $g apart, evenly; a spacer block cut to $g keeps every gap the same."
                 }
             }
@@ -339,15 +341,13 @@ object GuideSteps {
                     // Parts of one name are counted together, whatever their item numbers: "3 drawer fronts".
                     val byName = LinkedHashMap<String, Int>()
                     for ((item, n) in count) {
-                        val nm = loose.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
-                        val key = nm ?: "\u0000" + (if (item != null) "item $item" else "part")
+                        val ps = loose.filter { it.item == item }
+                        // Every part named: counted by its own name ("the bottom and 3 shelves", one item under two names).
+                        if (ps.all { it.name != it.id }) { for (p in ps) { val k = p.name.lowercase(); byName[k] = (byName[k] ?: 0) + 1 }; continue }
+                        val key = "\u0000" + (if (item != null) "item $item" else "part")
                         byName[key] = (byName[key] ?: 0) + n
                     }
                     for ((key, n) in byName) {
-                        // One item under several names (a box's front and back): "the front and back".
-                        val item = key.removePrefix("\u0000item ").toIntOrNull()
-                        val names = if (key.startsWith("\u0000") && item != null) loose.filter { it.item == item && it.name != it.id }.map { it.name.lowercase() }.distinct() else emptyList()
-                        if (names.size in 2..3 && names.size == n) { bits += "the " + names.dropLast(1).joinToString(", ") + " and " + names.last(); continue }
                         if (key.startsWith("\u0000")) { val w = key.drop(1); bits += if (n == 1) w else "$n× $w" }
                         else bits += if (n == 1) "the $key" else "${if (base) "the " else ""}$n ${plural(key, n)}"
                     }
