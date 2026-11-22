@@ -19,6 +19,13 @@ class FixPlan(val edits: List<Edit>, val done: List<String>, val left: List<Stri
  * maker and reported.
  */
 object AutoFix {
+    /**
+     * A thin frame cut from sheet is rebuilt from strips when its material covers less than this share of the
+     * sheet piece it would be cut from. Below a third, two thirds of a bought sheet goes in the bin to make
+     * what three or four strips make; above it (a panel with an opening) one piece is the sensible way.
+     */
+    const val SCRAP_SPLIT_SHARE = 0.35
+
     /** A loose group further than this (mm) from the rest is not moved: it may be meant to be separate. */
     private const val MAX_SEAT = 30.0
 
@@ -80,7 +87,8 @@ object AutoFix {
             for ((_, ps) in parts.groupBy { it.item }) {
                 val p = ps[0]
                 val b = runCatching { Boards.decompose(p.mesh).first }.getOrNull() ?: continue
-                if (b.flat && p.t < 18.5) continue
+                // A thin frame is left as one sheet piece unless most of that sheet would be scrap.
+                if (b.flat && p.t < 18.5 && b.materialShare >= SCRAP_SPLIT_SHARE) continue
                 push(Edit.SplitBoards(ps.map { it.id }), "Made ${label(p)} from ${b.pieces.size} boards" + (if (ps.size > 1) " (each of the ${ps.size})" else "") + "; ${b.note.substringAfter("; ", "").ifBlank { "it was drawn as one solid" }}.")
             }
         }
@@ -99,8 +107,17 @@ object AutoFix {
                 parent[find(c.a)] = find(c.b)
             }
             // Looked up before any change is made: each change renumbers the list.
-            val groups = parts.indices.groupBy { find(it) }.values.filter { it.size > 1 }.map { g -> g.map { parts[it] } }
-            for (ps in groups) {
+            val groups = parts.indices.groupBy { find(it) }.values.filter { it.size > 1 }.map { g -> g.map { parts[it] } to g.mapNotNull { prisms[it] } }
+            for ((ps, pr) in groups) {
+                // Joining strips into a frame cut from one sheet piece would undo the split above and waste the sheet.
+                // Share of the joined piece's box that is material; overlaps are small, so volumes simply add.
+                val box = splitziner.mesh.OrientedBounds.of(splitziner.mesh.MeshOps.concatenate(ps.map { it.mesh }))
+                val boxVol = box.extents.x * box.extents.y * box.extents.z
+                fun share(m: splitziner.mesh.Mesh): Double { val e = splitziner.mesh.OrientedBounds.of(m).extents; val v = e.x * e.y * e.z; return if (v > 0) abs(m.volume) / v else 1.0 }
+                val joined = if (boxVol > 0) ps.sumOf { abs(it.mesh.volume) } / boxVol else 1.0
+                // Only when joining makes much more scrap than the pieces have on their own: strips becoming a frame,
+                // not a shaped piece taking in a block that overlaps it.
+                if (pr.size == ps.size && joined < SCRAP_SPLIT_SHARE && joined < 0.6 * ps.minOf { share(it.mesh) }) continue
                 push(Edit.Merge(ps.map { it.id }), "Joined ${ps.joinToString(" and ") { label(it) }} into one piece ${d(ps[0].t)} $u thick; they overlap in one plane and cut as one shape.")
             }
         }
