@@ -195,7 +195,8 @@ object Fastening {
                 }
                 JoinMethod.POCKET_SCREWS -> {
                     // A pocket screw runs at an angle through the end of the joining part; its length follows that part's thickness.
-                    val t = tThrough
+                    // The pocket goes in the part whose end meets the other (the "into" part here), so its thickness sets the screw.
+                    val t = (0..2).minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
                     size = if (fmt.isInch) fraction(when { t < 16 -> 1.0; t < 22 -> 1.25; t < 30 -> 1.5; else -> 2.5 }) else "${when { t < 16 -> 25; t < 22 -> 32; t < 30 -> 38; else -> 63 }} mm"
                     kind = "pocket screws"
                 }
@@ -252,6 +253,14 @@ object Fastening {
     /** Counts as words up to twelve ("two 2-1/2 in screws"), so a count never runs into a size. */
     private fun count(n: Int): String = listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").getOrElse(n) { "$n" }
 
+    /** Per item, how many pocket holes to drill before assembly (in the part whose end meets the other). */
+    fun pocketHoles(plan: FastenPlan): Map<Int, Int> {
+        if (plan.method != JoinMethod.POCKET_SCREWS) return emptyMap()
+        val out = sortedMapOf<Int, Int>()
+        for (j in plan.byStep.values.flatten()) if (!j.glueOnly && j.kind == "pocket screws") { val it = j.into.item ?: continue; out[it] = (out[it] ?: 0) + j.count }
+        return out
+    }
+
     /** The lines a step gets instead of "then fasten". */
     fun lines(plan: FastenPlan, step: Int, itemName: (Part) -> String, maxLines: Int = 4): List<String> {
         val js = plan.byStep[step].orEmpty()
@@ -275,7 +284,8 @@ object Fastening {
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
             else when (plan.method) {
-                JoinMethod.POCKET_SCREWS -> "Drill ${count(n)} pocket holes in ${key.first} and fix it to ${key.second} with ${j.size} pocket screws$times."
+                // Pocket holes go in the part whose end or edge meets the other's face, on a side that will not show.
+                JoinMethod.POCKET_SCREWS -> "Fix ${key.second} to ${key.first} with ${count(n)} ${j.size} pocket screws through the pocket holes in its end$times."
                 JoinMethod.DOWELS -> "Glue and dowel ${key.first} to ${key.second}: ${count(n)} ${j.size}$times. Clamp until dry."
                 JoinMethod.GLUE_AND_BRADS -> "Glue ${key.first} to ${key.second} and pin with ${count(n)} ${j.size} brads$times."
                 JoinMethod.SCREWS -> if (j.kind == "brads") "Glue ${key.first} to ${key.second} and fix with ${count(n)} ${j.size} brads or small screws$times."
