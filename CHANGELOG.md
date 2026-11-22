@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.97.0 - Angles on the drawing
+
+- Assembly drawings now say the angle of anything set off upright, like "items 1 and 6 are set 15° off upright, leaning back", or a stool's splayed legs, so you don't have to guess it from the picture.
+- A bench's leaned-back boards are named back slats and back supports.
+
 ## v0.96.0 - Beds that come apart
 
 - Beds now come apart: side and end rails hang on bed rail fasteners (with how to fit them) instead of being glued and screwed, so a big bed can go through a door. The shopping list counts the pairs.

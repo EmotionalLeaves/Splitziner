@@ -262,3 +262,7 @@ Departures from the build spec, newest first.
 - Parts set at an angle (leaned-back slats) are checked for face contact in their own frame, so they get fixings instead of "then fasten".
 - Slats are screwed down into what they rest on, never bracketed from below.
 - Counterbores stop at 2 in deep; deeper than that the joint falls back to brackets.
+
+## v0.97
+- The assembly drawing gets a note giving each item set off upright (more than 1°, up to 45°) and which way: leaning back or forward, left or right, or splayed when it leans both ways. The views show the angle but do not dimension it. Read from the part's own box axes, rounded to 1/2°.
+- Boards leaned back more than 3° above the lower third of the piece are a seat's back: long level ones are back slats, upright ones back supports.

@@ -183,6 +183,17 @@ object Roles {
                 else -> continue
             }
         }
+        // A seat's back: boards leaned back off upright above the seat, the long ones slats, the upright ones supports.
+        for (p in live) {
+            if (out[p.id] == "Leg" || out[p.id] == "Centre leg") continue
+            val axes = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh).axes }.getOrNull() ?: continue
+            val up = axes.maxByOrNull { kotlin.math.abs(it.z) }!!.let { if (it.z < 0) it * -1.0 else it }
+            val deg = Math.toDegrees(kotlin.math.acos(up.z.coerceIn(-1.0, 1.0)))
+            if (deg < 3.0 || deg > 40.0 || kotlin.math.abs(up.x) > 0.05 || p.mesh.bounds.min.z < all.min.z + 0.3 * h) continue
+            val e = splitziner.mesh.OrientedBounds.of(p.mesh).extents.let { listOf(it.x, it.y, it.z) }
+            val longAx = axes[e.indices.maxByOrNull { e[it] }!!]
+            out[p.id] = if (kotlin.math.abs(longAx.z) > 0.7) "Back support" else "Back slat"
+        }
         // A trestle: a post stands on a foot lying on the floor and carries a top rail under the top. Rails that run
         // from post to post are its stretchers.
         val posts = live.filter { out[it.id] == "Post" }

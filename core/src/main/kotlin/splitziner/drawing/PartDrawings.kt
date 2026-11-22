@@ -140,6 +140,33 @@ object PartDrawings {
         return runs
     }
 
+    /**
+     * A general note for the assembly drawing giving the angle of every item set off upright (a bench's leaned-back
+     * slats and supports, a stool's splayed legs), which the views show but do not dimension. Null when none is.
+     */
+    fun leanNote(parts: List<Part>): String? {
+        val byAngle = java.util.TreeMap<String, java.util.TreeSet<Int>>()
+        for (p in parts) {
+            if (p.excluded || p.item == null) continue
+            val axes = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh).axes }.getOrNull() ?: continue
+            val up = axes.maxByOrNull { kotlin.math.abs(it.z) }!!.let { if (it.z < 0) it * -1.0 else it }
+            val deg = Math.toDegrees(kotlin.math.acos(up.z.coerceIn(-1.0, 1.0)))
+            if (deg < 1.0 || deg > 45.0) continue
+            val way = when {
+                kotlin.math.abs(up.x) > 0.05 && kotlin.math.abs(up.y) > 0.05 -> "SPLAYED"
+                up.y > 0.05 -> "LEANING BACK"; up.y < -0.05 -> "LEANING FORWARD"
+                up.x > 0.05 -> "LEANING RIGHT"; else -> "LEANING LEFT"
+            }
+            val d = Math.round(deg * 2) / 2.0
+            byAngle.getOrPut("${if (d == Math.floor(d)) "${d.toInt()}" else "$d"}° OFF UPRIGHT, $way") { java.util.TreeSet() } += p.item
+        }
+        if (byAngle.isEmpty()) return null
+        return byAngle.entries.joinToString(" ") { (what, items) ->
+            val rs = runs(items)
+            (if (items.size == 1) "ITEM ${items.first()} IS SET " else "ITEMS ${if (rs.size == 2) rs.joinToString(" AND ") else rs.joinToString(", ")} ARE SET ") + "$what."
+        } + " SEE THE SIDE VIEW."
+    }
+
     /** A general note for the assembly drawing naming the items that have no detail drawing, in ranges ("3-5, 9"). */
     fun plainNote(items: Set<Int>): String? {
         if (items.isEmpty()) return null
