@@ -51,6 +51,12 @@ object DrawingBuilder {
     /** The list of material may take at most this share of the sheet's height before a larger sheet is tried. */
     private const val MAX_LIST_SHARE = 0.30
 
+    /** At most this many further exploded sheets are drawn to give every item a balloon. */
+    private const val MAX_EXTRA_EXPLODED = 6
+
+    /** Parts per further exploded view: enough to show how they go together, few enough to read. */
+    private const val PARTS_PER_EXTRA = 14
+
     /** A view smaller than this on paper is too small to read. */
     private const val MIN_VIEW_MM = 50.0
 
@@ -229,7 +235,12 @@ object DrawingBuilder {
 
         val dl = DisplayList(sheet.width, sheet.height, "sheet1")
         val notes = notesFor(info, sheet).toMutableList()
-        if (!chosen.listOnSheet && rows.isNotEmpty()) notes += "SEE SEPARATE PARTS LIST PL-${info.drawingNo.ifBlank { "1" }}."
+        // A list too long for the views' sheet goes on sheets of its own, straight after it.
+        val listPages: List<List<CutListRow>> = if (chosen.listOnSheet || rows.isEmpty()) emptyList() else {
+            val per = maxOf(1, ListOfMaterial.rowsIn(sheet.fieldY1 - 6 - (sheet.fieldY0 + Furniture.TITLE_HEIGHT + 4)))
+            rows.chunked(per)
+        }
+        if (listPages.isNotEmpty()) notes += "LIST OF MATERIAL ON SHEET${if (listPages.size > 1) "S 2 TO ${listPages.size + 1}" else " 2"}."
         val sheetCount = if (planned != null && !single) 2 else 1
         val title = Furniture.draw(dl, sheet, L, info, scaleText(s), fmt.units, 1, sheetCount)
         Furniture.notes(dl, sheet, L, info, notes)
@@ -386,21 +397,60 @@ object DrawingBuilder {
         if (overlaps > 0) qa += "$overlaps annotation overlap(s) on sheet 1; a larger sheet may read better"
         qa += dl.qa
         val sheets = arrayListOf(dl)
+        for ((pi, page) in listPages.withIndex()) {
+            val d = DisplayList(sheet.width, sheet.height, "list${pi + 1}")
+            val t = Furniture.draw(d, sheet, L, info, scaleText(s), fmt.units, sheets.size + 1, 0)
+            val top = ListOfMaterial.draw(d, page, sheet.fieldX1, t.top + 4, L, single)
+            if (listPages.size > 1) d.text(sheet.fieldX1 - 2, top + 3, "CONTINUED: ${pi + 1} OF ${listPages.size}", L.dims, splitziner.sheet.HAlign.RIGHT)
+            sheets += d
+        }
         if (sheetCount == 2) {
-            val d2 = DisplayList(sheet.width, sheet.height, "sheet2")
-            val t2 = Furniture.draw(d2, sheet, L, info, scaleText(s), fmt.units, 2, 2)
+            val d2 = DisplayList(sheet.width, sheet.height, "sheet${sheets.size + 1}")
+            val t2 = Furniture.draw(d2, sheet, L, info, scaleText(s), fmt.units, sheets.size + 1, 0)
             // Big assemblies show only their outer layer pulled away; the build guide shows every step.
             val scene = splitziner.explode.ExplodedView.peel(planned!!.filter { !it.excluded })
             val geo = splitziner.explode.ExplodedView.prepare(scene)
-            splitziner.explode.ExplodedView.drawInto(d2, geo, sheet.fieldX0 + 4, t2.top + 12, sheet.fieldX1 - 4, sheet.fieldY1 - 4, splitziner.explode.ExplodeOptions(textHeight = L.dims))
+            val shown = HashSet(splitziner.explode.ExplodedView.drawInto(d2, geo, sheet.fieldX0 + 4, t2.top + 12, sheet.fieldX1 - 4, sheet.fieldY1 - 4, splitziner.explode.ExplodeOptions(textHeight = L.dims)))
             d2.text(sheet.fieldX0 + 8, t2.y0 + 14, "EXPLODED VIEW", L.descTitle, tag = "section")
             d2.text(sheet.fieldX0 + 8, t2.y0 + 14 - L.dims * 1.6, "SCALE: NONE", L.dims)
-            // Every listed item must be pointed to at least once on the drawing.
-            val shown = d2.boxes.count { it.tag == "balloon" }
-            if (shown < rows.size) qa += "${rows.size - shown} item(s) are not identified by a balloon on sheet 2"
             qa += d2.qa
             sheets += d2
+            // Every listed item must be pointed to at least once. Items the overall view cannot show (inside the
+            // assembly, or crowded out) get further exploded views of the build steps they belong to.
+            val live = planned.filter { !it.excluded }
+            var extra = 0
+            var after = Int.MIN_VALUE           // steps already given a sheet
+            while (extra < MAX_EXTRA_EXPLODED) {
+                val missing = rows.map { it.item }.filter { it !in shown }.toSet()
+                if (missing.isEmpty()) break
+                val firstStep = live.filter { it.item in missing }.mapNotNull { it.step }.filter { it > after }.minOrNull() ?: break
+                // Steps from the first one with a missing item, until the picture holds enough parts to be readable.
+                val steps = live.mapNotNull { it.step }.distinct().sorted().filter { it >= firstStep }
+                val chosenSteps = ArrayList<Int>(); var count = 0
+                for (st in steps) { val k = live.count { it.step == st }; if (chosenSteps.isNotEmpty() && count + k > PARTS_PER_EXTRA) break; chosenSteps += st; count += k }
+                // As the build guide shows a step: parts built before it in place and grey for context, this step's parts pulled out.
+                val earlier = live.filter { (it.step ?: 0) < chosenSteps.first() }
+                val subset = live.filter { it.step in chosenSteps }
+                val scene = earlier.map { it.copy(explode = null) } + subset
+                val d = DisplayList(sheet.width, sheet.height, "sheet${sheets.size + 1}")
+                val t = Furniture.draw(d, sheet, L, info, scaleText(s), fmt.units, sheets.size + 1, 0)
+                val g = splitziner.explode.ExplodedView.prepare(scene, splitziner.explode.ExplodedView.pickView(live))
+                val got = splitziner.explode.ExplodedView.drawInto(d, g, sheet.fieldX0 + 4, t.top + 12, sheet.fieldX1 - 4, sheet.fieldY1 - 4,
+                    splitziner.explode.ExplodeOptions(textHeight = L.dims, highlight = subset.map { it.id }.toSet(), ghost = earlier.map { it.id }.toSet()))
+                val label = if (chosenSteps.size == 1) "STEP ${chosenSteps[0]}" else "STEPS ${chosenSteps.first()} TO ${chosenSteps.last()}"
+                d.text(sheet.fieldX0 + 8, t.y0 + 14, "EXPLODED VIEW, $label", L.descTitle, tag = "section")
+                d.text(sheet.fieldX0 + 8, t.y0 + 14 - L.dims * 1.6, "PARTS ADDED IN THE BUILD GUIDE'S $label; EARLIER PARTS SHOWN GREY. SCALE: NONE", L.dims)
+                after = chosenSteps.last()
+                // A sheet that labels nothing new is not kept; the next steps get their turn.
+                if (got.none { it in missing }) continue
+                shown += got; sheets += d; extra++
+            }
+            val unshown = rows.count { it.item !in shown }
+            if (unshown > 0) qa += "$unshown item(s) are not identified by a balloon on any sheet"
         }
+        // Sheet 1 states how many sheets the drawing has; that is only known now.
+        val total = sheets.size
+        sheets[0].prims.replaceAll { p -> if (p is splitziner.sheet.Text && p.text.startsWith("SHEET 1 OF")) splitziner.sheet.Text(p.x, p.y, "SHEET 1 OF $total", p.height, p.rotationDeg, p.hAlign, p.vAlign, p.bold, p.argb) else p }
         return DrawingResult(sheets, sheet, s, scaleText(s), qa)
     }
 }

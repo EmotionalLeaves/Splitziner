@@ -200,7 +200,8 @@ object ExplodedView {
     }
 
     /** Draws [geo] scaled to fit the rectangle, leaving room around it for balloons. */
-    fun drawInto(dl: DisplayList, geo: ExplodedGeometry, rx0: Double, ry0: Double, rx1: Double, ry1: Double, opt: ExplodeOptions) {
+    /** Returns the item numbers that got a balloon. */
+    fun drawInto(dl: DisplayList, geo: ExplodedGeometry, rx0: Double, ry0: Double, rx1: Double, ry1: Double, opt: ExplodeOptions): Set<Int> {
         val pad = if (opt.balloons) 2.7 * opt.textHeight + 7 else 4.0
         val ew = maxOf(geo.bounds[2] - geo.bounds[0], 1e-9); val eh = maxOf(geo.bounds[3] - geo.bounds[1], 1e-9)
         val s = minOf((rx1 - rx0 - 2 * pad) / ew, (ry1 - ry0 - 2 * pad) / eh)
@@ -265,7 +266,7 @@ object ExplodedView {
             }
         }
 
-        if (opt.balloons) balloons(dl, geo, opt, ::px, ::py)
+        return if (opt.balloons) balloons(dl, geo, opt, ::px, ::py) else emptySet()
     }
 
     private fun arrow(dl: DisplayList, geo: ExplodedGeometry, box: Box, d2: Vec2, s: Double, ox: Double, oy: Double) {
@@ -295,7 +296,7 @@ object ExplodedView {
     }
 
     /** One balloon per item: a dot on a visible face of the part, a leader, and the item number in a circle outside the picture. */
-    private fun balloons(dl: DisplayList, geo: ExplodedGeometry, opt: ExplodeOptions, px: (Double) -> Double, py: (Double) -> Double) {
+    private fun balloons(dl: DisplayList, geo: ExplodedGeometry, opt: ExplodeOptions, px: (Double) -> Double, py: (Double) -> Double): Set<Int> {
         val th = opt.textHeight; val r = 1.35 * th
         val showQty = !opt.qtyTags
         val lift = geo.view.n * (1e-3 * geo.scene.scale)
@@ -329,9 +330,9 @@ object ExplodedView {
             seen += item
             targets += Target(item, px(hit.x), py(hit.y), if (showQty) p.qty else 1)
         }
-        if (targets.isEmpty()) return
+        if (targets.isEmpty()) return emptySet()
         val views = dl.boxes.filter { it.tag == "view" }
-        if (views.isEmpty()) return
+        if (views.isEmpty()) return emptySet()
         val gx0 = views.minOf { it.x0 }; val gy0 = views.minOf { it.y0 }; val gx1 = views.maxOf { it.x1 }; val gy1 = views.maxOf { it.y1 }
         val cx = (gx0 + gx1) / 2; val cy = (gy0 + gy1) / 2
         val rx = (gx1 - gx0) / 2 + r + 6; val ry = (gy1 - gy0) / 2 + r + 6
@@ -358,6 +359,7 @@ object ExplodedView {
             if (t.qty > 1) dl.text(c.x + r + 1, c.y - r, "${t.qty}X", th * 0.85)
             dl.register(c.x - r - 0.5, c.y - r - 0.5, c.x + r + 0.5 + (if (t.qty > 1) 8.0 else 0.0), c.y + r + 0.5, "balloon")
         }
+        return targets.map { it.item }.toSet()
     }
 
     /**

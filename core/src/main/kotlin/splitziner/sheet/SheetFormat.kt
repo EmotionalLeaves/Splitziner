@@ -279,6 +279,9 @@ object ListOfMaterial {
 
     fun height(rowCount: Int): Double = if (rowCount == 0) 0.0 else (rowCount + 1) * ROW + CAPTION_ROW
 
+    /** How many rows fit in [space] mm of height, heading and caption included. */
+    fun rowsIn(space: Double): Int = maxOf(0, ((space - CAPTION_ROW) / ROW).toInt() - 1)
+
     private fun cells(rows: List<CutListRow>, singlePart: Boolean): List<List<String>> = rows.map { r ->
         listOf(if (singlePart) "" else "${r.item}", if (singlePart) "" else "${r.qty}", r.partNo, r.description, r.material, r.materialSpec)
     }

@@ -299,7 +299,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, open.meta.drawingInfo(BuildConfig.VERSION_NAME), open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")
                     val sheets = ArrayList(r.sheets); val qa = ArrayList(r.qa)
-                    val labels = ArrayList(r.sheets.indices.map { if (it == 0) "Sheet 1: views" else "Sheet ${it + 1}: exploded view" })
+                    val labels = ArrayList(r.sheets.mapIndexed { i, d -> "Sheet ${i + 1}: " + when { i == 0 -> "views"; d.name.startsWith("list") -> "list of material"; else -> "exploded view" } })
                     // One detail drawing per item, when there is more than one part to detail.
                     if (a.parts.count { !it.excluded } > 1) runCatching {
                         val t2 = System.nanoTime()
