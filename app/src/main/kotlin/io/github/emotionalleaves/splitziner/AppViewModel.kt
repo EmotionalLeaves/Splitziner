@@ -375,6 +375,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         ensureDrawing(force = true)
     }
 
+    /** Writes the open project to a single file in the app's cache, for sharing. */
+    fun exportProject(): java.io.File? {
+        val open = _state.value.open ?: return null
+        return runCatching {
+            val dir = java.io.File(getApplication<Application>().cacheDir, "exports").apply { mkdirs() }
+            val f = java.io.File(dir, open.meta.name.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "project" } + ".splitziner.zip")
+            f.outputStream().use { store.export(open.meta, it) }
+            f
+        }.onFailure { Diagnostics.logError("export project", it) }.getOrNull()
+    }
+
     fun dismissError() = _state.update { it.copy(error = null) }
     fun dismissCrash() { Diagnostics.clearCrash(); _state.update { it.copy(crashReport = null) } }
     fun closeProject() {
@@ -396,6 +407,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                     // Woodworkers in inch countries read 3-1/2, not 3.50: new projects there start in fractions.
+                    // A project file from Share project (a zip with the model and its settings) comes back whole.
+                    val zipped = resolver.openInputStream(uri)?.use { s -> val b = ByteArray(2); s.read(b) == 2 && b[0] == 'P'.code.toByte() && b[1] == 'K'.code.toByte() } == true
+                    if (zipped) {
+                        val m = resolver.openInputStream(uri)?.use { store.importProject(it) } ?: error("The file could not be opened.")
+                        Diagnostics.log("imported project ${m.name}")
+                        return@withContext m
+                    }
                     val meta = (resolver.openInputStream(uri)?.use { store.create(name, it) } ?: error("The file could not be opened."))
                         .let { m -> if (inchLocale) m.copy(inchStyle = "fraction").also { store.save(it) } else m }
                         // OBJ files are Y-up by convention (Blender and most others write them so).

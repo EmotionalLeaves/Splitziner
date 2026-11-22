@@ -205,7 +205,7 @@ object CutPlanner {
 
 /** Draws the plan on pages: what to buy, then each sheet to scale, then each length as a bar. */
 object CutPlanLayout {
-    const val NOTICE = "This is a suggested layout. Check it against the stock you really have, and decide grain direction yourself, before cutting."
+    const val NOTICE = "This is a suggested layout. Check it against the stock you really have before cutting. Where grain matters, tick it on the item in the cut list and the plan will keep that part upright on the sheet."
 
     private fun wrap(text: String, h: Double, width: Double): List<String> {
         val lines = ArrayList<String>(); var cur = ""

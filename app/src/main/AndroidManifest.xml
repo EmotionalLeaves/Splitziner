@@ -35,6 +35,7 @@
                 <data android:mimeType="model/x.stl-binary" />
                 <data android:mimeType="model/x.stl-ascii" />
                 <data android:mimeType="model/obj" />
+                <data android:mimeType="application/zip" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>

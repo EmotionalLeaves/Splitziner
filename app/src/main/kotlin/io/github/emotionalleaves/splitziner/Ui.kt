@@ -142,7 +142,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import STL or OBJ") }
+            Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("Import") }
             OutlinedButton(onClick = { showNew = true }, enabled = state.busyLabel == null, modifier = Modifier.weight(1f)) { Text("New design") }
         }
         if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
@@ -251,6 +251,11 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 }
                 if (details) {
                     Text("Shown in ${unitName(a.format.units)}.", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = {
+                        val f = vm.exportProject()
+                        if (f == null) Toast.makeText(context, "Could not save the project", Toast.LENGTH_LONG).show()
+                        else shareFile(context, f, "application/zip", "Share project")
+                    }) { Text("Share project (to back up or open on another phone)") }
                     if (r.duplicatesRemoved > 0) Text("The file stored ${r.bodies} bodies; ${r.duplicatesRemoved} were exact duplicates and were removed.", style = MaterialTheme.typography.bodySmall)
                     for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     Row {
@@ -881,6 +886,7 @@ private val HELP = listOf(
     "Prices" to "On the Cut list tab, Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
+    "Backing up" to "Tap the summary at the top of a project, then Share project. It makes one file with the model and everything you set and changed. Open that file with Import STL or OBJ (or Open with) on any phone with the app to get the project back.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
     "Holes" to "Each part's own drawing shows where its round holes are and how big: a size note such as 3X 8 DIA THRU, and each centre measured from the datum corner. The app finds straight round holes with a flat rim. It does not know about threads, countersinks or what a hole is for, and holes drilled at an angle are drawn but not dimensioned.",

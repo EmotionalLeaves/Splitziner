@@ -81,6 +81,36 @@ class ProjectStore(context: Context) {
         return meta
     }
 
+    /** The whole project as one file: its model and every setting and change, to back up or move to another phone. */
+    fun export(meta: ProjectMeta, out: java.io.OutputStream) {
+        java.util.zip.ZipOutputStream(out).use { z ->
+            z.putNextEntry(java.util.zip.ZipEntry("project.json")); File(dir(meta.id), "project.json").inputStream().use { it.copyTo(z) }; z.closeEntry()
+            z.putNextEntry(java.util.zip.ZipEntry("source.stl")); source(meta.id).inputStream().use { it.copyTo(z) }; z.closeEntry()
+        }
+    }
+
+    /** Reads a file made by [export] as a new project (a new id, so it never replaces one already here). */
+    fun importProject(input: java.io.InputStream): ProjectMeta {
+        val id = UUID.randomUUID().toString()
+        val d = dir(id).apply { mkdirs() }
+        var json: String? = null; var model = false
+        try {
+            java.util.zip.ZipInputStream(input).use { z ->
+                while (true) {
+                    val e = z.nextEntry ?: break
+                    when (e.name) {
+                        "project.json" -> json = z.readBytes().toString(Charsets.UTF_8)
+                        "source.stl" -> { source(id).outputStream().use { z.copyTo(it, 1 shl 16) }; model = true }
+                    }
+                }
+            }
+            if (json == null || !model) error("That file is not a Splitziner project.")
+            val o = JSONObject(json!!); o.put("id", id); o.put("createdAt", System.currentTimeMillis())
+            File(d, "project.json").writeText(o.toString())
+            return read(File(d, "project.json"))
+        } catch (t: Throwable) { d.deleteRecursively(); throw t }
+    }
+
     fun save(meta: ProjectMeta) {
         val o = JSONObject()
         o.put("schema", 1).put("id", meta.id).put("name", meta.name).put("fileName", meta.fileName).put("createdAt", meta.createdAt)

@@ -247,6 +247,17 @@ class SmokeTest {
             waitFor(vm, 120_000) { vm.state.value.busyLabel == null && vm.state.value.open!!.meta.edits.isNotEmpty() }
             assertEquals(w0 + 152.4, vm.state.value.open!!.analysis.bounds.extents.x, 0.01)
             println("SMOKE overall size ok: ${vm.state.value.open!!.analysis.overallSize}")
+            // Share project, then open the file again: the same model with the same changes.
+            val before = vm.state.value.open!!
+            val f = vm.exportProject()!!
+            vm.closeProject(); rule.waitForIdle()
+            vm.importFrom(Uri.fromFile(f))
+            waitFor(vm, 120_000) { vm.state.value.open != null && vm.state.value.busyLabel == null && vm.state.value.open!!.meta.id != before.meta.id }
+            val after = vm.state.value.open!!
+            assertEquals(before.meta.edits.size, after.meta.edits.size)
+            assertEquals(before.analysis.parts.size, after.analysis.parts.size)
+            assertEquals(before.analysis.bounds.extents.x, after.analysis.bounds.extents.x, 0.01)
+            println("SMOKE project round trip ok: ${after.meta.edits.size} changes kept")
             // Tap the middle of the 3D view to select a part, then open its Change dialog.
             runCatching {
                 Thread.sleep(1500)
