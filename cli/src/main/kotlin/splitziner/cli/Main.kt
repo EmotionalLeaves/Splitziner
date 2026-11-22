@@ -85,7 +85,9 @@ fun main(args: Array<String>) {
             if (System.getenv("STEPS") != null) for (st in plan!!.steps) println("step      ${st.step}${if (st.subassembly) " bench x${st.makeCount}" else ""}: ${st.partIds.size} parts, items ${st.items}")
             var plain = emptySet<Int>()
             time("drawing") {
+                val tv = System.nanoTime()
                 val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
+                println("views     ${(System.nanoTime() - tv) / 1_000_000} ms")
                 plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) - splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed)
                 val noted = splitziner.drawing.PartDrawings.plainNote(plain)?.let { info.copy(notes = info.notes + it) } ?: info
                 val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(), a.format, plan?.parts)

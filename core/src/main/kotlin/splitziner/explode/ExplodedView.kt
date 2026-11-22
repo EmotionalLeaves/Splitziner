@@ -156,38 +156,47 @@ object ExplodedView {
     fun prepare(parts: List<Part>, view: ViewDef? = null, fitBounds: DoubleArray? = null, minTravelShare: Double = 0.12): ExplodedGeometry {
         val v = view ?: pickView(parts)
         // Each part's outline is separate work; on a phone's several cores they are traced side by side.
-        val outlines0: List<Geometry> = if (parts.size < 16) parts.map { Silhouette.outline(it.mesh, v) }
-            else parts.parallelStream().map { Silhouette.outline(it.mesh, v) }.collect(java.util.stream.Collectors.toList())
+        val outlines0: List<Geometry> = Silhouette.outlines(parts.map { it.mesh }, v)
         val whole = parts.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
         val offs = planOffsets(parts, v, outlines0, minTravelShare * (whole?.diagonal ?: 0.0))
         val moved = parts.mapIndexed { i, p -> if (offs[i].length < 1e-9) p.mesh else MeshOps.translated(p.mesh, offs[i]) }
         val scene = MeshOps.concatenate(moved)
         val scale = scene.scale
-        val segs = moved.map { m -> HiddenLine.project(HiddenLine.split(m, scene, v, scale, 120.0).visible, v) }
+        // Each part against the shared scene, side by side on the phone's cores; the search tree is built once first.
+        scene.bvh; moved.forEach { it.topology; it.faceNormals; if (it.isWatertight) it.bvh }
+        val segs: List<DoubleArray> = if (moved.size < 16) moved.map { m -> HiddenLine.project(HiddenLine.split(m, scene, v, scale, 120.0).visible, v) }
+            else moved.parallelStream().map { m -> HiddenLine.project(HiddenLine.split(m, scene, v, scale, 120.0).visible, v) }.collect(java.util.stream.Collectors.toList())
         val sil = parts.indices.map { i -> Silhouette.translated(outlines0[i], offs[i] dot v.x, offs[i] dot v.up) }
 
+        // Each moved part's box, so a trace point is tested for being inside only the parts it could be inside.
+        val movedBounds = moved.map { it.bounds }
         // Trace lines: from just past each exploded part back into its seat, drawn only where nothing hides them.
-        val traces = ArrayList<DoubleArray>()
         val lift = v.n * (1e-3 * scale)
-        for ((i, p) in parts.withIndex()) {
-            val o = offs[i]
-            if (o.length < 1e-9) continue
+        // Fewer samples per trace on big assemblies: each is a short line, and 600 parts x 160 rays took seconds.
+        val samples = if (parts.size > 100) 48 else 160
+        fun traceOf(i: Int): List<DoubleArray> {
+            val p = parts[i]; val o = offs[i]
+            if (o.length < 1e-9) return emptyList()
+            val out = ArrayList<DoubleArray>()
             val d = o.normalized()
             val b = p.mesh.bounds
             val ext = abs(d.x) * b.extents.x + abs(d.y) * b.extents.y + abs(d.z) * b.extents.z
             val a = b.center
             val from = a + o + d * (ext * 0.15); val to = a - d * (ext * 0.15)
             var run = ArrayList<Double>()
-            val samples = 160
             for (k in 0 until samples) {
                 val q = from + (to - from) * (k / (samples - 1.0))
                 var ok = !scene.bvh.intersectsAny(q + lift, v.n)
-                if (ok) for (m in moved) if (m.isWatertight && m.bvh.contains(q)) { ok = false; break }
+                if (ok) for (mi in moved.indices) { val bb = movedBounds[mi]; if (q.x < bb.min.x || q.x > bb.max.x || q.y < bb.min.y || q.y > bb.max.y || q.z < bb.min.z || q.z > bb.max.z) continue
+                    val m = moved[mi]; if (m.isWatertight && m.bvh.contains(q)) { ok = false; break } }
                 if (ok) { val s = v.project(q); run.add(s.x); run.add(s.y) }
-                else { if (run.size >= 4) traces += run.toDoubleArray(); run = ArrayList() }
+                else { if (run.size >= 4) out += run.toDoubleArray(); run = ArrayList() }
             }
-            if (run.size >= 4) traces += run.toDoubleArray()
+            if (run.size >= 4) out += run.toDoubleArray()
+            return out
         }
+        val traces: List<DoubleArray> = (if (parts.size < 16) parts.indices.map { traceOf(it) }
+            else parts.indices.toList().parallelStream().map { traceOf(it) }.collect(java.util.stream.Collectors.toList())).flatten()
 
         val bb = doubleArrayOf(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY)
         for (a in segs + traces) { var i = 0; while (i < a.size) { if (a[i] < bb[0]) bb[0] = a[i]; if (a[i] > bb[2]) bb[2] = a[i]; if (a[i + 1] < bb[1]) bb[1] = a[i + 1]; if (a[i + 1] > bb[3]) bb[3] = a[i + 1]; i += 2 } }
