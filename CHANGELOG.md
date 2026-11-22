@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.51.0 - Shopping checklist and Check filters
+
+- **Shopping list is now a checklist you can take to the store.** It lists the sheets and lengths from the cutting plan, the edge banding, and the hardware the guide uses (screws, hinges, slides). Tick each line as you buy it. The ticks stay with the project, a bar shows how far through you are, and any prices you've entered are added up. **Share** still sends it as text.
+- **Check tab filters:** tap **Problems**, **To check** or **Notes** to see one kind at a time. Long explanations fold down to three lines; tap **More** to read the rest.
+
 ## v0.50.0 - Cutting plan you can see and adjust in the app
 
 - **The cutting plan opens full screen and you can see it in the app.** It shows a summary of what to buy, then each sheet and each board, page by page, with pinch to zoom. Change the stock sizes under **Stock** and the plan redraws straight away. **Share PDF** sends the whole plan; **Share list to buy** sends just the shopping list.
