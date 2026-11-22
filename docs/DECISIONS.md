@@ -146,3 +146,11 @@ Departures from the build spec, newest first.
   - The line now says where the cabinet half goes, read off the model. Its centre line is level with the middle of the drawer box's height, measured down from the top of the cabinet side beside it. Its front end is flush with, or set back from, the front edge, as the box is.
   - Drawer halves are centred on the drawer sides, flush with the box front. This is the usual practice for side-mount slides. The slide maker's instructions are still the authority.
   - Several drawers hung in one step are one line, with their lines listed top first, even when the boxes are different sizes (graduated drawers).
+
+## v0.81
+- Screws are named as sold, gauge and length: "#8 x 1-1/2 in", "4 x 40 mm". The gauge follows the board the screw passes through, the usual rule of thumb: #6 (3.5 mm) under 5/8 in, #8 (4 mm) up to 1 in, #10 (5 mm) thicker. Brads and pocket screws are unchanged.
+- "Before you build" gives pilot-hole bits for the gauges used, from common woodworking charts (#8: 3/32 in softwood and plywood, 1/8 in hardwood and MDF), with countersinking.
+- Doors:
+  - A pair meeting in the middle hang from their outer edges.
+  - A single door's hinge side is the maker's choice, and the line says so. Before, every door was quietly marked "hinged left".
+  - The end hinges go about 3 in (75 mm) from the top and bottom, a common cabinetmakers' rule, with any others evenly between.

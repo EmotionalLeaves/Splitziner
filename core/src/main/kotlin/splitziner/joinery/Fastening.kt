@@ -75,6 +75,16 @@ object Fastening {
         return listOfNotNull(if (whole > 0) "$whole" else null, frac.ifEmpty { null }).joinToString("-").ifEmpty { "0" } + " in"
     }
 
+    /**
+     * A wood screw's gauge goes with the board it passes through, the usual rule of thumb: #6 (3.5 mm) through
+     * stock under 5/8 in, #8 (4 mm) through 5/8 to 1 in, #10 (5 mm) through anything thicker. Written as sold:
+     * "#8 x 1-1/2 in", "4 x 40 mm".
+     */
+    private fun gauged(length: String, through: Double, fmt: LengthFormat): String {
+        val g = when { through < 15.5 -> 0; through <= 25.9 -> 1; else -> 2 }
+        return if (fmt.isInch) "${listOf("#6", "#8", "#10")[g]} x $length" else "${listOf("3.5", "4", "5")[g]} x $length"
+    }
+
     /** The longest stock length not over [mm]; null when even the shortest is too long. */
     private fun pick(mm: Double, fmt: LengthFormat, brads: Boolean): String? {
         return if (fmt.isInch) (if (brads) BRAD_IN else SCREW_IN).lastOrNull { it * 25.4 <= mm + 0.5 }?.let { fraction(it) }
@@ -148,7 +158,7 @@ object Fastening {
                 val kk = (0..2).minByOrNull { ax -> minOf(rel.hi[ia][ax], rel.hi[ib][ax]) - maxOf(rel.lo[ia][ax], rel.lo[ib][ax]) }!!
                 val tBox = rel.hi[ib][kk] - rel.lo[ib][kk]; val tFront = rel.hi[ia][kk] - rel.lo[ia][kk]
                 // Through the box end and most of the way into the front, never out of its face.
-                val sz = pick(tBox + minOf(1.5 * tBox, tFront - 4.0), fmt, false) ?: ""
+                val sz = pick(tBox + minOf(1.5 * tBox, tFront - 4.0), fmt, false)?.let { gauged(it, tBox, fmt) } ?: ""
                 val wide = (0..2).filter { it != kk }.maxOf { ax -> minOf(rel.hi[ia][ax], rel.hi[ib][ax]) - maxOf(rel.lo[ia][ax], rel.lo[ib][ax]) }
                 val n = if (wide > 500) 6 else 4
                 joints.getOrPut(mainOf(front)) { ArrayList() }.add(0, Joint(box, front, n, sz, "applied", false))
@@ -261,7 +271,7 @@ object Fastening {
                     val brads = tThrough < THIN
                     // Through the first part, then into the second for 1.5 times that thickness but never within 3 mm of its far side.
                     val want = tThrough + minOf(1.5 * tThrough, depth - 3.0)
-                    size = pick(want, fmt, brads) ?: ""; kind = if (brads) "brads" else "screws"
+                    size = pick(want, fmt, brads)?.let { if (brads) it else gauged(it, tThrough, fmt) } ?: ""; kind = if (brads) "brads" else "screws"
                     // A part too thick for any stock screw to pass through and still bite (a 3-1/2 in leg) is fixed
                     // with brackets in the inside corner instead.
                     val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
@@ -396,6 +406,21 @@ object Fastening {
     }
 
     /** The dowels the plan uses ("3/8 x 1-1/2 in dowels"), for the guide's note on drilling them; null if none. */
+    /**
+     * Pilot hole sizes for the screw gauges the plan uses, from common woodworking charts: softwood and plywood take
+     * the smaller bit, hardwood and MDF the larger. Null when no plain screws are used.
+     */
+    fun pilotNote(plan: FastenPlan): String? {
+        val gauges = plan.all.filter { !it.glueOnly && (it.kind == "screws" || it.kind == "applied") }.map { it.size.substringBefore(" x ", "") }.filter { it.isNotEmpty() }.distinct()
+        if (gauges.isEmpty()) return null
+        val chart = mapOf("#6" to ("5/64 in" to "3/32 in"), "#8" to ("3/32 in" to "1/8 in"), "#10" to ("7/64 in" to "1/8 in"),
+            "3.5" to ("2 mm" to "2.5 mm"), "4" to ("2.5 mm" to "3 mm"), "5" to ("3 mm" to "3.5 mm"))
+        val order = listOf("#6", "#8", "#10", "3.5", "4", "5")
+        val bits = gauges.sortedBy { order.indexOf(it) }.mapNotNull { g -> chart[g]?.let { (soft, hard) -> "${if (g.startsWith("#")) g else "$g mm"} screws, $soft in softwood and plywood or $hard in hardwood and MDF" } }
+        if (bits.isEmpty()) return null
+        return "Pilot holes: " + bits.joinToString("; ") + ". Drill them as deep as the screw goes and countersink them so the heads sit flush; near the end of a board they stop it splitting."
+    }
+
     fun dowelSize(plan: FastenPlan): String? = plan.all.firstOrNull { it.kind == "dowels" && !it.glueOnly }?.size
 
     /** Items that get a groove or rabbet for a thin part, if the maker takes that option over a cleat. */

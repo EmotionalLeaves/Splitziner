@@ -1027,7 +1027,7 @@ class FasteningTest {
         val f = splitziner.joinery.Fastening.plan(plan.parts, plan.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
         println("cabinet hardware: ${f.hardware}")
         // 3/4 in sides into 3/4 in shelves: 1-1/2 in would be 3/4 through plus 3/4 in; 1-1/4 is the longest stock size under the 1-7/8 in limit... at most 2 in.
-        val lengths = f.hardware.mapNotNull { Regex("""× ([\d/-]+) in screws""").find(it)?.groupValues?.get(1) }
+        val lengths = f.hardware.mapNotNull { Regex("""× (?:#\d+ x )?([\d/-]+) in screws""").find(it)?.groupValues?.get(1) }
         assertTrue(lengths.isNotEmpty(), f.hardware.toString())
         assertTrue(lengths.none { it.startsWith("2-") || it.startsWith("3") }, "screws too long for 3/4 in stock: $lengths")
         // The 1/4 in back is pinned with brads, not screwed.

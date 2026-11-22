@@ -382,7 +382,7 @@ object GuideLayout {
      * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
      * [housedItems] items that need a groove cut; [screws] whether anything is screwed (screw holes to fill).
      */
-    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList(), thinItems: List<Int> = emptyList(), dowels: String? = null, glued: List<String> = emptyList()): Pair<List<String>, List<String>> {
+    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList(), thinItems: List<Int> = emptyList(), dowels: String? = null, glued: List<String> = emptyList(), pilots: String? = null): Pair<List<String>, List<String>> {
         fun list(i: List<Int>) = if (i.size == 1) "item ${i[0]}" else "items ${i.dropLast(1).joinToString(", ")} and ${i.last()}"
         val before = ArrayList<String>()
         before += "Cut every part to the cut list, and pencil its item number on a face that will not show."
@@ -397,6 +397,7 @@ object GuideLayout {
             before += "Drill the dowel holes before anything is joined. Hold each pair of parts together and mark across the joint, then drill with a doweling jig: $dia${if (len.contains("mm")) " mm" else " in"} holes, square to the surface, a little over half the dowel's $len into the end or edge and the rest into the face, never more than two-thirds of the way through a board. A dry fit shows whether they line up."
         }
         if (bandItems.isNotEmpty()) before += "If the panels are plywood or particleboard, iron edge banding onto the edges that will show on ${list(bandItems.sorted())} and trim it flush. Banded edges are easier to do now than once it is built."
+        if (pilots != null) before += pilots
         before += "Sand the faces that will be hard to reach once it is together."
         before += "Do a dry run of each step, without glue, before the real one. Before fixing each part, check it is square and sits tight against what is already built."
         val after = ArrayList<String>()

@@ -307,7 +307,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         runCatching { splitziner.drawing.PartDrawings.pinItems(a.parts).toList() }.getOrDefault(emptyList()),
                         fasten?.let { splitziner.joinery.Fastening.grooveItems(it) } ?: emptyList(),
                         fasten?.let { splitziner.joinery.Fastening.dowelSize(it) },
-                        splitziner.cutplan.CutPlanner.gluingSteps(a.cutList.rows, a.format))
+                        splitziner.cutplan.CutPlanner.gluingSteps(a.cutList.rows, a.format),
+                        fasten?.let { splitziner.joinery.Fastening.pilotNote(it) })
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
                         hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
                         before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta), fasten))
