@@ -338,6 +338,14 @@ object Fastening {
                 joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, spec, "thin", false)
                 continue
             }
+            // Where a pocket or a dowel can go: an end or edge meeting a face. Two faces together, a board lying on its
+            // support (a slat on its cleat, a bottom on its kick board) or a thin panel (a 1/4 in back) take plain
+            // screws or brads instead.
+            val tInto = (0..2).minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
+            fun flatOn(n: Int) = (0..2).minByOrNull { ax -> rel.hi[n][ax] - rel.lo[n][ax] } == k
+            val upper = if (rel.lo[ii].z >= rel.hi[ti].z - 0.5) ii else if (rel.lo[ti].z >= rel.hi[ii].z - 0.5) ti else -1
+            val thinPart = minOf(tInto, (0..2).minOf { ax -> rel.hi[ti][ax] - rel.lo[ti][ax] }) < 12.0
+            val faceOn = (flatOn(ii) && flatOn(ti)) || (k == 2 && upper >= 0 && flatOn(upper)) || thinPart
             if (!glue) when (method) {
                 JoinMethod.SCREWS -> {
                     val brads = tThrough < THIN || pinInstead
@@ -356,26 +364,20 @@ object Fastening {
                 JoinMethod.POCKET_SCREWS -> {
                     // A pocket screw runs at an angle through the end of the joining part; its length follows that part's thickness.
                     // The pocket goes in the part whose end meets the other (the "into" part here), so its thickness sets the screw.
-                    val t = (0..2).minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
-                    // Only an end or edge meeting a face takes a pocket screw. A board lying on another, face to face
-                    // (a slat on its cleat, a cleat along a rail), is simply screwed down through it.
-                    // A pocket needs an end or edge to come out of: two faces together take plain screws. So does a board
-                    // lying on its support (a slat on its cleat, a bottom on its kick board): it is screwed down through.
-                    fun flatOn(n: Int) = (0..2).minByOrNull { ax -> rel.hi[n][ax] - rel.lo[n][ax] } == k
-                    val upper = if (rel.lo[ii].z >= rel.hi[ti].z - 0.5) ii else if (rel.lo[ti].z >= rel.hi[ii].z - 0.5) ti else -1
-                    // Nor can a thin panel (a 1/4 in back) be pocket screwed: it is pinned.
-                    val thinPart = minOf(t, (0..2).minOf { ax -> rel.hi[ti][ax] - rel.lo[ti][ax] }) < 12.0
-                    val faceOn = (flatOn(ii) && flatOn(ti)) || (k == 2 && upper >= 0 && flatOn(upper)) || thinPart
                     if (pinInstead) { size = pick(tThrough + minOf(1.5 * tThrough, depth - 3.0), fmt, true) ?: ""; kind = "brads" }
                     else if (faceOn) {
                         size = pick(tThrough + minOf(1.5 * tThrough, depth - 3.0), fmt, tThrough < THIN)?.let { if (tThrough < THIN) it else gauged(it, tThrough, fmt) } ?: ""
                         kind = if (tThrough < THIN) "brads" else "screws"
                     } else {
-                        size = if (fmt.isInch) fraction(when { t < 16 -> 1.0; t < 22 -> 1.25; t < 30 -> 1.5; else -> 2.5 }) else "${when { t < 16 -> 25; t < 22 -> 32; t < 30 -> 38; else -> 63 }} mm"
+                        size = if (fmt.isInch) fraction(when { tInto < 16 -> 1.0; tInto < 22 -> 1.25; tInto < 30 -> 1.5; else -> 2.5 }) else "${when { tInto < 16 -> 25; tInto < 22 -> 32; tInto < 30 -> 38; else -> 63 }} mm"
                         kind = "pocket screws"
                     }
                 }
-                JoinMethod.DOWELS -> {
+                JoinMethod.DOWELS -> if (faceOn || pinInstead) {
+                    val brad = tThrough < THIN || pinInstead
+                    size = pick(tThrough + minOf(1.5 * tThrough, depth - 3.0), fmt, brad)?.let { if (brad) it else gauged(it, tThrough, fmt) } ?: ""
+                    kind = if (brad) "brads" else "screws"
+                } else {
                     val d = (tThrough / 2).coerceAtMost(12.0)
                     // Fluted dowel pins as sold, diameter and length: 3/8 x 1-1/2 in, 1/4 x 1-1/4 in; 8 x 40 mm, 6 x 30 mm.
                     size = if (fmt.isInch) (if (d >= 9.5) "3/8 x 1-1/2 in dowels" else "1/4 x 1-1/4 in dowels") else (if (d >= 8) "8 x 40 mm dowels" else "6 x 30 mm dowels")
@@ -646,6 +648,8 @@ object Fastening {
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
             else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in its ends, on the back of the frame$times (or glue and dowel them)."
+            else if (j.kind == "screws" && plan.method != JoinMethod.SCREWS) "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."
+            else if (j.kind == "brads" && plan.method != JoinMethod.GLUE_AND_BRADS && plan.method != JoinMethod.SCREWS) "Glue ${key.first} to ${key.second} and fix with ${sized(n, j.size)} brads or small screws$times."
             else when (plan.method) {
                 // Pocket holes go in the part whose end or edge meets the other's face, on a side that will not show.
                 JoinMethod.POCKET_SCREWS -> if (j.kind == "screws") "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."

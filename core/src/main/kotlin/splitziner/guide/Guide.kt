@@ -382,7 +382,9 @@ object GuideSteps {
                     val unitsOnly = base && loose.isEmpty() && unitCount.isNotEmpty() && unitCount.values.sumOf { it.size } > 1
                     val nUnits = unitCount.values.sumOf { it.size }
                     if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in frameBench }) "frames" else if (unitCount.keys.all { it in moduleBench }) unitWord(unitCount.keys.first(), 2) else "sub-assemblies"}"
-                    else if (bits.isEmpty() || bits.size > 3) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
+                    else if (bits.isEmpty()) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
+                    // Many kinds of part: the first few, and how many more.
+                    else if (bits.size > 3) "Step ${st.step}: ${if (base) "start with " else ""}${bits.take(2).joinToString(", ")} and ${bits.size - 2} more"
                     else if (base) "Step ${st.step}: start with $said"
                     else "Step ${st.step}: $said"
                 }
