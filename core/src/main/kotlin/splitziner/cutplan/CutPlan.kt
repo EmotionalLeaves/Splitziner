@@ -139,6 +139,9 @@ object CutPlanner {
     /** A board at least this wide (mm) of sheet thickness is ripped from a sheet in metric shops, not bought as a length. */
     private const val SHEET_STRIP_MIN = 150.0
 
+    /** Boards this thin (mm) or thinner are hardly sold as timber in metric: they are strips cut from sheet. */
+    private const val THIN_STRIP_MAX = 12.5
+
     fun plan(rows: List<CutListRow>, stock: StockSettings): CutPlanResult {
         val leftOut = ArrayList<String>()
         val sheets = ArrayList<SheetLayout>(); val boards = ArrayList<BoardLayout>()
@@ -155,23 +158,41 @@ object CutPlanner {
         // board from the carcass sheet). Solid timber stays as lengths, and so does anything longer than a sheet.
         val sheetThick = rows.filter { it.kind == PartKind.PANEL }.map { key(snapT(it.t)) to it.material }.toSet()
         val fromSheet = { r: CutListRow ->
+            // In inches, a board that would have to be ripped from lumber comes from the sheet of its thickness
+            // when that sheet is bought anyway (drawer fronts from the carcass plywood); exact lumber widths stay lumber.
+            (stock.lumber && r.kind == PartKind.BOARD && splitziner.material.Materials.sheetGood(r.material) && r.l <= stock.sheetL &&
+                (key(snapT(r.t)) to r.material) in sheetThick && Lumber.fit(r.t, r.w)?.let { abs(it.w - r.w) > 0.8 } == true) ||
             !stock.lumber && r.kind == PartKind.BOARD && splitziner.material.Materials.sheetGood(r.material) && stockT.any { s -> abs(s - snapT(r.t)) < 1e-6 } && snapT(r.t) <= 25.5 &&
-                r.l <= stock.sheetL && (r.w >= SHEET_STRIP_MIN || (key(snapT(r.t)) to r.material) in sheetThick)
+                r.l <= stock.sheetL && (r.w >= SHEET_STRIP_MIN || snapT(r.t) <= THIN_STRIP_MAX || (key(snapT(r.t)) to r.material) in sheetThick)
         }
         val flat = rows.filter { it.kind == PartKind.PANEL || (it.kind == PartKind.SHAPED && it.t < FLAT_SHARE * it.w) || (stock.lumber && it.kind == PartKind.BOARD && !lumberish(it)) || fromSheet(it) }
         for (r in rows) if (r.kind == PartKind.SHAPED && r !in flat) leftOut += "Item ${r.item} is a shaped block; it is not in the plan."
         // Panels thicker than any sheet sold are glued up from boards (or bought as a butcher-block blank), not cut from sheet.
         val tooThick = flat.filter { snapT(it.t) > stockT.max() + 0.5 }
         for (r in tooThick) leftOut += "Item ${r.item} is thicker than any sheet sold: glue it up from boards, or buy it as a butcher-block panel."
+        // Narrow boards that are on the sheet only because it is bought anyway are a convenience: if they would need
+        // another panel, they are bought as lengths after all.
+        val optional = { r: CutListRow -> fromSheet(r) && (stock.lumber || (r.w < SHEET_STRIP_MIN && snapT(r.t) > THIN_STRIP_MAX)) }
+        val bounced = HashSet<Int>()
         for ((group, members) in (flat - tooThick.toSet()).groupBy { key(snapT(it.t)) to it.material }.entries.sortedBy { it.key.first }) {
-            val wants = ArrayList<Want>()
-            for (r in members) {
-                val fits = (r.w <= stock.sheetW + 1e-6 && r.l <= stock.sheetL + 1e-6) || (stock.rotate && !r.grain && r.l <= stock.sheetW + 1e-6 && r.w <= stock.sheetL + 1e-6)
-                if (!fits) { leftOut += "Item ${r.item} is larger than a sheet; it is not in the plan."; continue }
-                repeat(r.qty) { wants += Want(r.item, r.w, r.l, r.grain) }
+            fun wantsOf(rs: List<CutListRow>): List<Want> {
+                val wants = ArrayList<Want>()
+                for (r in rs) repeat(r.qty) { wants += Want(r.item, r.w, r.l, r.grain) }
+                // Biggest first: large pieces are the hard ones to place, small ones fill what is left.
+                return wants.sortedWith(compareByDescending<Want> { it.w * it.l }.thenByDescending { it.l })
             }
-            // Biggest first: large pieces are the hard ones to place, small ones fill what is left.
-            wants.sortWith(compareByDescending<Want> { it.w * it.l }.thenByDescending { it.l })
+            val placeable = members.filter { r ->
+                val fits = (r.w <= stock.sheetW + 1e-6 && r.l <= stock.sheetL + 1e-6) || (stock.rotate && !r.grain && r.l <= stock.sheetW + 1e-6 && r.w <= stock.sheetL + 1e-6)
+                if (!fits) leftOut += "Item ${r.item} is larger than a sheet; it is not in the plan."
+                fits
+            }
+            var take = placeable.filter { !optional(it) }
+            val baseCount = if (take.isEmpty()) 0 else pack(wantsOf(take), stock.sheetW, stock.sheetL, stock).size
+            for (r in placeable.filter { optional(it) }.sortedByDescending { it.w * it.l * it.qty }) {
+                val n = pack(wantsOf(take + r), stock.sheetW, stock.sheetL, stock).size
+                if (take.isEmpty() || n <= baseCount) take = take + r else bounced += r.item
+            }
+            val wants = wantsOf(take)
             for (o in pack(wants, stock.sheetW, stock.sheetL, stock)) {
                 // A sheet with little on it is bought smaller where everything fits: stores sell half and quarter panels.
                 val wantsHere = o.pieces.map { Want(it.item, if (it.rotated) it.l else it.w, if (it.rotated) it.w else it.l, rows.any { r -> r.item == it.item && r.grain }) }
@@ -183,7 +204,7 @@ object CutPlanner {
             }
         }
 
-        val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it)) && !fromSheet(it)) || it.kind == PartKind.ROD }
+        val long = rows.filter { (it.kind == PartKind.BOARD && (!stock.lumber || lumberish(it)) && (!fromSheet(it) || it.item in bounced)) || it.kind == PartKind.ROD }
         // Pieces that come from the same standard board are cut from the same lengths, ripped narrower where needed.
         fun stockKey(r: CutListRow): List<Any> { val lb = if (r.kind == PartKind.BOARD && stock.lumber) Lumber.fit(r.t, r.w) else null; return if (lb != null) listOf(r.kind, lb.name, r.material) else listOf(r.kind, key(r.t), key(r.w), r.material) }
         for ((_, members) in long.groupBy { stockKey(it) }.entries.sortedBy { (key(it.value[0].t)) * 100000 + key(it.value[0].w) }) {
