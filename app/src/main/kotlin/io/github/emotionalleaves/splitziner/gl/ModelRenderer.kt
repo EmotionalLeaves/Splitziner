@@ -51,6 +51,9 @@ class ModelRenderer : GLSurfaceView.Renderer {
     /** 0 = assembled, 1 = fully pulled apart. */
     @Volatile var explode = 0f
 
+    /** Per part: 0 = hidden, 1 = faint (already built), 2 = normal. Null shows everything normally. */
+    @Volatile var stage: IntArray? = null
+
     private var pending: List<ScenePart>? = null
     private val lock = Any()
     private var parts: List<ScenePart> = emptyList()
@@ -115,14 +118,19 @@ class ModelRenderer : GLSurfaceView.Renderer {
         // Push faces back slightly so the crease lines drawn on top of them do not flicker.
         GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL); GLES20.glPolygonOffset(1f, 1f)
         GLES20.glEnableVertexAttribArray(aPos); GLES20.glEnableVertexAttribArray(aNor)
+        val st = stage
         for (i in parts.indices) {
             val p = parts[i]; if (!p.visible) continue
+            val sg = st?.getOrNull(i) ?: 2
+            if (sg == 0) continue
             val b = triBuffers[i]
             b.position(0); GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 24, b)
             b.position(3); GLES20.glVertexAttribPointer(aNor, 3, GLES20.GL_FLOAT, false, 24, b)
             val c = p.color
             GLES20.glUniform3f(uOffset, p.offset[0] * ex, p.offset[1] * ex, p.offset[2] * ex)
-            if (i == selected) GLES20.glUniform3f(uColor, 1f, 0.82f, 0.25f) else GLES20.glUniform3f(uColor, c[0], c[1], c[2])
+            if (i == selected) GLES20.glUniform3f(uColor, 1f, 0.82f, 0.25f)
+            else if (sg == 1) { val g = if (darkBackground) 0.32f else 0.82f; GLES20.glUniform3f(uColor, g, g, g) }
+            else GLES20.glUniform3f(uColor, c[0], c[1], c[2])
             GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, p.geometry.triangles.size / 6)
         }
         GLES20.glDisableVertexAttribArray(aNor)
@@ -137,7 +145,7 @@ class ModelRenderer : GLSurfaceView.Renderer {
         GLES20.glEnableVertexAttribArray(lPos)
         GLES20.glLineWidth(2f)
         for (i in parts.indices) {
-            val p = parts[i]; if (!p.visible || p.geometry.lines.isEmpty()) continue
+            val p = parts[i]; if (!p.visible || p.geometry.lines.isEmpty() || (st?.getOrNull(i) ?: 2) == 0) continue
             val b = lineBuffers[i]; b.position(0)
             GLES20.glUniform3f(lOffset, p.offset[0] * ex, p.offset[1] * ex, p.offset[2] * ex)
             GLES20.glVertexAttribPointer(lPos, 3, GLES20.GL_FLOAT, false, 12, b)

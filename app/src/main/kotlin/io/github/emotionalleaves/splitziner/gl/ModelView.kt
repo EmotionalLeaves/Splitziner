@@ -58,6 +58,8 @@ fun ModelView(
     offsets: Map<String, Vec3>? = null,
     /** 0 = assembled, 1 = fully pulled apart. */
     explode: Float = 0f,
+    /** Per part id: 0 hidden, 1 faint, 2 normal; null shows every part normally. Used to play the build step by step. */
+    stage: Map<String, Int>? = null,
 ) {
     val renderer = remember { ModelRenderer() }
     val viewHolder = remember { arrayOfNulls<GLSurfaceView>(1) }
@@ -84,7 +86,8 @@ fun ModelView(
         renderer.setScene(scene)
         viewHolder[0]?.requestRender()
     }
-    LaunchedEffect(selectedId, analysis, dark, explode) {
+    LaunchedEffect(selectedId, analysis, dark, explode, stage) {
+        renderer.stage = stage?.let { m -> IntArray(analysis.parts.size) { i -> m[analysis.parts[i].id] ?: 0 } }
         renderer.selected = analysis.parts.indexOfFirst { it.id == selectedId }
         renderer.darkBackground = dark
         renderer.explode = explode

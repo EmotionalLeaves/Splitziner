@@ -201,6 +201,11 @@ class SmokeTest {
             waitFor(vm, 300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             shot("d05_guide")
             tap("3D"); Thread.sleep(3000); shot("d03_3d")
+            // Play the build in 3D a few steps in.
+            runCatching {
+                tap("Build steps"); rule.waitUntil(60_000) { rule.onAllNodesWithText("Step 1 of", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                repeat(6) { tap("\u2192") }; Thread.sleep(1500); shot("d06_build_steps"); tap("Show all")
+            }.onFailure { println("SMOKE build steps failed: ${it.message}") }
             println("SMOKE desk sheets=${drawing.sheets.size} guide pages=${vm.state.value.guide!!.pages.size}")
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
             assertNull(Diagnostics.lastCrash())

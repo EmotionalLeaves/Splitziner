@@ -137,6 +137,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return plan!!
     }
 
+    /** The build plan for playing the steps in 3D: worked out off the main thread, cached with the guide's. */
+    suspend fun planFor3D(): splitziner.explode.PlanResult? {
+        val open = _state.value.open ?: return null
+        return withContext(Dispatchers.Default) { runCatching { planOf(open.analysis, open.meta.stepOrder) }.getOrNull() }
+    }
+
     /** Sets the build order (part ids per step, base first), or null to go back to the automatic one. */
     fun setStepOrder(order: List<List<String>>?) = updateDrawing { it.copy(stepOrder = order?.filter { g -> g.isNotEmpty() }) }
 

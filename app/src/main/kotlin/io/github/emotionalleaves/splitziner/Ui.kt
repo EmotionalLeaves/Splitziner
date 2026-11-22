@@ -264,7 +264,30 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         } else
         if (tab == 0) {
             val sel = a.parts.firstOrNull { it.id == selectedId }
-            ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), offsets = state.explodeOffsets, explode = pull)
+            // Build steps played in 3D: parts appear step by step, the ones already built shown faint.
+            var playing by remember { mutableStateOf(false) }
+            var playPlan by remember(a) { mutableStateOf<splitziner.explode.PlanResult?>(null) }
+            var playStep by remember(a) { mutableIntStateOf(1) }
+            LaunchedEffect(playing, a) { if (playing && playPlan == null) playPlan = vm.planFor3D() }
+            val pp = playPlan
+            val stage = if (playing && pp != null) {
+                val now = pp.steps.firstOrNull { it.step == playStep }?.partIds?.toSet().orEmpty()
+                pp.parts.associate { p -> val s0 = p.step ?: Int.MAX_VALUE; p.id to when { p.id in now -> 2; s0 < playStep -> 1; else -> 0 } }
+            } else null
+            ModelView(a, selectedId, onSelect = { selectedId = it }, modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), offsets = state.explodeOffsets, explode = if (playing) 0f else pull, stage = stage)
+            if (playing) {
+                val last = pp?.steps?.maxOfOrNull { it.step } ?: 1
+                // Bench steps are built away from the model; in 3D the step shows where those parts end up.
+                val st = pp?.steps?.firstOrNull { it.step == playStep }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { playStep = (playStep - 1).coerceAtLeast(1) }, enabled = playStep > 1) { Text("\u2190") }
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                        Text(if (pp == null) "Working out the build order\u2026" else "Step $playStep of $last" + if (st?.subassembly == true) " (made on the bench)" else "", style = MaterialTheme.typography.bodyMedium)
+                        if (st != null) Text("Items ${st.items.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    OutlinedButton(onClick = { playStep = (playStep + 1).coerceAtMost(last) }, enabled = playStep < last) { Text("\u2192") }
+                }
+            }
             if (a.parts.count { !it.excluded } > 1) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Pull apart", style = MaterialTheme.typography.bodySmall)
@@ -283,7 +306,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     TextButton(onClick = { editPart = sel }) { Text("Name") }
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = { playing = !playing; playStep = 1 }) { Text(if (playing) "Show all" else "Build steps") }
                 OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
                 if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
             }
