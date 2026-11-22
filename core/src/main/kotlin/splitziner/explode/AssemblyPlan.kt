@@ -174,13 +174,35 @@ object AssemblyPlan {
      * Returns the steps and, per old step number, the new one.
      */
     private fun mergeFloating(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>> = emptyMap()): Pair<List<BuildStep>, Map<Int, Int>> {
-        val (s0, rs) = supportsFirst(steps, units, members)
+        val (q0, rq) = railsBeforeSlats(steps, units, members)
+        val (s00, rs0) = supportsFirst(q0, units, members)
+        val rs = rq.mapValues { (_, v) -> rs0[v] ?: v }; val s0 = s00
         val (a00, r00) = backLast(s0, units)
         val r0 = rs.mapValues { (_, v) -> r00[v] ?: v }; val a0 = a00
         val (a, ra1) = mergeFloating0(a0, units)
         val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
         val (b, rb) = mergeAlike(a, units)
         return b to ra.mapValues { (_, v) -> rb[v] ?: v }
+    }
+
+    /**
+     * The frame is finished before it is filled: steps that only lay slats wait until the rails that tie the frame
+     * together (a bed's end rails) are on, as long as nothing the slats rest on comes with those rails.
+     */
+    private fun railsBeforeSlats(steps: List<BuildStep>, units: List<Part>, members: Map<String, List<Part>>): Pair<List<BuildStep>, Map<Int, Int>> {
+        val byId = units.associateBy { it.id }
+        fun names(id: String) = members[id]?.map { it.name } ?: listOfNotNull(byId[id]?.name)
+        val slatOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n == "Slat" } } }
+        val railOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n == "Rail" || n == "Apron" } } }
+        val firstSlat = slatOnly.indexOfFirst { it }
+        if (firstSlat < 0) return steps to steps.associate { it.step to it.step }
+        val rails = steps.indices.filter { it > firstSlat && railOnly[it] }
+        if (rails.isEmpty()) return steps to steps.associate { it.step to it.step }
+        val list = steps.toMutableList()
+        val moving = rails.map { steps[it] }
+        list.removeAll(moving.toSet()); list.addAll(firstSlat, moving)
+        val renumber = HashMap<Int, Int>()
+        return list.mapIndexed { n, st -> renumber[st.step] = n + 1; st.copy(step = n + 1) } to renumber
     }
 
     /**
