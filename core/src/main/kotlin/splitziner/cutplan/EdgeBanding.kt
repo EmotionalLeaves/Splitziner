@@ -55,7 +55,12 @@ object EdgeBanding {
         val est = estimate(parts)
         if (est.lengthMm < 1.0) return null
         val len = if (fmt.isInch) "${Math.round(est.lengthMm / 304.8)} ft" else "%.1f m".format(java.util.Locale.ROOT, est.lengthMm / 1000)
-        val which = if (est.items.size <= 8) " of items ${est.items.joinToString(", ")}" else ""
-        return "Edge banding, if the sheets are plywood or particleboard: about $len for the edges on view$which (not the back or underneath; includes a little extra for trimming)"
+        val items = est.items.sorted()
+        val which = when {
+            items.size == 1 -> " of item ${items[0]}"
+            items.size <= 8 -> " of items ${items.dropLast(1).joinToString(", ")} and ${items.last()}"
+            else -> ""
+        }
+        return "Edge banding, if the sheets are plywood or particleboard: about $len for the edges that show$which (not the back or underneath; includes a little extra for trimming)"
     }
 }
