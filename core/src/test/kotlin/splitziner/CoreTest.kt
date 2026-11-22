@@ -1435,3 +1435,22 @@ class AddDrawerTest {
         assertTrue(rep.problems == 0, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title + ": " + it.detail }.toString())
     }
 }
+
+class RolesTest {
+    @Test fun templatePartsGetPlainNames() {
+        val t = splitziner.edit.Templates.byKey("nightstand")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val names = splitziner.parts.Roles.names(parts)
+        println("nightstand roles: " + parts.map { it.id + "=" + names[it.id] })
+        assertEquals("Side", names["P01"]); assertEquals("Side", names["P02"])
+        assertEquals("Bottom", names["P03"]); assertEquals("Top", names["P04"]); assertEquals("Kick board", names["P05"])
+        assertEquals("Shelf", names["P06"]); assertEquals("Back panel", names["P07"])
+        assertEquals("Drawer bottom", names["P12"]); assertEquals("Drawer front", names["P13"])
+        assertEquals(listOf("Drawer side", "Drawer side"), listOf(names["P10"], names["P11"]))
+        val table = splitziner.edit.Templates.byKey("table")
+        val tp = table.build(splitziner.edit.Templates.defaults(table, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P%02d".format(i + 1), m) }
+        val tn = splitziner.parts.Roles.names(tp)
+        println("table roles: " + tp.map { it.id + "=" + tn[it.id] })
+        assertEquals("Top", tn["P01"]); assertEquals(4, tn.values.count { it == "Leg" }); assertEquals(4, tn.values.count { it == "Apron" })
+    }
+}

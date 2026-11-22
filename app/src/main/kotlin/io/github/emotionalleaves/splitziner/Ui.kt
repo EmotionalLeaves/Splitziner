@@ -374,11 +374,15 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     if (wt.unknownItems.isEmpty()) "." else if (wt.unknownItems.size > 6) ", not counting ${wt.unknownItems.size} items with no material, or one the app does not know."
                     else ", not counting item${if (wt.unknownItems.size == 1) "" else "s"} ${wt.unknownItems.joinToString(", ")}: no material, or one the app does not know.",
                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+            val partById = remember(a) { a.parts.associateBy { it.id } }
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
                     Row(Modifier.fillMaxWidth().clickable { editRow = row }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${row.item}", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
                         Column(Modifier.weight(1f)) {
+                            // What the parts are called (Side, Shelf, Drawer side...), when they have names.
+                            val names = row.memberIds.mapNotNull { partById[it] }.filter { it.name != it.id }.map { it.name }.distinct()
+                            if (names.isNotEmpty()) Text(names.take(3).joinToString(", ") + if (names.size > 3) "…" else "", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                             Text(row.description, style = MaterialTheme.typography.bodyMedium)
                             Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  ·  grain along length" else "", style = MaterialTheme.typography.bodySmall)
                         }
@@ -822,7 +826,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
     var movePart by remember { mutableStateOf<Pair<Int, String>?>(null) }
     var wording by remember { mutableStateOf<List<String>?>(null) }
     val parts = open.analysis.parts.associateBy { it.id }
-    fun label(id: String) = parts[id]?.let { p -> if (p.name != p.id) p.name else "${p.id} (item ${p.item ?: "-"})" } ?: id
+    fun label(id: String) = parts[id]?.let { p -> if (p.name != p.id) "${p.name} (item ${p.item ?: "-"})" else "${p.id} (item ${p.item ?: "-"})" } ?: id
     fun clean(o: List<List<String>>) = o.filter { it.isNotEmpty() }
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -128,7 +128,12 @@ object Pipeline {
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
         val named = lighter.map { p -> p.copy(name = options.partNames[p.id] ?: p.name, excluded = p.id in options.excludedPartIds) }
         val edited = if (options.edits.isEmpty()) null else timed("edits") { splitziner.edit.Editor.apply(named, options.edits) }
-        val cut = timed("cutlist") { CutList.build(edited?.parts ?: named, fmt, options.itemOverrides) }
+        // Parts with no name of their own get one from what they look like they are.
+        val toCut = (edited?.parts ?: named).let { ps ->
+            val roles = timed("roles") { runCatching { splitziner.parts.Roles.names(ps) }.getOrDefault(emptyMap()) }
+            ps.map { p -> if (p.name == p.id && p.id !in options.partNames) roles[p.id]?.let { p.copy(name = it) } ?: p else p }
+        }
+        val cut = timed("cutlist") { CutList.build(toCut, fmt, options.itemOverrides) }
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
             ?: Aabb.of(doubleArrayOf())
         progress.report(1.0, "Done")

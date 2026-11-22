@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.38.0 - Add a drawer, hinge cups, part names
+
+- **Add a drawer.** More… → Add a shelf, divider, door or drawer → Drawer fills an opening with a drawer on slides: an inset front, and a box behind it with 1/2 in (12.7 mm) each side for ball-bearing slides. Slides and a handle go on the hardware list, and the guide hangs it last.
+- **Hinge cups on door drawings.** Every door now gets its own drawing showing where the 35 mm hinge cups go, located and called out (usually 22 mm in from the edge, 13 mm deep, about 100 mm from each end). The note says to check these against your hinges' template before drilling.
+- **Parts have names.** Parts with no name of their own are now called what they look like: Side, Top, Bottom, Shelf, Divider, Back panel, Kick board, Leg, Apron, Door, Drawer front, Drawer side, Drawer bottom, Adjustable shelf. You see the names in the Parts list, the Cut list and when you tap a part. It is a guess from where each part sits; rename any part from the Parts list.
+- Includes v0.37.0 (chest of drawers, right-length slides).
+
 ## v0.37.0 - Chest of drawers
 
 
