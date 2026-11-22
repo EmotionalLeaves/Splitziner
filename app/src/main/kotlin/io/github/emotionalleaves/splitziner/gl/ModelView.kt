@@ -199,10 +199,15 @@ fun ModelView(
                 }
             },
         )
-        Row(Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+        // Small view buttons down the right edge, so they do not sit over the model on a narrow phone.
+        androidx.compose.foundation.layout.Column(Modifier.align(Alignment.TopEnd).padding(4.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
             fun look(az: Float, el: Float) { cam.reset(); cam.azimuth = az; cam.elevation = el; redraw() }
             for ((label, az, el) in listOf(Triple("Front", 0f, 0f), Triple("Top", 0f, 89f), Triple("Right", 90f, 0f), Triple("3D", 35f, 25f))) {
-                FilledTonalButton(onClick = { look(az, el) }, modifier = Modifier.padding(start = 4.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text(label) }
+                androidx.compose.material3.Surface(
+                    onClick = { look(az, el) },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
+                ) { Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
             }
         }
     }
