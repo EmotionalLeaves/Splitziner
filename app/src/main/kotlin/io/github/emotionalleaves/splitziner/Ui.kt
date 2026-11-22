@@ -204,6 +204,8 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
                             Text(t, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
                         }
                     }
+                    // The quickest way to see what it makes: a template, ready in seconds.
+                    androidx.compose.material3.FilledTonalButton(onClick = { showNew = true }, modifier = Modifier.align(Alignment.End)) { Text("Try a template") }
                 }
             }
         } else if (state.projects.isNotEmpty()) {
