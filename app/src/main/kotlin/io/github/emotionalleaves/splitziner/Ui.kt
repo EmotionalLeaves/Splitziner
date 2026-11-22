@@ -199,12 +199,14 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("3D", "Parts", "Cut list", "Drawing", "Guide").forEachIndexed { i, label -> TabButton(label, tab == i, Modifier) { tab = i } }
+            listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label -> TabButton(label, tab == i, Modifier) { tab = i } }
         }
         if (tab == 3) {
             DrawingTab(open, state, vm, Modifier.weight(1f))
         } else if (tab == 4) {
             GuideTab(open, state, vm, Modifier.weight(1f))
+        } else if (tab == 5) {
+            CheckTab(open, state, vm, Modifier.weight(1f)) { id -> selectedId = id; tab = 0 }
         } else
         if (tab == 0) {
             val sel = a.parts.firstOrNull { it.id == selectedId }
@@ -239,7 +241,10 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     HorizontalDivider()
                 }
             }
-            Button(onClick = { shareParts(context, open) }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) { Text("Share parts as separate STL files (ZIP)") }
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = { shareParts(context, open) }, modifier = Modifier.weight(1f)) { Text("Parts (ZIP of STLs)") }
+                OutlinedButton(onClick = { shareModel(context, open) }, modifier = Modifier.weight(1f)) { Text("Whole model (STL)") }
+            }
         } else {
             LazyColumn(Modifier.weight(1f)) {
                 items(a.cutList.rows, key = { it.item }) { row ->
@@ -678,6 +683,9 @@ private val HELP = listOf(
     "Dimensions" to "Everything is measured from the lower-left-front corner. Which faces really matter for fit is a design decision the app can't make.",
     "Tolerances and materials" to "An STL contains neither. Tolerances say NOT SPECIFIED until you choose them under Title block. Materials are blank until you set them in the cut list.",
     "Build order" to "The guide's order is a draft. The app checks that each part can slide into place past the ones before it, and puts parts that stand on the floor first. It knows nothing about glue, clamps, screws or what is easy to hold. Use Edit steps to correct it.",
+    "Check" to "The Check tab looks at the model the way someone about to build it would. It flags parts that pass through each other, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, shelves that run a long way between supports, and whether it would tip over. Problems (red) stop the build as drawn; Check items (amber) need your judgement. It works from shapes alone: it knows nothing about wood, glue, screws or loads, and its sag and balance findings are rules of thumb.",
+    "Fixing a model" to "On the Check tab, Fix what can be fixed proposes changes and shows them before anything happens: closing small gaps under loose parts, joining overlapping flat pieces that are really one piece of sheet, trimming parts that run a little into a neighbour, and moving odd thicknesses to ones you can buy. It will not cut away more than a quarter of a part or redesign a joint; those are listed for you to decide. Some findings also offer their own fix, such as Make .25 thick or Square these parts up. Your file is never altered: changes are kept as a list, Undo removes them, and Parts > Whole model (STL) shares the changed model in millimetres.",
+    "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, and tells you how much to buy. You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about grain, defects or offcuts you already own.",
     "Joined parts" to "If two boards were merged into one solid in your 3D program, there is no seam to split on and they appear as one part.",
     "Not a checked drawing" to "The sheets follow a standard drawing format, but nobody has checked them. They are not proof that parts fit or that the design is strong enough.",
@@ -719,6 +727,20 @@ private fun shareDxf(context: Context, open: OpenProject, d: DrawingState) {
     } catch (e: Throwable) {
         Diagnostics.logError("share dxf", e)
         Toast.makeText(context, "Could not make the DXF files", Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun shareModel(context: Context, open: OpenProject) {
+    try {
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val file = File(dir, "${open.meta.name.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "splitziner" }}${if (open.meta.edits.isEmpty()) "" else "_fixed"}.stl")
+        val all = splitziner.mesh.MeshOps.concatenate(open.analysis.parts.filter { !it.excluded }.map { it.mesh })
+        file.outputStream().use { splitziner.io.StlWriter.writeBinary(all, it, "Splitziner model units=mm") }
+        Toast.makeText(context, "This STL is in millimetres", Toast.LENGTH_LONG).show()
+        shareFile(context, file, "model/stl", "Share model")
+    } catch (e: Throwable) {
+        Diagnostics.logError("share model", e)
+        Toast.makeText(context, "Could not write the model", Toast.LENGTH_LONG).show()
     }
 }
 
@@ -791,6 +813,114 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
                     Text("Panels may be turned to fit (untick to keep grain along the sheet)", style = MaterialTheme.typography.bodySmall)
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
+}
+
+
+@Composable
+private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifier: Modifier, onShow: (String) -> Unit) {
+    var showTools by remember { mutableStateOf(false) }
+    var showUndo by remember { mutableStateOf(false) }
+    LaunchedEffect(open.analysis, state.check == null) { vm.ensureCheck() }
+    state.fixPlan?.let { plan ->
+        AlertDialog(
+            onDismissRequest = { vm.dismissFixes() },
+            confirmButton = { if (plan.edits.isNotEmpty()) TextButton(onClick = { vm.applyFixes() }) { Text("Apply ${plan.edits.size} change${if (plan.edits.size == 1) "" else "s"}") } else TextButton(onClick = { vm.dismissFixes() }) { Text("OK") } },
+            dismissButton = { if (plan.edits.isNotEmpty()) TextButton(onClick = { vm.dismissFixes() }) { Text("Cancel") } },
+            title = { Text(if (plan.edits.isEmpty()) "Nothing the app can fix by itself" else "Proposed fixes") },
+            text = {
+                LazyColumn {
+                    if (plan.done.isNotEmpty()) item { Text("The app will:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) }
+                    items(plan.done) { Text("• $it", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
+                    if (plan.left.isNotEmpty()) item { Text("Left for you to decide:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+                    items(plan.left) { Text("• $it", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
+                    item { Text("Your original file is not altered. Undo brings it back.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+                }
+            },
+        )
+    }
+    if (showUndo) AlertDialog(
+        onDismissRequest = { showUndo = false },
+        confirmButton = { TextButton(onClick = { showUndo = false; vm.undoLastEdit() }) { Text("Undo last") } },
+        dismissButton = { TextButton(onClick = { showUndo = false; vm.undoAllEdits() }) { Text("Undo all") } },
+        title = { Text("Undo changes") },
+        text = { Text("${open.meta.edits.size} change${if (open.meta.edits.size == 1) " has" else "s have"} been made to this model in the app. The original file is untouched.") },
+    )
+    val owned = vm.toolsFor(open.meta)
+    if (showTools) ToolsDialog(owned ?: emptySet(), onDismiss = { showTools = false }) { showTools = false; vm.setTools(it) }
+    val report = state.check
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                if (report == null) Text("Checking the design…", style = MaterialTheme.typography.titleSmall)
+                else Text(
+                    when {
+                        report.problems > 0 -> "${report.problems} problem${if (report.problems == 1) "" else "s"}, ${report.checks} to check"
+                        report.checks > 0 -> "No problems found, ${report.checks} to check"
+                        else -> "No problems found"
+                    }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(if (owned == null) "Tools: not chosen yet" else if (owned.isEmpty()) "Tools: none ticked" else "Tools: " + owned.joinToString(", ") { it.label.lowercase() }, style = MaterialTheme.typography.bodySmall)
+            }
+            OutlinedButton(onClick = { showTools = true }) { Text("Tools") }
+        }
+        if (report == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); return@Column }
+        val changes = open.meta.edits.size
+        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { vm.planFixes() }, enabled = !state.fixBusy && state.busyLabel == null, modifier = Modifier.weight(1f)) { Text(if (state.fixBusy) "Working it out…" else "Fix what can be fixed") }
+            if (changes > 0) OutlinedButton(onClick = { showUndo = true }) { Text("Undo ($changes)") }
+        }
+        for (n in open.analysis.editNotes) Text("Note: $n", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        LazyColumn(Modifier.weight(1f)) {
+            items(report.findings) { f ->
+                val (word, color) = when (f.severity) {
+                    splitziner.check.Severity.PROBLEM -> "Problem" to MaterialTheme.colorScheme.error
+                    splitziner.check.Severity.CHECK -> "Check" to androidx.compose.ui.graphics.Color(0xFFB26A00)
+                    else -> "Note" to MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Column(Modifier.padding(10.dp)) {
+                        Text(word.uppercase(), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Text(f.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(f.detail, style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (f.partIds.isNotEmpty()) TextButton(onClick = { onShow(f.partIds[0]) }) { Text("Show in 3D") }
+                            for (fix in f.fixes) TextButton(onClick = {
+                                vm.addEdit(when (fix.kind) {
+                                    splitziner.check.FixKind.SET_THICKNESS -> splitziner.edit.Edit.Thickness(fix.partIds, fix.value)
+                                    splitziner.check.FixKind.SQUARE_UP -> splitziner.edit.Edit.SquareUp(fix.partIds)
+                                })
+                            }) { Text(fix.label) }
+                        }
+                    }
+                }
+            }
+            if (report.toolsNeeded.isNotEmpty()) item {
+                Text(if (owned == null) "Work this build involves" else "Your tools on this build", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+                for (t in report.toolsNeeded) Text("• ${t.replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolsDialog(owned: Set<splitziner.check.Tool>, onDismiss: () -> Unit, onApply: (Set<splitziner.check.Tool>) -> Unit) {
+    var picked by remember { mutableStateOf(owned) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { onApply(picked) }) { Text("Apply") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Tools you have") },
+        text = {
+            LazyColumn {
+                item { Text("Tick what you can use for this project. The check and the build guide follow it.", style = MaterialTheme.typography.bodySmall) }
+                items(splitziner.check.Tool.entries.toList()) { t ->
+                    Row(Modifier.fillMaxWidth().clickable { picked = if (t in picked) picked - t else picked + t }, verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = t in picked, onCheckedChange = { on -> picked = if (on) picked + t else picked - t })
+                        Text(t.label)
+                    }
+                }
             }
         },
     )

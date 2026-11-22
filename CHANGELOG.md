@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.11.0 - Design check, tools and fixing
+
+The app now examines a design, says what is wrong with it, and can fix part of it. Built and tested against a real desk file.
+
+- **New Check tab.** It looks at the model the way someone about to build it would and lists what it finds, worst first: parts that pass through each other, parts that touch nothing, hollow shapes drawn as one solid, thicknesses shops do not stock, shelves that run a long way between supports, and whether the thing would tip over. Each finding can be shown in 3D.
+- **Tools.** On the Check tab, tap **Tools** and tick what you own. The check then tells you which parts you cannot make, or can only make slowly, and what would do the job. The build guide's cover lists your tools for this build. Your choice is remembered for the next project.
+- **Fix what can be fixed.** One button proposes changes and shows them before anything happens: loose parts moved to rest on the model, overlapping flat pieces of one sheet joined into one, parts trimmed where they run into a neighbour, odd thicknesses moved to ones you can buy. What it will not decide for you is listed too. Some findings have their own fix (for example "Make .25 thick" or "Square these parts up").
+- **Undo, and export.** Your file is never altered. **Undo** removes changes; **Parts > Whole model (STL)** shares the changed model.
+- **Better cut list for rough files.** Parts whose surface has small gaps are now described by their real shape ("PANEL 1.00 X 42.04 X 78.00") instead of only an outer box.
+- **What it cannot do:** it reasons from shapes only. It knows nothing about wood, glue, screws or loads; its sag and balance findings are rules of thumb. It cannot cut a recess for a joint, or turn a hollow one-piece shape into boards. Moving, resizing and adding parts by hand is not in this version.
+- Behind the scenes, every release is now also run on an emulated phone, opening the desk and a cabinet and going through every tab.
+
 ## v0.10.0 - Cutting plan
 
 A cutting plan: how much to buy and where to cut.

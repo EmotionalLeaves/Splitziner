@@ -52,7 +52,12 @@ object PartDescriber {
         val d = { v: Double -> fmt.format(v) }
 
         if (!m.isWatertight) {
-            return PartDescription(PartKind.SHAPED, t, w, l, 0.0, "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}")
+            // Small gaps barely change the measured volume, so the part is still described by it. A surface that is
+            // mostly missing (many open edges, or a volume no box of this size could hold) is listed by its outer size only.
+            val topo = m.topology
+            val open = (0 until topo.edgeCount).count { topo.edgeUseCount[it] == 1 }
+            if (open > 0.2 * topo.edgeCount || fill > 1.02 || fill < 0.01)
+                return PartDescription(PartKind.SHAPED, t, w, l, 0.0, "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}")
         }
 
         var dia: Double? = null
@@ -106,7 +111,7 @@ object CutList {
         for (p in parts) {
             if (p.excluded) continue
             val d = PartDescriber.describe(p.mesh, fmt)
-            if (!p.mesh.isWatertight) warnings += "${p.name} has gaps in its surface, so it is listed by its outer size only"
+            if (!p.mesh.isWatertight) warnings += "${p.name} has gaps in its surface, so its shape is estimated"
             val vol = abs(p.mesh.volume)
             // Sizes are sorted, so identical parts match in any orientation and when mirrored.
             val g = groups.firstOrNull {

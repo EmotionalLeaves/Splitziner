@@ -20,6 +20,8 @@ data class AnalysisOptions(
     val itemOverrides: Map<String, ItemOverride> = emptyMap(),
     val excludedPartIds: Set<String> = emptySet(),
     val partNames: Map<String, String> = emptyMap(),
+    /** Changes the user has made to the model, replayed on the file's parts every time it is read. */
+    val edits: List<splitziner.edit.Edit> = emptyList(),
 )
 
 /** Everything the app knows about one STL after reading it. */
@@ -32,6 +34,10 @@ class Analysis(
     /** Bounds of all parts, in millimetres. */
     val bounds: Aabb,
     val timingsMs: Map<String, Long>,
+    /** The parts as the file has them, before any of the user's changes. */
+    val originalParts: List<Part> = parts,
+    /** Changes that could not be replayed, in plain words. */
+    val editNotes: List<String> = emptyList(),
 ) {
     /** Overall size as "W x D x H units". */
     val overallSize: String get() {
@@ -54,10 +60,11 @@ object Pipeline {
         progress.report(0.8, "Building the cut list")
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
         val named = split.parts.map { p -> p.copy(name = options.partNames[p.id] ?: p.name, excluded = p.id in options.excludedPartIds) }
-        val cut = timed("cutlist") { CutList.build(named, fmt, options.itemOverrides) }
+        val edited = if (options.edits.isEmpty()) null else timed("edits") { splitziner.edit.Editor.apply(named, options.edits) }
+        val cut = timed("cutlist") { CutList.build(edited?.parts ?: named, fmt, options.itemOverrides) }
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
             ?: Aabb.of(doubleArrayOf())
         progress.report(1.0, "Done")
-        return Analysis(name, split.report, cut.parts, cut, fmt, bounds, timings)
+        return Analysis(name, split.report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList())
     }
 }

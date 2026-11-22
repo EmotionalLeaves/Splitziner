@@ -733,3 +733,103 @@ class CutPlanTest {
         assertTrue(r.sheets[0].pieces.none { it.rotated })
     }
 }
+
+class DesignCheckTest {
+    private val mm = LengthFormat("mm")
+    private fun check(meshes: List<splitziner.mesh.Mesh>, tools: Set<splitziner.check.Tool>? = null): splitziner.check.CheckReport {
+        val cut = CutList.build(meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }, mm)
+        return splitziner.check.DesignCheck.run(cut.parts, cut.rows, mm, tools)
+    }
+    private fun titles(r: splitziner.check.CheckReport) = r.findings.map { "${it.severity} ${it.title}" }
+
+    @Test fun soundCabinetHasNoProblems() {
+        val r = check(Fixtures.miniCabinet(Fixtures.INCH), splitziner.check.Tool.entries.toSet())
+        assertEquals(0, r.problems, titles(r).toString())
+    }
+
+    @Test fun findsFloatingAndClashingParts() {
+        val base = Fixtures.box(0.0, 600.0, 0.0, 400.0, 0.0, 18.0)
+        val post = Fixtures.box(100.0, 118.0, 100.0, 300.0, 18.0, 500.0)
+        val floating = Fixtures.box(300.0, 500.0, 100.0, 300.0, 200.0, 218.0)            // touches nothing
+        val through = Fixtures.box(90.0, 290.0, 150.0, 168.0, 300.0, 400.0)              // passes through the post
+        val t = titles(check(listOf(base, post, floating, through)))
+        assertTrue(t.any { it.startsWith("PROBLEM 1 part touches nothing") }, t.toString())
+        assertTrue(t.any { it.startsWith("PROBLEM") && it.contains("occupy the same space") }, t.toString())
+        // Parts that only touch are neither.
+        val ok = titles(check(listOf(base, post)))
+        assertTrue(ok.none { it.contains("occupy") || it.contains("touch") }, ok.toString())
+    }
+
+    @Test fun flagsOddThicknessToolsSagAndTipping() {
+        val base = Fixtures.box(0.0, 100.0, 0.0, 100.0, 0.0, 18.0)
+        val arm = Fixtures.box(0.0, 2000.0, 0.0, 100.0, 18.0, 31.0)                      // 13 mm thick, far off the base
+        val r = check(listOf(base, arm), setOf(splitziner.check.Tool.HAND_SAW))
+        val t = titles(r)
+        assertTrue(t.any { it.contains("13 mm is not a thickness shops stock") }, t.toString())
+        assertTrue(t.any { it == "PROBLEM It would tip over" }, t.toString())
+        assertTrue(t.any { it.contains("may sag") }, t.toString())
+        assertTrue(t.any { it.startsWith("CHECK Your tools can manage straight cuts") }, t.toString())
+        assertTrue(r.findings.first { it.title.contains("13 mm") }.fixes.map { it.value } == listOf(12.0, 15.0))
+        // A drilled board needs a drill; with only a saw that is a problem, with a drill it is not.
+        val drilled = Fixtures.holedBoard(listOf(null, null))
+        assertTrue(titles(check(listOf(drilled), setOf(splitziner.check.Tool.CIRCULAR_SAW))).any { it == "PROBLEM No tool for round holes" })
+        assertTrue(titles(check(listOf(drilled), setOf(splitziner.check.Tool.CIRCULAR_SAW, splitziner.check.Tool.DRILL))).none { it.contains("round holes") })
+    }
+}
+
+class EditTest {
+    private val mm = LengthFormat("mm")
+    private fun parts(vararg m: splitziner.mesh.Mesh) = m.mapIndexed { i, x -> Part("P%02d".format(i + 1), "P", x) }
+    private fun problems(ps: List<Part>): List<String> {
+        val cut = CutList.build(ps, mm)
+        return splitziner.check.DesignCheck.run(cut.parts, cut.rows, mm, splitziner.check.Tool.entries.toSet()).findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title }
+    }
+
+    @Test fun prismRoundTripKeepsShapeAndCloses() {
+        val m = Fixtures.holedBoard(listOf(null, null))
+        val p = splitziner.edit.Prisms.of(m)!!
+        assertEquals(18.0, p.thickness, 1e-9)
+        val back = splitziner.edit.Prisms.toMesh(p)
+        assertTrue(back.isWatertight); assertEquals(m.volume, back.volume, m.volume * 1e-6)
+        assertNull(splitziner.edit.Prisms.of(Fixtures.cylinder(10.0, 0.0, 5.0).let { MeshOps.concatenate(listOf(it, Fixtures.box(20.0, 30.0, 0.0, 10.0, 0.0, 30.0))) }))
+    }
+
+    @Test fun trimThicknessMoveAndMerge() {
+        val base = Fixtures.box(0.0, 600.0, 0.0, 400.0, 0.0, 18.0)
+        val post = Fixtures.box(100.0, 118.0, 100.0, 300.0, 10.0, 500.0)           // sunk 8 mm into the base
+        val r = splitziner.edit.Editor.apply(parts(base, post), listOf(splitziner.edit.Edit.Trim("P02", "P01")))
+        assertTrue(r.notes.isEmpty(), r.notes.toString())
+        assertEquals(18.0, r.parts[1].mesh.bounds.min.z, 1e-6); assertTrue(r.parts[1].mesh.isWatertight)
+        // A shelf made thicker grows away from the post it rests on.
+        val shelf = Fixtures.box(118.0, 400.0, 100.0, 300.0, 200.0, 213.0)
+        val under = Fixtures.box(118.0, 136.0, 100.0, 300.0, 18.0, 200.0)
+        val t = splitziner.edit.Editor.apply(parts(base, shelf, under), listOf(splitziner.edit.Edit.Thickness(listOf("P02"), 18.0))).parts[1].mesh.bounds
+        assertEquals(200.0, t.min.z, 1e-6); assertEquals(218.0, t.max.z, 1e-6)
+        val moved = splitziner.edit.Editor.apply(parts(base), listOf(splitziner.edit.Edit.Move(listOf("P01"), Vec3(0.0, 0.0, 5.0)), splitziner.edit.Edit.AddBox("N01", "Foot", Vec3(0.0, 0.0, 0.0), Vec3(50.0, 50.0, 5.0)))).parts
+        assertEquals(2, moved.size); assertEquals(5.0, moved[0].mesh.bounds.min.z, 1e-9)
+        // Two crossing strips of one thickness become one cross-shaped piece.
+        val a = Fixtures.box(0.0, 300.0, 100.0, 140.0, 0.0, 18.0); val b = Fixtures.box(130.0, 170.0, 0.0, 240.0, 0.0, 18.0)
+        val merged = splitziner.edit.Editor.apply(parts(a, b), listOf(splitziner.edit.Edit.Merge(listOf("P01", "P02")))).parts
+        assertEquals(1, merged.size); assertTrue(merged[0].mesh.isWatertight)
+        assertEquals((300.0 * 40 + 240.0 * 40 - 40.0 * 40) * 18, merged[0].mesh.volume, 1.0)
+    }
+
+    @Test fun autoFixMakesABrokenModelSound() {
+        val base = Fixtures.box(0.0, 600.0, 0.0, 400.0, 0.0, 18.0)
+        val post = Fixtures.box(100.0, 118.0, 100.0, 300.0, 10.0, 500.0)           // runs into the base
+        val riser = Fixtures.box(300.0, 500.0, 100.0, 300.0, 21.0, 34.0)           // hovers 3 mm above it, and is 13 mm thick
+        val ps = parts(base, post, riser)
+        assertTrue(problems(ps).size >= 2, problems(ps).toString())
+        val plan = splitziner.edit.AutoFix.plan(ps, mm)
+        println("autofix: " + plan.done)
+        assertTrue(plan.left.isEmpty(), plan.left.toString())
+        val fixed = splitziner.edit.Editor.apply(ps, plan.edits).parts
+        assertEquals(emptyList(), problems(fixed))
+        assertEquals(18.0, fixed[2].mesh.bounds.min.z, 1e-6)                        // seated on the base
+        assertEquals(12.0, fixed[2].mesh.extents.z, 1e-6)                           // and now a stock thickness
+        // The pipeline replays the same changes on the original file.
+        val bytes = Fixtures.binaryStl(Fixtures.soup(listOf(base, post, riser)))
+        val a = Pipeline.analyze(bytes, "broken.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", edits = splitziner.edit.AutoFix.plan(Pipeline.analyze(bytes, "broken.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm")).originalParts, mm).edits))
+        assertEquals(emptyList(), problems(a.parts.map { Part(it.id, it.name, it.mesh) }))
+    }
+}

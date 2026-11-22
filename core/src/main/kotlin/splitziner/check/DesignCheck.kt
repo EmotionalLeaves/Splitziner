@@ -1,0 +1,386 @@
+package splitziner.check
+
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.LineString
+import org.locationtech.jts.geom.Polygon
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier
+import splitziner.cutplan.StockSettings
+import splitziner.dims.LengthFormat
+import splitziner.drawing.PartDrawings
+import splitziner.explode.Silhouette
+import splitziner.features.HoleFinder
+import splitziner.math.Vec2
+import splitziner.math.Vec3
+import splitziner.mesh.Bvh
+import splitziner.mesh.OrientedBounds
+import splitziner.parts.CutListRow
+import splitziner.parts.Part
+import splitziner.parts.PartKind
+import splitziner.view.ViewDef
+import kotlin.math.abs
+
+enum class Severity { PROBLEM, CHECK, NOTE }
+
+/** A change the app can make for the user to deal with a finding. */
+enum class FixKind { SET_THICKNESS, SQUARE_UP }
+
+class Fix(val kind: FixKind, val label: String, val partIds: List<String>, val value: Double = 0.0)
+
+/** One thing the check noticed. [partIds] are the parts it is about (for highlighting). */
+class Finding(val severity: Severity, val title: String, val detail: String, val partIds: List<String> = emptyList(), val fixes: List<Fix> = emptyList())
+
+/** What making one item involves. */
+class ItemWork(val item: Int, val work: Set<Work>, val holeDiameters: List<Double>, val cutouts: Int)
+
+class CheckReport(val findings: List<Finding>, val work: List<ItemWork>, val toolsNeeded: List<String>) {
+    val problems: Int get() = findings.count { it.severity == Severity.PROBLEM }
+    val checks: Int get() = findings.count { it.severity == Severity.CHECK }
+}
+
+/**
+ * Looks at the model the way someone about to build it would: can each part be cut from material
+ * you can buy, with the tools you have, and does the whole thing hold together? It reasons from
+ * shapes alone. It knows nothing of wood species, glue, screws or loads, and says so where that matters.
+ */
+object DesignCheck {
+    /** Thicknesses sheet goods and planed boards are commonly sold in. */
+    val STOCK_IN = doubleArrayOf(0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0, 1.5)
+    val STOCK_MM = doubleArrayOf(3.0, 4.0, 6.0, 9.0, 12.0, 15.0, 18.0, 19.0, 22.0, 25.0, 30.0, 38.0, 40.0)
+
+    /** Parts closer than this are touching (mm). */
+    private const val TOUCH = 1.0
+
+    /** Overlaps shallower than this are modelling noise, not a clash (mm). */
+    private const val CLASH_MIN = 1.5
+
+    /** A shelf-like part longer than this many times its thickness may sag: a rule of thumb, not a calculation. */
+    private const val SAG_RATIO = 40.0
+
+    fun stockThicknesses(fmt: LengthFormat): DoubleArray = if (fmt.isInch) DoubleArray(STOCK_IN.size) { STOCK_IN[it] * 25.4 } else STOCK_MM
+
+    /** The stock thicknesses just below and above [t] (mm), or a single one when [t] is a stock thickness. */
+    fun nearestStock(t: Double, fmt: LengthFormat): List<Double> {
+        val s = stockThicknesses(fmt)
+        s.firstOrNull { abs(it - t) <= maxOf(0.4, 0.03 * it) }?.let { return listOf(it) }
+        return listOfNotNull(s.lastOrNull { it < t }, s.firstOrNull { it > t })
+    }
+
+    /** What it takes to make one part, worked out from its shape. */
+    fun workFor(p: Part, fmt: LengthFormat): ItemWork {
+        val work = LinkedHashSet<Work>()
+        val holes = ArrayList<Double>(); var cutouts = 0
+        if (p.kind == PartKind.ROD) return ItemWork(p.item ?: 0, setOf(Work.STRAIGHT_CUT), holes, 0)
+        val flat = p.kind == PartKind.PANEL || p.kind == PartKind.BOARD || p.t < 0.3 * p.w
+        if (!flat) return ItemWork(p.item ?: 0, setOf(Work.CARVE), holes, 0)
+        work += if (p.w >= 250.0) Work.SHEET_CUT else Work.STRAIGHT_CUT
+        if (nearestStock(p.t, fmt).size != 1) work += Work.THICKNESS
+        // Laid flat: length along X, thickness along Y, width along Z. Looking along Y shows the outline to cut.
+        val m = PartDrawings.squaredUp(p.mesh)
+        val e = m.extents
+        val outline = runCatching { Silhouette.outline(m, ViewDef.FRONT) }.getOrNull()
+        val boxArea = e.x * e.z
+        if (outline != null && boxArea > 0) {
+            val tol = 0.002 * Math.hypot(e.x, e.z)
+            for (i in 0 until outline.numGeometries) {
+                val poly = outline.getGeometryN(i) as? Polygon ?: continue
+                if (poly.area < 0.01 * boxArea) continue
+                val ring = DouglasPeuckerSimplifier.simplify(poly.exteriorRing, tol) as? LineString ?: poly.exteriorRing
+                val (smooth, odd) = turns(ring)
+                // A run of gentle turns is a curve; a lone corner that is not square is an angled cut.
+                if (smooth >= 4) work += Work.CURVED_CUT
+                val shell = Silhouette.GF.createPolygon(poly.exteriorRing.coordinates).area
+                // Rounded corners take a sliver off the box; only a real bite out of a curved part is also a notch.
+                if (if (smooth >= 4) shell < 0.97 * boxArea else (odd > 0 || shell < 0.995 * boxArea)) work += Work.NOTCH
+                for (h in 0 until poly.numInteriorRing) {
+                    val r = poly.getInteriorRingN(h)
+                    val a = Silhouette.GF.createPolygon(r.coordinates).area
+                    if (a < 1e-6 * boxArea) continue
+                    // A circle encloses the most area for its edge length; anything well short of that is a slot or window.
+                    if (4 * Math.PI * a / (r.length * r.length) > 0.93) { work += Work.HOLES; holes += 2 * Math.sqrt(a / Math.PI) } else { work += Work.CUTOUT; cutouts++ }
+                }
+            }
+        }
+        // Holes drilled into an edge do not show in the outline.
+        runCatching { HoleFinder.find(m) }.getOrDefault(emptyList()).filter { it.principalAxis != 1 }.forEach { work += Work.HOLES; holes += it.diameter }
+        // Faces that lean between the broad face and the edge are a round-over or a bevel.
+        val n = m.faceNormals; val a = m.faceAreas
+        var lean = 0.0
+        for (t in 0 until m.triangleCount) { val ny = abs(n[3 * t + 1]); if (ny > 0.2 && ny < 0.98) lean += a[t] }
+        if (lean > 0.01 * m.area) work += Work.EDGE_SHAPE
+        return ItemWork(p.item ?: 0, work, holes, cutouts)
+    }
+
+    /** Gentle turns (part of a curve) and corners that are neither gentle nor square, around a ring. */
+    private fun turns(ring: LineString): Pair<Int, Int> {
+        val c = ring.coordinates
+        val n = c.size - 1
+        if (n < 3) return 0 to 0
+        var smooth = 0; var odd = 0
+        for (i in 0 until n) {
+            val a = c[(i + n - 1) % n]; val b = c[i]; val d = c[(i + 1) % n]
+            val u = Vec2(b.x - a.x, b.y - a.y).normalized(); val v = Vec2(d.x - b.x, d.y - b.y).normalized()
+            val deg = Math.toDegrees(Math.acos((u dot v).coerceIn(-1.0, 1.0)))
+            if (deg > 3 && deg < 40) smooth++ else if (deg >= 40 && abs(deg - 90) > 3) odd++
+        }
+        return smooth to odd
+    }
+
+    private fun inside(bvh: Bvh, p: Vec3): Boolean {
+        // Three rays, majority vote: one ray through a gap in a leaky surface must not decide it.
+        var votes = 0
+        for (d in DIRS) {
+            var hits = 0; var t = 0.0
+            while (hits < 64) { val h = bvh.firstHit(p, d, t) ?: break; hits++; t = h.t + 1e-7 }
+            if (hits % 2 == 1) votes++
+        }
+        return votes >= 2
+    }
+
+    private val DIRS = listOf(Vec3(0.5377, 0.2954, 0.7897).normalized(), Vec3(-0.3511, 0.8623, -0.3651).normalized(), Vec3(0.1113, -0.5202, -0.8467).normalized())
+
+    fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt)): CheckReport {
+        val live = parts.filter { !it.excluded }
+        val out = ArrayList<Finding>()
+        val d = { v: Double -> fmt.format(v) }
+        // Stock thicknesses need the extra place in inches: 1/8 is .125, not .13.
+        val ds = { v: Double -> if (fmt.isInch && fmt.inchStyle == "decimal") fmt.copy(decimals = 3).format(v).let { if (it.contains('.')) it.trimEnd('0').trimEnd('.') else it } else fmt.format(v) }
+        val u = fmt.unitLabel
+        fun items(ps: List<Part>) = ps.mapNotNull { it.item }.distinct().sorted().let { if (it.size == 1) "Item ${it[0]}" else "Items ${it.joinToString(", ")}" }
+        val byItem = live.filter { it.item != null }.groupBy { it.item!! }
+
+        // --- Each item on its own: material and tools. ---
+        val work = byItem.entries.sortedBy { it.key }.map { (_, ps) -> runCatching { workFor(ps[0], fmt) }.getOrDefault(ItemWork(ps[0].item ?: 0, emptySet(), emptyList(), 0)) }
+        val workOf = work.associateBy { it.item }
+
+        val flatParts = live.filter { it.kind != PartKind.ROD && (it.kind == PartKind.PANEL || it.kind == PartKind.BOARD || it.t < 0.3 * it.w) }
+        for ((_, ps) in flatParts.filter { nearestStock(it.t, fmt).size != 1 }.groupBy { Math.round(it.t * 20) }.entries.sortedBy { it.key }) {
+            val t = ps[0].t; val near = nearestStock(t, fmt)
+            out += Finding(Severity.CHECK, "${d(t)} $u is not a thickness shops stock",
+                "${items(ps)} ${if (ps.size == 1) "is" else "are"} ${d(t)} thick. Common stock is ${near.joinToString(" or ") { ds(it) }}. Change the thickness, or plan to plane material down.",
+                ps.map { it.id }, near.map { Fix(FixKind.SET_THICKNESS, "Make ${ds(it)} thick", ps.map { p -> p.id }, it) })
+        }
+        for (p in live.filter { it.kind == PartKind.SHAPED && it.t >= 0.3 * it.w }.distinctBy { it.item }) {
+            val fill = abs(p.mesh.volume) / maxOf(p.t * p.w * p.l, 1e-9)
+            val hollow = fill < 0.5
+            out += Finding(if (hollow) Severity.PROBLEM else Severity.CHECK,
+                if (hollow) "Item ${p.item} is a hollow shape drawn as one piece" else "Item ${p.item} is a solid block, not a board",
+                if (hollow) "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} but is mostly empty, like a box or frame whose sides were joined into one solid in the 3D program. It cannot be cut from one piece. Model its sides as separate parts to get a cut list for it."
+                else "It measures ${d(p.t)} x ${d(p.w)} x ${d(p.l)} and is not a simple board or rod. It has to be glued up from layers and shaped, machined, or printed.",
+                live.filter { it.item == p.item }.map { it.id })
+        }
+        for (p in flatParts.distinctBy { it.item }) {
+            val fitsSheet = (p.w <= stock.sheetW + 0.5 && p.l <= stock.sheetL + 0.5) || (p.l <= stock.sheetW + 0.5 && p.w <= stock.sheetL + 0.5)
+            val isBoard = p.kind == PartKind.BOARD
+            if (!isBoard && !fitsSheet) out += Finding(Severity.PROBLEM, "Item ${p.item} is bigger than a sheet",
+                "It needs ${d(p.w)} x ${d(p.l)}; your sheets are ${d(stock.sheetW)} x ${d(stock.sheetL)}. It must be made from two pieces joined, or the design made smaller.", live.filter { it.item == p.item }.map { it.id })
+            if (isBoard && p.l > stock.boardL + 0.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is longer than your boards",
+                "It is ${d(p.l)} long; boards come in ${d(stock.boardL)}.", live.filter { it.item == p.item }.map { it.id })
+        }
+
+        // --- Tools. ---
+        val needs = LinkedHashMap<Work, MutableList<Int>>()
+        for (w in work) for (k in w.work) needs.getOrPut(k) { ArrayList() } += w.item
+        val toolsNeeded = ArrayList<String>()
+        for ((k, its) in needs.entries.sortedBy { it.key.ordinal }) {
+            // Odd thicknesses and solid blocks have findings of their own above; here they only add to the tool list.
+            if (k == Work.THICKNESS || k == Work.CARVE) {
+                if (tools != null && tools.any { it in k.with }) toolsNeeded += "${tools.filter { it in k.with }.joinToString(" or ") { it.label }} for ${k.label}"
+                continue
+            }
+            val who = (if (its.size == 1) "Item " else "Items ") + its.joinToString(", ")
+            val ids = live.filter { it.item in its }.map { it.id }
+            val can = k.with.joinToString(", ") { it.label.lowercase() }
+            val extra = when (k) {
+                Work.HOLES -> work.flatMap { it.holeDiameters }.map { d(it) }.distinct().let { if (it.isEmpty()) "" else " Bit sizes: ${it.joinToString(", ")}." }
+                Work.CUTOUT -> " Start each opening from a drilled hole."
+                else -> ""
+            }
+            // Squaring a part up removes its curves, notches and edge shapes: an honest way out when the tool is missing.
+            val squarable = k == Work.CURVED_CUT || k == Work.NOTCH || k == Work.EDGE_SHAPE
+            val fix = if (squarable) listOf(Fix(FixKind.SQUARE_UP, "Square these parts up", ids)) else emptyList()
+            when {
+                tools == null -> { toolsNeeded += "${k.label}: $can"; }
+                tools.any { it in k.with } -> toolsNeeded += "${tools.filter { it in k.with }.joinToString(" or ") { it.label }} for ${k.label}"
+                tools.any { it in k.slowly } -> {
+                    val have = tools.filter { it in k.slowly }.joinToString(" or ") { it.label.lowercase() }
+                    toolsNeeded += "${tools.filter { it in k.slowly }.joinToString(" or ") { it.label }} for ${k.label} (slow)"
+                    out += Finding(Severity.CHECK, "Your tools can manage ${k.label}, but only just", "$who need ${k.label}. Your $have will do it slowly and less accurately. Better: $can.$extra", ids, fix)
+                }
+                else -> out += Finding(Severity.PROBLEM, "No tool for ${k.label}", "$who need ${k.label}, and nothing in your tool list does that. Any of these would: $can.$extra", ids, fix)
+            }
+        }
+        if (tools == null && needs.isNotEmpty())
+            out += Finding(Severity.NOTE, "Choose your tools", "Tell the app which tools you have (Tools, on this tab) and it will check every part against them. This build involves: ${needs.keys.joinToString(", ") { it.label }}.")
+
+        // --- Parts against each other. ---
+        val n = live.size
+        val rel = relations(live)
+        val lo = rel.lo; val hi = rel.hi; val touching = rel.touching; val clashes = rel.clashes
+        // Many clashes of the same two items (a pair of drawers in a pair of slides) are told once.
+        for ((_, cs) in clashes.groupBy { setOf(live[it.a].item, live[it.b].item) }) {
+            val c = cs.maxByOrNull { it.depth }!!
+            val pa = live[c.a]; val pb = live[c.b]
+            // A few millimetres is usually a part drawn slightly too long; more than that changes how the thing goes together.
+            val slight = c.depth < 3.5
+            val same = pa.item == pb.item
+            out += Finding(if (slight) Severity.CHECK else Severity.PROBLEM,
+                (if (same) "Two of item ${pa.item}" else "Items ${minOf(pa.item ?: 0, pb.item ?: 0)} and ${maxOf(pa.item ?: 0, pb.item ?: 0)}") + (if (slight) " overlap slightly" else " occupy the same space"),
+                "They overlap by about ${d(c.depth)} $u" + (if (cs.size > 1) " in ${cs.size} places" else "") + (if (slight) ". Probably one was drawn a touch too long; trim it to fit when building." else ". Two solid parts cannot do that. If it is meant as a joint (a tenon, a housing), one part needs a matching recess; otherwise one of them must be shortened or moved."),
+                cs.flatMap { listOf(live[it.a].id, live[it.b].id) }.distinct())
+        }
+        if (n > 1) {
+            val alone = (0 until n).filter { touching[it].isEmpty() }
+            if (alone.isNotEmpty()) out += Finding(Severity.PROBLEM, "${alone.size} part${if (alone.size == 1) " touches" else "s touch"} nothing",
+                "${items(alone.map { live[it] })}: no other part is within ${d(TOUCH)} $u. In the model ${if (alone.size == 1) "it floats" else "they float"} in the air; built for real ${if (alone.size == 1) "it needs" else "they need"} something to hold ${if (alone.size == 1) "it" else "them"}.",
+                alone.map { live[it].id })
+            // Groups of parts joined to each other but to nothing else.
+            val groups = rel.groups
+            val islands = groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1)
+            for (g in islands) out += Finding(Severity.PROBLEM, "${g.size} parts are joined to each other but not to the rest",
+                "${items(g.map { live[it] })} touch each other and nothing else, so as drawn they are a separate object.", g.map { live[it].id })
+        }
+
+        // --- The whole thing. ---
+        if (live.isNotEmpty()) {
+            val floor = lo.minOf { it.z }
+            // Weight is taken as proportional to volume: every part the same material. Good enough to spot a top-heavy design.
+            var m = 0.0; var cx = 0.0; var cy = 0.0
+            for (p in live) { val v = if (p.watertight) abs(p.mesh.volume) else p.t * p.w * p.l * 0.5; val c = p.mesh.bounds.center; m += v; cx += v * c.x; cy += v * c.y }
+            val feet = ArrayList<Vec2>()
+            for (p in live) if (p.mesh.bounds.min.z <= floor + 2.0) for (v in 0 until p.mesh.vertexCount) if (p.mesh.vertices[3 * v + 2] <= floor + 2.0) feet += Vec2(p.mesh.vertices[3 * v], p.mesh.vertices[3 * v + 1])
+            val hull = OrientedBounds.convexHull(feet)
+            if (m > 0 && hull.size >= 3) {
+                val c = Vec2(cx / m, cy / m)
+                // Distance from the balance point to the nearest edge of the footprint; negative when outside.
+                var margin = Double.MAX_VALUE
+                for (k in hull.indices) {
+                    val p = hull[k]; val q = hull[(k + 1) % hull.size]
+                    val e = (q - p).normalized()
+                    margin = minOf(margin, e.x * (c.y - p.y) - e.y * (c.x - p.x))
+                }
+                val size = Math.hypot(hi.maxOf { it.x } - lo.minOf { it.x }, hi.maxOf { it.y } - lo.minOf { it.y })
+                if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover (taking every part as the same material). It needs a wider base, a counterweight, or fixing to a wall.")
+                else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint (taking every part as the same material). A push or a load on the overhang could tip it.")
+            } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
+        }
+        val sagging = HashSet<Int?>()
+        for ((i, p) in live.withIndex()) {
+            if (p.kind != PartKind.PANEL && p.kind != PartKind.BOARD) continue
+            if (p.item in sagging || touching[i].isEmpty()) continue
+            // Lying flat (its thickness is vertical): how far does it run between the parts that hold it?
+            val box = OrientedBounds.of(p.mesh)
+            val k = (0..2).minByOrNull { box.extents[it] }!!
+            if (abs(box.axes[k].z) < 0.95) continue
+            val axis = if (hi[i].x - lo[i].x >= hi[i].y - lo[i].y) 0 else 1
+            val a0 = lo[i][axis]; val a1 = hi[i][axis]
+            val held = touching[i].map { j -> maxOf(lo[j][axis], a0) to minOf(hi[j][axis], a1) }.filter { it.second >= it.first }.sortedBy { it.first }
+            var span = 0.0; var reach = a0
+            // Overhang past the last support counts double: a cantilever bends like a span twice as long.
+            if (held.isNotEmpty()) span = 2 * (held[0].first - a0)
+            for ((from, to) in held) { span = maxOf(span, from - reach); reach = maxOf(reach, to) }
+            span = maxOf(span, 2 * (a1 - reach))
+            if (span > SAG_RATIO * p.t) {
+                sagging += p.item
+                out += Finding(Severity.CHECK, "Item ${p.item} may sag", "It lies flat and runs about ${d(span)} $u between supports at ${d(p.t)} thick: ${Math.round(span / p.t)} times its thickness. As a rule of thumb a loaded shelf wants support at least every ${SAG_RATIO.toInt()} thicknesses. The app cannot tell how much it will carry.",
+                    live.filter { it.item == p.item }.map { it.id })
+            }
+        }
+        val leaky = live.filter { !it.watertight }
+        if (leaky.isNotEmpty()) out += Finding(Severity.NOTE, "${leaky.size} part${if (leaky.size == 1) " has" else "s have"} gaps in the surface",
+            "${items(leaky)}. The 3D file leaves small holes in these surfaces, so their sizes are read from the outside and their weight is estimated. The drawings are not affected.", leaky.map { it.id })
+        out += Finding(Severity.NOTE, "Joints are yours to decide", "The model shows shapes, not screws, dowels or glue. Nothing here checks that a joint is strong enough.")
+        return CheckReport(out.sortedBy { it.severity.ordinal }, work, toolsNeeded)
+    }
+
+    class Clash(val a: Int, val b: Int, val depth: Double)
+
+    /** How the parts sit against each other: who touches whom, who overlaps whom, and which groups hang together. */
+    class Relations(val lo: List<Vec3>, val hi: List<Vec3>, val touching: Array<HashSet<Int>>, val clashes: List<Clash>, val groups: List<List<Int>>) {
+        /** Groups other than the largest: parts of the model that are not joined to its main body. */
+        val islands: List<List<Int>> get() = groups.sortedByDescending { it.size }.drop(1)
+    }
+
+    fun relations(live: List<Part>): Relations {
+        val n = live.size
+        val bvh = live.map { Bvh(it.mesh) }
+        val lo = live.map { it.mesh.bounds.min }; val hi = live.map { it.mesh.bounds.max }
+        val touching = Array(n) { HashSet<Int>() }
+        val clashes = ArrayList<Clash>()
+        for (i in 0 until n) for (j in i + 1 until n) {
+            if (!(0..2).all { lo[i][it] <= hi[j][it] + TOUCH && lo[j][it] <= hi[i][it] + TOUCH }) continue
+            // The space both boxes share, pulled in a little so faces that merely touch do not count.
+            val a = Vec3(maxOf(lo[i].x, lo[j].x), maxOf(lo[i].y, lo[j].y), maxOf(lo[i].z, lo[j].z))
+            val b = Vec3(minOf(hi[i].x, hi[j].x), minOf(hi[i].y, hi[j].y), minOf(hi[i].z, hi[j].z))
+            val ext = b - a
+            var both = 0
+            // Sample points about every 6 mm, so a small overlap in a long shared space is not stepped over.
+            val gx = Math.ceil(ext.x / 6.0).toInt().coerceIn(4, 20); val gy = Math.ceil(ext.y / 6.0).toInt().coerceIn(4, 20); val gz = Math.ceil(ext.z / 6.0).toInt().coerceIn(4, 20)
+            var minX = Double.MAX_VALUE; var maxX = -Double.MAX_VALUE; var minY = minX; var maxY = maxX; var minZ = minX; var maxZ = maxX
+            if (ext.x > CLASH_MIN && ext.y > CLASH_MIN && ext.z > CLASH_MIN) {
+                val pad = CLASH_MIN / 3
+                for (x in 0 until gx) for (y in 0 until gy) for (z in 0 until gz) {
+                    val p = Vec3(a.x + pad + (ext.x - 2 * pad) * (x + 0.5) / gx, a.y + pad + (ext.y - 2 * pad) * (y + 0.5) / gy, a.z + pad + (ext.z - 2 * pad) * (z + 0.5) / gz)
+                    if (inside(bvh[i], p) && inside(bvh[j], p)) {
+                        both++
+                        minX = minOf(minX, p.x); maxX = maxOf(maxX, p.x); minY = minOf(minY, p.y); maxY = maxOf(maxY, p.y); minZ = minOf(minZ, p.z); maxZ = maxOf(maxZ, p.z)
+                    }
+                }
+            }
+            if (both >= 2) {
+                // Depth of the clash: the thinnest way through the shared space, to the nearest sample spacing.
+                val depth = minOf(maxX - minX + ext.x / gx, maxY - minY + ext.y / gy, maxZ - minZ + ext.z / gz)
+                clashes += Clash(i, j, depth); touching[i] += j; touching[j] += i
+            } else if (near(live[i], bvh[j]) || near(live[j], bvh[i])) { touching[i] += j; touching[j] += i }
+        }
+        val seen = BooleanArray(n); val groups = ArrayList<List<Int>>()
+        for (s in 0 until n) {
+            if (seen[s]) continue
+            val g = ArrayList<Int>(); val q = ArrayDeque<Int>(); q += s; seen[s] = true
+            while (q.isNotEmpty()) { val x = q.removeFirst(); g += x; for (y in touching[x]) if (!seen[y]) { seen[y] = true; q += y } }
+            groups += g
+        }
+        return Relations(lo, hi, touching, clashes, groups)
+    }
+
+    /** How far [group] can travel along [d] before it meets one of [others] (mm); null if nothing is in the way. */
+    fun gap(group: List<Part>, others: List<Part>, d: Vec3): Double? {
+        val bvh = others.map { Bvh(it.mesh) }
+        var best: Double? = null
+        for (p in group) {
+            val m = p.mesh; val stride = maxOf(1, m.vertexCount / 2000)
+            var i = 0
+            while (i < m.vertexCount) {
+                val o = m.vertex(i)
+                for (b in bvh) { val h = b.firstHit(o, d, -1e-9) ?: continue; if (best == null || h.t < best) best = h.t }
+                i += stride
+            }
+            val c = m.faceCenters; val fs = maxOf(1, m.triangleCount / 2000)
+            var t = 0
+            while (t < m.triangleCount) {
+                val o = Vec3(c[3 * t], c[3 * t + 1], c[3 * t + 2])
+                for (b in bvh) { val h = b.firstHit(o, d, -1e-9) ?: continue; if (best == null || h.t < best) best = h.t }
+                t += fs
+            }
+        }
+        return best
+    }
+
+    /** True when some point of [a]'s surface lies within [TOUCH] of the other part's surface. */
+    private fun near(a: Part, other: Bvh): Boolean {
+        val m = a.mesh
+        val c = m.faceCenters; val nr = m.faceNormals
+        val stride = maxOf(1, m.triangleCount / 3000)
+        var t = 0
+        while (t < m.triangleCount) {
+            // From just behind the face, look out along its normal: a neighbour's face lying against it is hit at once.
+            val nrm = Vec3(nr[3 * t], nr[3 * t + 1], nr[3 * t + 2])
+            for (k in 0..3) {
+                val p = if (k == 3) Vec3(c[3 * t], c[3 * t + 1], c[3 * t + 2]) else m.vertex(m.triangles[3 * t + k]).let { v -> v + (Vec3(c[3 * t], c[3 * t + 1], c[3 * t + 2]) - v) * 0.02 }
+                val h = other.firstHit(p - nrm * TOUCH, nrm, -1e-9)
+                if (h != null && h.t <= 2 * TOUCH) return true
+            }
+            t += stride
+        }
+        return false
+    }
+}

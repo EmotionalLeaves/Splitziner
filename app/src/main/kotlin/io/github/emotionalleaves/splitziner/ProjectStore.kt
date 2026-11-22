@@ -37,6 +37,10 @@ data class ProjectMeta(
     val sections: String = "auto",
     /** The user's own build order (part ids per step, base first); null for the automatic order. */
     val stepOrder: List<List<String>>? = null,
+    /** Names of the tools the maker has for this project; null until they have said. */
+    val tools: List<String>? = null,
+    /** Changes made to the model in the app, replayed on the original file each time it is read. */
+    val edits: List<splitziner.edit.Edit> = emptyList(),
     /** The user's wording per step, keyed by the parts in the step. */
     val stepText: Map<String, splitziner.guide.StepText> = emptyMap(),
 ) {
@@ -48,7 +52,7 @@ data class ProjectMeta(
 
     fun drawingSettings() = splitziner.drawing.DrawingSettings(sheet = sheet, hidden = hidden, sections = sections)
 
-    fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames)
+    fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames, edits)
 }
 
 /** Projects live in app-private storage: files/projects/<id>/{source.stl, project.json}. */
@@ -86,6 +90,8 @@ class ProjectStore(context: Context) {
         o.put("designer", meta.designer).put("drawn", meta.drawn).put("checked", meta.checked).put("approved", meta.approved)
         o.put("date", meta.date).put("notes", JSONArray(meta.notes)).put("sheet", meta.sheet).put("hidden", meta.hidden).put("sections", meta.sections)
         o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
+        o.put("tools", meta.tools?.let { JSONArray(it) } ?: JSONObject.NULL)
+        o.put("edits", JSONArray(meta.edits.map { EditJson.write(it) }))
         o.put("stepOrder", meta.stepOrder?.let { order -> JSONArray(order.map { JSONArray(it) }) } ?: JSONObject.NULL)
         val st = JSONObject()
         for ((k, v) in meta.stepText) st.put(k, JSONObject().put("title", v.title ?: "").put("lines", JSONArray(v.lines ?: emptyList<String>())).put("check", v.check ?: ""))
@@ -113,6 +119,8 @@ class ProjectStore(context: Context) {
             designer = o.optString("designer"), drawn = o.optString("drawn"), checked = o.optString("checked"), approved = o.optString("approved"),
             date = o.optString("date"), notes = strings(o.optJSONArray("notes")) ?: emptyList(),
             tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
+            tools = if (o.isNull("tools")) null else strings(o.optJSONArray("tools")),
+            edits = o.optJSONArray("edits")?.let { a -> (0 until a.length()).mapNotNull { EditJson.read(a.getJSONObject(it)) } } ?: emptyList(),
             sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"), sections = o.optString("sections", "auto"),
             stepOrder = if (o.isNull("stepOrder")) null else o.optJSONArray("stepOrder")?.let { a -> (0 until a.length()).map { strings(a.getJSONArray(it)) ?: emptyList() } },
             stepText = o.optJSONObject("stepText")?.let { n ->
@@ -127,4 +135,40 @@ class ProjectStore(context: Context) {
     private fun strings(a: JSONArray?): List<String>? = a?.let { arr -> (0 until arr.length()).map { arr.getString(it) } }
 
     fun delete(id: String) { dir(id).deleteRecursively() }
+}
+
+
+/** Model changes as JSON, so they are saved with the project. */
+object EditJson {
+    private fun vec(v: splitziner.math.Vec3) = JSONArray(listOf(v.x, v.y, v.z))
+    private fun vec(a: JSONArray) = splitziner.math.Vec3(a.getDouble(0), a.getDouble(1), a.getDouble(2))
+    private fun ids(a: JSONArray) = (0 until a.length()).map { a.getString(it) }
+
+    fun write(e: splitziner.edit.Edit): JSONObject = when (e) {
+        is splitziner.edit.Edit.Move -> JSONObject().put("op", "move").put("ids", JSONArray(e.ids)).put("d", vec(e.d))
+        is splitziner.edit.Edit.Thickness -> JSONObject().put("op", "thickness").put("ids", JSONArray(e.ids)).put("t", e.t)
+        is splitziner.edit.Edit.SquareUp -> JSONObject().put("op", "square").put("ids", JSONArray(e.ids))
+        is splitziner.edit.Edit.Merge -> JSONObject().put("op", "merge").put("ids", JSONArray(e.ids))
+        is splitziner.edit.Edit.Trim -> JSONObject().put("op", "trim").put("id", e.id).put("by", e.by)
+        is splitziner.edit.Edit.Resize -> JSONObject().put("op", "resize").put("id", e.id).put("t", e.t).put("w", e.w).put("l", e.l)
+        is splitziner.edit.Edit.AddBox -> JSONObject().put("op", "add").put("id", e.id).put("name", e.name).put("min", vec(e.min)).put("size", vec(e.size))
+        is splitziner.edit.Edit.Duplicate -> JSONObject().put("op", "copy").put("id", e.id).put("newId", e.newId).put("d", vec(e.d))
+        is splitziner.edit.Edit.Delete -> JSONObject().put("op", "delete").put("ids", JSONArray(e.ids))
+    }
+
+    /** Null for a change this version does not know, so an older app skips it and keeps the rest. */
+    fun read(o: JSONObject): splitziner.edit.Edit? = runCatching {
+        when (o.getString("op")) {
+            "move" -> splitziner.edit.Edit.Move(ids(o.getJSONArray("ids")), vec(o.getJSONArray("d")))
+            "thickness" -> splitziner.edit.Edit.Thickness(ids(o.getJSONArray("ids")), o.getDouble("t"))
+            "square" -> splitziner.edit.Edit.SquareUp(ids(o.getJSONArray("ids")))
+            "merge" -> splitziner.edit.Edit.Merge(ids(o.getJSONArray("ids")))
+            "trim" -> splitziner.edit.Edit.Trim(o.getString("id"), o.getString("by"))
+            "resize" -> splitziner.edit.Edit.Resize(o.getString("id"), o.getDouble("t"), o.getDouble("w"), o.getDouble("l"))
+            "add" -> splitziner.edit.Edit.AddBox(o.getString("id"), o.getString("name"), vec(o.getJSONArray("min")), vec(o.getJSONArray("size")))
+            "copy" -> splitziner.edit.Edit.Duplicate(o.getString("id"), o.getString("newId"), vec(o.getJSONArray("d")))
+            "delete" -> splitziner.edit.Edit.Delete(ids(o.getJSONArray("ids")))
+            else -> null
+        }
+    }.getOrNull()
 }

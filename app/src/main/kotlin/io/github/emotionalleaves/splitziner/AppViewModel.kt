@@ -46,6 +46,12 @@ data class UiState(
     val drawingBusy: Boolean = false,
     val guide: GuideState? = null,
     val guideBusy: Boolean = false,
+    /** Fixes worked out for the open project, waiting for the user to accept or dismiss them. */
+    val fixPlan: splitziner.edit.FixPlan? = null,
+    val fixBusy: Boolean = false,
+    /** The design check for the open project; null until it has been worked out. */
+    val check: splitziner.check.CheckReport? = null,
+    val checkBusy: Boolean = false,
     /** Per part id, how far it travels when the 3D view is fully pulled apart (model mm). */
     val explodeOffsets: Map<String, splitziner.math.Vec3>? = null,
 )
@@ -84,7 +90,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val meta = open.meta.copy(stepText = if (text == null) open.meta.stepText - key else open.meta.stepText + (key to text))
         store.save(meta)
         guideJob?.cancel()
-        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false) }
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false, check = null, checkBusy = false) }
         ensureGuide()
     }
 
@@ -111,6 +117,81 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Builds the step-by-step guide for the open project. Safe to call whenever the Guide tab is shown. */
+    private var checkJob: Job? = null
+    private val toolPrefs by lazy { getApplication<Application>().getSharedPreferences("tools", android.content.Context.MODE_PRIVATE) }
+
+    /** The tools to check against: this project's, else the ones last chosen for any project, else not yet known. */
+    fun toolsFor(meta: ProjectMeta): Set<splitziner.check.Tool>? =
+        (meta.tools ?: toolPrefs.getStringSet("owned", null)?.toList())?.let { splitziner.check.Tool.parse(it) }
+
+    fun setTools(tools: Set<splitziner.check.Tool>) {
+        val open = _state.value.open ?: return
+        val names = tools.map { it.name }
+        toolPrefs.edit().putStringSet("owned", names.toSet()).apply()
+        val meta = open.meta.copy(tools = names)
+        store.save(meta)
+        // The check and the guide's tool list both depend on the tools.
+        checkJob?.cancel(); guideJob?.cancel()
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), check = null, checkBusy = false, guide = null, guideBusy = false) }
+        ensureCheck()
+    }
+
+    /** Works out what the app can put right by itself. Nothing changes until [applyFixes]. */
+    fun planFixes() {
+        val open = _state.value.open ?: return
+        if (_state.value.fixBusy) return
+        _state.update { it.copy(fixBusy = true, fixPlan = null) }
+        viewModelScope.launch {
+            try {
+                val plan = withContext(Dispatchers.Default) {
+                    val t0 = System.nanoTime()
+                    splitziner.edit.AutoFix.plan(open.analysis.originalParts, open.analysis.format, open.meta.edits).also {
+                        Diagnostics.log("fix plan: ${it.edits.size} changes, ${it.left.size} left, ${(System.nanoTime() - t0) / 1_000_000} ms")
+                    }
+                }
+                _state.update { it.copy(fixPlan = plan, fixBusy = false) }
+            } catch (e: Throwable) {
+                Diagnostics.logError("fix plan", e)
+                _state.update { it.copy(fixBusy = false, error = "The fixes could not be worked out: ${e.message}") }
+            }
+        }
+    }
+
+    fun dismissFixes() = _state.update { it.copy(fixPlan = null) }
+
+    fun applyFixes() {
+        val plan = _state.value.fixPlan ?: return
+        _state.update { it.copy(fixPlan = null) }
+        if (plan.edits.isNotEmpty()) update { it.copy(edits = it.edits + plan.edits) }
+    }
+
+    fun addEdit(edit: splitziner.edit.Edit) = update { it.copy(edits = it.edits + edit) }
+    fun undoLastEdit() = update { it.copy(edits = it.edits.dropLast(1)) }
+    fun undoAllEdits() = update { it.copy(edits = emptyList()) }
+
+    fun ensureCheck() {
+        val open = _state.value.open ?: return
+        if (_state.value.check != null || _state.value.checkBusy) return
+        _state.update { it.copy(checkBusy = true) }
+        checkJob = viewModelScope.launch {
+            try {
+                val report = withContext(Dispatchers.Default) {
+                    val t0 = System.nanoTime()
+                    val a = open.analysis
+                    splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta)).also {
+                        Diagnostics.log("check: ${it.problems} problems, ${it.checks} to check, ${(System.nanoTime() - t0) / 1_000_000} ms")
+                    }
+                }
+                _state.update { it.copy(check = report, checkBusy = false) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Diagnostics.logError("check", e)
+                _state.update { it.copy(checkBusy = false, error = "The design check could not be finished: ${e.message}") }
+            }
+        }
+    }
+
     fun ensureGuide(force: Boolean = false) {
         val open = _state.value.open ?: return
         if (!force && (_state.value.guide != null || _state.value.guideBusy)) return
@@ -126,7 +207,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val drawn = pl.parts.filter { !it.excluded }
                     val view = splitziner.explode.ExplodedView.pickView(drawn)
                     val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
-                    val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size)
+                    // The cover lists the tools the parts call for, named from the maker's own tools once they have chosen them.
+                    val tools = runCatching { (_state.value.check ?: splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, toolsFor(open.meta))).toolsNeeded }.getOrDefault(emptyList())
+                    val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } })
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
@@ -189,15 +272,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // The guide's cover carries the title, so it is rebuilt the next time it is opened.
         guideJob?.cancel()
         explodeJob?.cancel()
-        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false, explodeOffsets = null) }
+        _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
         ensureDrawing(force = true)
     }
 
     fun dismissError() = _state.update { it.copy(error = null) }
     fun dismissCrash() { Diagnostics.clearCrash(); _state.update { it.copy(crashReport = null) } }
     fun closeProject() {
-        drawingJob?.cancel(); guideJob?.cancel(); viewSet = null; viewSetFor = null; plan = null; planFor = null
-        _state.update { it.copy(open = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, explodeOffsets = null) }
+        drawingJob?.cancel(); guideJob?.cancel(); checkJob?.cancel(); viewSet = null; viewSetFor = null; plan = null; planFor = null
+        _state.update { it.copy(open = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
     }
 
     fun importFrom(uri: Uri) {
@@ -262,8 +345,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Diagnostics.log("analysis: ${r.faces} tris, ${r.method}, ${r.bodies} bodies, ${r.parts} parts, units ${r.units.fileUnits}/${r.units.designUnits} margin ${r.units.margin}, ${analysis.timingsMs}")
             val saved = meta.copy(partCount = analysis.parts.size)
             store.save(saved)
-            drawingJob?.cancel(); guideJob?.cancel()
-            _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, explodeOffsets = null) }
+            drawingJob?.cancel(); guideJob?.cancel(); checkJob?.cancel()
+            _state.update { it.copy(open = OpenProject(saved, analysis), busyLabel = null, projects = store.list(), drawing = null, drawingBusy = false, guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
         } catch (e: Throwable) {
             if (deleteOnFailure) store.delete(meta.id)
             fail("analysis", e)
