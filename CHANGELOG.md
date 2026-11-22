@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.68.0 - Help screen and clearer rail names
+
+- **Help has its own screen.** Topics are grouped by section (getting a model in, 3D and changes, check and fixes, drawings, build guide, cut list and buying). Tap a topic to open it, or search all of them.
+- **Rails between legs have clearer names:** side rail, end rail or centre rail, so the bed's cut list says which rail is which.
+
 ## v0.67.0 - Shorter, clearer guide text
 
 - **Shorter, clearer guide text:**
