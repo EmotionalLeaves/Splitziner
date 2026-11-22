@@ -274,7 +274,8 @@ object Fastening {
                 }
                 JoinMethod.DOWELS -> {
                     val d = (tThrough / 2).coerceAtMost(12.0)
-                    size = if (fmt.isInch) fraction(if (d >= 9.5) 0.375 else 0.25) + " dowels" else "${if (d >= 8) 8 else 6} mm dowels"
+                    // Fluted dowel pins as sold, diameter and length: 3/8 x 1-1/2 in, 1/4 x 1-1/4 in; 8 x 40 mm, 6 x 30 mm.
+                    size = if (fmt.isInch) (if (d >= 9.5) "3/8 x 1-1/2 in dowels" else "1/4 x 1-1/4 in dowels") else (if (d >= 8) "8 x 40 mm dowels" else "6 x 30 mm dowels")
                     kind = "dowels"
                 }
                 JoinMethod.GLUE_AND_BRADS -> { size = pick(tThrough + minOf(tThrough, depth - 3.0), fmt, true) ?: ""; kind = "brads" }
@@ -374,6 +375,9 @@ object Fastening {
         }
         return out
     }
+
+    /** The dowels the plan uses ("3/8 x 1-1/2 in dowels"), for the guide's note on drilling them; null if none. */
+    fun dowelSize(plan: FastenPlan): String? = plan.all.firstOrNull { it.kind == "dowels" && !it.glueOnly }?.size
 
     /** Items that get a groove or rabbet for a thin part, if the maker takes that option over a cleat. */
     fun grooveItems(plan: FastenPlan): List<Int> =

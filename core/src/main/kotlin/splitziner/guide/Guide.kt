@@ -273,7 +273,7 @@ object GuideLayout {
      * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
      * [housedItems] items that need a groove cut; [screws] whether anything is screwed (screw holes to fill).
      */
-    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList(), thinItems: List<Int> = emptyList()): Pair<List<String>, List<String>> {
+    fun beforeAndAfter(bandItems: List<Int>, groovedItems: List<Int>, screws: Boolean, pocketHoles: Map<Int, Int> = emptyMap(), pinItems: List<Int> = emptyList(), thinItems: List<Int> = emptyList(), dowels: String? = null): Pair<List<String>, List<String>> {
         fun list(i: List<Int>) = if (i.size == 1) "item ${i[0]}" else "items ${i.dropLast(1).joinToString(", ")} and ${i.last()}"
         val before = ArrayList<String>()
         before += "Cut every part to the cut list, and pencil its item number on a face that will not show."
@@ -282,6 +282,10 @@ object GuideLayout {
         if (groovedItems.isNotEmpty()) before += "Cut the grooves in ${list(groovedItems.sorted())} (${if (groovedItems.size == 1) "its drawing gives" else "their drawings give"} the sizes) before anything is joined: it is far easier on a loose board."
         if (pocketHoles.isNotEmpty()) before += "Drill the pocket holes with the jig set to each board's thickness, on faces that will not show: " +
             pocketHoles.entries.joinToString("; ") { (i, n) -> "item $i, $n holes in all" } + ". Each goes in the end that meets another part's face."
+        if (dowels != null) {
+            val dia = dowels.substringBefore(" x "); val len = dowels.substringAfter(" x ").substringBefore(" dowels")
+            before += "Drill the dowel holes before anything is joined. Hold each pair of parts together and mark across the joint, then drill with a doweling jig: $dia${if (dia.contains("mm") || len.contains("mm")) "" else " in"} holes, square to the surface, a little over half the dowel's $len into the end or edge and the rest into the face, never more than two-thirds of the way through a board. A dry fit shows whether they line up."
+        }
         if (bandItems.isNotEmpty()) before += "If the panels are plywood or particleboard, iron edge banding onto the edges that will show on ${list(bandItems.sorted())} and trim it flush. Banded edges are easier to do now than once it is built."
         before += "Sand the faces that will be hard to reach once it is together."
         before += "Do a dry run of each step, without glue, before the real one. Before fixing each part, check it is square and sits tight against what is already built."
