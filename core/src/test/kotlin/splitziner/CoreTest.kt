@@ -1247,3 +1247,14 @@ class RackingTest {
         }
     }
 }
+
+class ShelfAtTest {
+    @Test fun aShelfFillsBetweenTheSides() {
+        val t = splitziner.edit.Templates.byKey("cabinet")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val (min, size) = splitziner.edit.Editor.shelfAt(parts, 600.0, 18.0)!!
+        assertEquals(18.0, min.x, 1e-6); assertEquals(564.0, size.x, 1e-6); assertEquals(18.0, size.z, 1e-6)
+        // Where the fixed shelf already is, there is no room.
+        assertNull(splitziner.edit.Editor.shelfAt(parts, (720.0 - 18) / 2 + 18, 18.0))
+    }
+}

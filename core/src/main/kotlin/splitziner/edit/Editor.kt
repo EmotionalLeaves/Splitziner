@@ -75,6 +75,34 @@ object Editor {
         return best?.let { (at, gap) -> at to gap * 0.9 }
     }
 
+    /**
+     * A shelf [t] mm thick with its top at [z]: spanning between the two upright parts either side of [x] (the
+     * middle of the model when null), as deep as both reach front to back. Null when there are no uprights both
+     * sides at that height, or the space is already taken.
+     */
+    fun shelfAt(parts: List<Part>, z: Double, t: Double, x: Double? = null): Pair<Vec3, Vec3>? {
+        val live = parts.filter { !it.excluded }
+        if (live.isEmpty()) return null
+        val all = live.map { it.mesh.bounds }
+        val cx = x ?: (all.minOf { it.min.x } + all.maxOf { it.max.x }) / 2
+        val z0 = z - t
+        val uprights = live.indices.filter { i -> val e = all[i].extents; e.x < 0.3 * minOf(e.y, e.z) && all[i].min.z <= z0 && all[i].max.z >= z }
+        val left = uprights.filter { all[it].max.x <= cx }.maxByOrNull { all[it].max.x } ?: return null
+        val right = uprights.filter { all[it].min.x >= cx }.minByOrNull { all[it].min.x } ?: return null
+        val x0 = all[left].max.x; val x1 = all[right].min.x
+        var y0 = maxOf(all[left].min.y, all[right].min.y); var y1 = minOf(all[left].max.y, all[right].max.y)
+        // A back panel behind, or a rail in front, at this height: the shelf stops at it.
+        val mid = (y0 + y1) / 2
+        for (b in all) if (b.min.x < x1 - 0.5 && b.max.x > x0 + 0.5 && b.min.z < z - 0.5 && b.max.z > z0 + 0.5 && b.extents.y < 0.2 * (y1 - y0)) {
+            if (b.min.y >= mid) y1 = minOf(y1, b.min.y) else if (b.max.y <= mid) y0 = maxOf(y0, b.max.y)
+        }
+        if (x1 - x0 < 50.0 || y1 - y0 < 50.0) return null
+        // Nothing may already be in the way.
+        val clash = all.any { b -> b.min.x < x1 - 0.5 && b.max.x > x0 + 0.5 && b.min.y < y1 - 0.5 && b.max.y > y0 + 0.5 && b.min.z < z - 0.5 && b.max.z > z0 + 0.5 }
+        if (clash) return null
+        return Vec3(x0, y0, z0) to Vec3(x1 - x0, y1 - y0, t)
+    }
+
     fun box(min: Vec3, size: Vec3): Mesh {
         val a = min; val b = min + size
         return Mesh(
