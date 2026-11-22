@@ -720,7 +720,7 @@ object AssemblyPlan {
             while (pool.isNotEmpty()) {
                 val low = pool.minOf { rank(it) }
                 // Bottom up where there is a choice: a bunk bed's lower deck before the upper one closes it in.
-                val now = pool.filter { rank(it) == low }.sortedBy { g -> g.minOf { lo[it].z } }
+                val now = pool.filter { rank(it) == low }.sortedWith(compareBy<List<Int>> { g -> g.minOf { lo[it].z } }.thenBy { g -> g.maxOf { hi[it].z } })
                 // Standing parts first (a second leg frame before the top that spans both), then parts whose supports are all built.
                 val pick = now.firstOrNull { feasible(it) && grounded(it) } ?: now.firstOrNull { feasible(it) && onFloor(it) }
                     ?: now.firstOrNull { feasible(it) && supported(it) && restsOnBuilt(it) } ?: now.firstOrNull { feasible(it) && supported(it) }

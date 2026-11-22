@@ -109,14 +109,18 @@ object GuideSteps {
      * The even gap between like parts laid side by side (slats, spaced boards), or null when they are not evenly
      * spaced or there are fewer than three. Read from the whole model, so the first step that lays some can say it.
      */
-    fun evenGap(like: List<Part>): Double? {
-        if (like.size < 3) return null
+    fun evenGap(like: List<Part>, others: List<Part> = emptyList()): Double? {
+        if (like.size < 2) return null
         val b = like.map { it.mesh.bounds }
         // Spread along the axis where their centres differ most.
         val ax = (0..2).maxByOrNull { k -> b.maxOf { it.center[k] } - b.minOf { it.center[k] } } ?: return null
         val sorted = b.sortedBy { it.min[ax] }
         val gaps = sorted.zipWithNext { a, c -> c.min[ax] - a.max[ax] }
         if (gaps.any { it < 3.0 }) return null
+        // A gap with something in it (the divider between two bays' tops) is not a space to set with a block.
+        for ((a, c) in sorted.zipWithNext()) if (others.any { o -> val ob = o.mesh.bounds
+            ob.min[ax] < c.min[ax] - 0.5 && ob.max[ax] > a.max[ax] + 0.5 && (0..2).filter { it != ax }.all { k -> ob.min[k] < minOf(a.max[k], c.max[k]) - 0.5 && ob.max[k] > maxOf(a.min[k], c.min[k]) + 0.5 } }) return null
+        if (like.size < 3) return null
         return if (gaps.maxOrNull()!! - gaps.minOrNull()!! <= 1.5) gaps.average() else null
     }
 
@@ -245,8 +249,13 @@ object GuideSteps {
                 val levelKey = "$item@${Math.round(here.first().mesh.bounds.min.z)}"
                 if (levelKey in levelTold) continue
                 val flat = all.all { p -> p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) } }
-                val whole = if (flat) evenGap(all) else null
-                val gap = whole ?: if (flat && level.size < all.size) evenGap(level) else null
+                val whole = if (flat) evenGap(all, drawn) else null
+                // Or within one stack: a bay of a bookcase whose shelves line up over each other.
+                val h0 = here.first().mesh.bounds
+                val stack = all.filter { o -> o.mesh.bounds.min.x < h0.max.x - 0.5 && o.mesh.bounds.max.x > h0.min.x + 0.5 && o.mesh.bounds.min.y < h0.max.y - 0.5 && o.mesh.bounds.max.y > h0.min.y + 0.5 }
+                val stackGap = if (whole == null && flat && stack.size in 3 until all.size) evenGap(stack, drawn) else null
+                if (stackGap != null) { levelTold += levelKey; levelItems += item }
+                val gap = whole ?: stackGap ?: if (flat && level.size < all.size) evenGap(level, drawn) else null
                 if (gap != null) {
                     if (whole != null) gapTold += item else { levelTold += levelKey; levelItems += item }
                     val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
