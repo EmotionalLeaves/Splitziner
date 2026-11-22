@@ -219,10 +219,12 @@ object DrawingBuilder {
         /** Where each view's lower-left corner goes on [sheet] at scale [s], and whether everything fits. */
         class Placed(val origin: Map<String, DoubleArray>, val fits: Boolean, val fill: Double)
 
-        fun place(sheet: SheetSize, s: Double, listH: Double): Placed {
+        fun place0(sheet: SheetSize, s: Double, listH: Double, low: Boolean): Placed {
             val th = Lettering.of(sheet, settings.strictLettering).dims
             val f = margins("front", groups, th, vs.sections, callouts); val t = margins("top", groups, th, vs.sections, callouts); val r = margins("right", groups, th, vs.sections, callouts)
-            val bandTop = sheet.fieldY0 + Furniture.TITLE_HEIGHT + listH
+            // Low: the views come down beside the list of material, to just above the title block, when they
+            // stay clear of the list's left edge. The space there was left empty before.
+            val bandTop = sheet.fieldY0 + Furniture.TITLE_HEIGHT + if (low) 0.0 else listH
             // Third-angle layout: top view above the front view, right view to its right.
             val ax0 = sheet.fieldX0 + 2 + CALL + maxOf(f.left, t.left)
             val ay0 = bandTop + 2 + 4 + CALL + maxOf(f.bottom, r.bottom)
@@ -252,9 +254,20 @@ object DrawingBuilder {
                 val y0 = o[1] - m.bottom - CALL
                 if (x1 > keepX && y1 > keepY && y0 < sheet.fieldY1) fits = false
             }
+            if (low && listH > 0) {
+                val listLeft = sheet.fieldX1 - ListOfMaterial.width(rows, L, single)
+                // Only the views that reach down into the list's height need to clear it.
+                val listTop = sheet.fieldY0 + Furniture.TITLE_HEIGHT + listH
+                for ((name, m, wh) in listOf(Triple("front", f, wf to hf), Triple("top", t, wt to ht), Triple("right", r, wr to hr))) {
+                    val o = origin.getValue(name)
+                    if (o[1] - m.bottom - CALL < listTop + 2 && o[0] + wh.first * s + m.right + CALL / 2 > listLeft - 2) fits = false
+                }
+            }
             val fill = maxOf((right - sheet.fieldX0 - 2) / availW, (topEdge - bandTop - 2) / availH)
             return Placed(origin, fits, fill)
         }
+        fun place(sheet: SheetSize, s: Double, listH: Double): Placed =
+            if (listH > 0) place0(sheet, s, listH, true).takeIf { it.fits } ?: place0(sheet, s, listH, false) else place0(sheet, s, listH, false)
 
         val pinned = SheetSize.byLetter(settings.sheet)
         // "AB": the smallest sheet that works, but no bigger than B (11 x 17 in), which a home or office printer takes.

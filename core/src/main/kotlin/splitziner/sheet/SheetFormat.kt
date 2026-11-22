@@ -288,6 +288,14 @@ object ListOfMaterial {
     }
 
     /** Draws the list with its bottom-right corner at ([xRight], [yBottom]); returns the y of its top edge. */
+    /** How wide the list is drawn, so the views can use the space beside it. */
+    fun width(rows: List<CutListRow>, L: Lettering, singlePart: Boolean): Double {
+        if (rows.isEmpty()) return 0.0
+        val th = minOf(L.list, ROW - 2.0)
+        val data = cells(rows, singlePart)
+        return HEADS.indices.sumOf { c -> maxOf(StrokeFont.width(HEADS[c], th * 0.8), data.maxOf { StrokeFont.width(it[c].uppercase(), th) }) + 4 }
+    }
+
     fun draw(dl: DisplayList, rows: List<CutListRow>, xRight: Double, yBottom: Double, L: Lettering, singlePart: Boolean): Double {
         if (rows.isEmpty()) return yBottom
         val th = minOf(L.list, ROW - 2.0)

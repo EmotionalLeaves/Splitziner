@@ -101,7 +101,7 @@ fun main(args: Array<String>) {
                 println("views     ${(System.nanoTime() - tv) / 1_000_000} ms")
                 plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) - splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed)
                 val noted = splitziner.drawing.PartDrawings.plainNote(plain)?.let { info.copy(notes = info.notes + it) } ?: info
-                val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(), a.format, plan?.parts)
+                val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(sheet = System.getenv("SHEET") ?: "auto", scale = System.getenv("SCALE")?.toDouble()), a.format, plan?.parts)
                 r.sheets.forEachIndexed { i, d -> File(out, "sheet${i + 1}.svg").writeText(splitziner.export.SvgWriter.write(d)) }
                 println("drawing   sheet ${r.sheet.letter} at ${r.scaleText} qa ${r.qa}")
             }
