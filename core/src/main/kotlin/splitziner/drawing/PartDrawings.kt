@@ -255,6 +255,60 @@ object PartDrawings {
         return splitziner.edit.Prisms.toMesh(prism.with(outline = outline))
     }
 
+    /**
+     * A plain block with blind pockets cut into its faces (a leg's mortises), as a mesh, so its drawing shows
+     * them: hidden lines where they are out of sight. Null unless the part is a plain box and each pocket opens
+     * on one face only, well inside its edges, one per face.
+     */
+    fun pocketed(p: Part, parts: List<Part>, housed: List<Pair<String, String>>): splitziner.mesh.Mesh? {
+        val a = p.mesh.bounds
+        if (kotlin.math.abs(kotlin.math.abs(p.mesh.volume) - a.extents.x * a.extents.y * a.extents.z) > 0.01 * a.extents.x * a.extents.y * a.extents.z) return null
+        val byId = parts.associateBy { it.id }
+        class Pk(val k: Int, val sign: Int, val lo: splitziner.math.Vec3, val hi: splitziner.math.Vec3)
+        val pockets = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
+            val b = byId[pid]?.mesh?.bounds ?: return@mapNotNull null
+            val lo = splitziner.math.Vec3(maxOf(a.min.x, b.min.x), maxOf(a.min.y, b.min.y), maxOf(a.min.z, b.min.z))
+            val hi = splitziner.math.Vec3(minOf(a.max.x, b.max.x), minOf(a.max.y, b.max.y), minOf(a.max.z, b.max.z))
+            if ((0..2).any { hi[it] <= lo[it] + 0.1 }) return@mapNotNull null
+            // Opening on exactly one face; inside the other faces by a margin.
+            val opens = (0..2).flatMap { k -> listOfNotNull(if (kotlin.math.abs(hi[k] - a.max[k]) < 0.5) k to 1 else null, if (kotlin.math.abs(lo[k] - a.min[k]) < 0.5) k to -1 else null) }
+            if (opens.size != 1) return@mapNotNull null
+            Pk(opens[0].first, opens[0].second, lo, hi)
+        }
+        if (pockets.isEmpty() || pockets.size != housed.count { it.second == p.id }) return null
+        if (pockets.groupBy { it.k to it.sign }.any { it.value.size > 1 }) return null
+        val verts = ArrayList<Double>(); val tris = ArrayList<Int>(); val index = HashMap<Triple<Long, Long, Long>, Int>()
+        fun v(x: splitziner.math.Vec3): Int = index.getOrPut(Triple(Math.round(x.x * 1000), Math.round(x.y * 1000), Math.round(x.z * 1000))) { verts += x.x; verts += x.y; verts += x.z; verts.size / 3 - 1 }
+        fun tri(p0: splitziner.math.Vec3, p1: splitziner.math.Vec3, p2: splitziner.math.Vec3, n: splitziner.math.Vec3) {
+            val c = (p1 - p0) cross (p2 - p0)
+            if (c.length < 1e-9) return
+            if ((c dot n) >= 0) { tris += v(p0); tris += v(p1); tris += v(p2) } else { tris += v(p0); tris += v(p2); tris += v(p1) }
+        }
+        fun quad(q: List<splitziner.math.Vec3>, n: splitziner.math.Vec3) { tri(q[0], q[1], q[2], n); tri(q[0], q[2], q[3], n) }
+        fun pt(k: Int, c: Double, u: Double, w: Double): splitziner.math.Vec3 { val arr = DoubleArray(3); arr[k] = c; arr[(k + 1) % 3] = u; arr[(k + 2) % 3] = w; return splitziner.math.Vec3(arr[0], arr[1], arr[2]) }
+        for (k in 0..2) for (sign in intArrayOf(-1, 1)) {
+            val c = if (sign > 0) a.max[k] else a.min[k]; val n = splitziner.math.Vec3.axis(k, sign.toDouble())
+            val ku = (k + 1) % 3; val kw = (k + 2) % 3
+            val outer = listOf(pt(k, c, a.min[ku], a.min[kw]), pt(k, c, a.max[ku], a.min[kw]), pt(k, c, a.max[ku], a.max[kw]), pt(k, c, a.min[ku], a.max[kw]))
+            val pk = pockets.firstOrNull { it.k == k && it.sign == sign }
+            if (pk == null) { quad(outer, n); continue }
+            val inner = listOf(pt(k, c, pk.lo[ku], pk.lo[kw]), pt(k, c, pk.hi[ku], pk.lo[kw]), pt(k, c, pk.hi[ku], pk.hi[kw]), pt(k, c, pk.lo[ku], pk.hi[kw]))
+            // The face round the opening, as four trapezoids corner to corner (no T-junctions).
+            for (i in 0..3) quad(listOf(outer[i], outer[(i + 1) % 4], inner[(i + 1) % 4], inner[i]), n)
+            // The pocket: its floor faces out of the opening, its walls face into the hole.
+            val f = if (sign > 0) pk.lo[k] else pk.hi[k]
+            val floor = inner.map { q -> pt(k, f, q[ku], q[kw]) }
+            quad(floor, n)
+            val centre = (pk.lo + pk.hi) * 0.5
+            for (i in 0..3) {
+                val w = listOf(inner[i], inner[(i + 1) % 4], floor[(i + 1) % 4], floor[i])
+                val mid = (w[0] + w[1] + w[2] + w[3]) * 0.25
+                quad(w, pt(k, 0.0, centre[ku] - mid[ku], centre[kw] - mid[kw]))
+            }
+        }
+        return splitziner.mesh.Mesh(verts.toDoubleArray(), tris.toIntArray())
+    }
+
     fun grooveNotes(p: Part, parts: List<Part>, housed: List<Pair<String, String>>, fmt: LengthFormat): List<String> {
         val byId = parts.associateBy { it.id }
         val d = { v: Double -> fmt.format(v) }
@@ -305,7 +359,7 @@ object PartDrawings {
             if (row.item in skip) continue
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: continue
             // Grooves for housed parts are cut into the drawn part, so the views show them and the dimensions place them.
-            val carved = runCatching { carveGrooves(p, parts, housed) }.getOrNull() ?: p.mesh
+            val carved = runCatching { carveGrooves(p, parts, housed) }.getOrNull() ?: runCatching { pocketed(p, parts, housed) }.getOrNull() ?: p.mesh
             val laid = p.copy(mesh = squaredUp(carved))
             val vs = DrawingBuilder.views(listOf(laid), settings.sections)
             val base = info.drawingNo.ifBlank { "DWG" }

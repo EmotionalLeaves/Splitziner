@@ -322,3 +322,6 @@ Departures from the build spec, newest first.
 - The making steps give every groove, rabbet and mortise size and position with its unit ("1/4 in deep … at 3 in, 15-3/4 in and 29-1/2 in from the bottom end"); in millimetres a bare "25.4 deep" read as nothing in particular.
 - Sliding-door track is listed as "at least" the opening's length, in whole millimetres in metric.
 - Cutting plan viewer: the first page is labelled "What to buy" (it was cut off as "Summary and what to b…").
+
+## v1.12
+- A plain block with blind pockets (a leg's mortises: each opening on one face only, one per face) is drawn with them cut out, built as an exact mesh (the face round each opening as four trapezoids, so no T-junctions), so its views show the mortises, hidden where out of sight, and the dimensions place them.

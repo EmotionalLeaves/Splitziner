@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.12.0 - Mortises on the drawings
+
+- Leg drawings show their mortises: the slots are drawn (hidden lines where you can't see them) and dimensioned, not only described in the notes.
+
 ## v1.11.0 - Units everywhere
 
 - The "Making the parts" steps now give every groove, rabbet and mortise size and position with its unit, which matters most in millimetres.

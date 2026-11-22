@@ -1753,6 +1753,10 @@ class TenonTest {
         assertTrue(f.all.count { it.kind == "mortise" } == 2 && f.all.count { it.kind == "tenon" } == 2, f.all.map { it.kind }.toString())
         val leg = a.parts.first { it.name == "Leg" }
         assertTrue(splitziner.drawing.PartDrawings.grooveNotes(leg, a.parts, a.housed, LengthFormat("in", "fraction")).single().startsWith("MORTISE FOR ITEM"))
+        // The leg's drawing shows the mortise: a closed block with the pocket taken out.
+        val m = splitziner.drawing.PartDrawings.pocketed(leg, a.parts, a.housed)!!
+        assertTrue(m.isWatertight)
+        assertEquals(63.5 * 63.5 * 711.0 - 25.4 * 9.5 * 76.2, kotlin.math.abs(m.volume), 50.0)
     }
 }
 
