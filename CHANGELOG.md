@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.80.0 - Where the drawer slides go
+
+- **Drawer slides say where they go**: each hang-the-drawer step gives the level line to draw on the cabinet sides (so far down from the top edge) and where the front of the slide sits. Graduated drawers get all their lines in one instruction, top drawer first.
+- Build steps of complex imported models no longer list a dozen small offsets. Positions are given only where they read as a clear instruction.
+
 ## v0.79.0 - Where parts go
 
 - **The guide now says where parts go** when nothing else places them, measured from the model:
