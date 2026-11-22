@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.79.0 - Where parts go
+
+- **The guide now says where parts go** when nothing else places them, measured from the model:
+  - "Set each leg 3/4 in from each end of the side rail"
+  - "Set the cleat 1-3/4 in down from the top edge"
+  - "Set the stretcher 6 in up from the bottom of the leg"
+  - "Set the modesty panel 1-1/2 in from the back edge of the side"
+  - "Centre the apron on the width of the leg"
+- Shelf spacing now says "the shelves (item 3)" instead of "the item 3 parts".
+
 ## v0.78.0 - Glued-up tops and first-step spacing
 
 - **Thick tops are glued up**: a panel thicker than any sheet sold (a 1-1/2 in workbench top) is planned as 2 layers of 3/4 in sheet, each cut 1/4 in over size. The cutting plan, shopping list and "Before you build" tell you how to glue and trim it, or to buy a butcher-block panel instead.
