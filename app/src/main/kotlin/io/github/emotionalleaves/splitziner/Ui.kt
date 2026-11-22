@@ -126,6 +126,18 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Splitziner", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Turn an STL into parts, a cut list and drawings.", style = MaterialTheme.typography.bodyMedium)
+        state.update?.let { u ->
+            Card(Modifier.fillMaxWidth().padding(top = 10.dp).clickable { vm.installUpdate() }) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Version ${u.version} is available", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(u.title.removePrefix("Splitziner ").ifBlank { "Tap Update to install it" }, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(onClick = { vm.installUpdate() }, enabled = state.updateProgress == null) { Text("Update") }
+                }
+                state.updateProgress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) }
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Button(onClick = { picker.launch(arrayOf("*/*")) }, enabled = state.busyLabel == null, modifier = Modifier.fillMaxWidth()) { Text("Import STL") }
         BusyBar(state)
@@ -146,9 +158,13 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
                 }
             }
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = { vm.checkForUpdate() }) { Text("Check for updates") }
+        }
         TextButton(onClick = { copy(context, vm.diagnosticReport()) }) { Text("Copy diagnostic report") }
-        Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall)
     }
+    UpdateDialogs(state, vm)
     confirmDelete?.let { p ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
@@ -198,7 +214,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Tabs wrap onto a second line on a narrow screen, so none is hidden off the edge.
+        androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("3D", "Parts", "Cut list", "Drawing", "Guide", "Check").forEachIndexed { i, label -> TabButton(label, tab == i, Modifier) { tab = i } }
         }
         if (tab == 3) {
@@ -312,8 +329,46 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
 
 @Composable
 private fun TabButton(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    if (selected) Button(onClick = onClick, modifier = modifier) { Text(label) }
-    else OutlinedButton(onClick = onClick, modifier = modifier) { Text(label) }
+    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+    if (selected) Button(onClick = onClick, modifier = modifier, contentPadding = pad) { Text(label) }
+    else OutlinedButton(onClick = onClick, modifier = modifier, contentPadding = pad) { Text(label) }
+}
+
+@Composable
+private fun UpdateDialogs(state: UiState, vm: AppViewModel) {
+    val context = LocalContext.current
+    val status = state.updateStatus
+    if (status != null && state.updateProgress == null) {
+        var auto by remember { mutableStateOf(Updater.autoCheck(context)) }
+        AlertDialog(
+            onDismissRequest = { vm.dismissUpdateStatus() },
+            confirmButton = { TextButton(onClick = { vm.dismissUpdateStatus() }) { Text("OK") } },
+            title = { Text("Updates") },
+            text = {
+                Column {
+                    Text(status)
+                    Row(Modifier.fillMaxWidth().clickable { auto = !auto; Updater.setAutoCheck(context, auto) }.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = auto, onCheckedChange = { auto = it; Updater.setAutoCheck(context, it) })
+                        Text("Look for updates once a day", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+        )
+    }
+    val u = state.update
+    if (u != null && state.updateProgress != null) AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        title = { Text("Updating to ${u.version}") },
+        text = {
+            Column {
+                Text(status ?: "Downloading…", style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(progress = { state.updateProgress }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+                val notes = splitziner.update.Versions.plainNotes(u.notes)
+                if (notes.isNotBlank()) Text(notes.take(1200), style = MaterialTheme.typography.bodySmall)
+            }
+        },
+    )
 }
 
 private fun unitName(u: String) = when (u) { "mm" -> "millimetres"; "cm" -> "centimetres"; "in" -> "inches"; "m" -> "metres"; else -> u }

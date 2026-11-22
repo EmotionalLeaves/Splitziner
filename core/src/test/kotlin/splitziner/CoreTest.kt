@@ -833,3 +833,13 @@ class EditTest {
         assertEquals(emptyList(), problems(a.parts.map { Part(it.id, it.name, it.mesh) }))
     }
 }
+
+class VersionsTest {
+    @Test fun compares() {
+        val v = splitziner.update.Versions
+        assertTrue(v.isNewer("v0.12.0", "0.11.0")); assertTrue(v.isNewer("v0.11.1", "0.11.0")); assertTrue(v.isNewer("v1.0.0", "0.99.99"))
+        assertFalse(v.isNewer("v0.11.0", "0.11.0")); assertFalse(v.isNewer("v0.10.9", "0.11.0")); assertFalse(v.isNewer("nightly", "0.11.0"))
+        assertTrue(v.isNewer("v0.11.0", "0.0.1-dev"))
+        assertEquals("• Check tab. It looks.", v.plainNotes("- **Check tab.** It looks.\n\n**Install:** open this page"))
+    }
+}

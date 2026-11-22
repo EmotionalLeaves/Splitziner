@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
@@ -45,6 +46,13 @@ class SmokeTest {
         box(18.0, 882.0, 0.0, 18.0, 18.0, 108.0),
     ))
 
+    /** Waits for [cond]; on timeout fails with the app's own log, which says what it was doing. */
+    private fun waitFor(vm: AppViewModel, ms: Long, cond: () -> Boolean) {
+        try { rule.waitUntil(ms) { cond() } } catch (e: Throwable) {
+            throw AssertionError("Timed out after $ms ms. State: busy=${vm.state.value.busyLabel} drawingBusy=${vm.state.value.drawingBusy} guideBusy=${vm.state.value.guideBusy} checkBusy=${vm.state.value.checkBusy} error=${vm.state.value.error}\n" + vm.diagnosticReport().takeLast(6000), e)
+        }
+    }
+
     @Test fun openDrawGuideAndExport() {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(ctx.cacheDir, "smoke_cabinet.stl")
@@ -53,7 +61,7 @@ class SmokeTest {
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             lateinit var vm: AppViewModel
             scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
-            rule.waitUntil(180_000) { vm.state.value.open != null || vm.state.value.error != null }
+            waitFor(vm, 180_000) { vm.state.value.open != null || vm.state.value.error != null }
             assertNull(vm.state.value.error)
             val open = vm.state.value.open!!
             assertEquals(7, open.analysis.parts.size)
@@ -61,6 +69,8 @@ class SmokeTest {
 
             fun tap(label: String) {
                 rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                // A button may sit outside a scrolled area; bring it into view first when it can be scrolled to.
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
                 rule.onAllNodesWithText(label).onFirst().performClick()
                 rule.waitForIdle()
             }
@@ -71,7 +81,7 @@ class SmokeTest {
             tap("3D"); Thread.sleep(3000)
             tap("Parts"); tap("Cut list")
             tap("Drawing")
-            rule.waitUntil(240_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
+            waitFor(vm, 240_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
             // Assembly sheet, exploded sheet, and one detail sheet per item.
             assertTrue("sheets: ${drawing.sheets.size}", drawing.sheets.size >= 2 + open.analysis.cutList.rows.size)
@@ -82,7 +92,7 @@ class SmokeTest {
             println("SMOKE drawing sheets=${drawing.sheets.size} pdf=${pdf.length()} png=${png.length()}@$dpi")
 
             tap("Guide")
-            rule.waitUntil(240_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            waitFor(vm, 240_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             val guide = vm.state.value.guide!!
             assertTrue(guide.stepCount >= 2)
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
@@ -90,7 +100,7 @@ class SmokeTest {
 
             // Back to 3D with the pull-apart offsets ready, then give it time to fail if it is going to.
             vm.ensureExplodeOffsets()
-            rule.waitUntil(120_000) { vm.state.value.explodeOffsets != null }
+            waitFor(vm, 120_000) { vm.state.value.explodeOffsets != null }
             tap("3D"); Thread.sleep(3000)
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
             assertNull(Diagnostics.lastCrash())
@@ -109,40 +119,42 @@ class SmokeTest {
             lateinit var vm: AppViewModel
             scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
             fun settled() = vm.state.value.open != null && vm.state.value.busyLabel == null
-            rule.waitUntil(240_000) { settled() || vm.state.value.error != null }
+            waitFor(vm, 240_000) { settled() || vm.state.value.error != null }
             assertNull(vm.state.value.error)
             assertEquals(33, vm.state.value.open!!.analysis.parts.size)
             fun tap(label: String) {
                 rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                // A button may sit outside a scrolled area; bring it into view first when it can be scrolled to.
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
                 rule.onAllNodesWithText(label).onFirst().performClick()
                 rule.waitForIdle()
             }
             if (rule.onAllNodesWithText("Cancel").fetchSemanticsNodes().isNotEmpty()) tap("Cancel")
 
             tap("Check")
-            rule.waitUntil(240_000) { vm.state.value.check != null }
+            waitFor(vm, 240_000) { vm.state.value.check != null }
             val before = vm.state.value.check!!.problems
             assertTrue("problems before: $before", before >= 5)
 
             vm.planFixes()
-            rule.waitUntil(240_000) { vm.state.value.fixPlan != null || vm.state.value.error != null }
+            waitFor(vm, 240_000) { vm.state.value.fixPlan != null || vm.state.value.error != null }
             val plan = vm.state.value.fixPlan!!
             assertTrue("changes: ${plan.edits.size}", plan.edits.size >= 5)
             // The proposal is on screen; accept it the way a person would.
             tap("Apply ${plan.edits.size} changes")
-            rule.waitUntil(240_000) { settled() && vm.state.value.open!!.meta.edits.isNotEmpty() }
+            waitFor(vm, 240_000) { settled() && vm.state.value.open!!.meta.edits.isNotEmpty() }
             vm.ensureCheck()
-            rule.waitUntil(240_000) { vm.state.value.check != null }
+            waitFor(vm, 240_000) { vm.state.value.check != null }
             val after = vm.state.value.check!!.problems
             println("SMOKE desk problems $before -> $after after ${plan.edits.size} changes; left ${plan.left.size}")
             assertTrue("problems $before -> $after", after < before)
 
             tap("Drawing")
-            rule.waitUntil(300_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
+            waitFor(vm, 300_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
             assertTrue(PdfExporter.write(ctx, drawing.sheets, "smoke_desk.pdf").length() > 20_000)
             tap("Guide")
-            rule.waitUntil(300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            waitFor(vm, 300_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             tap("3D"); Thread.sleep(3000)
             println("SMOKE desk sheets=${drawing.sheets.size} guide pages=${vm.state.value.guide!!.pages.size}")
             assertEquals(Lifecycle.State.RESUMED, scenario.state)

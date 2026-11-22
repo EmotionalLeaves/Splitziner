@@ -46,6 +46,10 @@ data class UiState(
     val drawingBusy: Boolean = false,
     val guide: GuideState? = null,
     val guideBusy: Boolean = false,
+    /** A newer release found on GitHub, and the state of fetching it. */
+    val update: Release? = null,
+    val updateStatus: String? = null,
+    val updateProgress: Float? = null,
     /** Fixes worked out for the open project, waiting for the user to accept or dismiss them. */
     val fixPlan: splitziner.edit.FixPlan? = null,
     val fixBusy: Boolean = false,
@@ -63,6 +67,57 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         _state.update { it.copy(projects = store.list(), crashReport = Diagnostics.lastCrash()) }
+        if (Updater.dueForAutoCheck(app)) checkForUpdate(quiet = true)
+    }
+
+    private var updateJob: Job? = null
+
+    /** Looks for a newer release. [quiet] checks say nothing unless there is one. */
+    fun checkForUpdate(quiet: Boolean = false) {
+        if (updateJob?.isActive == true) return
+        updateJob = viewModelScope.launch {
+            if (!quiet) _state.update { it.copy(updateStatus = "Looking for a new version…") }
+            try {
+                val r = withContext(Dispatchers.IO) { Updater.latest(getApplication()) }
+                Diagnostics.log("update check: latest ${r?.version}, running ${BuildConfig.VERSION_NAME}")
+                _state.update {
+                    when {
+                        r != null && Updater.isNewer(r) -> it.copy(update = r, updateStatus = null)
+                        quiet -> it.copy(updateStatus = null)
+                        else -> it.copy(update = null, updateStatus = "You have the latest version (${BuildConfig.VERSION_NAME}).")
+                    }
+                }
+            } catch (e: Throwable) {
+                Diagnostics.logError("update check", e)
+                _state.update { it.copy(updateStatus = if (quiet) null else "Could not reach GitHub. Check your connection and try again.") }
+            }
+        }
+    }
+
+    fun dismissUpdateStatus() = _state.update { it.copy(updateStatus = null) }
+    fun dismissUpdate() = _state.update { it.copy(update = null, updateProgress = null, updateStatus = null) }
+
+    /** Downloads the release and hands it to Android's installer, which asks the user to confirm. */
+    fun installUpdate() {
+        val r = _state.value.update ?: return
+        val app = getApplication<Application>()
+        if (!Updater.canInstall(app)) {
+            _state.update { it.copy(updateStatus = "Allow Splitziner to install apps, then come back and tap Update again.") }
+            Updater.openInstallPermission(app)
+            return
+        }
+        if (updateJob?.isActive == true) return
+        updateJob = viewModelScope.launch {
+            _state.update { it.copy(updateProgress = 0f, updateStatus = "Downloading version ${r.version}…") }
+            try {
+                val apk = withContext(Dispatchers.IO) { Updater.download(app, r) { f -> _state.update { s -> s.copy(updateProgress = f) } } }
+                _state.update { it.copy(updateProgress = null, updateStatus = null) }
+                Updater.install(app, apk)
+            } catch (e: Throwable) {
+                Diagnostics.logError("update download", e)
+                _state.update { it.copy(updateProgress = null, updateStatus = "The update could not be downloaded: ${e.message}") }
+            }
+        }
     }
 
     // Hidden-line views are the slow part of a drawing, so they are kept for as long as the parts do not change.

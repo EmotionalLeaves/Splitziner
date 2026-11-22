@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.12.0 - Update from inside the app
+
+Update from inside the app.
+
+- **Update button.** When a new version is out, the home screen shows "Version X is available" with an **Update** button. Tap it: the app downloads the new version and Android asks you to install it. Your projects are kept.
+- The first time, Android asks you to allow Splitziner to install apps. The app takes you to that setting; switch it on, come back and tap Update again.
+- **Check for updates** at the bottom of the home screen looks straight away. Otherwise the app looks once a day when you open it; untick "Look for updates once a day" in that dialog to stop it.
+- The app now asks for internet access. It is used only to look for and download updates from this project's GitHub releases. Your models never leave the phone.
+- **All tabs now fit on screen.** On a narrow phone, Guide and Check were hidden off the right edge; the tabs now wrap onto a second line.
+
 ## v0.11.0 - Design check, tools and fixing
 
 The app now examines a design, says what is wrong with it, and can fix part of it. Built and tested against a real desk file.
