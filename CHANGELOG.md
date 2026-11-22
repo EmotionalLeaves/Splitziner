@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.64.0 - Tidier guide tab
+
+- **Guide tab is tidier:** Print, Joining and Edit steps are now under **More…**, so the page preview has more room. Build mode and Share PDF stay up front.
+- In the guide, the "parts for this step" lists are in ordinary type ("Item 3 (top): panel 3/4 x 11-3/4 x 30-1/2") instead of capitals.
+
 ## v0.63.0 - Step titles that say what goes on
 
 - **Guide steps now say what goes on in that step:** "Step 5: 4 shelves", "Step 6: the back panel", "Step 7: hang the 4 drawers". Before, most steps were titled only "Step 5". The same titles show in Build mode and in the page list.
