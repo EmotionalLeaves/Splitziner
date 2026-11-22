@@ -44,6 +44,8 @@ sealed class Edit {
      * so board thicknesses and joints are kept.
      */
     data class Stretch(val axis: Int, val at: Double, val by: Double) : Edit()
+    /** Turn parts a quarter turn [turns] times about [axis] (0 x, 1 y, 2 z) through the centre of their box, staying on the same floor. */
+    data class Rotate(val ids: List<String>, val axis: Int, val turns: Int) : Edit()
 }
 
 /** [housed] are (part, the part grooved to take it) pairs, for the parts that still exist. */
@@ -173,6 +175,23 @@ object Editor {
                     is Edit.Duplicate -> cur.firstOrNull { it.id == e.id }?.let { cur + Part(e.newId, it.name, MeshOps.translated(it.mesh, e.d), material = it.material) } ?: cur
                     is Edit.Merge -> merge(cur, e, notes)
                     is Edit.House -> { housed += e.id to e.into; cur }
+                    is Edit.Rotate -> cur.map { p ->
+                        if (p.id !in e.ids) p else {
+                            val m = p.mesh; val b = m.bounds; val c = b.center
+                            val v = m.vertices.copyOf()
+                            val (i, j) = when (e.axis) { 0 -> 1 to 2; 1 -> 2 to 0; else -> 0 to 1 }
+                            val k = ((e.turns % 4) + 4) % 4
+                            for (n in 0 until m.vertexCount) repeat(k) {
+                                val ci = if (i == 0) c.x else if (i == 1) c.y else c.z; val cj = if (j == 0) c.x else if (j == 1) c.y else c.z
+                                val a = v[3 * n + i] - ci; val bb = v[3 * n + j] - cj
+                                v[3 * n + i] = ci - bb; v[3 * n + j] = cj + a
+                            }
+                            // Keep it resting at the same height: its lowest point stays where it was.
+                            var minZ = Double.MAX_VALUE; for (n in 0 until m.vertexCount) minZ = minOf(minZ, v[3 * n + 2])
+                            val dz = b.min.z - minZ; for (n in 0 until m.vertexCount) v[3 * n + 2] += dz
+                            fresh(p, Mesh(v, m.triangles))
+                        }
+                    }
                     is Edit.Stretch -> cur.map { p ->
                         val m = p.mesh
                         if (m.bounds.max[e.axis] <= e.at) p else {

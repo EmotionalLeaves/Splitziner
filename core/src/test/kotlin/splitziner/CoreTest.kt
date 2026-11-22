@@ -1199,3 +1199,14 @@ class RealDeskTest {
         assertEquals(0, rep.problems, rep.findings.filter { it.severity == splitziner.check.Severity.PROBLEM }.map { it.title }.toString())
     }
 }
+
+class RotateTest {
+    @Test fun aBoardTurnedOnItsEdgeKeepsItsSizeAndFloor() {
+        val p = Part("P1", "B", Fixtures.box(0.0, 600.0, 0.0, 90.0, 100.0, 118.0))
+        val r = splitziner.edit.Editor.apply(listOf(p), listOf(splitziner.edit.Edit.Rotate(listOf("P1"), 0, 1))).parts[0]
+        val e = r.mesh.bounds.extents
+        assertEquals(600.0, e.x, 1e-9); assertEquals(18.0, e.y, 1e-9); assertEquals(90.0, e.z, 1e-9)
+        assertEquals(100.0, r.mesh.bounds.min.z, 1e-9)
+        assertTrue(r.mesh.volume > 0)
+    }
+}

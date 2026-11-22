@@ -166,6 +166,7 @@ object EditJson {
         is splitziner.edit.Edit.SplitBoards -> JSONObject().put("op", "boards").put("ids", JSONArray(e.ids))
         is splitziner.edit.Edit.CutBack -> JSONObject().put("op", "cutback").put("id", e.id).put("by", e.by)
         is splitziner.edit.Edit.House -> JSONObject().put("op", "house").put("id", e.id).put("into", e.into)
+        is splitziner.edit.Edit.Rotate -> JSONObject().put("op", "rotate").put("ids", org.json.JSONArray(e.ids)).put("axis", e.axis).put("turns", e.turns)
         is splitziner.edit.Edit.Stretch -> JSONObject().put("op", "stretch").put("axis", e.axis).put("at", e.at).put("by", e.by)
     }
 
@@ -184,6 +185,7 @@ object EditJson {
             "boards" -> splitziner.edit.Edit.SplitBoards(ids(o.getJSONArray("ids")))
             "cutback" -> splitziner.edit.Edit.CutBack(o.getString("id"), o.getString("by"))
             "house" -> splitziner.edit.Edit.House(o.getString("id"), o.getString("into"))
+            "rotate" -> splitziner.edit.Edit.Rotate(o.getJSONArray("ids").let { a -> (0 until a.length()).map { a.getString(it) } }, o.getInt("axis"), o.getInt("turns"))
             "stretch" -> splitziner.edit.Edit.Stretch(o.getInt("axis"), o.getDouble("at"), o.getDouble("by"))
             else -> null
         }
