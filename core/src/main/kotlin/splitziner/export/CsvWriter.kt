@@ -17,7 +17,7 @@ object CsvWriter {
         val byId = result.parts.associateBy { it.id }
         for (r in result.rows) {
             // What the parts are called, when they have names of their own ("Side", "Drawer bottom").
-            val names = r.memberIds.mapNotNull { byId[it] }.filter { it.name != it.id }.map { it.name }.distinct().joinToString(", ")
+            val names = r.name.ifBlank { r.memberIds.mapNotNull { byId[it] }.filter { it.name != it.id }.map { it.name }.distinct().sorted().joinToString(" / ") }
             sb.append(line(r.item, r.qty, r.kind, names, r.description, fmt.format(r.t), fmt.format(r.w), fmt.format(r.l), fmt.unitLabel,
                 r.material, r.materialSpec, r.partNo, r.memberIds.joinToString(", ")))
         }

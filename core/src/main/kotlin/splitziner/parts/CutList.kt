@@ -24,6 +24,8 @@ data class CutListRow(
     val memberIds: List<String>,
     /** The grain must run along this part's length. */
     val grain: Boolean = false,
+    /** What the parts are called ("Side", "Bottom / Top"), when they have names of their own; else empty. */
+    val name: String = "",
 )
 
 /** Total length to buy of one stock cross-section, before saw kerf and waste. */
@@ -143,6 +145,7 @@ object CutList {
                 material = o.material, materialSpec = o.materialSpec,
                 stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind,
                 t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id }, grain = o.grain,
+                name = g.members.filter { it.name != it.id }.map { it.name }.distinct().sorted().let { if (it.size <= 3) it.joinToString(" / ") else "" },
             )
         }
         val outParts = parts.map { p ->

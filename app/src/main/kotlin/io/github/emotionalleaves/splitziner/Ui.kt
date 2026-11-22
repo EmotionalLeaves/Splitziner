@@ -381,8 +381,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         Text("${row.item}", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
                         Column(Modifier.weight(1f)) {
                             // What the parts are called (Side, Shelf, Drawer side...), when they have names.
-                            val names = row.memberIds.mapNotNull { partById[it] }.filter { it.name != it.id }.map { it.name }.distinct()
-                            if (names.isNotEmpty()) Text(names.take(3).joinToString(", ") + if (names.size > 3) "…" else "", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                            val names = row.name.ifBlank { row.memberIds.mapNotNull { partById[it] }.filter { it.name != it.id }.map { it.name }.distinct().sorted().let { if (it.isEmpty()) "" else it.take(3).joinToString(" / ") + if (it.size > 3) "…" else "" } }
+                            if (names.isNotEmpty()) Text(names, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                             Text(row.description, style = MaterialTheme.typography.bodyMedium)
                             Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  ·  grain along length" else "", style = MaterialTheme.typography.bodySmall)
                         }

@@ -283,7 +283,8 @@ object ListOfMaterial {
     fun rowsIn(space: Double): Int = maxOf(0, ((space - CAPTION_ROW) / ROW).toInt() - 1)
 
     private fun cells(rows: List<CutListRow>, singlePart: Boolean): List<List<String>> = rows.map { r ->
-        listOf(if (singlePart) "" else "${r.item}", if (singlePart) "" else "${r.qty}", r.partNo, r.description, r.material, r.materialSpec)
+        // The nomenclature leads with the part's name, when it has one: "SIDE, PANEL 18 X 300 X 1800".
+        listOf(if (singlePart) "" else "${r.item}", if (singlePart) "" else "${r.qty}", r.partNo, if (r.name.isNotBlank()) "${r.name.uppercase()}, ${r.description}" else r.description, r.material, r.materialSpec)
     }
 
     /** Draws the list with its bottom-right corner at ([xRight], [yBottom]); returns the y of its top edge. */
