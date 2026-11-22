@@ -271,7 +271,7 @@ object DesignCheck {
             val byMaterial = live.all { p -> p.item != null && rho[p.item] != null }
             val basis = if (byMaterial) "using each item's material" else "taking every part as the same material"
             var m = 0.0; var cx = 0.0; var cy = 0.0
-            for (p in live) { val v = (if (p.watertight) abs(p.mesh.volume) else p.t * p.w * p.l * 0.5) * (if (byMaterial) rho.getValue(p.item)!! else 1.0); val c = p.mesh.bounds.center; m += v; cx += v * c.x; cy += v * c.y }
+            for (p in live) { val v = (if (p.watertight) abs(p.mesh.volume) else p.t * p.w * p.l * 0.5) * (if (byMaterial) rho[p.item]!! else 1.0); val c = p.mesh.bounds.center; m += v; cx += v * c.x; cy += v * c.y }
             val feet = ArrayList<Vec2>()
             for (p in live) if (p.mesh.bounds.min.z <= floor + 2.0) for (v in 0 until p.mesh.vertexCount) if (p.mesh.vertices[3 * v + 2] <= floor + 2.0) feet += Vec2(p.mesh.vertices[3 * v], p.mesh.vertices[3 * v + 1])
             val hull = OrientedBounds.convexHull(feet)
