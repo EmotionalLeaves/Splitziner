@@ -84,6 +84,12 @@ object GuideSteps {
         fun kind(ms: List<Part>) = ms.mapNotNull { it.item }.sorted()
         val benchOf = HashMap<List<Int>, Int>()
         for (st in steps) if (st.subassembly) benchOf[kind(st.partIds.mapNotNull { byId[it] })] = st.step
+        // What a bench-made unit is called: a frame when it has legs (a table's end, a bed's side), else a sub-assembly.
+        val frameBench = steps.filter { st -> st.subassembly && st.partIds.any { byId[it]?.name?.endsWith("eg") == true } }.map { it.step }.toSet()
+        // How many units from each bench step are already in place, so the next is "the other".
+        val placedUnits = HashMap<Int, Int>()
+        fun otherOf(bench: Int) = if ((steps.firstOrNull { it.step == bench }?.makeCount ?: 2) - (placedUnits[bench] ?: 0) == 1) "the other" else "another"
+        fun unitWord(bench: Int, n: Int) = if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -118,9 +124,10 @@ object GuideSteps {
                 val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
                 val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
                 val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
-                val all = when (us.size) { 1 -> "the"; 2 -> "both"; else -> "all ${us.size}" }
+                // The second of two frames made alike is "the other frame".
+                val all = if (us.size == 1 && (placedUnits[bench] ?: 0) > 0) otherOf(bench) else if (us.size == 1 && (steps.firstOrNull { it.step == bench }?.makeCount ?: 1) > 1) "one" else when (us.size) { 1 -> "the"; 2 -> "both"; else -> "all ${us.size}" }
                 lines += if (drawer) "Slide ${if (us.size > 1) "$all drawers" else "the drawer"} from step $bench in$where."
-                    else "${if (base) "Place" else "Fit"} $all sub-assembl${if (us.size > 1) "ies" else "y"} from step $bench$where."
+                    else "${if (base) "Place" else "Fit"} $all ${unitWord(bench, us.size)} from step $bench$where."
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
@@ -181,7 +188,7 @@ object GuideSteps {
                 if (!base && !hung && how.isEmpty()) lines += "Check it is square and seated against the parts already installed, then fasten."
                 lines += how
             }
-            val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
+            val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "${unitWord(bench, 1).replaceFirstChar { it.uppercase() }} from step $bench") to us.size } +
                 // In ordinary type, as the rest of the guide is: "Item 3 (top): panel 3/4 x 11-3/4 x 30-1/2".
                 count.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })}: ${loose.first { it.item == item }.desc.lowercase()}" to n }
             val o = overrides[stepKey(st.partIds)]
@@ -191,6 +198,7 @@ object GuideSteps {
                     val names = if (its.size == 1) "item ${its[0]}" else "items ${its.dropLast(1).joinToString(", ")} and ${its.last()}"
                     val isDrawer = st.partIds.all { keyOf[it]?.startsWith("drawer") == true }
                     if (isDrawer) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} drawer boxes from" else "make the drawer box from"} $names"
+                    else if (st.step in frameBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} frames from" else "make the frame from"} $names"
                     else "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} by joining" else "join"} $names"
                 }
                 base -> "Step ${st.step}: base"
@@ -207,7 +215,7 @@ object GuideSteps {
                     if (drawers > 0) bits += if (drawers == 1) "hang the drawer" else "hang the $drawers drawers"
                     for ((bench, us) in unitCount) {
                         if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) continue
-                        bits += if (us.size == 1) "the sub-assembly from step $bench" else "the ${us.size} sub-assemblies from step $bench"
+                        bits += if (us.size == 1) "${if ((placedUnits[bench] ?: 0) > 0) otherOf(bench) else "the"} ${unitWord(bench, 1)} from step $bench" else "the ${us.size} ${unitWord(bench, us.size)} from step $bench"
                     }
                     // Parts of one name are counted together, whatever their item numbers: "3 drawer fronts".
                     val byName = LinkedHashMap<String, Int>()
@@ -225,6 +233,7 @@ object GuideSteps {
                 }
             }
             val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
+            for ((bench, us) in unitCount) placedUnits[bench] = (placedUnits[bench] ?: 0) + us.size
             // The list says how many of each part the whole step needs, all copies of the sub-assembly included.
             // And the hardware the step uses, so it can be laid out with the parts.
             val hw = LinkedHashMap<String, Int>()
