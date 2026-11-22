@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.67.0 - Shorter, clearer guide text
+
+- **Shorter, clearer guide text:**
+  - A part screwed into several others gets one instruction: "screw item 1 (side) to item 2 (bottom) and item 8 (kick board) with four 1-1/2 in screws".
+  - One item under two names is written once: "item 2 (front and back)".
+  - Counts above twelve are written as "24 × 5/8 in brads", so the count can't be mistaken for part of the size.
+
 ## v0.66.0 - New design checks sizes
 
 - **New design checks your sizes as you type.** If they leave a part no room (for example, legs wider than the table is long), the dialog says so under the preview and won't create the project until you fix the sizes. Before, you only found out after the project was made.
