@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.39.0 - 3MF, named guide steps, hardware count fix
+
+- **Open 3MF files.** 3MF is the zipped format many modelling and slicing apps export. Each object becomes its own part, placed where the file puts it, with sizes converted to millimetres from the file's unit. Import it, or open it from another app.
+- **The guide names the parts**: "Drill pilot holes through item 1 (side) and screw it to item 2 (bottom)", and each step's parts list says what each item is.
+- **Fix: fasteners for identical sub-assemblies were counted twice.** A chest of 4 identical drawers asked for 32 brads where 8 are needed. Each bench step now tells how to make one copy, and the hardware list counts every copy once.
+- **Graduated drawers.** Chest of drawers has a new option for deeper drawers lower down (each a fifth deeper than the one above).
+- **Wide doors.** The check queries a single door much over 600 mm (24 in) wide. That's a rule of thumb: such doors tend to sag, and a pair is usual.
+- "Making the parts" now lists only parts that need more than cutting to size. "Slide all 4 drawers in" replaces "both drawers" when there are more than two.
+- Includes v0.38.0 (add a drawer, hinge cups, part names).
+
 ## v0.38.0 - Add a drawer, hinge cups, part names
 
 - **Add a drawer.** More… → Add a shelf, divider, door or drawer → Drawer fills an opening with a drawer on slides: an inset front, and a box behind it with 1/2 in (12.7 mm) each side for ball-bearing slides. Slides and a handle go on the hardware list, and the guide hangs it last.

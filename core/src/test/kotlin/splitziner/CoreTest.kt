@@ -1414,6 +1414,15 @@ class OverlayDrawerFrontsTest {
         val ids = drawers.flatMap { it.ids }.toSet()
         assertTrue(f.byStep.values.flatten().none { (it.through.id in ids) != (it.into.id in ids) })
     }
+
+    @Test fun graduatedDrawersGetDeeperGoingDown() {
+        val t = splitziner.edit.Templates.byKey("drawers")
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false) + ("graduated" to 1.0)).mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
+        val drawers = splitziner.check.Drawers.find(parts)
+        assertEquals(4, drawers.size)
+        val heights = drawers.map { d -> parts.filter { it.id in d.ids }.let { ps -> ps.minOf { it.mesh.bounds.min.z } to ps.maxOf { it.mesh.bounds.max.z } - ps.minOf { it.mesh.bounds.min.z } } }.sortedBy { it.first }.map { it.second }
+        assertTrue(heights.zipWithNext().all { (a, b) -> a > b }, heights.toString())
+    }
 }
 
 class AddDrawerTest {

@@ -385,7 +385,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Items that need more than cutting to size, with their steps. */
     fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?): List<Pair<String, List<String>>> =
-        a.cutList.rows.mapNotNull { r -> val st = howTo(a, r, tools); if (st.size <= 2) null else "Item ${r.item}: ${r.description}" to st.dropLast(1) }
+        a.cutList.rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools))?.let { "Item ${r.item}: ${r.description}" to it } }
 
     /** Writes the open project to a single file in the app's cache, for sharing. */
     fun exportProject(): java.io.File? {

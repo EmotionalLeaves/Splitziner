@@ -112,6 +112,7 @@ object Templates {
             Field("w", "Width", 800.0, 32.0), Field("h", "Height", 900.0, 36.0), Field("d", "Depth", 450.0, 18.0),
             Field("t", "Board thickness", 18.0, 0.75), Field("n", "Drawers", 4.0, 4.0, count = true), Field("dt", "Drawer box thickness", 12.0, 0.5),
             Field("overlay", "Fronts over the sides, not between them", 0.0, 0.0, count = true, toggle = true),
+            Field("graduated", "Graduated: deeper drawers lower down", 0.0, 0.0, count = true, toggle = true),
         )) { v ->
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val dt = v.getValue("dt")
             val n = v.getValue("n").toInt().coerceIn(1, 8)
@@ -121,17 +122,22 @@ object Templates {
                 box(t, d - back, kick, inner, back, h - kick))
             // The space between bottom and top shared equally; each drawer box 6 mm clear of its share above and
             // below, 12.7 mm each side for slides, and 10 mm short of the back.
-            val z0 = kick + t; val oh = (h - t - z0) / n
+            val z0 = kick + t
+            // Equal shares, or graduated: each drawer a fifth deeper than the one above it, the classic proportion.
+            val weights = (0 until n).map { k -> if ((v["graduated"] ?: 0.0) >= 0.5) Math.pow(1.2, (n - 1 - k).toDouble()) else 1.0 }
+            val shares = weights.map { it / weights.sum() * (h - t - z0) }
+            val starts = shares.runningFold(z0) { a, b -> a + b }
             val slide = 12.7; val bx0 = t + slide; val bx1 = w - t - slide; val y1 = dIn - 10.0
             for (k in 0 until n) {
-                val zb = z0 + k * oh + 6.0; val bh = oh - 12.0
+                val oh = shares[k]; val zs = starts[k]
+                val zb = zs + 6.0; val bh = oh - 12.0
                 out += box(bx0, 0.0, zb, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, zb, bx1 - bx0, dt, bh)
                 out += box(bx0, dt, zb, dt, y1 - 2 * dt, bh); out += box(bx1 - dt, dt, zb, dt, y1 - 2 * dt, bh)
                 out += box(bx0 + dt, dt, zb, bx1 - bx0 - 2 * dt, y1 - 2 * dt, 6.0)
                 // Its front, in front of the carcass, 2 mm in from the sides (or over them, 2 mm in from the outside)
                 // and 2 mm from the fronts above and below.
-                if ((v["overlay"] ?: 0.0) >= 0.5) out += box(2.0, -t, z0 + k * oh + 2.0, w - 4.0, t, oh - 4.0)
-                else out += box(t + 2.0, -t, z0 + k * oh + 2.0, inner - 4.0, t, oh - 4.0)
+                if ((v["overlay"] ?: 0.0) >= 0.5) out += box(2.0, -t, zs + 2.0, w - 4.0, t, oh - 4.0)
+                else out += box(t + 2.0, -t, zs + 2.0, inner - 4.0, t, oh - 4.0)
             }
             out
         },

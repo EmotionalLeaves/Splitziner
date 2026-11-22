@@ -58,4 +58,13 @@ object HowTo {
         out += "Label it ${row.item} on a face that will not show."
         return out
     }
+
+    /**
+     * The steps worth a place on the guide's "Making the parts" page, without the closing label line; null for a
+     * plain board that is only cut to size (copies included), which the cut list already covers.
+     */
+    fun making(steps: List<String>): List<String>? {
+        val work = steps.filter { !it.startsWith("Make ") && !it.startsWith("Label it ") }
+        return if (work.size <= 1) null else steps.filter { !it.startsWith("Label it ") }
+    }
 }

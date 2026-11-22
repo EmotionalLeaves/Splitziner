@@ -31,7 +31,8 @@ enum class JoinMethod(val label: String, val needs: Set<Tool>) {
 /** One joint: [through] is fastened into [into]; [count] fasteners of [size]. */
 class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean)
 
-class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>)
+/** [byStep] tells each step's joints (one copy of a sub-assembly made several times); [all] is every joint in the piece. */
+class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>, val all: List<Joint> = byStep.values.flatten())
 
 /**
  * Works out, from where parts touch, what holds each joint. Workshop rules of thumb, not engineering:
@@ -264,12 +265,12 @@ object Fastening {
             val h = live.maxOf { it.mesh.bounds.max.z } - live.minOf { it.mesh.bounds.min.z }; val dd = live.maxOf { it.mesh.bounds.max.y } - live.minOf { it.mesh.bounds.min.y }
             if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
         }
-        // Identical sub-assemblies are made more than once: their fasteners count that many times.
+        val every = joints.values.flatten()
+        // Identical sub-assemblies are made more than once in one bench step. Every copy's joints are already in
+        // the totals; the step itself tells how to make one, so it keeps only the first copy's joints.
         for (st in steps) if (st.subassembly && st.makeCount > 1) {
-            for (jt in joints[st.step].orEmpty()) if (!jt.glueOnly && jt.kind != "thin") {
-                val key = when (jt.kind) { "dowels" -> jt.size; "brackets", "corner" -> "corner brackets, with short screws"; "laminate" -> "${jt.size} brads"; else -> "${jt.size} ${jt.kind}" }
-                totals[key] = (totals[key] ?: 0) + jt.count * (st.makeCount - 1)
-            }
+            val first = st.partIds.toSet()
+            joints[st.step]?.let { js -> val own = js.filter { it.through.id in first && it.into.id in first }; if (own.isNotEmpty()) joints[st.step] = own.toMutableList() }
         }
         // By kind (screws, then brads, then the rest), shortest first.
         fun lengthOf(k: String): Double {
@@ -281,7 +282,7 @@ object Fastening {
         fun kindRank(k: String) = when { k == HANDLE -> 6; k.contains("slides") || k.contains("hinges") || k == "shelf pins" -> 5; k.contains("bracket") -> 4; k.contains("pocket") -> 0; k.endsWith("screws") -> 1; k.contains("dowel") -> 2; k.endsWith("brads") -> 3; else -> 4 }
         val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}" else "$n × $k" } + listOf("Wood glue") +
             (if (method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) listOf("Buy about 10% extra fasteners") else emptyList())
-        return FastenPlan(method, joints, hardware)
+        return FastenPlan(method, joints, hardware, every)
     }
 
     /** Counts as words up to twelve ("two 2-1/2 in screws"), so a count never runs into a size. */
@@ -291,7 +292,7 @@ object Fastening {
     fun pocketHoles(plan: FastenPlan): Map<Int, Int> {
         if (plan.method != JoinMethod.POCKET_SCREWS) return emptyMap()
         val out = sortedMapOf<Int, Int>()
-        for (j in plan.byStep.values.flatten()) if (!j.glueOnly && j.kind == "pocket screws") { val it = j.into.item ?: continue; out[it] = (out[it] ?: 0) + j.count }
+        for (j in plan.all) if (!j.glueOnly && j.kind == "pocket screws") { val it = j.into.item ?: continue; out[it] = (out[it] ?: 0) + j.count }
         return out
     }
 
