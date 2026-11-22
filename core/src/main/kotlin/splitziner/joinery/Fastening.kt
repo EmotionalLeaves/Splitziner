@@ -364,6 +364,13 @@ object Fastening {
             val where = if (hosts.size == 1) hosts[0] else hosts.dropLast(1).joinToString(", ") + " and " + hosts.last()
             val times = if (g.size > 1) " (${g.size} joints)" else ""
             val thin = key.first.replaceFirstChar { it.uppercase() }
+            // Told in full the first time; later steps that set the same part the same way only say so.
+            val earlier = plan.byStep.entries.filter { it.key < step }.sortedBy { it.key }.firstOrNull { (_, ej) -> ej.any { it.kind == "thin" && it.size == key.second && itemName(it.into) == key.first } }?.key
+            if (earlier != null) {
+                out += if (rabbet) "Glue and pin ${key.first} into its rabbet in $where, as in step $earlier."
+                    else "Glue ${key.first} into its groove in $where, as in step $earlier."
+                continue
+            }
             out += if (rabbet) "$thin is too thin to take screws at its edge$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in $where, make ${key.first} $d bigger on those edges than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) behind it instead."
                 else "$thin is too thin to take screws at its edge$times. Cut a groove $w wide and $d deep in $where for its edges, make ${key.first} $d bigger on those edges than the cut list says, and glue it in. Or glue a small strip (a cleat) beside it instead."
         }
