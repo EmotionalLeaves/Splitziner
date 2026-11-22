@@ -393,10 +393,17 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { showCutPlan = true }) { Text("Cutting plan") }
-                OutlinedButton(onClick = { shareCsv(context, open) }) { Text("Share CSV") }
                 OutlinedButton(onClick = { shareShopping(context, open, vm, scope) }) { Text("Shopping list") }
-                OutlinedButton(onClick = { showPrices = true }) { Text("Prices") }
-                OutlinedButton(onClick = { shareProfiles(context, open) }) { Text("CNC profiles") }
+                // Less used shares and settings sit behind one button, so the list keeps the screen.
+                Box {
+                    var more by remember { mutableStateOf(false) }
+                    OutlinedButton(onClick = { more = true }) { Text("More\u2026") }
+                    androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                        androidx.compose.material3.DropdownMenuItem(text = { Text("Prices") }, onClick = { more = false; showPrices = true })
+                        androidx.compose.material3.DropdownMenuItem(text = { Text("Share cut list (CSV)") }, onClick = { more = false; shareCsv(context, open) })
+                        androidx.compose.material3.DropdownMenuItem(text = { Text("CNC profiles (DXF)") }, onClick = { more = false; shareProfiles(context, open) })
+                    }
+                }
             }
         }
     }
@@ -640,13 +647,20 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val ready = d != null && !state.drawingBusy
             Button(onClick = { if (d != null) sharePdf(context, open, d) }, enabled = ready) { Text("Share PDF") }
-            OutlinedButton(onClick = { if (d != null) shareImage(context, open, d, shown) }, enabled = ready) { Text("Image") }
-            OutlinedButton(onClick = { if (d != null) shareDxf(context, open, d) }, enabled = ready) { Text("DXF") }
-            OutlinedButton(onClick = {
-                val fs = runCatching { splitziner.drawing.FullSize.build(open.analysis.parts, open.analysis.cutList.rows, open.analysis.format) }.getOrNull()
-                if (fs == null || fs.pages.isEmpty()) Toast.makeText(context, if (fs?.tooBig?.isNotEmpty() == true) "Item ${fs.tooBig.joinToString(", ")} is too big to print full size; mark it out from its drawing" else "No part is shaped enough to need a full-size template", Toast.LENGTH_LONG).show()
-                else sharePdf(context, open, fs.pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "full_size_templates")
-            }) { Text("Full-size templates") }
+            Box {
+                var more by remember { mutableStateOf(false) }
+                OutlinedButton(onClick = { more = true }, enabled = ready) { Text("More\u2026") }
+                androidx.compose.material3.DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("This sheet as an image") }, onClick = { more = false; if (d != null) shareImage(context, open, d, shown) })
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("DXF for CAD") }, onClick = { more = false; if (d != null) shareDxf(context, open, d) })
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("Full-size templates") }, onClick = {
+                        more = false
+                        val fs = runCatching { splitziner.drawing.FullSize.build(open.analysis.parts, open.analysis.cutList.rows, open.analysis.format) }.getOrNull()
+                        if (fs == null || fs.pages.isEmpty()) Toast.makeText(context, if (fs?.tooBig?.isNotEmpty() == true) "Item ${fs.tooBig.joinToString(", ")} is too big to print full size; mark it out from its drawing" else "No part is shaped enough to need a full-size template", Toast.LENGTH_LONG).show()
+                        else sharePdf(context, open, fs.pages.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, "full_size_templates")
+                    })
+                }
+            }
         }
     }
     if (showInfo) TitleBlockDialog(open.meta, onDismiss = { showInfo = false }) { m -> showInfo = false; vm.updateDrawing { m } }
@@ -893,9 +907,9 @@ private val HELP = listOf(
     "Changes" to "On the 3D tab, Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
     "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
-    "Full-size templates" to "On the Drawing tab, Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
-    "Prices" to "On the Cut list tab, Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",
-    "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
+    "Full-size templates" to "On the Drawing tab, More > Full-size templates makes a PDF of every strongly shaped flat part (a round top, a bracket, a curved leg) at full size, split across letter or A4 pages. Print at 100% (actual size), check the 1 in (25 mm) line on each page with a rule, trim at the dashed boxes, line up the crosses, tape the pages together and trace onto the wood. Rectangles with rounded corners or notches are left to their drawings.",
+    "Prices" to "On the Cut list tab, More > Prices lets you type what each kind of sheet and board costs where you buy it. The Cut list tab then shows what the wood comes to, and the shopping list prices each line. Prices are remembered for other projects.",
+    "CNC profiles" to "On the Cut list tab, More > CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
     "Weight" to "Once items have materials, the Cut list tab gives a weight, and the drawing's title block gets it when every item has one. It uses typical densities (pine 500 kg/m³, birch plywood 680, MDF 750, oak 750...); real boards vary by 10-20%. Pick a material from the chips when you tap an item, and tick the box to give every other item the same.",
     "Backing up" to "Tap the summary at the top of a project, then Share project. It makes one file with the model and everything you set and changed. Open that file with Import STL or OBJ (or Open with) on any phone with the app to get the project back.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap the summary at the top of the project, then Units.",
