@@ -129,7 +129,7 @@ class SmokeTest {
                 rule.onNodeWithContentDescription("Project menu").performClick(); rule.waitForIdle()
                 tap("Help")
                 rule.waitUntil(10_000) { rule.onAllNodesWithText("Search help").fetchSemanticsNodes().isNotEmpty() }
-                tap("Cutting plan")
+                tap("Units")
                 shot("c10_help")
                 println("SMOKE help opens")
                 rule.onNodeWithContentDescription("Close").performClick(); rule.waitForIdle()
