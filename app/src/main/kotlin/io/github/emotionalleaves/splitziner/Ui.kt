@@ -186,6 +186,24 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     val r = a.report
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showUnits by remember { mutableStateOf(r.units.lowConfidence && open.meta.fileUnits == null) }
+    var showUp by remember { mutableStateOf(false) }
+    if (showUp) AlertDialog(
+        onDismissRequest = { showUp = false },
+        confirmButton = { TextButton(onClick = { showUp = false }) { Text("Close") } },
+        title = { Text("Which way is up?") },
+        text = {
+            Column {
+                Text("STL files do not say which way is up. The app takes the file's Z axis as up; many programs (Blender, and Fusion and others with their default setting) save with Y up, so the model arrives lying on its back. Pick what makes it stand the right way. Floor, build order and drawings all follow this.", style = MaterialTheme.typography.bodySmall)
+                for ((key, label) in listOf("z" to "Z up (as the file is)", "y" to "Y up (common from Blender, Fusion)", "x" to "X up", "-z" to "Upside down", "-y" to "Y down", "-x" to "X down")) {
+                    Row(Modifier.fillMaxWidth().clickable { showUp = false; if (key != open.meta.up) vm.update { it.copy(up = key) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = open.meta.up == key, onClick = null)
+                        Text(label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+                if (open.meta.edits.isNotEmpty()) Text("Your changes to parts were made the old way up; moves will now go in the new directions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        },
+    )
     var editPart by remember { mutableStateOf<Part?>(null) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var pull by remember { mutableFloatStateOf(0f) }
@@ -217,6 +235,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     val guessed = if (open.meta.fileUnits == null) " (guessed)" else ""
                     Text("File saved in ${unitName(r.units.fileUnits)}$guessed, shown in ${unitName(a.format.units)}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     TextButton(onClick = { showUnits = true }) { Text("Change") }
+                    TextButton(onClick = { showUp = true }) { Text("Turn") }
                 }
                 for (w in r.warnings) Text("Note: $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
@@ -771,6 +790,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
+    "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap Turn beside the units and pick the axis that should point up.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, tap Change on the project screen.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
     "Holes" to "Each part's own drawing shows where its round holes are and how big: a size note such as 3X 8 DIA THRU, and each centre measured from the datum corner. The app finds straight round holes with a flat rim. It does not know about threads, countersinks or what a hole is for, and holes drilled at an angle are drawn but not dimensioned.",

@@ -20,6 +20,11 @@ data class AnalysisOptions(
     val itemOverrides: Map<String, ItemOverride> = emptyMap(),
     val excludedPartIds: Set<String> = emptySet(),
     val partNames: Map<String, String> = emptyMap(),
+    /**
+     * Which of the file's axes points up: "z" (the default), "y", "x", or with a minus for the opposite way
+     * ("-z" is upside down). Many programs export with Y up; the app works with Z up.
+     */
+    val up: String = "z",
     /** Changes the user has made to the model, replayed on the file's parts every time it is read. */
     val edits: List<splitziner.edit.Edit> = emptyList(),
 )
@@ -49,6 +54,16 @@ class Analysis(
 fun interface Progress { fun report(fraction: Double, label: String) }
 
 object Pipeline {
+    /** Row-major 3x3 rotation taking the file's [up] axis to +Z, keeping handedness (no mirroring). */
+    fun upRotation(up: String): DoubleArray = when (up) {
+        "y" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0)      // file Y becomes Z, file Z becomes -Y (back)
+        "-y" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0)
+        "x" -> doubleArrayOf(0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0)
+        "-x" -> doubleArrayOf(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0)
+        "-z" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0)
+        else -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    }
+
     /**
      * Above this many triangles in all, parts are simplified for the rest of the work. A phone draws
      * and checks this many comfortably; a CAD export of a cabinet is usually far below it.
@@ -76,17 +91,25 @@ object Pipeline {
             progress.report(0.3, "Separating parts")
             timed("split") { BodySplitter.split(raw, options.fileUnits, options.displayUnits) }
         }
+        // Turned so the chosen axis points up. A rotation by quarter turns: sizes and right angles are kept exactly.
+        val turned = if (options.up == "z") split.parts else {
+            val r = upRotation(options.up)
+            split.parts.map { p -> p.copy(mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
+                val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
+                r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
+            }, p.mesh.triangles)) }
+        }
         // Very heavy models are worked with as a simplified copy, so drawings, the 3D view and the checks fit in a phone's memory.
         var maxErr = 0.0
-        val heavy = split.parts.sumOf { it.mesh.triangleCount }
+        val heavy = turned.sumOf { it.mesh.triangleCount }
         var report = split.report
-        val lighter = if (heavy <= WORK_BUDGET) split.parts else timed("simplify") {
+        val lighter = if (heavy <= WORK_BUDGET) turned else timed("simplify") {
             progress.report(0.7, "Simplifying a heavy model")
             val notes = ArrayList<String>()
             // Accuracy is judged against the whole model, as the drawings show it.
-            val whole = split.parts.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents.length
+            val whole = turned.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents.length
             val tol = splitziner.mesh.Simplify.tolerance(whole)
-            val out = split.parts.map { p ->
+            val out = turned.map { p ->
                 val share = maxOf(MIN_PART_TRIANGLES, (p.mesh.triangleCount.toLong() * WORK_BUDGET / heavy).toInt())
                 if (p.mesh.triangleCount <= share) p else {
                     val s = splitziner.mesh.Simplify.run(p.mesh, share, tol)

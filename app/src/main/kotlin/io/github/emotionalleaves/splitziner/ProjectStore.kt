@@ -18,6 +18,8 @@ data class ProjectMeta(
     val fileUnits: String? = null,
     /** "mm", "in", or null to follow the design units. */
     val displayUnits: String? = null,
+    /** Which of the file's axes points up ("z", "y", "-z"...). */
+    val up: String = "z",
     val inchStyle: String = "decimal",
     val excluded: Set<String> = emptySet(),
     val partNames: Map<String, String> = emptyMap(),
@@ -54,7 +56,7 @@ data class ProjectMeta(
 
     fun drawingSettings() = splitziner.drawing.DrawingSettings(sheet = sheet, hidden = hidden, sections = sections)
 
-    fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames, edits)
+    fun options() = AnalysisOptions(fileUnits, displayUnits, inchStyle, items, excluded, partNames, up = up, edits = edits)
 }
 
 /** Projects live in app-private storage: files/projects/<id>/{source.stl, project.json}. */
@@ -95,6 +97,7 @@ class ProjectStore(context: Context) {
         o.put("tolerance", meta.tolerance?.let { JSONArray(it) } ?: JSONObject.NULL)
         o.put("tools", meta.tools?.let { JSONArray(it) } ?: JSONObject.NULL)
         o.put("joinMethod", meta.joinMethod ?: JSONObject.NULL)
+        o.put("up", meta.up)
         o.put("edits", JSONArray(meta.edits.map { EditJson.write(it) }))
         o.put("stepOrder", meta.stepOrder?.let { order -> JSONArray(order.map { JSONArray(it) }) } ?: JSONObject.NULL)
         val st = JSONObject()
@@ -125,6 +128,7 @@ class ProjectStore(context: Context) {
             tolerance = if (o.isNull("tolerance")) null else strings(o.optJSONArray("tolerance")),
             tools = if (o.isNull("tools")) null else strings(o.optJSONArray("tools")),
             joinMethod = if (o.isNull("joinMethod")) null else o.optString("joinMethod"),
+            up = o.optString("up", "z"),
             edits = o.optJSONArray("edits")?.let { a -> (0 until a.length()).mapNotNull { EditJson.read(a.getJSONObject(it)) } } ?: emptyList(),
             sheet = o.optString("sheet", "auto"), hidden = o.optString("hidden", "auto"), sections = o.optString("sections", "auto"),
             stepOrder = if (o.isNull("stepOrder")) null else o.optJSONArray("stepOrder")?.let { a -> (0 until a.length()).map { strings(a.getJSONArray(it)) ?: emptyList() } },

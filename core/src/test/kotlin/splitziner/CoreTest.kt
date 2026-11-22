@@ -993,3 +993,19 @@ class LumberTest {
         assertTrue(buy.any { it.contains("sheet 1/2 in thick") }, buy.toString())
     }
 }
+
+class UpTest {
+    @Test fun yUpFileStandsUpright() {
+        // The mini cabinet exported with Y up: its height (60 in) lies along the file's Y.
+        val zUp = Fixtures.miniCabinet(Fixtures.INCH)
+        val yUp = zUp.map { m -> splitziner.mesh.Mesh(DoubleArray(m.vertices.size) { i -> val v = 3 * (i / 3); when (i % 3) { 0 -> m.vertices[v]; 1 -> m.vertices[v + 2]; else -> -m.vertices[v + 1] } }, m.triangles) }
+        val bytes = Fixtures.binaryStl(Fixtures.soup(yUp))
+        val flat = Pipeline.analyze(bytes, "y.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val up = Pipeline.analyze(bytes, "y.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", up = "y"))
+        assertEquals(60 * Fixtures.INCH, up.bounds.extents.z, 1e-6)
+        assertEquals(60 * Fixtures.INCH, flat.bounds.extents.y, 1e-6)
+        // Turning keeps every part's volume and is not a mirror image.
+        assertEquals(flat.parts.sumOf { it.mesh.volume }, up.parts.sumOf { it.mesh.volume }, 1e-3)
+        assertTrue(up.parts.all { it.mesh.volume > 0 })
+    }
+}
