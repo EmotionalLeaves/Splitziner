@@ -237,6 +237,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun addEdits(edits: List<splitziner.edit.Edit>) = update { it.copy(edits = it.edits + edits) }
     fun undoLastEdit() = update { it.copy(edits = it.edits.dropLast(1)) }
     fun undoAllEdits() = update { it.copy(edits = emptyList()) }
+    /** Takes back one change from anywhere in the list; later changes are replayed without it. */
+    fun removeEdit(index: Int) = update { m -> m.copy(edits = m.edits.filterIndexed { i, _ -> i != index }) }
 
     /** The joining method: the one chosen for this project, else what the tools allow. */
     fun methodFor(meta: ProjectMeta) = splitziner.joinery.JoinMethod.parse(meta.joinMethod) ?: splitziner.joinery.JoinMethod.defaultFor(toolsFor(meta))

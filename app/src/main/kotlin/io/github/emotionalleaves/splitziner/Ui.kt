@@ -214,6 +214,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var shapePart by remember { mutableStateOf<Part?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var showSize by remember { mutableStateOf(false) }
+    var showChanges by remember { mutableStateOf(false) }
+    if (showChanges) ChangesDialog(open, vm, onDismiss = { showChanges = false })
     if (showSize) OverallSizeDialog(open, onDismiss = { showSize = false }) { es -> showSize = false; vm.addEdits(es) }
     shapePart?.let { p -> ShapeDialog(p, open, onDismiss = { shapePart = null }) { e -> shapePart = null; vm.addEdit(e) } }
     if (showAdd) AddBoardDialog(open, onDismiss = { showAdd = false }) { e -> showAdd = false; vm.addEdit(e); selectedId = (e as? splitziner.edit.Edit.AddBox)?.id }
@@ -316,6 +318,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 OutlinedButton(onClick = { showAdd = true }, enabled = state.busyLabel == null) { Text("Add a board") }
                 OutlinedButton(onClick = { showSize = true }, enabled = state.busyLabel == null) { Text("Overall size") }
                 if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null) { Text("Undo") }
+                if (open.meta.edits.isNotEmpty()) OutlinedButton(onClick = { showChanges = true }, enabled = state.busyLabel == null) { Text("Changes (${open.meta.edits.size})") }
             }
         } else if (tab == 1) {
             LazyColumn(Modifier.weight(1f)) {
@@ -853,6 +856,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
     "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up. If your model arrives lying on its back or upside down (common from programs that save with Y up), tap the summary at the top, then Which way is up, and pick the axis that should point up.",
+    "Changes" to "On the 3D tab, Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
     "Overall size" to "On the 3D tab, Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",
     "CNC profiles" to "On the Cut list tab, CNC profiles shares a DXF with every flat item's true outline at full size in millimetres: outsides on layer CUT_OUTSIDE, openings on CUT_INSIDE, and a label saying how many to cut and how thick. Blocks and rods are left out. Set up tool offsets, tabs and depths in your CAM program.",
@@ -1334,6 +1338,52 @@ private fun OverallSizeDialog(open: OpenProject, onDismiss: () -> Unit, onApply:
                     OutlinedTextField(vals[k], { vals[k] = it; msg = null }, label = { Text("$label, ${fmt.unitLabel}") }, singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Text))
                 msg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
+}
+
+/** Every change made to the model, in order, in plain words; any one can be taken back. */
+@Composable
+private fun ChangesDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> Unit) {
+    val fmt = open.analysis.format
+    val byId = (open.analysis.originalParts + open.analysis.parts).associateBy { it.id }
+    fun name(id: String) = byId[id]?.let { p -> p.item?.let { "item $it" } ?: p.name } ?: id
+    fun names(ids: List<String>) = ids.map { name(it) }.distinct().let { if (it.size <= 3) it.joinToString(", ") else "${it.take(3).joinToString(", ")} and ${it.size - 3} more" }
+    fun len(v: Double) = "${fmt.format(kotlin.math.abs(v))} ${fmt.unitLabel}"
+    fun describe(e: splitziner.edit.Edit): String = when (e) {
+        is splitziner.edit.Edit.Move -> "Moved ${names(e.ids)}"
+        is splitziner.edit.Edit.Thickness -> "Made ${names(e.ids)} ${len(e.t)} thick"
+        is splitziner.edit.Edit.SquareUp -> "Squared up ${names(e.ids)}"
+        is splitziner.edit.Edit.Merge -> "Joined ${names(e.ids)} into one piece"
+        is splitziner.edit.Edit.Trim -> "Trimmed ${name(e.id)} around ${name(e.by)}"
+        is splitziner.edit.Edit.Resize -> "Resized ${name(e.id)} to ${fmt.format(e.t)} × ${fmt.format(e.w)} × ${fmt.format(e.l)}"
+        is splitziner.edit.Edit.AddBox -> "Added a board, ${e.name}"
+        is splitziner.edit.Edit.Duplicate -> "Copied ${name(e.id)}"
+        is splitziner.edit.Edit.Delete -> "Deleted ${names(e.ids)}"
+        is splitziner.edit.Edit.CutBack -> "Cut ${name(e.id)} back to ${name(e.by)}"
+        is splitziner.edit.Edit.SplitBoards -> "Made ${names(e.ids)} from boards"
+        is splitziner.edit.Edit.House -> "Kept ${name(e.id)} in a groove in ${name(e.into)}"
+        is splitziner.edit.Edit.Stretch -> "Made the whole ${listOf("width", "depth", "height")[e.axis]} ${len(e.by)} ${if (e.by >= 0) "bigger" else "smaller"}"
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = { TextButton(onClick = { onDismiss(); vm.undoAllEdits() }) { Text("Take all back") } },
+        title = { Text("Changes to the model") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 460.dp)) {
+                item { Text("Oldest first. Taking one back replays the rest without it; a later change that needed it is skipped and noted.", style = MaterialTheme.typography.bodySmall) }
+                items(open.meta.edits.size) { i ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${i + 1}. ${describe(open.meta.edits[i])}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { onDismiss(); vm.removeEdit(i) }) { Text("Take back") }
+                    }
+                }
+                if (open.analysis.editNotes.isNotEmpty()) item {
+                    Text("Could not be replayed:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                    for (n in open.analysis.editNotes) Text("• $n", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
             }
         },
     )
