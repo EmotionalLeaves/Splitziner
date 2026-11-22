@@ -62,7 +62,10 @@ object GuideSteps {
             val len = (0..2).maxByOrNull { k -> b(host).extents[k] }!!
             // They meet face to face across one axis; the part is placed along the other two.
             val contact = (0..2).minByOrNull { k -> minOf(b(s).max[k], b(host).max[k]) - maxOf(b(s).min[k], b(host).min[k]) }!!
+            // Resting on something (slats on their cleats, a shelf on its supports): that sets its height.
+            val supported = pool.any { o -> o !== s && kotlin.math.abs(b(o).max.z - b(s).min.z) < 0.5 && touch(o, s) }
             for (k in (0..2).filter { it != contact }) {
+                if (k == 2 && supported) continue
                 if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
                 if (lo < 1.0 || hi < 1.0) continue
@@ -119,6 +122,7 @@ object GuideSteps {
 
     fun build(parts: List<Part>, steps: List<BuildStep>, overrides: Map<String, StepText> = emptyMap(), fasten: splitziner.joinery.FastenPlan? = null, fmt: splitziner.dims.LengthFormat? = null): List<GuideStep> {
         val gapTold = HashSet<Int>()
+        val levelTold = HashSet<String>(); val levelItems = HashSet<Int>()
         val drawn = parts.filter { !it.excluded }
         val byId = drawn.associateBy { it.id }
         // One view for every step, so the reader keeps their bearings.
@@ -196,6 +200,7 @@ object GuideSteps {
                 val where = when {
                     base || (st.step == 1 && !st.subassembly) || sides.isEmpty() -> ""
                     sides.size == 2 && sides.all { it.startsWith("from the ") } -> " from the ${sides[0].removePrefix("from the ")} and ${sides[1].removePrefix("from the ")}"
+                    sides.size == 2 && sides.all { it.startsWith("from ") } -> " from ${sides[0].removePrefix("from ")} and ${sides[1].removePrefix("from ")}"
                     else -> " " + sides.joinToString(", ")
                 }
                 // On the bench, the part that does not move is laid down first and the others joined to it.
@@ -222,11 +227,17 @@ object GuideSteps {
             // Like parts laid side by side, evenly spaced (slats): the gap, once, the first time some go in.
             if (fmt != null && !st.subassembly) for ((item, n) in count) {
                 if (item == null || n < 2 || item in gapTold) continue
-                val like = drawn.filter { it.item == item }
-                val flat = like.all { p -> p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) } }
-                val gap = if (flat) evenGap(like) else null
+                val all = drawn.filter { it.item == item }
+                // Or spaced within one level: a bunk bed's two decks of slats are each evenly spaced, not all together.
+                val here = cur.filter { it.item == item }
+                val level = all.filter { here.any { h -> kotlin.math.abs(h.mesh.bounds.min.z - it.mesh.bounds.min.z) < 1.0 } }
+                val levelKey = "$item@${Math.round(here.first().mesh.bounds.min.z)}"
+                if (levelKey in levelTold) continue
+                val flat = all.all { p -> p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) } }
+                val whole = if (flat) evenGap(all) else null
+                val gap = whole ?: if (flat && level.size < all.size) evenGap(level) else null
                 if (gap != null) {
-                    gapTold += item
+                    if (whole != null) gapTold += item else { levelTold += levelKey; levelItems += item }
                     val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
                     // Named from the parts going in now (the shelves), not every part of the item (its bottom and top too).
                     val nm = cur.filter { it.item == item && it.name != it.id }.map { it.name }.distinct().singleOrNull()?.lowercase()
@@ -277,7 +288,7 @@ object GuideSteps {
                 val built = drawn.filter { it.id in done }
                 // Only where it reads as an instruction: a busy step of a sculpted model, with parts set every which way, would
                 // list offsets the picture already shows better.
-                val said = if (built.isNotEmpty() && loose.map { it.item }.distinct().size <= 2) placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold.toSet()) else emptyList()
+                val said = if (built.isNotEmpty() && loose.map { it.item }.distinct().size <= 2) placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold + levelItems) else emptyList()
                 if (said.size <= MAX_PLACING) lines += said
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.

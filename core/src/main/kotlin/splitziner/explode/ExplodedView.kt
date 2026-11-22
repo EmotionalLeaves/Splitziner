@@ -154,7 +154,9 @@ object ExplodedView {
                 val d2 = Vec2(d dot view.x, d dot view.up)
                 // Travel grows until the part's outline, with clearance, misses everything already placed.
                 val start = l
-                while (l < start + maxOf(12 * maxOf(size, 10.0), 1.5 * biggest)) {
+                // A door's width, not a strip's length: a long cleat pulled across its length need not go a length away.
+                val second = listOf(b.extents.x, b.extents.y, b.extents.z).sorted()[1]
+                while (l < start + maxOf(12 * maxOf(size, 10.0), 1.5 * second)) {
                     val shifted = Silhouette.translated(grown, d2.x * l, d2.y * l)
                     if (!hits(shifted)) break
                     l += step

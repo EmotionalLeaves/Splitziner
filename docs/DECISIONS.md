@@ -166,3 +166,17 @@ Departures from the build spec, newest first.
 - Edge banding skips solid-wood panels: their edges show no layers.
 - A top of solid wood fixed with brackets gets the seasonal-movement advice: slotted brackets or tabletop fasteners, with the screws a little loose across the grain.
 - Pins instead of rabbets: with screws chosen, an edge too thin for a screw but thick enough for a brad (a 1/2 in drawer side) is glued and pinned, as drawer boxes usually are.
+
+## v0.83: tested on complex models
+`scripts/complex-models.py` writes five multi-part models (a two-column dresser, a kitchen base cabinet with a drawer over two doors, a bunk bed, a pedestal desk, and a face-frame bookcase with an overhanging cap). Running the whole pipeline on them found and fixed:
+- Face frames: flat strips across the front of a case, backed by its front edges, are stiles and face frame rails, not legs. The sides behind an overhanging top are sides, not dividers. A side is a part with no panel beyond it that overlaps it.
+- An applied drawer front is screwed through the box end only, never "through the drawer side" end-on with 3 in screws.
+- A top between the sides is screwed through them. A full-depth divider and a 1/4 in back panel under a top are not "supports along both edges". Brackets are never fixed into a thin panel's edge.
+- Parts are named bottom up within a step (kick board, bottom, then the divider on it).
+- Drawers and their fronts hang in one step, up to 12 (was 5, which split a chest of six).
+- Slide lines are measured up from the top of the panel the drawers stand over, which every column shares. Rows of drawers side by side give each height once.
+- An overlay drawer under a rail is found: the "lid" test uses the box, not its taller front.
+- Doors and drawers are never merged into a structural step. Doors and drawer fronts get no offsets: hinges and even gaps place them.
+- Where there is a choice, the build goes bottom up, so a bunk bed's lower deck is finished before the upper rails go on. "Rails before slats" only moves rails at the slats' level.
+- Spacing is given per level (each deck of slats), and parts resting on supports get no height offset.
+- Exploded pictures cap a part's travel by its second-largest size (a door's width), not its length. A 6 ft cleat no longer flies a cleat-length away and shrinks the picture.

@@ -204,7 +204,11 @@ object AssemblyPlan {
         val railOnly = steps.map { st -> !st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { names(it).all { n -> n.endsWith("ail") || n == "Apron" } } }
         val firstSlat = slatOnly.indexOfFirst { it }
         if (firstSlat < 0) return steps to steps.associate { it.step to it.step }
-        val rails = steps.indices.filter { it > firstSlat && railOnly[it] }
+        // Only the rails round those slats: a bunk bed's upper rails wait for the lower deck to be finished.
+        fun zr(st: BuildStep): Pair<Double, Double> { val bs = st.partIds.flatMap { id -> members[id]?.map { it.mesh.bounds } ?: listOfNotNull(byId[id]?.mesh?.bounds) }
+            return (bs.minOfOrNull { it.min.z } ?: 0.0) to (bs.maxOfOrNull { it.max.z } ?: 0.0) }
+        val slatZ = zr(steps[firstSlat])
+        val rails = steps.indices.filter { it > firstSlat && railOnly[it] && zr(steps[it]).let { (a, b) -> a <= slatZ.second + 1.0 && b >= slatZ.first - 1.0 } }
         if (rails.isEmpty()) return steps to steps.associate { it.step to it.step }
         val list = steps.toMutableList()
         val moving = rails.map { steps[it] }
@@ -595,7 +599,8 @@ object AssemblyPlan {
             fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 2; g.any { parts[it].id in hungIds } -> 1; else -> 0 }
             while (pool.isNotEmpty()) {
                 val low = pool.minOf { rank(it) }
-                val now = pool.filter { rank(it) == low }
+                // Bottom up where there is a choice: a bunk bed's lower deck before the upper one closes it in.
+                val now = pool.filter { rank(it) == low }.sortedBy { g -> g.minOf { lo[it].z } }
                 // Standing parts first (a second leg frame before the top that spans both), then parts whose supports are all built.
                 val pick = now.firstOrNull { feasible(it) && grounded(it) } ?: now.firstOrNull { feasible(it) && onFloor(it) }
                     ?: now.firstOrNull { feasible(it) && supported(it) && restsOnBuilt(it) } ?: now.firstOrNull { feasible(it) && supported(it) }
