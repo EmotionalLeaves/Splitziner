@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.59.0 - Workbench template
+
+- **New template: Workbench.** It has a thick top on four legs with aprons, plus stretchers low down that carry a shelf. You set the length, width, height, top and leg sizes, how high the stretchers sit, and how thick the shelf is. The guide builds it from two end frames, each with its apron and stretcher.
+- **A low board on a frame of legs is called a shelf**, not a "bottom", which is the word for the floor of a cabinet between its sides. It is fixed to the stretchers it rests on, not to the legs at its ends.
+
 ## v0.58.0 - Rename and copy projects
 
 - **Rename or copy a project** from its menu (⋮) on the first screen. **Make a copy** lets you try a variation without losing the original.
