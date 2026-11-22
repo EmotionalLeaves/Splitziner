@@ -117,7 +117,17 @@ object AssemblyPlan {
             val ids = ArrayList<String>()
             for (u in kind) {
                 val inner = planCore(u, maxSteps = 2)
-                for (p in inner.parts) benchExplode[p.id] = p.explode
+                val unitTop = u.maxOf { it.mesh.bounds.max.z }
+                for (p in inner.parts) {
+                    val e = p.explode
+                    // Pulled straight at the viewer, a rail is drawn across the leg it joins. One at the top of the
+                    // frame is lifted out upward instead, which nothing in the frame blocks and which reads clearly.
+                    val b = p.mesh.bounds
+                    val overlapsAbove = u.any { o -> o !== p && o.mesh.bounds.min.z >= b.max.z - 0.5 &&
+                        minOf(o.mesh.bounds.max.x, b.max.x) > maxOf(o.mesh.bounds.min.x, b.min.x) && minOf(o.mesh.bounds.max.y, b.max.y) > maxOf(o.mesh.bounds.min.y, b.min.y) }
+                    benchExplode[p.id] = if (e != null && (p.name == "Apron" || p.name == "Rail") && kotlin.math.abs(e.z) < 0.1 * e.length && b.extents.z < maxOf(b.extents.x, b.extents.y) &&
+                        kotlin.math.abs(if (b.extents.x >= b.extents.y) e.x else e.y) < 0.5 * e.length && b.max.z >= unitTop - 0.5 && !overlapsAbove) Vec3(0.0, 0.0, e.length) else e
+                }
                 ids += u.map { it.id }
             }
             val first = kind.first()
