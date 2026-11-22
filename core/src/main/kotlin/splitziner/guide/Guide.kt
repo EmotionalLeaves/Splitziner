@@ -146,7 +146,9 @@ object GuideSteps {
             } else if (!base || how.isNotEmpty()) {
                 // Doors, drawers and shelves on pins are hung, not fixed: their own lines say how to line them up.
                 val hung = fasten?.byStep?.get(st.step).orEmpty().let { js -> js.isNotEmpty() && js.all { it.kind in setOf("hinges", "slides", "pins", "applied") } }
-                if (!base && !hung) lines += if (how.isEmpty()) "Check it is square and seated against the parts already installed, then fasten." else "Check it is square and seated against the parts already installed."
+                // The general reminder to check square is in "Before you build"; a step only says it when it has no
+                // fastening of its own to describe.
+                if (!base && !hung && how.isEmpty()) lines += "Check it is square and seated against the parts already installed, then fasten."
                 lines += how
             }
             val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "Sub-assembly from step $bench") to us.size } +
@@ -214,7 +216,7 @@ object GuideLayout {
             pocketHoles.entries.joinToString("; ") { (i, n) -> "item $i, $n holes in all" } + ". Each goes in the end that meets another part's face."
         if (bandItems.isNotEmpty()) before += "If the panels are plywood or particleboard, iron edge banding onto the edges that will show on ${list(bandItems.sorted())} and trim it flush. Banded edges are easier to do now than once it is built."
         before += "Sand the faces that will be hard to reach once it is together."
-        before += "Do a dry run of each step, without glue, before the real one."
+        before += "Do a dry run of each step, without glue, before the real one. Before fixing each part, check it is square and sits tight against what is already built."
         val after = ArrayList<String>()
         if (screws) after += "Fill any screw holes on show with wood filler and sand flush."
         after += "Sand everything smooth, finer each pass, and break the sharp edges."
