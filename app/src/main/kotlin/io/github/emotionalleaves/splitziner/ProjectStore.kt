@@ -18,8 +18,6 @@ data class ProjectMeta(
     val fileUnits: String? = null,
     /** "mm", "in", or null to follow the design units. */
     val displayUnits: String? = null,
-    /** Which of the file's axes points up ("z", "y", "-z"...). */
-    val up: String = "z",
     val inchStyle: String = "decimal",
     val excluded: Set<String> = emptySet(),
     val partNames: Map<String, String> = emptyMap(),
@@ -43,6 +41,8 @@ data class ProjectMeta(
     val tools: List<String>? = null,
     /** How parts are joined (a [splitziner.joinery.JoinMethod] name); null follows the tools. */
     val joinMethod: String? = null,
+    /** Which of the file's axes points up ("z", "y", "-z"...). */
+    val up: String = "z",
     /** Changes made to the model in the app, replayed on the original file each time it is read. */
     val edits: List<splitziner.edit.Edit> = emptyList(),
     /** The user's wording per step, keyed by the parts in the step. */
