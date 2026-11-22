@@ -127,7 +127,8 @@ object AutoFix {
         run {
             var guard = 0
             val tried = HashSet<Set<String>>()
-            while (guard++ < 60) {
+            // Enough rounds for a model with many small overlaps (the test desk needs about 70).
+            while (guard++ < 200) {
                 val rel = DesignCheck.relations(parts, memo)
                 val c = rel.clashes.sortedByDescending { it.depth }.firstOrNull { setOf(parts[it.a].id, parts[it.b].id) !in tried } ?: break
                 val a = parts[c.a]; val b = parts[c.b]
