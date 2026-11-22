@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.72.0 - About and licences
+
+- **About and licences** is now on the first screen's menu (⋮). It says what the app does and what happens to your files: they stay on your phone unless you share them, and the only thing the app fetches is news of a newer version. It also lists the open source software the app uses and their licences.
+
 ## v0.71.0 - Build progress on project cards
 
 - **Project cards show how far the build has got**, for example "3 of 8 steps done", or "built" once every step in Build mode is ticked.
