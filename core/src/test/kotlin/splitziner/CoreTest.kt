@@ -1297,6 +1297,11 @@ class CabinetDoorsTest {
         val cut = CutList.build(parts, fmt)
         val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
         assertTrue(rep.problems == 0, rep.findings.map { it.title }.toString())
+        // The doors get a drawing that says where the hinge cups go.
+        val door = cut.parts.first { it.id == splitziner.check.Doors.find(cut.parts)[0].id }
+        assertTrue(door.item!! !in splitziner.drawing.PartDrawings.plainItems(cut.parts, cut.rows, fmt))
+        val note = splitziner.drawing.PartDrawings.hingeNotes(door, cut.parts, fmt).single()
+        assertTrue(note.contains("2 CONCEALED HINGES") && note.contains("35 MM"), note)
     }
 }
 

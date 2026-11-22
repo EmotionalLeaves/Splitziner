@@ -51,7 +51,28 @@ object PartDrawings {
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
             p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE")
-        }.map { it.item }.toSet() - pinItems(parts)
+        }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
+    }
+
+    /** Items that are doors: these get a detail sheet giving where the hinge cups go. */
+    fun doorItems(parts: List<Part>): Set<Int> {
+        val byId = parts.associateBy { it.id }
+        return runCatching { splitziner.check.Doors.find(parts).mapNotNull { byId[it.id]?.item }.toSet() }.getOrDefault(emptySet())
+    }
+
+    /**
+     * Where the hinge cups go in door [p]. The positions are the usual workshop practice (cups about 100 mm in from
+     * each end, any more evenly between); the cup's distance from the edge and its depth belong to the hinge
+     * bought, so they are given as typical values to check against its template.
+     */
+    fun hingeNotes(p: Part, parts: List<Part>, fmt: LengthFormat): List<String> {
+        val door = runCatching { splitziner.check.Doors.find(parts) }.getOrDefault(emptyList()).firstOrNull { it.id == p.id } ?: return emptyList()
+        val n = splitziner.check.Doors.hinges(door.height)
+        val end = minOf(100.0, door.height / 5)
+        val d = { v: Double -> fmt.format(v) }
+        val between = if (n > 2) ", ${n - 2} MORE EVENLY BETWEEN" else ""
+        return listOf("HINGE CUPS FOR $n CONCEALED HINGES: 35 MM DIAMETER IN THE BACK FACE ALONG THE HINGE EDGE, CENTRES ${d(end)} FROM EACH END$between. " +
+            "CUP DISTANCE FROM THE EDGE AND DEPTH TO SUIT THE HINGES' TEMPLATE (USUALLY ABOUT 22 MM IN AND 12-13 MM DEEP). DO NOT DRILL THROUGH.")
     }
 
     /** Items drilled for shelf pins: these always get a detail sheet, which gives the holes. */
@@ -134,7 +155,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt)
