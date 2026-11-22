@@ -81,6 +81,10 @@ fun main(args: Array<String>) {
             val info = splitziner.sheet.DrawingInfo(title = f.nameWithoutExtension, drawingNo = "TEST-1")
             var plan: splitziner.explode.PlanResult? = null
             time("plan") { plan = splitziner.explode.AssemblyPlan.plan(a.parts); println("plan      ${plan!!.steps.size} steps") }
+            if (System.getenv("HOWTO") != null) for (row in a.cutList.rows) {
+                val p = a.parts.first { it.id == row.memberIds[0] }
+                println("howto     item ${row.item}: " + splitziner.check.HowTo.steps(row, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)).joinToString(" | "))
+            }
             if (System.getenv("STRETCH") != null) for (k in 0..2) println("stretch   axis $k: ${splitziner.edit.Editor.stretchPlane(a.parts, k)?.let { "at ${a.format.format(it.first)}, can shrink ${a.format.format(it.second)}" } ?: "none"}")
             if (System.getenv("STEPS") != null) for (st in plan!!.steps) println("step      ${st.step}${if (st.subassembly) " bench x${st.makeCount}" else ""}: ${st.partIds.size} parts, items ${st.items}")
             var plain = emptySet<Int>()
@@ -121,7 +125,9 @@ fun main(args: Array<String>) {
                 val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                 val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info(f.nameWithoutExtension, "Build guide", a.overallSize, drawn.size, hardware = fasten.hardware).let { inf ->
                     val ba = splitziner.guide.GuideLayout.beforeAndAfter(splitziner.cutplan.EdgeBanding.estimate(a.parts).items, splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(), fasten.byStep.values.flatten().any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") })
-                    splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second) }, steps, a.cutList.rows, hero)
+                    val making = a.cutList.rows.mapNotNull { r -> val p = a.parts.first { it.id == r.memberIds[0] }
+                        val st = splitziner.check.HowTo.steps(r, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)); if (st.size <= 2) null else "Item ${r.item}: ${r.description}" to st.dropLast(1) }
+                    splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second, making) }, steps, a.cutList.rows, hero)
                 pages.forEachIndexed { i, d -> File(out, "guide%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("guide     ${steps.size} steps, ${pages.size} pages")
             }

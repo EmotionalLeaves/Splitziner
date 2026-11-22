@@ -175,7 +175,9 @@ object GuideLayout {
 
     class Info(val title: String, val subtitle: String, val overallSize: String, val partCount: Int, val tools: List<String> = emptyList(), val a4: Boolean = false, val hardware: List<String> = emptyList(),
         /** Work done before the first step, and after the last: a page of its own between the cover and the steps. */
-        val before: List<String> = emptyList(), val after: List<String> = emptyList())
+        val before: List<String> = emptyList(), val after: List<String> = emptyList(),
+        /** How to make each item that needs more than a straight cut: item heading to its steps. */
+        val making: List<Pair<String, List<String>>> = emptyList())
 
     /**
      * The usual work around the build itself. [bandItems] are items whose edges show and are worth banding;
@@ -288,6 +290,20 @@ object GuideLayout {
                 pg.text(25.0, yy, head, 4.0, vAlign = VAlign.TOP, bold = true); yy -= 8
                 items.forEachIndexed { i, t -> yy = para(pg, 28.0, yy, "${i + 1}. $t", 3.2, w - 56, hang = 4.0) - 1.5 }
                 yy -= 6
+            }
+        }
+
+        // Making the shaped parts: one block per item, carried over pages as needed.
+        if (info.making.isNotEmpty()) {
+            var pg = pages.new(); var yy = h - 26
+            pg.text(25.0, yy, "MAKING THE PARTS", 4.0, vAlign = VAlign.TOP, bold = true); yy -= 7
+            yy = para(pg, 25.0, yy, "Plain boards are only cut to size. These need more:", 3.0, w - 50) - 3
+            for ((head, steps) in info.making) {
+                val need = 6 + steps.sumOf { wrapHanging("0. $it", 3.0, w - 56, 4.0).size * 4.5 + 1 }
+                if (yy - need < 16) { pg = pages.new(); yy = h - 26 }
+                pg.text(25.0, yy, head, 3.4, vAlign = VAlign.TOP, bold = true); yy -= 6
+                steps.forEachIndexed { i, t -> yy = para(pg, 28.0, yy, "${i + 1}. $t", 3.0, w - 56, hang = 4.0) - 1 }
+                yy -= 4
             }
         }
 

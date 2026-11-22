@@ -300,7 +300,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         fasten?.byStep?.values?.flatten()?.any { !it.glueOnly && it.kind in setOf("screws", "pocket screws") } ?: true)
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
                         hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
-                        before = ba.first, after = ba.second)
+                        before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta)))
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")
                     GuideState(pages.map { PreparedSheet.of(it) }, steps.size, pl.steps)
@@ -374,6 +374,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(open = OpenProject(meta, open.analysis), guide = null, guideBusy = false, check = null, checkBusy = false, explodeOffsets = null) }
         ensureDrawing(force = true)
     }
+
+    /** How to make one item, for the cut list and the guide. */
+    fun howTo(a: splitziner.pipeline.Analysis, row: CutListRow, tools: Set<splitziner.check.Tool>?): List<String> {
+        val p = a.parts.firstOrNull { it.id == row.memberIds.firstOrNull() } ?: return emptyList()
+        return runCatching { splitziner.check.HowTo.steps(row, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format)) }.getOrDefault(emptyList())
+    }
+
+    /** Items that need more than cutting to size, with their steps. */
+    fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?): List<Pair<String, List<String>>> =
+        a.cutList.rows.mapNotNull { r -> val st = howTo(a, r, tools); if (st.size <= 2) null else "Item ${r.item}: ${r.description}" to st.dropLast(1) }
 
     /** Writes the open project to a single file in the app's cache, for sharing. */
     fun exportProject(): java.io.File? {

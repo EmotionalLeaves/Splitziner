@@ -422,7 +422,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         }
     }
     editRow?.let { row ->
-        ItemDialog(row, onDismiss = { editRow = null }) { o, all -> editRow = null; if (all) vm.setItemAndRest(row, o) else vm.setItem(row, o) }
+        ItemDialog(row, remember(row, open.analysis) { vm.howTo(open.analysis, row, vm.toolsFor(open.meta)) }, onDismiss = { editRow = null }) { o, all -> editRow = null; if (all) vm.setItemAndRest(row, o) else vm.setItem(row, o) }
     }
 }
 
@@ -537,7 +537,7 @@ private fun PartDialog(p: Part, onDismiss: () -> Unit, onApply: (String, Boolean
 }
 
 @Composable
-private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOverride, Boolean) -> Unit) {
+private fun ItemDialog(row: CutListRow, howTo: List<String>, onDismiss: () -> Unit, onApply: (ItemOverride, Boolean) -> Unit) {
     var material by remember { mutableStateOf(row.material) }
     var spec by remember { mutableStateOf(row.materialSpec) }
     var partNo by remember { mutableStateOf(row.partNo) }
@@ -549,7 +549,7 @@ private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOve
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         title = { Text("Item ${row.item}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${row.description}  ×${row.qty}", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(value = material, onValueChange = { material = it }, label = { Text("Material (e.g. birch plywood)") }, singleLine = true)
                 // Common materials: tapping one fills the box, and the app then knows roughly what it weighs.
@@ -565,6 +565,10 @@ private fun ItemDialog(row: CutListRow, onDismiss: () -> Unit, onApply: (ItemOve
                 Row(Modifier.fillMaxWidth().clickable { grain = !grain }, verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = grain, onCheckedChange = { grain = it })
                     Text("Grain runs along its length (the cutting plan never turns it on the sheet)", style = MaterialTheme.typography.bodySmall)
+                }
+                if (howTo.isNotEmpty()) {
+                    Text("How to make it", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                    howTo.forEachIndexed { i, t -> Text("${i + 1}. $t", style = MaterialTheme.typography.bodySmall) }
                 }
             }
         },
