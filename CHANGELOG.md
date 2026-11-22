@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.50.0 - Cutting plan you can see and adjust in the app
+
+- **The cutting plan opens full screen and you can see it in the app.** It shows a summary of what to buy, then each sheet and each board, page by page, with pinch to zoom. Change the stock sizes under **Stock** and the plan redraws straight away. **Share PDF** sends the whole plan; **Share list to buy** sends just the shopping list.
+- **Proposed fixes** now read as changes still to make ("Make item 13 from 4 boards"), not as if they were already done.
+- **Parts tab** lists parts in item order, with sizes written like the cut list ("Panel 18 x 600 x 1500 mm") and each part's id beside it. Parts left out are listed last.
+
 ## v0.49.0 - Back panels last, combined steps, tighter guide text
 
 - **Back panels go on last**, after the shelves they cover, so you square the case and fix the shelves while it is still open. They still go on before drawers and doors are hung.
