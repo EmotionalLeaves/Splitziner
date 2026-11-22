@@ -133,6 +133,14 @@ object AssemblyPlan {
         if (seen.size != m0.size) return emptyList()
         val floor = live.minOf { it.mesh.bounds.min.z }
         if (m0.none { it.mesh.bounds.min.z <= floor + 1.0 }) return emptyList()
+        // Each a box of its own: neighbours meet only side to side, two panels back to back. Bays that share an
+        // upright (a library's shelves running into the next bay's side) are one piece of furniture, not modules.
+        val byId = ps.associateBy { it.id }
+        fun thinAxis(p: Part) = p.mesh.bounds.extents.let { e -> if (e.x <= e.y && e.x <= e.z) 0 else if (e.y <= e.z) 1 else 2 }
+        for (k in 0 until n - 1) for (a in mods[k]) for (b in mods[k + 1]) {
+            val pa = byId.getValue(a); val pb = byId.getValue(b)
+            if (touch(pa, pb) && !(thinAxis(pa) == ax && thinAxis(pb) == ax)) return emptyList()
+        }
         return mods
     }
 
