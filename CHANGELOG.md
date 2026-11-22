@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.55.0 - Notches dimensioned; jump to any sheet or page
+
+- **Part drawings now dimension notches that face down or forward**, such as a toe-kick notch cut from a cabinet side. Before, those notches were drawn but had no dimensions.
+- **Jump to any sheet or page:** on the Drawing and Guide tabs, tap the title between the arrows to see every sheet or page and go straight to one. Guide pages are named (Cover, Before you build, Making the parts, Steps 3 to 4).
+
 ## v0.54.0 - Professional drawing sets for big models
 
 - **The list of material goes on small sheets.** When it doesn't fit on the drawing, it now continues on the smallest sheet that holds it, usually letter or A4, instead of a few lines in the corner of a huge sheet.
