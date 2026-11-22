@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.18.0 - Which way is up, and leaner drawings
+
+Models saved the wrong way up, fewer pointless drawing sheets, a cleaner guide, and a roomier screen.
+
+- **Which way is up.** Many programs save STL files with Y as up, so a desk arrives lying on its back. Tap the summary at the top of a project, then **Which way is up**, and pick the axis that should point up. The floor, build order and drawings all follow it.
+- **No detail sheet for plain boards.** A board with no notch, hole or shaping is fully given by its three sizes in the list of material, so it no longer gets a sheet of its own. A note on sheet 1 says which items those are. The test desk went from 47 detail sheets to 11.
+- **Every part is labelled somewhere.** A part hidden in every exploded view (under a top, inside a frame) now gets a last sheet showing it on its own.
+- **A guide that reads like one.** "Fit items 3, 4 and 7 from above, in that order" instead of a line per part. A step with a page to itself gets a full-width picture and its parts in two columns, and long part names wrap neatly.
+- **Thin frames made from strips.** A frame or U-shape that would waste most of a sheet (the desk's 1 in wide frames cut from 24 x 48 in) is now made from strips by Fix what can be fixed, and the strips are not glued back into one sheet piece afterwards.
+- **More room on the screen.** The project summary is two lines; tap it for units, notes and which way is up. Buttons on the Drawing and Guide tabs wrap instead of squashing ("Ima ge", and a Share button one letter wide on narrow phones).
+
 ## v0.17.0 - Lumber-yard shopping list and butt joints
 
 A shopping list for a real lumber yard, and overlaps settled as butt joints.
