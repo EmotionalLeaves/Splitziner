@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.86.0 - Runs of cabinets
+
+- **Runs of cabinets**: identical cabinets side by side (a kitchen run) are recognised. The guide builds them all together over a few bench steps, then sets them out in a row and screws them to each other (no glue, so they come apart to move), then fits the worktop, doors and drawers.
+- **Worktops** are screwed on from below through the stretchers. A worktop longer than a sheet suggests buying a ready-made one.
+- Doors in a row of cabinets are found and hung properly.
+
 ## v0.85.0 - Angled legs and shaped parts
 
 - **Angled legs**: splayed legs and other sticks with ends sawn off square are listed with their angles ("ends cut at 8° and 8°, compound"), and their detail drawing tells you to set both mitre and bevel.
