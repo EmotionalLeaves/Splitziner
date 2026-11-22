@@ -11,6 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -695,7 +697,7 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
                 if (d.qa.isNotEmpty()) TextButton(onClick = { showQa = true }) { Text("${d.qa.size} note${if (d.qa.size == 1) "" else "s"}") }
             } else Spacer(Modifier.weight(1f))
         }
-        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
             if (d != null && d.sheets.isNotEmpty()) SheetPreview(d.sheets[shown], Modifier.fillMaxSize())
             if (state.drawingBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
@@ -705,17 +707,9 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
                 }
             }
         }
-        if (d != null && d.sheets.size > 1) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { sheetIndex = shown - 1 }, enabled = shown > 0) { Text("\u2190") }
-                Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                    Text(d.labels.getOrElse(shown) { "Sheet ${shown + 1}" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${shown + 1} of ${d.sheets.size}", style = MaterialTheme.typography.bodySmall)
-                }
-                OutlinedButton(onClick = { sheetIndex = shown + 1 }, enabled = shown < d.sheets.size - 1) { Text("\u2192") }
-            }
-        }
-        Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall)
+        if (d != null && d.sheets.size > 1) PagerBar(d.labels.getOrElse(shown) { "Sheet ${shown + 1}" }, "${shown + 1} of ${d.sheets.size}  \u00b7  pinch to zoom, double-tap to fit",
+            shown > 0, shown < d.sheets.size - 1, { sheetIndex = shown - 1 }, { sheetIndex = shown + 1 })
+        else Text("Pinch to zoom, drag to move, double-tap to fit.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         // Wraps rather than squeezing labels letter by letter on a narrow phone.
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val ready = d != null && !state.drawingBusy
@@ -852,8 +846,8 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
     Column(modifier.fillMaxWidth()) {
         Text("A draft order worked out from the shapes: read it through before you build.",
-            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
             if (g != null && g.pages.isNotEmpty()) SheetPreview(g.pages[shown], Modifier.fillMaxSize())
             if (state.guideBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
@@ -863,13 +857,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                 }
             }
         }
-        if (g != null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { page = shown - 1 }, enabled = shown > 0) { Text("\u2190") }
-                Text("Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                OutlinedButton(onClick = { page = shown + 1 }, enabled = shown < g.pages.size - 1) { Text("\u2192") }
-            }
-        }
+        if (g != null) PagerBar("Page ${shown + 1} of ${g.pages.size}", "${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { if (g != null) sharePdf(context, open, g.pages, "guide") }, enabled = g != null && !state.guideBusy) { Text("Share PDF") }
             OutlinedButton(onClick = { showEditor = true }, enabled = g != null && !state.guideBusy) { Text("Edit steps") }
@@ -1667,6 +1655,20 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val template = key?.let { splitziner.edit.Templates.byKey(it) }
     val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
     var error by remember { mutableStateOf<String?>(null) }
+    // A small picture of the design at the sizes typed so far, redrawn a moment after typing stops.
+    val sizesKey = key + values.entries.sortedBy { it.key }.joinToString { "${it.key}=${it.value}" }
+    val preview by androidx.compose.runtime.produceState<io.github.emotionalleaves.splitziner.render.PreparedSheet?>(null, sizesKey) {
+        val t = template ?: run { value = null; return@produceState }
+        kotlinx.coroutines.delay(250)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            runCatching {
+                val d = splitziner.edit.Templates.defaults(t, false)
+                val mm = t.fields.associate { f -> f.key to (num(values[f.key] ?: "")?.let { v -> if (f.count) v else if (inch) v * 25.4 else v } ?: d.getValue(f.key)) }
+                val parts = t.build(mm).mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
+                io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(parts, 90.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false)))
+            }.getOrNull()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = {
@@ -1690,7 +1692,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 }
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
-                    Text(template.blurb, style = MaterialTheme.typography.bodySmall)
+                    preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
+                    Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     for (f in template.fields) if (f.toggle) Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
                         Text(f.label, style = MaterialTheme.typography.bodyMedium)
@@ -1747,3 +1750,35 @@ private fun ItemBadge(item: Int) {
 private fun successColors(): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> =
     if (isSystemInDarkTheme()) androidx.compose.ui.graphics.Color(0xFF1E4D2B) to androidx.compose.ui.graphics.Color(0xFFC8EFCF)
     else androidx.compose.ui.graphics.Color(0xFFDDF1E1) to androidx.compose.ui.graphics.Color(0xFF14421F)
+
+
+/** Previous and next around what is shown: a title and a smaller line under it. */
+@Composable
+private fun PagerBar(title: String, sub: String, canBack: Boolean, canNext: Boolean, onBack: () -> Unit, onNext: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.FilledTonalButton(onClick = onBack, enabled = canBack, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) { Text("\u2190") }
+        Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        androidx.compose.material3.FilledTonalButton(onClick = onNext, enabled = canNext, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) { Text("\u2192") }
+    }
+}
+
+
+/** A drawn picture shown whole, on white like paper, for small previews (no zooming). */
+@Composable
+private fun SheetThumb(sheet: io.github.emotionalleaves.splitziner.render.PreparedSheet, modifier: Modifier = Modifier) {
+    Box(modifier.background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.small).padding(6.dp)) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val k = minOf(size.width / sheet.widthMm, size.height / sheet.heightMm)
+            drawIntoCanvas { c ->
+                val nc = c.nativeCanvas
+                nc.save()
+                nc.translate((size.width - sheet.widthMm * k) / 2, (size.height - sheet.heightMm * k) / 2)
+                sheet.draw(nc, k)
+                nc.restore()
+            }
+        }
+    }
+}
