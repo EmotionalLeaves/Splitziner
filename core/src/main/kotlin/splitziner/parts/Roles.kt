@@ -36,12 +36,15 @@ object Roles {
             val sAxis = live.first { it.id == g.stiles[0] }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] }!! }
             for (id in g.rails) out[id] = if (live.first { it.id == id }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] } } == sAxis) "Muntin" else if (door) "Door rail" else "Rail"
         }
+        // A five-piece drawer front keeps its frame's names: "Drawer front stile" and so on.
+        val frameWord = HashMap<String, String>()
+        for (g in framed) { for (id in g.panels) frameWord[id] = "panel"; for (id in g.stiles) frameWord[id] = "stile"; for (id in g.rails) frameWord[id] = if (out[id] == "Muntin") "muntin" else "rail" }
         runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).forEach { if (it.id !in out) out[it.id] = "Door" }
         runCatching { splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).forEach { out[it] = "Adjustable shelf" }
         val byId = live.associateBy { it.id }
         for (dr in runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList())) {
             val box = dr.boxIds.mapNotNull { byId[it] }
-            for (id in dr.ids - dr.boxIds.toSet()) out[id] = "Drawer front"
+            for (id in dr.ids - dr.boxIds.toSet()) out[id] = frameWord[id]?.let { "Drawer front $it" } ?: "Drawer front"
             val bottom = box.minByOrNull { it.mesh.bounds.min.z + it.mesh.bounds.extents.z }
             val frontY = box.minOf { it.mesh.bounds.min.y }
             for (p in box) {
@@ -66,7 +69,7 @@ object Roles {
         // its front drawer rails.
         run {
             val boxSides = live.filter { out[it.id] == "Drawer side" }
-            val fronts = live.filter { out[it.id] == "Drawer front" }
+            val fronts = live.filter { out[it.id]?.startsWith("Drawer front") == true }
             fun overXY(a: Part, o: Part) = minOf(a.mesh.bounds.max.x, o.mesh.bounds.max.x) - maxOf(a.mesh.bounds.min.x, o.mesh.bounds.min.x) > 1.0 &&
                 minOf(a.mesh.bounds.max.y, o.mesh.bounds.max.y) - maxOf(a.mesh.bounds.min.y, o.mesh.bounds.min.y) > 0.3 * a.mesh.bounds.extents.y
             for (pass in 0..1) for (p in live) {

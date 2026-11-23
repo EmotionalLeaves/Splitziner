@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.46.0 - five-piece drawer fronts
+
+- **Five-piece drawer fronts.** A frame-and-panel drawer front is now made on the bench as one piece ("make the drawer front"). It is screwed on from inside once the drawer hangs, with a single instruction. Its parts are named drawer front stile, rail and panel.
+- **Inset Shaker doors in a face frame** get inset face-frame hinges on both doors. Before, one door of the pair could be given cup hinges.
+- **Clearer door pictures.** The bench step for a frame-and-panel door, drawer front or panelled frame now shows the panel in the middle, with the stiles pulled out to the sides and the rails above and below.
+- Frames with short rails (narrow doors) are now recognised.
+
 ## v1.45.0 - frame-and-panel doors
 
 - **Frame-and-panel (Shaker) doors and panelled sides.** A thin panel sitting in grooves in the stiles and rails round it is now understood. The app no longer reports the groove overlap as two parts in the same space. The strips' drawings show the grooves, and the guide gives the groove size.

@@ -20,6 +20,12 @@ object FramePanels {
     /** A panel this thin or thinner (mm) can sit in a groove: 1/2 in. */
     private const val MAX_PANEL = 13.0
 
+    /** A panel this narrow at least (mm), both ways: a five-piece drawer front's panel can be under 4 in tall. */
+    private const val MIN_PANEL = 50.0
+
+    /** A strip's width is at most this fraction of its length: a short door rail, 2-1/4 x 9 in, still counts. */
+    private const val MAX_STRIP_RATIO = 0.6
+
     /** A groove this deep at most (mm): 5/8 in. */
     private const val MAX_GROOVE = 16.0
 
@@ -37,12 +43,14 @@ object FramePanels {
         for (p in live) {
             val pb = p.mesh.bounds; val pe = pb.extents
             val k = (0..2).minByOrNull { pe[it] }!!
-            if (pe[k] > MAX_PANEL || (0..2).filter { it != k }.any { pe[it] < 100.0 }) continue
+            if (pe[k] > MAX_PANEL || (0..2).filter { it != k }.any { pe[it] < MIN_PANEL }) continue
             val strips = live.filter { s -> s !== p && s.mesh.bounds.let { sb -> val se = sb.extents
                 (0..2).all { a -> minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]) > 0.5 } &&
                     sb.min[k] < pb.min[k] - 0.5 && sb.max[k] > pb.max[k] + 0.5 &&
                     (0..2).filter { it != k }.any { a -> val ov = minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]); ov <= MAX_GROOVE && ov < pe[a] - 1.0 } &&
-                    (0..2).filter { it != k }.sorted().let { (a, b) -> minOf(se[a], se[b]) < 0.25 * maxOf(se[a], se[b]) } } }
+                    // A strip lies flat in the panel's plane (a case's side, on edge to it, is not one), and is long for its width.
+                    (0..2).minByOrNull { se[it] } == k &&
+                    (0..2).filter { it != k }.sorted().let { (a, b) -> minOf(se[a], se[b]) < MAX_STRIP_RATIO * maxOf(se[a], se[b]) } } }
             if (strips.size >= 4) ones += One(p, strips)
         }
         // Panels sharing a strip (a middle rail between two) are one frame.

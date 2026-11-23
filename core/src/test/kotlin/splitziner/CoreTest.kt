@@ -2230,6 +2230,40 @@ class FramePanelTest {
         assertEquals(4, f.all.filter { it.kind == "hinges" }.sumOf { it.count })
     }
 
+    private fun shaker(x0: Double, y0: Double, z0: Double, w: Double, h: Double, sw: Double = 57.15, g: Double = 9.525, pt: Double = 6.35) = listOf(
+        b(x0, y0, z0, sw, T, h), b(x0 + w - sw, y0, z0, sw, T, h), b(x0 + sw, y0, z0, w - 2 * sw, T, sw), b(x0 + sw, y0, z0 + h - sw, w - 2 * sw, T, sw),
+        b(x0 + sw - g, y0 + (T - pt) / 2, z0 + sw - g, w - 2 * sw + 2 * g, pt, h - 2 * sw + 2 * g))
+
+    @Test fun fivePieceDrawerFrontIsMadeThenScrewedOnAsOne() {
+        val W = 762.0; val D = 584.2; val H = 876.3; val kick = 101.6
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, kick, W - 2 * T, D - 6.35, T), b(T, 76.2, 0.0, W - 2 * T, T, kick),
+            b(T, 0.0, H - T, W - 2 * T, 101.6, T), b(T, D - 6.35 - 101.6, H - T, W - 2 * T, 101.6, T), b(T, 0.0, H - 203.2, W - 2 * T, D - 6.35, T),
+            b(T, D - 6.35, kick, W - 2 * T, 6.35, H - kick))
+        // The drawer box: sides, ends, bottom.
+        val x = T + 12.7; val z = H - 203.2 + T + 6.35; val w = W - 2 * T - 25.4; val h = 127.0; val d = 508.0; val t = 12.7
+        ms += listOf(b(x, 0.0, z, t, d, h), b(x + w - t, 0.0, z, t, d, h), b(x + t, 0.0, z, w - 2 * t, t, h), b(x + t, d - t, z, w - 2 * t, t, h), b(x + t, t, z, w - 2 * t, d - 2 * t, 6.35))
+        ms += shaker(1.6, -T, H - 203.2 + T / 2 + 1.6, W - 3.2, 203.2 - T / 2 - 3.2, sw = 50.8)
+        val (a, f, steps) = guide(ms)
+        assertEquals(2, a.parts.count { it.name == "Drawer front stile" }, a.parts.map { it.name }.toString())
+        assertEquals(1, a.parts.count { it.name == "Drawer front panel" })
+        assertTrue(steps.any { it.title.contains("make the drawer front") }, steps.map { it.title }.toString())
+        assertEquals(1, f.all.count { it.kind == "applied" })
+        assertTrue(steps.flatMap { it.text }.any { it.contains("hold the drawer front from step") })
+    }
+
+    @Test fun insetShakerDoorsInAFaceFrameGetInsetHinges() {
+        val W = 762.0; val D = 304.8; val H = 762.0; val ffw = 38.1
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, 0.0, W - 2 * T, D - 6.35, T), b(T, 0.0, H - T, W - 2 * T, D - 6.35, T),
+            b(T, D - 6.35, T, W - 2 * T, 6.35, H - 2 * T), b(0.0, -T, 0.0, ffw, T, H), b(W - ffw, -T, 0.0, ffw, T, H), b(ffw, -T, 0.0, W - 2 * ffw, T, ffw), b(ffw, -T, H - ffw, W - 2 * ffw, T, ffw))
+        val gap = 1.6; val dw = (W - 2 * ffw - 3 * gap) / 2
+        for (x0 in listOf(ffw + gap, ffw + 2 * gap + dw)) ms += shaker(x0, -T, ffw + gap, dw, H - 2 * ffw - 2 * gap)
+        val (a, f, _) = guide(ms)
+        assertEquals(4, a.parts.count { it.name == "Door stile" }, a.parts.map { it.name }.toString())
+        val hinges = f.all.filter { it.kind == "hinges" }
+        assertEquals(2, hinges.size)
+        assertTrue(hinges.all { it.size == "inset hinges" }, hinges.map { it.size }.toString())
+    }
+
     @Test fun panelledChestIsScrewedFromInsideAndHasALid() {
         val W = 914.4; val D = 457.2; val H = 482.6; val sw = 63.5; val g = 9.525; val pt = 6.35
         val ms = arrayListOf<splitziner.mesh.Mesh>()

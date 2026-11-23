@@ -176,6 +176,7 @@ object Fastening {
         val doorIds = doors.map { it.id }.toSet() + pinned + slidingIds
         val doorGroup = HashMap<String, Int>()
         val frameOf = HashMap<String, Int>()
+        val appliedFrames = HashSet<Int>()
         runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, g -> for (id in g.stiles + g.rails) frameOf[id] = k }
         runCatching { splitziner.check.FramePanels.doors(live) }.getOrDefault(emptyList()).forEachIndexed { k, g -> for (id in g.ids) doorGroup[id] = k }
         val drawerOf = HashMap<String, Int>()
@@ -210,6 +211,15 @@ object Fastening {
                 // Through the box end and most of the way into the front, never out of its face.
                 val sz = pick(tBox + minOf(1.5 * tBox, tFront - 4.0), fmt, false)?.let { gauged(it, tBox, fmt) } ?: ""
                 val wide = (0..2).filter { it != kk }.maxOf { ax -> minOf(rel.hi[ia][ax], rel.hi[ib][ax]) - maxOf(rel.lo[ia][ax], rel.lo[ib][ax]) }
+                // A five-piece front is screwed on as one: one line, named as the unit made on the bench.
+                val fg = frameOf[front.id]
+                if (fg != null) {
+                    if (!appliedFrames.add(fg)) continue
+                    val fw = live.filter { frameOf[it.id] == fg }.let { ms -> ms.maxOf { it.mesh.bounds.max.x } - ms.minOf { it.mesh.bounds.min.x } }
+                    joints.getOrPut(mainOf(front)) { ArrayList() }.add(0, Joint(box, front, if (fw > 500) 6 else 4, sz, "applied", false, "name:the drawer front from step ${stepOf[front.id] ?: mainOf(front)}"))
+                    if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + (if (fw > 500) 6 else 4)
+                    continue
+                }
                 val n = if (wide > 500) 6 else 4
                 joints.getOrPut(mainOf(front)) { ArrayList() }.add(0, Joint(box, front, n, sz, "applied", false))
                 if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + n
@@ -659,8 +669,9 @@ object Fastening {
             // 3 in (75 mm) from the top and bottom, a common cabinetmakers' rule, any others evenly between.
             val end = if (fmt.isInch) "3 in" else "75 mm"
             val at = "${if (!dr.paired) "" else if (dr.hingeLeft) "left" else "right"}|$end"
-            // Set into an opening in a face frame (an inset door): its hinges are made for that.
-            val pb = p.mesh.bounds
+            // Set into an opening in a face frame (an inset door): its hinges are made for that. A frame-and-panel
+            // door is measured whole.
+            val pb = doorGroup[p.id]?.let { g -> live.filter { doorGroup[it.id] == g }.map { it.mesh.bounds }.reduce { x, y -> x.union(y) } } ?: p.mesh.bounds
             val inset = live.any { o -> (o.name == "Stile" || o.name == "Face frame rail") && o.mesh.bounds.let { ob -> ob.min.y < pb.max.y - 1.0 && ob.max.y > pb.min.y + 1.0 &&
                 ob.min.z < pb.max.z && ob.max.z > pb.min.z && (kotlin.math.abs(ob.max.x - pb.min.x) < 6.0 || kotlin.math.abs(ob.min.x - pb.max.x) < 6.0) } }
             joints.getOrPut(mainOf(p)) { ArrayList() }.add(0, Joint(p, p, n, if (inset) "inset hinges" else "hinges", "hinges", false, at))
@@ -971,6 +982,11 @@ object Fastening {
                 val spacerNote = if (sp == null) "" else " The face frame stands $sp proud of the inside of the cabinet: first screw a strip $sp thick (a spacer) to each side where the slide goes, so the slide clears the frame, and mount the slide on it."
                 (if (g.size > 1) "For each drawer, screw one half of each ${j.size} slide to the inside of the cabinet and the other to the drawer's side, following the slides' instructions, then hang it.$mark" + (if (handle) " Fit each drawer's handle or knob in the middle of its front." else "")
                 else "Screw one half of each ${j.size} slide to the inside of the cabinet and the other to the sides of the drawer, following the slides' instructions, then hang the drawer.$mark" + (if (handle) " Fit its handle or knob in the middle of the front." else "")) + spacerNote
+            }
+            else if (j.kind == "applied" && j.at.startsWith("name:")) {
+                val names = g.map { it.at.removePrefix("name:") }.distinct()
+                if (g.size > 1) "Fit ${if (names.size == 1) "each of ${names[0].replaceFirst("the drawer front", "the drawer fronts")}" else names.joinToString(" and ")}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
+                else "Close the drawer and hold ${names[0]} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}, into its stiles and rails. Fit its handle or knob in the middle of the front."
             }
             else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")

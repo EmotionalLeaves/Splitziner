@@ -21,6 +21,19 @@ object Drawers {
     fun depthOf(parts: List<Part>, d: Drawer): Double = parts.filter { it.id in d.boxIds }.let { ps -> ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y } }
 
     fun find(parts: List<Part>): List<Drawer> {
+        // A five-piece (frame-and-panel) front is one front: looked at as one piece, known by its first stile.
+        val groups = runCatching { FramePanels.find(parts) }.getOrDefault(emptyList())
+        if (groups.isEmpty()) return findParts(parts)
+        val byId = parts.associateBy { it.id }
+        val grouped = groups.flatMap { it.ids }.toSet()
+        val merged = parts.filter { it.id !in grouped } + groups.mapNotNull { g ->
+            val ms = g.ids.mapNotNull { byId[it] }.filter { !it.excluded }; if (ms.size != g.ids.size) null
+            else ms.first { it.id == g.stiles[0] }.copy(mesh = splitziner.mesh.MeshOps.concatenate(ms.map { it.mesh })) }
+        val of = groups.associate { it.stiles[0] to it.ids }
+        return findParts(merged).map { d -> Drawer(d.ids.flatMap { of[it] ?: listOf(it) }, d.left, d.right, d.boxIds.flatMap { of[it] ?: listOf(it) }) }
+    }
+
+    private fun findParts(parts: List<Part>): List<Drawer> {
         val live = parts.filter { !it.excluded }
         if (live.size < 6) return emptyList()
         val lo = live.map { it.mesh.bounds.min }; val hi = live.map { it.mesh.bounds.max }

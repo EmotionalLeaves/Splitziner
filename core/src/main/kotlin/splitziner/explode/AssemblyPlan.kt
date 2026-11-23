@@ -75,10 +75,13 @@ object AssemblyPlan {
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
         // A frame-and-panel door is glued up flat on the bench, then hung whole.
         // Any other frame round a panel (a panelled side) is made on the bench too, then fitted like a board.
+        // A five-piece drawer front likewise, then screwed on once its drawer hangs.
         val doorGroups = runCatching { splitziner.check.FramePanels.doors(live) }.getOrDefault(emptyList())
         doorGroups.forEachIndexed { k, g -> for (id in g.ids) out[id] = "door${k + 1}" }
-        (runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).filter { g -> doorGroups.none { it.panel == g.panel } })
-            .forEachIndexed { k, g -> for (id in g.ids) out[id] = "fpanel${k + 1}" }
+        val frontIds = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
+        val others = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).filter { g -> doorGroups.none { it.panel == g.panel } }
+        others.filter { g -> g.ids.any { it in frontIds } }.forEachIndexed { k, g -> for (id in g.ids) out[id] = "dfront${k + 1}" }
+        others.filter { g -> g.ids.none { it in frontIds } }.forEachIndexed { k, g -> for (id in g.ids) out[id] = "fpanel${k + 1}" }
         // A drawer's runners and kickers are screwed to the inside of the side aprons: on the bench, with their frame.
         for (r in live.filter { (it.name == "Runner" || it.name == "Kicker") && '.' !in it.id }) {
             val rb = r.mesh.bounds
@@ -330,6 +333,27 @@ object AssemblyPlan {
                     for (q in sp) benchExplode[q.id] = Vec3(0.0, 0.0, lift)
                     for (q in u) if (q.name != "Spindle" && q.mesh.bounds.min.z >= spTop - 0.5 && q.mesh.bounds.extents.z < maxOf(q.mesh.bounds.extents.x, q.mesh.bounds.extents.y)) benchExplode[q.id] = Vec3(0.0, 0.0, 2 * lift)
                 }
+                // A frame round a panel: the panel stays put and the frame opens round it, stiles out to the sides
+                // and rails out at the ends, the usual exploded view of a door.
+                runCatching { splitziner.check.FramePanels.find(u) }.getOrDefault(emptyList()).singleOrNull()?.takeIf { g -> g.ids.size == u.size }?.let { g ->
+                    val all = u.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+                    val st0 = u.first { it.id == g.stiles[0] }.mesh.bounds.extents
+                    val sAx = (0..2).maxByOrNull { st0[it] }!!
+                    val pb = u.first { it.id == g.panel }.mesh.bounds.extents
+                    val kAx = (0..2).minByOrNull { pb[it] }!!
+                    val aAx = (0..2).first { it != sAx && it != kAx }
+                    val dist = 0.3 * minOf(all.extents[sAx], all.extents[aAx]) + 30.0
+                    fun along(ax: Int, sign: Double) = Vec3(if (ax == 0) sign * dist else 0.0, if (ax == 1) sign * dist else 0.0, if (ax == 2) sign * dist else 0.0)
+                    for (q in u) {
+                        val c = q.mesh.bounds.center
+                        benchExplode[q.id] = when {
+                            q.id in g.panels -> null
+                            q.id in g.stiles -> along(aAx, if (c[aAx] < all.center[aAx]) -1.0 else 1.0)
+                            (0..2).maxByOrNull { q.mesh.bounds.extents[it] } == sAx -> null   // a muntin stays between the panels
+                            else -> along(sAx, if (c[sAx] < all.center[sAx]) -1.0 else 1.0)
+                        }
+                    }
+                }
                 ids += u.map { it.id }
             }
             val first = kind.first()
@@ -365,7 +389,9 @@ object AssemblyPlan {
         // The main build keeps a readable number of steps of its own, however many sub-assemblies there are.
         // About three things fitted per step reads well; a step that places a whole pedestal and its drawers does not.
         // Drawers are made whole and hung last, with any doors and shelves on pins.
-        val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
+        // A five-piece front is one unit here.
+        val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList())
+            .map { id -> unitParts.firstOrNull { u -> u.id == id }?.id ?: units.entries.firstOrNull { (_, ms) -> ms.any { it.id == id } }?.key ?: id }.toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live) + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
             unitParts.map { it.id }.filter { it.startsWith("drawer") || it.startsWith("door") || it == "ladder" } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,

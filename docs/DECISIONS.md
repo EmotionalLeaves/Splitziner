@@ -479,3 +479,9 @@ Departures from the build spec, newest first.
 - Any other panelled frame (a chest's front) is made on the bench and fitted like a board. Case parts meeting a strip's inside face are pocket-screwed from inside along their edge, so nothing shows outside; screws or brads through the strip would.
 - A panelled front and back count as the front and back of a closed box for a lid; the piano hinge runs the panelled back's whole width less 2 in (50 mm).
 - Door panels count as doors when guessing which way a piece faces.
+
+## v1.46
+- A strip of a frame lies flat in the panel's plane (its thinnest side is the panel's thickness) and is at most 0.6 times as wide as it is long; panels may be as small as 50 mm (2 in) each way. A carcass side holding a grooved back is on edge to it, so it is not a stile.
+- A five-piece (frame-and-panel) drawer front is one front: its parts are named "Drawer front stile/rail/panel", it is made on the bench and screwed on as one from inside the drawer, with one line for it.
+- A frame-and-panel door is measured whole when deciding whether it sits inset in a face frame, so both doors of a pair get the same hinges.
+- The bench picture of a frame round a panel leaves the panel in place and pulls the stiles out to the sides and the rails out at the ends; muntins stay between the panels.
