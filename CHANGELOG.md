@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.28.0 - crate foam
+
+- Crates now list the foam to buy for lining them. Fixed: a crate's top board was being fixed with corner brackets like a furniture top; it is now screwed like the rest of the frame.
+
 ## v2.27.0 - frame mats
 
 - **Picture frames with a mat.** Give a mat border and the frame is sized for the mat. The mat board, with its window size, goes on the "To order" list for a framer or art shop to cut.

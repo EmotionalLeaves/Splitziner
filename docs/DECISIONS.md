@@ -781,3 +781,7 @@ Departures from the build spec, newest first.
 ## v2.27
 - The picture frame can take a mat: a border width (0 for none) makes the rabbet the art plus the border all round, and draws the mat in it, its window overlapping the art 1/4 in (6.35 mm) all round.
 - A mat in any model (a sheet no thicker than 1/8 in, lying flat, with one window) is named "Mat", left out of the wood lists, and ordered: outside size and window, cut with a bevelled window by a framer or art shop.
+
+## v2.28
+- A crate's foam lining is on the "To order" list: sheet 2 in (50 mm) thick, enough to cover its inside with a tenth over for cutting.
+- A crate's top frame board is screwed down like the rest of its frame, not fixed with corner brackets as a furniture top would be: screw heads do not matter on packing.

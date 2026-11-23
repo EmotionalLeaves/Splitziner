@@ -522,7 +522,8 @@ object Fastening {
             val covered = rel.lo.indices.filter { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && lo[n].z <= hi[ti0].z + 2.0 }.sumOf { n ->
                 maxOf(0.0, minOf(hi[n].x, hi[ti0].x) - maxOf(lo[n].x, lo[ti0].x)) * maxOf(0.0, minOf(hi[n].y, hi[ti0].y) - maxOf(lo[n].y, lo[ti0].y)) }
             val hutched = rel.lo.indices.any { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
-            val openTop = wideTop && thr.name != "Slat" && (!hutched || (thr.name == "Top" && covered < 0.5 * (hi[ti0].x - lo[ti0].x) * (hi[ti0].y - lo[ti0].y)))
+            // A crate's frame is packing, not furniture: screw heads in its top board are fine.
+            val openTop = wideTop && thr.name != "Slat" && live.none { it.name == "Crate lid" } && (!hutched || (thr.name == "Top" && covered < 0.5 * (hi[ti0].x - lo[ti0].x) * (hi[ti0].y - lo[ti0].y)))
             // A top on flat stretchers (a cabinet's, a worktop on a row of them) is screwed from below, up through the
             // stretchers, with screws that stop well short of its face.
             // A closed plinth with a ballast shelf: nothing can reach the top's cleats from inside once the shelf is in,

@@ -230,9 +230,29 @@ object DesignCheck {
     /** Where galleries hang a work: its centre at about eye level, 57 in (1.45 m) from the floor, the usual museum rule. */
     private fun HANG_HEIGHT(fmt: LengthFormat) = "Galleries usually hang work with its centre about ${if (fmt.isInch) "57 in" else "1.45 m"} from the floor."
 
+    /** A crate's inside: width, height and depth (mm), or null when it is not a crate. */
+    fun crateInside(live: List<Part>): Triple<Double, Double, Double>? {
+        val lid = live.firstOrNull { it.name == "Crate lid" } ?: return null
+        val shell = live.filter { it.name != "Batten" }
+        if (shell.size < 6) return null
+        val ob = shell.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+        val back = shell.filter { it !== lid && it.mesh.bounds.extents.let { e -> e.y <= minOf(e.x, e.z) } }.maxByOrNull { it.mesh.bounds.max.y } ?: return null
+        val frame = shell.filter { it !== lid && it !== back }
+        if (frame.isEmpty()) return null
+        val ft = frame.minOf { p -> p.mesh.bounds.extents.let { e -> minOf(e.x, e.z) } }
+        return Triple(ob.extents.x - 2 * ft, ob.extents.z - 2 * ft, ob.extents.y - lid.mesh.bounds.extents.y - back.mesh.bounds.extents.y)
+    }
+
     /** Glass and backing to have cut elsewhere for a picture frame or shadow box, one line each, for the shopping list. */
     fun glassOrders(parts: List<Part>, fmt: LengthFormat): List<String> {
         val live = parts.filter { !it.excluded }
+        // A crate's foam lining: sheet enough to cover its inside, with a tenth over for cutting.
+        crateInside(live)?.let { (iw, ih, idp) ->
+            val area = 1.1 * 2 * (iw * ih + iw * idp + ih * idp)
+            val foam = if (fmt.isInch) "2 in" else "50 mm"
+            val amount = if (fmt.isInch) "about ${Math.ceil(area / (304.8 * 304.8)).toInt()} sq ft" else "about ${"%.1f".format(java.util.Locale.ROOT, area / 1e6)} m²"
+            return listOf("Foam sheet (polyethylene or polyurethane) $foam thick, $amount, to line the crate")
+        }
         val d = { v: Double -> fmt.format(v) }
         val u = if (fmt.isInch) " in" else " mm"
         val gap = if (fmt.isInch) 1.5875 else 2.0
