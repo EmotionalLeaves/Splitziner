@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.70.0 - glass door option
+
+- **Display cabinet:** the Cabinet design has a new "Glass doors" option. Each door becomes a frame with a glass pane, and the guide and shopping list handle the glass.
+
 ## v1.69.0 - glass doors
 
 - **Glass doors.** A very thin panel in a door frame (3/16 in or less) is now treated as glass or acrylic. The door is glued up empty, and a rabbet is routed at the back. The glass goes in last, held by glazing points or thin stops so it can be replaced. The glass is listed to buy cut to size from a glass shop instead of from a sheet of plywood.

@@ -16,7 +16,7 @@ for key, fields in tpls.items():
     for trial in range(6):
         vals=[]
         for name,dflt in fields:
-            if dflt in (0.0,1.0) and name in ('pins','overlay','graduated','doors'):
+            if dflt in (0.0,1.0) and name in ('pins','overlay','graduated','doors','glass'):
                 v=random.choice([0,1]) if name!='doors' else random.choice([0,1,2])
             else:
                 v=round(dflt*random.choice([0.5,0.75,1.0,1.5,2.0]),3)

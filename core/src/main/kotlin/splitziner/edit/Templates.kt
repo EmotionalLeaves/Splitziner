@@ -51,7 +51,16 @@ object Templates {
         Template("cabinet", "Cabinet", "A box with sides, top, bottom, one shelf, a back and doors (0, 1 or 2), set in the opening or over the front: a cupboard.", listOf(
             Field("w", "Width", 600.0, 24.0), Field("h", "Height", 720.0, 30.0), Field("d", "Depth", 560.0, 24.0), Field("t", "Board thickness", 18.0, 0.75), Field("back", "Back thickness (0 for none)", 6.0, 0.25),
             Field("doors", "Doors (0, 1 or 2)", 0.0, 0.0, count = true), Field("overlay", "Doors over the front, not set in", 0.0, 0.0, count = true, toggle = true),
+            Field("glass", "Glass doors (a frame round a pane, for a display cabinet)", 0.0, 0.0, count = true, toggle = true),
         )) { v ->
+            val glazed = (v["glass"] ?: 0.0) >= 0.5
+            // A door: a plain slab, or a frame of stiles and rails 2 in (50 mm) wide round a 4 mm pane set in a rabbet at its back.
+            fun door(x: Double, y: Double, z: Double, dw: Double, dh: Double, t: Double): List<splitziner.mesh.Mesh> {
+                if (!glazed || dw < 160.0 || dh < 160.0) return listOf(box(x, y, z, dw, t, dh))
+                val sw = 50.0; val lap = 9.5; val gl = 4.0
+                return listOf(box(x, y, z, sw, t, dh), box(x + dw - sw, y, z, sw, t, dh), box(x + sw, y, z, dw - 2 * sw, t, sw), box(x + sw, y, z + dh - sw, dw - 2 * sw, t, sw),
+                    box(x + sw - lap, y + t - 6.0 - gl, z + sw - lap, dw - 2 * sw + 2 * lap, gl, dh - 2 * sw + 2 * lap))
+            }
             val w = v.getValue("w"); val h = v.getValue("h"); val d = v.getValue("d"); val t = v.getValue("t"); val back = v.getValue("back")
             val doors = (v["doors"] ?: 0.0).toInt().coerceIn(0, 2)
             val inner = w - 2 * t; val dIn = d - back
@@ -68,14 +77,14 @@ object Templates {
                 val moved = out.map { splitziner.mesh.MeshOps.translated(it, Vec3(0.0, t, 0.0)) }
                 out.clear(); out += moved
                 val dh = h - 2 * g
-                if (doors == 1) out += box(g, 0.0, g, w - 2 * g, t, dh)
-                else { val dw = (w - 3 * g) / 2; out += box(g, 0.0, g, dw, t, dh); out += box(2 * g + dw, 0.0, g, dw, t, dh) }
+                if (doors == 1) out += door(g, 0.0, g, w - 2 * g, dh, t)
+                else { val dw = (w - 3 * g) / 2; out += door(g, 0.0, g, dw, dh, t); out += door(2 * g + dw, 0.0, g, dw, dh, t) }
                 return@Template out
             }
             // Inset doors, 2 mm clear all round and between a pair.
             val dh = h - 2 * t - 2 * g
-            if (doors == 1) out += box(t + g, 0.0, t + g, inner - 2 * g, t, dh)
-            if (doors == 2) { val dw = (inner - 3 * g) / 2; out += box(t + g, 0.0, t + g, dw, t, dh); out += box(t + 2 * g + dw, 0.0, t + g, dw, t, dh) }
+            if (doors == 1) out += door(t + g, 0.0, t + g, inner - 2 * g, dh, t)
+            if (doors == 2) { val dw = (inner - 3 * g) / 2; out += door(t + g, 0.0, t + g, dw, dh, t); out += door(t + 2 * g + dw, 0.0, t + g, dw, dh, t) }
             out
         },
         Template("table", "Table", "A top on four square legs joined by aprons set in from the edge.", listOf(

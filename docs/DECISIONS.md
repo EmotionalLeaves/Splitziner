@@ -581,3 +581,6 @@ Departures from the build spec, newest first.
 ## v1.69
 - A panel in a frame no thicker than 5 mm (3/16 in) at its edge is taken for glass or acrylic: no shop sells plywood that thin. It is named "Glass"; the door is glued up empty, a rabbet is routed round the opening at the back after glue-up (its corners squared with a chisel), and the glass goes in last, after finishing, held by glazing points or pinned stops, no glue. The strips' drawings show the rabbet out to the back face.
 - Glass is left out of the cutting plan and listed to buy from a glass shop, 1/16 in (2 mm) under the drawn size each way with smoothed edges; it gets no thickness or tool checks.
+
+## v1.70
+- The Cabinet template has a "Glass doors" option: each door becomes a frame of stiles and rails 50 mm (about 2 in) wide round a 4 mm pane in a rabbet at its back, for a display cabinet. Doors under 160 mm either way stay plain.
