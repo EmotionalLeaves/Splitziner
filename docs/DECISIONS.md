@@ -597,3 +597,6 @@ Departures from the build spec, newest first.
 ## v1.73
 - Squaring up a model drawn at an angle now also checks the outline: if turning it would make its plan's bounding box more than 3% bigger, it is already square (an oval table on legs set diamond-wise) and is left as drawn.
 - Taking a solid apart into boards judges each cell by five points, not one, so a small hole through the middle of a cell (a bolt hole in a shelf) does not empty it.
+
+## v1.74
+- A "Canvas rack" template: a box open at the front and top (two ends, back, bottom), split into equal slots by plywood dividers standing on the bottom and against the back, with a rail across the front top resting on the dividers. Default 48 x 20 x 36 in, 6 slots, 1/2 in dividers, 3 in rail.

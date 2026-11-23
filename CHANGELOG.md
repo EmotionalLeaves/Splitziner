@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.74.0 - canvas rack template
+
+- **New design: Canvas rack.** A floor rack for storing paintings on edge, split into equal slots by plywood dividers. Choose the size and how many slots; the guide spaces the dividers for you.
+
 ## v1.73.0 - square-up outline check
 
 - **Tables with diamond-set legs stay square.** A table whose legs are turned 45° under a square or oval top was being turned 45° as a whole. Now the app checks the outline of the whole piece before squaring a model up.

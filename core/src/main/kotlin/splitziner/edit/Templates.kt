@@ -283,6 +283,19 @@ object Templates {
                 box(0.0, 0.0, 0.0, W, p, H), box(0.0, p + id, 0.0, W, p, H),
                 box(0.0, -t, 0.0, bw, t, H), box(W / 2 - bw / 2, -t, 0.0, bw, t, H), box(W - bw, -t, 0.0, bw, t, H))
         },
+        Template("rack", "Canvas rack", "A floor rack to store paintings on edge: a box open at the front and top, split into slots by plywood dividers, with a rail across the front top to tie the dividers.", listOf(
+            Field("w", "Width", 1200.0, 48.0), Field("d", "Depth", 500.0, 20.0), Field("h", "Height", 900.0, 36.0),
+            Field("slots", "Slots", 6.0, 6.0, count = true), Field("t", "Board thickness", 18.0, 0.75), Field("ply", "Divider thickness", 12.0, 0.5), Field("rail", "Front rail height", 75.0, 3.0),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val p = v.getValue("ply"); val r = v.getValue("rail")
+            val n = maxOf(2, Math.round(v.getValue("slots")).toInt())
+            val out = arrayListOf(box(0.0, 0.0, 0.0, t, d, h), box(w - t, 0.0, 0.0, t, d, h), box(t, d - t, 0.0, w - 2 * t, t, h),
+                box(t, 0.0, 0.0, w - 2 * t, d - t, t), box(t, 0.0, h - r, w - 2 * t, t, r))
+            // Slots of equal width between the ends.
+            val slot = (w - 2 * t - (n - 1) * p) / n
+            for (k in 1 until n) out += box(t + k * slot + (k - 1) * p, 0.0, t, p, d - t, h - r - t)
+            out
+        },
     )
 
     private fun table(v: Map<String, Double>): List<Mesh> {
