@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.39.0 - studio headings
+
+- New design: the studio designs are grouped under Showing work, Making work, and Storing and moving, so they're easier to find.
+
 ## v2.38.0 - notched sides
 
 - Stepped sides (a step stool's) are listed as a rectangle with one corner notched out, with how to mark and cut it, instead of "shaped".

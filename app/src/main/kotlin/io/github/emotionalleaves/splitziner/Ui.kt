@@ -2094,9 +2094,14 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 androidx.compose.material3.TabRow(selectedTabIndex = group, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
                     for ((g, pair) in groups.withIndex()) androidx.compose.material3.Tab(selected = group == g, onClick = { group = g }, text = { Text(pair.first) })
                 }
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (t in groups[group].second) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
-                    if (group == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                // The studio designs under headings by what they are for; furniture as one list.
+                val sections = if (group == 0) splitziner.edit.Templates.studioSections().filter { it.second.isNotEmpty() } else listOf("" to groups[group].second)
+                for ((heading, ts) in sections) {
+                    if (heading.isNotEmpty()) Text(heading, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 2.dp))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (t in ts) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
+                        if (group == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                    }
                 }
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {

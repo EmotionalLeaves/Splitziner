@@ -2768,3 +2768,12 @@ class CornerNotchTest {
         assertTrue(d.desc.contains("ONE CORNER NOTCHED OUT 9 X 9"), d.desc)
     }
 }
+
+class StudioSectionsTest {
+    @Test fun everyStudioDesignIsUnderOneHeading() {
+        val studio = splitziner.edit.Templates.groups().first().second.map { it.key }
+        val sectioned = splitziner.edit.Templates.studioSections().flatMap { it.second }.map { it.key }
+        assertEquals(studio.toSet(), sectioned.toSet())
+        assertEquals(sectioned.size, sectioned.toSet().size)
+    }
+}

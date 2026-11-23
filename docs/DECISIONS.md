@@ -838,3 +838,6 @@ Departures from the build spec, newest first.
 ## v2.38
 - A flat part that is its rectangle with one square notch out of a corner (a step stool's stepped side) is "ONE CORNER NOTCHED OUT a X b", not "shaped": a detail drawing and a making step (square both lines in, saw to where they meet, mark the second of a pair from the first). No full-size pages.
 - Help, "Making for showing art", mentions the many-sided plinth, the folding screen, and sets of pieces built in turn (identical ones once).
+
+## v2.39
+- The New design dialog's Art and studio tab lists its designs under three headings, by what they are for: Showing work (plinths, the screen, frames, shadow box, ledge), Making work (easel, stretcher, cradled panel, taboret), Storing and moving (rack, browser, flat file, crate). With fifteen designs, one block of chips had become hard to scan.

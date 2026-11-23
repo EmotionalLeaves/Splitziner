@@ -118,6 +118,13 @@ object Templates {
     }
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
+    /** The studio designs by what they are for, for headings in the list: showing work, making it, storing and moving it. */
+    fun studioSections(): List<Pair<String, List<Template>>> = listOf(
+        "Showing work" to listOf("plinth", "polyplinth", "wallplinth", "screen", "frame", "shadowbox", "ledge"),
+        "Making work" to listOf("easel", "stretcher", "cradle", "taboret"),
+        "Storing and moving" to listOf("rack", "browser", "flatfile", "crate"),
+    ).map { (h, ks) -> h to ks.mapNotNull { k -> ALL.firstOrNull { it.key == k } } }
+
     fun groups(): List<Pair<String, List<Template>>> = listOf(
         "Art and studio" to STUDIO.mapNotNull { k -> ALL.firstOrNull { it.key == k } },
         "Furniture" to ALL.filter { it.key !in STUDIO })
