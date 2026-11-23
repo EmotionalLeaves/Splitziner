@@ -107,6 +107,9 @@ object AssemblyPlan {
             val rest = live.filter { it.id !in taken }
             modules(rest, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${mods1.size + k + 1}" }
         }
+        // What other units (leg frames) took leaves too little to be a cabinet: those parts are their own again.
+        run { val sizes = out.values.groupingBy { it }.eachCount()
+            for ((id, k) in out.toMap()) if (k.startsWith("module") && (sizes[k] ?: 0) < MIN_SUB_PARTS) out[id] = id.substringBefore('.') }
         // A tenon goes with the rail whose end it is on: glued in (or cut on it) before the rail is fitted.
         for (t in live.filter { it.name == "Tenon" }) {
             val tb = t.mesh.bounds
@@ -387,7 +390,7 @@ object AssemblyPlan {
             if (p.excluded) p else {
                 val key = keyOf[p.id] ?: p.id.substringBefore('.')
                 val u = unitOf[p.id] ?: unitOf[key]
-                val ex = if (key.startsWith("module")) rowPull[key] else u?.explode
+                val ex = if (key.startsWith("module") && key in rowPull) rowPull[key] else u?.explode
                 p.copy(explode = ex, group = u?.group, step = (u?.step ?: 1) + firstMain - 1)
             }
         }

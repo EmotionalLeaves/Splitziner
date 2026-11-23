@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.38.0 - Fit directions
+
+- Fixed: in some tables, workbenches and chairs the rails and aprons were missing the direction to fit them from, and weren't drawn pulled out.
+
 ## v1.37.0 - Squared up
 
 - Models drawn at an angle (turned on the floor plan in the 3D program) are squared up on import, so the cut list, drawings and guide come out right. The project notes say when this happened.

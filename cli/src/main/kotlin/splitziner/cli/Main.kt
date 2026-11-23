@@ -104,6 +104,7 @@ fun main(args: Array<String>) {
             if (System.getenv("STRETCH") != null) for (k in 0..2) println("stretch   axis $k: ${splitziner.edit.Editor.stretchPlane(a.parts, k)?.let { "at ${a.format.format(it.first)}, can shrink ${a.format.format(it.second)}" } ?: "none"}")
             if (System.getenv("EXPL") != null) for (p in plan!!.parts) println("explode   ${p.id} item ${p.item} step ${p.step} ${p.explode}")
             if (System.getenv("STEPS") != null) for (st in plan!!.steps) println("step      ${st.step}${if (st.subassembly) " bench x${st.makeCount}" else ""}: ${st.partIds.size} parts, items ${st.items} ids ${st.partIds} dirs ${st.directions}${if (st.subassembly) " explode " + st.explodeOf else ""}")
+            if (System.getenv("STEPS") != null) for (p in plan!!.parts) println("explode   ${p.id} ${p.name} step ${p.step} ${p.explode}")
             var plain = emptySet<Int>()
             time("drawing") {
                 val tv = System.nanoTime()

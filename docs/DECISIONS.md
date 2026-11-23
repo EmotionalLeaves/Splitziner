@@ -445,3 +445,6 @@ Departures from the build spec, newest first.
 ## v1.37
 - A model drawn turned on the floor plan (not square to the axes) is squared up on import: the angle is read from the upright faces of its parts (their normals, weighted by area, folded into one quarter turn), and the model is turned back when at least 60% of that area agrees and the angle is over 0.3 degrees. Its notes say so. Round pieces, or parts at many angles, are left alone. A turn of more than 45 degrees ends up facing sideways and is then turned to face the front as in v1.31.
 - No test model drawn square is moved by this; a dresser turned 30 degrees and a kitchen base turned 60 degrees come back with the same guide as the originals.
+
+## v1.38
+- Fixed: parts of a table or workbench sometimes lost their "from the front / back / left / right" in the guide (and were drawn not pulled out). The search for repeated cabinets found the two leg frames' rails repeating, gave them a cabinet's key, and cabinets are drawn pulled along the row, which these were not. Now a "cabinet" left with fewer than three parts after the leg frames take theirs is no cabinet, and a cabinet key with no row position keeps the part's own pull.
