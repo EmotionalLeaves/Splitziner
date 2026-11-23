@@ -588,3 +588,8 @@ Departures from the build spec, newest first.
 ## v1.71
 - An "Easel" template: front legs leaning in and back with their ends cut level, a top block on them, a back leg hinged to the block, a ledge and a brace across the front. Default 72 in tall, legs 26 in apart at the floor, leaning back 15 in, the back leg's foot 30 in behind, the ledge at 30 in.
 - On an easel the block the back leg hangs from is the top block; other boards across both front legs are braces.
+
+## v1.72
+- A square-ish strip along the inside face of a standing panel with a board resting on it is a cleat (a plinth's shelf and top cleats). Rails on edge (hanging rails, stretchers) are left alone.
+- Cleats like that, on one panel, are screwed on with the panel flat on the bench before the case is closed: once the case is round them there is no room to drive the screws.
+- The command-line tool writes UTF-8, so ×, ° and ⌀ show in its debug output.

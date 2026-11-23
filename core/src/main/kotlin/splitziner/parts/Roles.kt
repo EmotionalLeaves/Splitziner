@@ -234,6 +234,12 @@ object Roles {
                     val carries = live.any { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) && oe.x > 2 * e.x && oe.y > 2 * e.y || oe.z <= minOf(oe.x, oe.y) && maxOf(oe.x, oe.y) > NARROW } &&
                         kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && touches(p, o) }
                     if (onLeg && carries) { out[p.id] = "Cleat"; continue }
+                    // A strip lying along the inside face of a panel with a board resting on it (a plinth's bottom or top): a cleat.
+                    val across = 1 - longAx
+                    val panel = live.any { o -> o !== p && touches(p, o) && o.mesh.bounds.extents.let { oe -> oe[longAx] >= e[longAx] - 1.0 && oe[across] < 2.5 * t && oe.z > 2 * e.z } &&
+                        (kotlin.math.abs(o.mesh.bounds.max[across] - b.min[across]) < 1.0 || kotlin.math.abs(o.mesh.bounds.min[across] - b.max[across]) < 1.0) }
+                    // Square-ish in section: a rail on edge (a hanging rail, a stretcher) is not one.
+                    if (panel && carries && e.z <= 2.1 * e[across] && e[across] <= 2.1 * e.z) { out[p.id] = "Cleat"; continue }
                 }
             }
             // Square-ish in section and long: a leg standing up, a rail or apron lying down.

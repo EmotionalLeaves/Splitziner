@@ -8,6 +8,7 @@ import kotlin.system.exitProcess
 
 /** Runs the engine on a file and writes what it found; the way to check the engine without a phone. */
 fun main(args: Array<String>) {
+    System.setOut(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, "UTF-8"))
     if (args.isEmpty()) { System.err.println("usage: <file.stl> [--out <dir>] [--units mm|cm|in|m] [--display mm|in]"); exitProcess(1) }
     var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null; var style = "decimal"; var up = "z"
     var i = 0

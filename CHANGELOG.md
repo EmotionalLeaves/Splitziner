@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.72.0 - plinth cleats
+
+- **Plinths build in a workable order.** The small strips inside a plinth are now called cleats, and they are screwed to the front and back while those lie flat on the bench, before the box is closed. Before, the guide had you reach 3 ft down inside a closed box to screw them in.
+
 ## v1.71.0 - easel template
 
 - **New design: Easel.** A studio A-frame easel with a folding back leg, a canvas ledge and a brace. Set the height, spread and lean; the angled cuts on the legs are worked out for you.

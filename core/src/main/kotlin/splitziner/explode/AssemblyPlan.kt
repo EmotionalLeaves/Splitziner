@@ -100,6 +100,22 @@ object AssemblyPlan {
                 o.mesh.bounds.min.z <= rb.max.z && o.mesh.bounds.max.z >= rb.min.z && o.mesh.bounds.min.y < rb.max.y && o.mesh.bounds.max.y > rb.min.y } ?: continue
             out[r.id] = out.getValue(apron.id)
         }
+        // Cleats screwed along the inside face of a standing panel go on with the panel flat on the bench: once the
+        // case is closed round them there is no room to drive the screws (a plinth's shelf and top cleats).
+        run {
+            var k = 0
+            val hosts = LinkedHashMap<String, MutableList<String>>()
+            for (c in live.filter { it.name == "Cleat" && out[it.id] == it.id }) {
+                val cb = c.mesh.bounds; val ce = cb.extents
+                val long = if (ce.x >= ce.y) 0 else 1; val across = 1 - long
+                if (ce.z > maxOf(ce.x, ce.y)) continue
+                val ps = live.filter { o -> o !== c && out[o.id] == o.id && o.mesh.bounds.extents.let { oe -> oe[across] < 0.25 * minOf(oe[long], oe.z) && oe[long] >= ce[long] - 1.0 && oe.z > 2 * ce.z } &&
+                    (kotlin.math.abs(o.mesh.bounds.max[across] - cb.min[across]) < 1.0 || kotlin.math.abs(o.mesh.bounds.min[across] - cb.max[across]) < 1.0) &&
+                    o.mesh.bounds.min[long] <= cb.min[long] + 1.0 && o.mesh.bounds.max[long] >= cb.max[long] - 1.0 && o.mesh.bounds.min.z <= cb.min.z && o.mesh.bounds.max.z >= cb.max.z }
+                if (ps.size == 1) hosts.getOrPut(ps[0].id) { arrayListOf() } += c.id
+            }
+            for ((h, cs) in hosts) { k++; for (id in cs + h) out[id] = "cpanel$k" }
+        }
         // Spindles go with the two rails they stand between: into a leg frame when the rails are in one, else the
         // rails and spindles are a slatted panel of their own, made flat on the bench.
         run {
