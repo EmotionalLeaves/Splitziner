@@ -12,6 +12,9 @@ object Roles {
     /** A cradled panel's face is no thicker than this (mm, 1/2 in): a painting surface, not a table top. */
     private const val CRADLE_FACE = 13.0
 
+    /** A round part under a piece narrower than this (mm, 2 in) is a foot: a caster's wheel and housing are wider. */
+    private const val CASTER_MIN_DIA = 50.0
+
     /** A painting panel's cradle is no deeper than this (mm, 4 in; most are 1-1/2 to 3 in). */
     private const val CRADLE_DEPTH = 101.6
 
@@ -629,9 +632,10 @@ object Roles {
         run {
             val round = live.filter { p -> val e = p.mesh.bounds.extents; val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
                 fill in 0.70..0.82 && kotlin.math.abs(e.x - e.y) < 1.0 && e.z <= CASTER_MAX && p.mesh.bounds.min.z <= all.min.z + 0.5 &&
-                    live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 0.5 && touches(p, o) } }
+                    live.any { o -> o !== p && o.mesh.bounds.min.z - p.mesh.bounds.max.z in -4.0..0.5 && touches(p, o) } }
             val alike = round.groupBy { Math.round(it.mesh.bounds.extents.x) to Math.round(it.mesh.bounds.extents.z) }.values.filter { it.size >= 3 }
-            for (g in alike) for (p in g) out[p.id] = "Caster"
+            // Thinner than 2 in across they are round feet (turned, or dowel), not casters: a caster's wheel and housing are wider.
+            for (g in alike) for (p in g) out[p.id] = if (p.mesh.bounds.extents.x < CASTER_MIN_DIA) "Round foot" else "Caster"
         }
         // Narrow full-height boards that shelves stand between (a spice rack's ends) are its sides.
         for (p in live) if (out[p.id] == "Upright" && live.count { o -> out[o.id] in setOf("Shelf", "Top", "Bottom") && touches(p, o) } >= 2) out[p.id] = "Side"

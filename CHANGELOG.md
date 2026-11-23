@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.41.0 - round feet
+
+- Turning a downloaded one-piece model into boards no longer loses round feet: they're kept, listed as round feet, and fixed on last with hanger bolts.
+
 ## v2.40.0 - apronless tables
 
 - Tables with legs going straight into the top (no rails): the legs now go on last with leg mounting plates and hanger bolts, and you're warned if tall legs have nothing bracing them.

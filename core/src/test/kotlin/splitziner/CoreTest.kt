@@ -2794,3 +2794,22 @@ class ApronlessTableTest {
         assertTrue(report.findings.any { it.title == "Legs with nothing between them" }, report.findings.map { it.title }.toString())
     }
 }
+
+class RoundFeetTest {
+    @Test fun thinRoundFeetAreFeetBoltedOnLast() {
+        fun b(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double) = Fixtures.box(x, x + w, y, y + d, z, z + h)
+        val gf = org.locationtech.jts.geom.GeometryFactory()
+        fun foot(cx: Double, cy: Double) = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("top", splitziner.math.Vec3(0.0, 0.0, 1.0), splitziner.math.Vec3(1.0, 0.0, 0.0)),
+            gf.createPolygon((0..24).map { i -> val t = 2 * Math.PI * (i % 24) / 24; org.locationtech.jts.geom.Coordinate(cx + 20 * kotlin.math.cos(t), cy + 20 * kotlin.math.sin(t)) }.toTypedArray()), 0.0, 75.0))
+        val W = 900.0; val D = 400.0; val H = 500.0; val t = 18.0; val z0 = 75.0
+        val ms = listOf(b(0.0, 0.0, z0, t, D, H), b(W - t, 0.0, z0, t, D, H), b(t, 0.0, z0, W - 2 * t, D, t), b(t, 0.0, z0 + H - t, W - 2 * t, D, t),
+            foot(60.0, 60.0), foot(W - 60, 60.0), foot(60.0, D - 60), foot(W - 60, D - 60))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Round foot" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertTrue(pl.steps.last().partIds.all { id -> pl.parts.first { it.id == id }.name == "Round foot" })
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(4, f.all.count { it.kind == "roundfoot" })
+        assertTrue(f.hardware.any { it.contains(splitziner.joinery.Fastening.FOOT_BOLTS) }, f.hardware.toString())
+    }
+}

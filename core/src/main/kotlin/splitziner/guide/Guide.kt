@@ -619,6 +619,7 @@ object GuideSteps {
                     // What goes on, in plain words: "Step 6: the back panel", "Step 5: 4 shelves", "Step 8: hang the drawers".
                     fun plural(w: String, n: Int) = if (n == 1) w else when {
                         w.endsWith("helf") -> w.dropLast(1) + "ves"
+                        w.endsWith("foot") -> w.dropLast(4) + "feet"
                         w.endsWith("s") -> w
                         else -> w + "s"
                     }
@@ -674,7 +675,7 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "screenhinge" -> "${j.size} butt hinges"; "legplate" -> splitziner.joinery.Fastening.LEG_PLATES; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
+                    "brackets", "corner" -> "corner brackets"; "screenhinge" -> "${j.size} butt hinges"; "legplate" -> splitziner.joinery.Fastening.LEG_PLATES; "roundfoot" -> splitziner.joinery.Fastening.FOOT_BOLTS; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "rodhole", "glass" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "faceglue", "cratepack", "facebox" -> continue; "stop" -> "${j.size} brads"; "backscrew" -> "${j.size} screws"; "balltop", "pedtop" -> "${j.size} screws"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"

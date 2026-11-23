@@ -149,6 +149,60 @@ object Boards {
         return merged.toDoubleArray()
     }
 
+    /** Further than this (mm) outside every board, a point of the original is material the boards left out. */
+    private const val LEFT_OUT = 2.0
+
+    /**
+     * Material of [mesh] outside every one of [boards]: when each lump of it is round (a turned foot, a dowel standing
+     * out), a cylinder for each, from the board it stands on to its end; and whether anything else was left out.
+     */
+    private fun roundExtras(mesh: Mesh, boards: List<Mesh>): Pair<List<Mesh>, Boolean> {
+        val bb = boards.map { it.bounds }
+        val pts = (0 until mesh.vertexCount).map { mesh.vertex(it) }.filter { p -> bb.none { b -> (0..2).all { k -> p[k] >= b.min[k] - LEFT_OUT && p[k] <= b.max[k] + LEFT_OUT } } }
+        if (pts.isEmpty()) return emptyList<Mesh>() to false
+        // Lumps: points within a few millimetres of each other.
+        val n = pts.size; val parent = IntArray(n) { it }
+        fun root(i: Int): Int { var r = i; while (parent[r] != r) r = parent[r]; return r }
+        val order = pts.indices.sortedBy { pts[it].x }
+        for (a in order.indices) { var c = a + 1
+            while (c < order.size && pts[order[c]].x - pts[order[a]].x <= 6.0) { if ((pts[order[a]] - pts[order[c]]).length <= 25.0) parent[root(order[a])] = root(order[c]); c++ } }
+        val lumps = pts.indices.groupBy { root(it) }.values.map { g -> g.map { pts[it] } }
+        val out = ArrayList<Mesh>()
+        val all = bb.reduce { x, y -> x.union(y) }
+        for (l in lumps) {
+            if (l.size < 6) continue
+            val lb = l.drop(1).fold(splitziner.math.Aabb(l[0], l[0])) { acc, p -> acc.union(splitziner.math.Aabb(p, p)) }
+            // The way it stands out: the axis on which it lies beyond the boards.
+            // Only what stands out beyond the boards altogether; points between them inside (a hole's rim, a fillet) are as before.
+            val k = (0..2).firstOrNull { k -> lb.min[k] >= all.max[k] - LEFT_OUT || lb.max[k] <= all.min[k] + LEFT_OUT } ?: continue
+            val (u, v) = (0..2).filter { it != k }
+            val cu = (lb.min[u] + lb.max[u]) / 2; val cv = (lb.min[v] + lb.max[v]) / 2
+            val r = l.map { Math.hypot(it[u] - cu, it[v] - cv) }
+            val ring = l.filter { kotlin.math.abs(Math.hypot(it[u] - cu, it[v] - cv) - r.max()) < 0.05 * r.max() }
+            if (r.max() < 3.0 || kotlin.math.abs(lb.extents[u] - lb.extents[v]) > 0.06 * maxOf(lb.extents[u], lb.extents[v]) || ring.size < 0.6 * l.size) return emptyList<Mesh>() to true
+            // From the face of the board it stands on to its far end.
+            val below = lb.max[k] <= all.min[k] + LEFT_OUT
+            val far = if (below) lb.min[k] else lb.max[k]
+            val face = bb.filter { b -> b.min[u] <= cu && b.max[u] >= cu && b.min[v] <= cv && b.max[v] >= cv }.let { hs -> if (below) hs.minOfOrNull { it.min[k] } else hs.maxOfOrNull { it.max[k] } } ?: return emptyList<Mesh>() to true
+            out += cylinder(k, cu, cv, minOf(face, far), maxOf(face, far), r.max())
+        }
+        return out to false
+    }
+
+    /** A cylinder along axis [k] centred on ([cu], [cv]) in the other two, from [a] to [b]. */
+    private fun cylinder(k: Int, cu: Double, cv: Double, a: Double, b: Double, r: Double, n: Int = 24): Mesh {
+        val (u, w) = (0..2).filter { it != k }
+        fun pt(t: Double, s: Double, along: Double) = DoubleArray(3).also { it[u] = cu + r * kotlin.math.cos(t); it[w] = cv + r * kotlin.math.sin(t); it[k] = along }
+        val v = ArrayList<Double>(); val tri = ArrayList<Int>()
+        for (i in 0 until n) { val t = 2 * Math.PI * i / n; for (z in listOf(a, b)) pt(t, 0.0, z).forEach { v += it } }
+        val c0 = 2 * n; val c1 = 2 * n + 1
+        DoubleArray(3).also { it[u] = cu; it[w] = cv; it[k] = a }.forEach { v += it }
+        DoubleArray(3).also { it[u] = cu; it[w] = cv; it[k] = b }.forEach { v += it }
+        for (i in 0 until n) { val a0 = 2 * i; val a1 = 2 * i + 1; val b0 = 2 * ((i + 1) % n); val b1 = b0 + 1
+            tri += listOf(c0, b0, a0, c1, a1, b1, a0, b0, b1, a0, b1, a1) }
+        return MeshOps.fixWinding(Mesh(v.toDoubleArray(), tri.toIntArray()))
+    }
+
     private fun solidBody(mesh: Mesh): Pair<Result?, String> {
         val box = OrientedBounds.of(mesh)
         val ax = box.axes
@@ -223,7 +277,12 @@ object Boards {
             val vv = DoubleArray(24) { v[3 * order[it / 3] + it % 3] }
             MeshOps.fixWinding(Mesh(vv, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
         }
+        // Round parts standing out of the boards (turned feet under a cabinet) have no flat faces to make cells from, so
+        // the grid misses them: kept as round pieces of their own. Anything else left out stops the change.
+        val (extras, missed) = roundExtras(mesh, meshes)
+        if (missed) return null to "it has curved parts the boards would leave out"
         val rounded = mesh.triangleCount > 12 * pieces.size * 3
+        if (extras.isNotEmpty()) return Result(meshes + extras, "${pieces.size} boards and ${extras.size} round ${if (extras.size == 1) "piece" else "pieces"}" + if (rounded) "; rounded corners become square" else "", false, total / (b.extents.x * b.extents.y * b.extents.z)) to ""
         return Result(meshes, "${pieces.size} boards" + if (rounded) "; rounded corners become square" else "", false, total / (b.extents.x * b.extents.y * b.extents.z)) to ""
     }
 }

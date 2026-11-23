@@ -87,6 +87,7 @@ fun main(args: Array<String>) {
             for (l in plan.done) println("fixed     $l")
             for (l in plan.left) println("left      $l")
             val ms = plan.parts.filter { !it.excluded }.map { it.mesh }
+            if (System.getenv("DBGFIX") != null) { System.err.println("before " + a.originalParts.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }); System.err.println("after " + ms.map { it.bounds }.reduce { x, y -> x.union(y) }) }
             File(out, "fixed.stl").outputStream().use { splitziner.io.StlWriter.writeParts(ms, it) }
             println("wrote     ${File(out, "fixed.stl")} (${ms.sumOf { it.triangleCount }} triangles in ${ms.size} parts, millimetres)")
             // As the app does: the changes replayed on the file, so parts keep the ids that say where they came from.

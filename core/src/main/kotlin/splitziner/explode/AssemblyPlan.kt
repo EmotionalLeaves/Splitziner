@@ -346,7 +346,8 @@ object AssemblyPlan {
             }
             return PlanResult(all.map { planned[it.id] ?: it }, steps)
         }
-        val casters = all.filter { it.name == "Caster" && !it.excluded }
+        // Casters and round feet go on last, the piece on its back or top.
+        val casters = all.filter { (it.name == "Caster" || it.name == "Round foot") && !it.excluded }
         // A crate's lid, with the battens on it, is screwed on last, once the work is packed in.
         val lid = if (all.any { it.name == "Crate lid" && !it.excluded }) all.filter { (it.name == "Crate lid" || it.name == "Batten") && !it.excluded } else emptyList()
         // A shadow box: the glass and its stops go in once the box is on the face frame, the back last of all.
@@ -948,7 +949,7 @@ object AssemblyPlan {
         val modelFoot = (allHi.x - allLo.x) * (allHi.y - allLo.y)
         // A face frame is never where the build starts: it goes on the finished case.
         // On casters, the case's own lowest parts are its floor: the casters go on last, the piece upside down.
-        val caseFloor = (0 until n).filter { parts[it].name != "Caster" }.minOfOrNull { lo[it].z } ?: allLo.z
+        val caseFloor = (0 until n).filter { parts[it].name != "Caster" && parts[it].name != "Round foot" }.minOfOrNull { lo[it].z } ?: allLo.z
         val onFloor = (0 until n).filter { lo[it].z <= caseFloor + tol && parts[it].id != "faceframe" && parts[it].name != "Caster" }.ifEmpty { (0 until n).filter { lo[it].z <= allLo.z + tol } }
         fun foot(i: Int) = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y)
         fun lyingFlat(i: Int) = (hi[i].z - lo[i].z) <= minOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y)
@@ -1083,7 +1084,7 @@ object AssemblyPlan {
         val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
         val hungIds = hungGiven ?: (runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()) +
             // A flat frame's braces go in once the frame is glued up (a stretcher's), not an easel's brace.
-            parts.filter { it.name == "Back leg" || it.name == "Caster" || (it.name == "Brace" && parts.all { o -> kotlin.math.abs(o.mesh.bounds.min.z - it.mesh.bounds.min.z) < 0.5 && kotlin.math.abs(o.mesh.bounds.max.z - it.mesh.bounds.max.z) < 0.5 }) }.map { it.id }).toSet()
+            parts.filter { it.name == "Back leg" || it.name == "Caster" || it.name == "Round foot" || (it.name == "Brace" && parts.all { o -> kotlin.math.abs(o.mesh.bounds.min.z - it.mesh.bounds.min.z) < 0.5 && kotlin.math.abs(o.mesh.bounds.max.z - it.mesh.bounds.max.z) < 0.5 }) }.map { it.id }).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         // Each drawer comes out whole; a door or a shelf on its own.
         val idIndex = (0 until n).associateBy { parts[it].id }

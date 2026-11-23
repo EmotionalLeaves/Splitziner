@@ -846,3 +846,8 @@ Departures from the build spec, newest first.
 - A table whose legs go straight into its top, with nothing else touching them (no aprons, rails or stretchers): the top is put down first (face down) and the legs go on last, each bolted with a leg mounting plate and a hanger bolt (or threaded inserts), one per leg in the board its end mostly sits under. Not corner brackets or screws, which work loose with legs held only at the top. Found on a real downloaded table after "make it from boards".
 - Such legs over 18 in long get a CHECK: nothing between them, so a sideways push levers on one joint; aprons or a low stretcher stiffen it (a rule of thumb, not a calculation).
 - The many-sided plinth is called "Many-sided plinth" in the list (shorter on a phone).
+
+## v2.41
+- "Make it from boards" keeps round parts standing out beyond the boards (turned feet under a downloaded TV unit), which its grid of flat faces could not see and used to drop: each becomes a cylinder from the board it stands under to its end. Anything else standing out beyond the boards that is not round stops the change ("it has curved parts the boards would leave out") rather than losing it; points between boards inside the piece are treated as before.
+- Three or more alike round parts standing under a piece narrower than 2 in across are round feet, not casters (a caster's wheel and housing are wider): cut from dowel or bought turned, fixed last with hanger bolts (glued dowel feet as the alternative), listed as parts, with the hanger bolts on the shopping list. A foot's top may sit up to 4 mm into the board above (a thickness rounded up by the fixer).
+- "Feet", not "foots", in step titles.
