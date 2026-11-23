@@ -6,6 +6,9 @@ package splitziner.parts
  * and a name from the file or from the maker always wins.
  */
 object Roles {
+    /** A round part standing on the floor no taller than this (mm, 6 in) is a caster, not a leg. */
+    private const val CASTER_MAX = 152.4
+
     /** A wall shelf, rack or ledge is at most this deep (mm): 14 in. */
     const val WALL_DEPTH = 355.6
 
@@ -546,6 +549,14 @@ object Roles {
                 if (p in backB || p in shelves || b.extents.y > minOf(b.extents.x, b.extents.z)) continue
                 if (shelves.any { sh -> touches(p, sh) && b.max.y <= sh.mesh.bounds.min.y + 0.5 && b.max.z > sh.mesh.bounds.max.z + 3.0 }) out[p.id] = "Lip"
             }
+        }
+        // Short round parts standing on the floor under the piece, three or more alike (a taboret's): casters, bought.
+        run {
+            val round = live.filter { p -> val e = p.mesh.bounds.extents; val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
+                fill in 0.70..0.82 && kotlin.math.abs(e.x - e.y) < 1.0 && e.z <= CASTER_MAX && p.mesh.bounds.min.z <= all.min.z + 0.5 &&
+                    live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 0.5 && touches(p, o) } }
+            val alike = round.groupBy { Math.round(it.mesh.bounds.extents.x) to Math.round(it.mesh.bounds.extents.z) }.values.filter { it.size >= 3 }
+            for (g in alike) for (p in g) out[p.id] = "Caster"
         }
         // A flat frame lying on the bench (a canvas stretcher, a picture frame), every member the same thickness in one
         // layer: a straight member inside it, touching none of its outer edges, is a brace.

@@ -618,3 +618,8 @@ Departures from the build spec, newest first.
 
 ## v1.79
 - A panel with its cleats made on the bench is a "cleated panel" in the guide ("make 2 cleated panels", "set out the 2 cleated panels"), and its bench step does not ask for equal diagonals: a panel with strips on its face has no corners to square.
+
+## v1.80
+- Casters: three or more alike short round parts (6 in tall at most) standing on the floor under the piece. They are bought, not made: the list of material says "(BUY)" with the model's height, the cutting plan leaves them out with a buy line, no detail or full-size drawing, and they are not in a step's parts list (the hardware line has them).
+- Casters go on last, in a step of their own, the piece upside down; the case is started from its own lowest parts, not set up on its casters. Each caster's plate is screwed to the board lying over it (not the edge of a side it also touches), centred about 2 in (50 mm) from the edges so the wheel swivels clear. The plate's screws come with it; the guide does not size them.
+- A screw for a caster plate, brake advice ("two with brakes") and a load rating are advice, not geometry; nothing about the caster's mechanism is read from the model.

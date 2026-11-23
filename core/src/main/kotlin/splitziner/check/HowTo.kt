@@ -13,6 +13,7 @@ object HowTo {
     fun steps(row: CutListRow, part: Part, fmt: LengthFormat, tools: Set<Tool>?, grooves: List<String> = emptyList(), extra: List<String> = emptyList()): List<String> {
         // Glass is cut by a glass shop; nothing to make here.
         if (part.name == "Glass") return listOf("Have it cut by a glass shop, ${if (fmt.isInch) "1/16 in" else "2 mm"} under the drawn size each way, with smoothed edges; see the cutting plan's list.")
+        if (part.name == "Caster") return listOf("Bought, not made: plate-mounted casters this tall overall, rated for the piece and what goes in it; two with brakes keep it still while you work.")
         val w = runCatching { DesignCheck.workFor(part, fmt) }.getOrNull() ?: return emptyList()
         val d = { v: Double -> fmt.format(v) }
         val u = if (fmt.isInch) "in" else "mm"

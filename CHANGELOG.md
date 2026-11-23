@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.80.0 - casters
+
+- **Casters.** Round feet under a rolling piece (a taboret, a cart) are now treated as casters to buy, not as rods to cut. They go on last, with the piece upside down, screwed to the bottom board. The cutting plan lists them as something to buy.
+
 ## v1.79.0 - cleated panel wording
 
 - Plinth steps now read naturally: "make 2 cleated panels", then "set out the 2 cleated panels", with no pointless squareness check on a flat panel.

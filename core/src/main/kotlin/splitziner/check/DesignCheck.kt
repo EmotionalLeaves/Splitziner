@@ -94,6 +94,7 @@ object DesignCheck {
     fun workFor(p: Part, fmt: LengthFormat): ItemWork {
         val work = LinkedHashSet<Work>()
         val holes = ArrayList<Double>(); var cutouts = 0
+        if (p.name == "Caster") return ItemWork(p.item ?: 0, emptySet(), holes, 0)
         if (p.kind == PartKind.ROD) return ItemWork(p.item ?: 0, setOf(Work.STRAIGHT_CUT), holes, 0)
         val flat = p.kind == PartKind.PANEL || p.kind == PartKind.BOARD || p.t < 0.3 * p.w
         if (!flat) return ItemWork(p.item ?: 0, setOf(Work.CARVE), holes, 0)

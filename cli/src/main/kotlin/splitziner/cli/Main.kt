@@ -112,7 +112,7 @@ fun main(args: Array<String>) {
                 val vs = splitziner.drawing.DrawingBuilder.views(a.parts)
                 println("views     ${(System.nanoTime() - tv) / 1_000_000} ms")
                 plain = splitziner.drawing.PartDrawings.plainItems(a.parts, a.cutList.rows, a.format) - splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed)
-                val detailed = if (a.parts.count { !it.excluded } > 1) a.cutList.rows.map { it.item }.toSet() - plain else emptySet()
+                val detailed = if (a.parts.count { !it.excluded } > 1) a.cutList.rows.map { it.item }.toSet() - plain - splitziner.drawing.PartDrawings.boughtItems(a.parts) else emptySet()
                 val noted = info.copy(notes = info.notes + listOfNotNull(splitziner.drawing.PartDrawings.leanNote(a.parts), splitziner.drawing.PartDrawings.plainNote(plain), splitziner.drawing.PartDrawings.detailNote(detailed, info.drawingNo)))
                 val r = splitziner.drawing.DrawingBuilder.build(a.parts, a.cutList.rows, vs, noted, splitziner.drawing.DrawingSettings(sheet = System.getenv("SHEET") ?: "auto", scale = System.getenv("SCALE")?.toDouble()), a.format, plan?.parts)
                 r.sheets.forEachIndexed { i, d -> File(out, "sheet${i + 1}.svg").writeText(splitziner.export.SvgWriter.write(d)) }

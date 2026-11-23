@@ -128,6 +128,9 @@ object Fastening {
     /** Tools that cut a groove along a board. */
     private val GROOVERS = setOf(Tool.ROUTER, Tool.TABLE_SAW, Tool.CNC)
 
+    /** How far in from a corner a caster's plate goes (mm, 2 in), so the wheel swivels clear of the edge. */
+    private const val CASTER_INSET = 50.8
+
     private fun size(mm: Double, fmt: LengthFormat): String =
         if (fmt.isInch) fraction(maxOf(0.125, mm / 25.4)) else "${Math.round(maxOf(1.0, mm) * 2) / 2.0}".removeSuffix(".0") + " mm"
 
@@ -367,6 +370,19 @@ object Fastening {
                 continue
             }
             // A hanging rod (a wardrobe's) drops into a socket screwed to the side at each end, so it can be lifted out.
+            // A caster is screwed on by its plate, with the screws that come with it.
+            val caster = if (a.name == "Caster") a else if (b.name == "Caster") b else null
+            if (caster != null) {
+                val other = if (caster === a) b else a
+                // Into the board lying over it (the bottom), not the edge of a side it also touches.
+                fun flatOver(o: Part) = o.mesh.bounds.extents.let { e -> e.z <= minOf(e.x, e.y) }
+                val onFlat = live.any { o -> o !== caster && o.name != "Caster" && flatOver(o) && kotlin.math.abs(o.mesh.bounds.min.z - caster.mesh.bounds.max.z) < 0.5 && (0..1).all { ax -> o.mesh.bounds.min[ax] < caster.mesh.bounds.max[ax] && o.mesh.bounds.max[ax] > caster.mesh.bounds.min[ax] } }
+                if (other.name != "Caster" && (flatOver(other) || !onFlat)) {
+                    joints.getOrPut(step) { ArrayList() } += Joint(other, caster, 1, "", "caster", false, size(CASTER_INSET, fmt))
+                    totals["casters"] = (totals["casters"] ?: 0) + 1
+                }
+                continue
+            }
             val rod = if (a.kind == PartKind.ROD) a else if (b.kind == PartKind.ROD) b else null
             if (rod != null) {
                 val other = if (rod === a) b else a
@@ -1113,6 +1129,7 @@ object Fastening {
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "pocketin") "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes along ${if (key.second.contains(" and ")) "their" else "its"} edge, on the inside, so nothing shows outside$times. Glue the joint too."
+            else if (j.kind == "caster") "Turn the piece upside down on a blanket. Screw ${if (g.size > 1) "each caster's plate" else "the caster's plate"} to the underside of ${key.first} with the screws that come with it, its centre about ${j.at} from each edge at the corner, so the wheel swivels clear."
             else if (j.kind == "foldhinge") "Hinge ${key.second} to the back of ${key.first} with a pair of ${j.size} butt hinges, so it folds in flat. Then tie it to the front legs at about knee height with a light chain or a cord, as long as the legs should spread: it stops the legs sliding apart under load."
             else if (j.kind == "peghole") j.at.split('|').let { (dia, dep) -> "Drill a $dia hole $dep deep in ${key.first} for ${if (g.size > 1) "each ${key.second}" else key.second}, where the drawing shows, square to the face (or at the angle drawn): a drill guide or a block drilled square keeps it straight. Glue ${if (g.size > 1) "the pegs" else "it"} in and wipe off the glue that squeezes out$times." }
             else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
@@ -1133,7 +1150,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "foldhinge" -> "on hinges, to fold"; j.kind == "peghole" -> "glued in a drilled hole"; j.kind == "glass" -> "glass in a rabbet"; j.kind == "wallcleat" -> "hung on a French cleat"; j.kind == "applied" -> "screwed on from inside"; j.kind == "pocketin" -> "pocket screws from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "foldhinge" -> "on hinges, to fold"; j.kind == "caster" -> "caster plate screws"; j.kind == "peghole" -> "glued in a drilled hole"; j.kind == "glass" -> "glass in a rabbet"; j.kind == "wallcleat" -> "hung on a French cleat"; j.kind == "applied" -> "screwed on from inside"; j.kind == "pocketin" -> "pocket screws from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

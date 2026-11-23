@@ -313,6 +313,41 @@ object AssemblyPlan {
             steps.drop(2).map { it.copy(step = it.step - 1) }
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
+        val r = planInner(all, maxSteps, order)
+        if (order != null) return r
+        return castersLast(r)
+    }
+
+    /**
+     * Casters go on last, in a step of their own, with the piece upside down: screwed to the underside of a case
+     * already built, never set out first for the case to be built on.
+     */
+    private fun castersLast(r: PlanResult): PlanResult {
+        val casters = r.parts.filter { it.name == "Caster" && !it.excluded }
+        if (casters.isEmpty()) return r
+        val ids = casters.map { it.id }.toSet()
+        val cItems = casters.mapNotNull { it.item }.toSet()
+        val byId = r.parts.associateBy { it.id }
+        val kept = r.steps.mapNotNull { st ->
+            val left = st.partIds - ids
+            if (left.isEmpty()) null else st.copy(partIds = left, placed = st.placed - ids, explodeOf = st.explodeOf - ids,
+                items = st.items.filter { i -> i !in cItems || left.any { byId[it]?.item == i } })
+        }
+        // The main build's first step left with one part put down: the next parts go on in it.
+        val m = kept.indexOfFirst { !it.subassembly }
+        val folded = if (m >= 0 && m + 1 < kept.size && kept[m].partIds.size == 1 && !kept[m + 1].subassembly && kept[m + 1].partIds.none { it.startsWith("drawer") })
+            kept.take(m) + kept[m + 1].copy(step = kept[m].step, partIds = kept[m].partIds + kept[m + 1].partIds, items = (kept[m].items + kept[m + 1].items).distinct().sorted(),
+                placed = kept[m].partIds, directions = (kept[m].directions + kept[m + 1].directions).distinct()) + kept.drop(m + 2)
+            else kept
+        val renumber = HashMap<Int, Int>()
+        if (folded !== kept) renumber[kept[m + 1].step] = m + 1
+        val steps = folded.mapIndexed { k, st -> renumber[st.step] = k + 1; st.copy(step = k + 1, continues = st.continues?.let { renumber[it] ?: it }) }
+        val last = BuildStep(steps.size + 1, casters.map { it.id }, listOf(Vec3(0.0, 0.0, -1.0)), cItems.sorted())
+        val drop = maxOf(50.0, casters.maxOf { it.mesh.bounds.extents.z })
+        return PlanResult(r.parts.map { p -> if (p.id in ids) p.copy(step = last.step, explode = Vec3(0.0, 0.0, -drop)) else p.copy(step = p.step?.let { renumber[it] ?: it }) }, steps + last)
+    }
+
+    private fun planInner(all: List<Part>, maxSteps: Int, order: List<List<String>>?): PlanResult {
         val live = all.filter { !it.excluded }
         val keyOf = unitKeys(live)
         val units = live.groupBy { keyOf.getValue(it.id) }
@@ -813,7 +848,9 @@ object AssemblyPlan {
         // A part lying flat on the floor under a good share of the whole footprint (a cabinet's bottom) wins outright.
         val modelFoot = (allHi.x - allLo.x) * (allHi.y - allLo.y)
         // A face frame is never where the build starts: it goes on the finished case.
-        val onFloor = (0 until n).filter { lo[it].z <= allLo.z + tol && parts[it].id != "faceframe" }.ifEmpty { (0 until n).filter { lo[it].z <= allLo.z + tol } }
+        // On casters, the case's own lowest parts are its floor: the casters go on last, the piece upside down.
+        val caseFloor = (0 until n).filter { parts[it].name != "Caster" }.minOfOrNull { lo[it].z } ?: allLo.z
+        val onFloor = (0 until n).filter { lo[it].z <= caseFloor + tol && parts[it].id != "faceframe" && parts[it].name != "Caster" }.ifEmpty { (0 until n).filter { lo[it].z <= allLo.z + tol } }
         fun foot(i: Int) = (hi[i].x - lo[i].x) * (hi[i].y - lo[i].y)
         fun lyingFlat(i: Int) = (hi[i].z - lo[i].z) <= minOf(hi[i].x - lo[i].x, hi[i].y - lo[i].y)
         val flatBase = onFloor.filter { lyingFlat(it) && foot(it) >= 0.25 * modelFoot }.maxByOrNull { foot(it) }
@@ -947,7 +984,7 @@ object AssemblyPlan {
         val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
         val hungIds = hungGiven ?: (runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()) +
             // A flat frame's braces go in once the frame is glued up (a stretcher's), not an easel's brace.
-            parts.filter { it.name == "Back leg" || (it.name == "Brace" && parts.all { o -> kotlin.math.abs(o.mesh.bounds.min.z - it.mesh.bounds.min.z) < 0.5 && kotlin.math.abs(o.mesh.bounds.max.z - it.mesh.bounds.max.z) < 0.5 }) }.map { it.id }).toSet()
+            parts.filter { it.name == "Back leg" || it.name == "Caster" || (it.name == "Brace" && parts.all { o -> kotlin.math.abs(o.mesh.bounds.min.z - it.mesh.bounds.min.z) < 0.5 && kotlin.math.abs(o.mesh.bounds.max.z - it.mesh.bounds.max.z) < 0.5 }) }.map { it.id }).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         // Each drawer comes out whole; a door or a shelf on its own.
         val idIndex = (0 until n).associateBy { parts[it].id }

@@ -86,6 +86,9 @@ object PartDrawings {
         }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
     }
 
+    /** Items bought, not made (casters): no detail drawing. */
+    fun boughtItems(parts: List<Part>): Set<Int> = parts.filter { !it.excluded && it.name == "Caster" }.mapNotNull { it.item }.toSet()
+
     /** Items that are doors: these get a detail sheet giving where the hinge cups go. */
     fun doorItems(parts: List<Part>): Set<Int> {
         val byId = parts.associateBy { it.id }
@@ -435,7 +438,7 @@ object PartDrawings {
         val byId = parts.associateBy { it.id }
         val out = ArrayList<Pair<CutListRow, DrawingResult>>()
         for (row in rows) {
-            if (row.item in skip) continue
+            if (row.item in skip || row.item in boughtItems(parts)) continue
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: continue
             // Grooves for housed parts are cut into the drawn part, so the views show them and the dimensions place them.
             val carved = runCatching { carveGrooves(p, parts, housed) }.getOrNull() ?: runCatching { pocketed(p, parts, housed) }.getOrNull() ?: p.mesh

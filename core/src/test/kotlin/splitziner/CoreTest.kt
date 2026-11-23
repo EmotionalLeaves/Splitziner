@@ -2490,3 +2490,22 @@ class StretcherTest {
         assertTrue(f.all.filter { it.kind == "screws" }.none { it.size.startsWith("#10") }, f.all.map { it.size }.toString())
     }
 }
+
+class CasterTest {
+    @Test fun aTaboretsCastersAreBoughtAndGoOnLast() {
+        val bytes = javaClass.getResourceAsStream("/complex/taboret.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "taboret.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Caster" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        // A step of their own, the last; the case is started from a side, not from the casters.
+        assertTrue(pl.steps.last().partIds.all { id -> pl.parts.first { it.id == id }.name == "Caster" })
+        assertTrue(pl.parts.filter { it.name == "Caster" }.all { it.step == pl.steps.size })
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(4, f.all.count { it.kind == "caster" })
+        assertTrue(f.all.none { it.kind == "rod" })
+        val row = a.cutList.rows.first { it.name == "Caster" }
+        assertTrue(row.description.contains("(BUY)"), row.description)
+        val cp = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, splitziner.cutplan.StockSettings.defaultFor(LengthFormat("in", "fraction")))
+        assertTrue(cp.leftOut.any { it.startsWith("Casters: 4") }, cp.leftOut.toString())
+    }
+}

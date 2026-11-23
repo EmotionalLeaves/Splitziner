@@ -349,7 +349,8 @@ object CutList {
             val o = overrides[itemKey(g.d.kind, g.d.t, g.d.w, g.d.l)] ?: ItemOverride()
             for (m in g.members) itemOf[m.id] = Triple(item, g.members.size, g.d)
             rows += CutListRow(
-                item = item, qty = g.members.size, partNo = o.partNo, description = g.d.desc,
+                // Casters are bought, not made: said so, with the height the model gives them.
+                item = item, qty = g.members.size, partNo = o.partNo, description = if (g.members.all { it.name == "Caster" }) "${d(g.d.l)} ${if (fmt.isInch) "IN" else "MM"} TALL OVERALL (BUY)" else g.d.desc,
                 material = o.material, materialSpec = o.materialSpec,
                 stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind,
                 // Unless the user says otherwise, the faces people look at have their grain running the long way: a

@@ -351,7 +351,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val info0 = open.meta.drawingInfo(BuildConfig.VERSION_NAME)
                     val wt = splitziner.material.Materials.weight(a.parts, a.cutList.rows)
                     val baseInfo = if (info0.weight.isBlank() && wt.unknownItems.isEmpty() && wt.kg > 0) info0.copy(weight = "ABOUT " + splitziner.material.Materials.format(wt.kg, a.format.isInch).uppercase()) else info0
-                    val detailed = if (details) a.cutList.rows.map { it.item }.toSet() - plain else emptySet()
+                    val detailed = if (details) a.cutList.rows.map { it.item }.toSet() - plain - splitziner.drawing.PartDrawings.boughtItems(a.parts) else emptySet()
                     val info = baseInfo.copy(notes = baseInfo.notes + listOfNotNull(splitziner.drawing.PartDrawings.leanNote(a.parts), splitziner.drawing.PartDrawings.plainNote(plain), splitziner.drawing.PartDrawings.detailNote(detailed, baseInfo.drawingNo)))
                     val r = DrawingBuilder.build(a.parts, a.cutList.rows, vs, info, open.meta.drawingSettings(), a.format, planned)
                     Diagnostics.log("drawing: sheet ${r.sheet.letter} at ${r.scaleText}, views ${(t1 - t0) / 1_000_000} ms, layout ${(System.nanoTime() - t1) / 1_000_000} ms, qa ${r.qa}")

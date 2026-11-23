@@ -56,7 +56,7 @@ object GuideSteps {
         val pool = cur + built
         for (s in cur) {
             // Doors and drawer fronts are placed by their hinges or by eye, with even gaps; offsets would only mislead.
-            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon" || s.name == "Sliding door") continue
+            if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon" || s.name == "Sliding door" || s.name == "Caster") continue
             // The longest part it touches that is longer than it along its own length; on the bench any part of the
             // unit, in the build a part already there or going in with it.
             val host = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } } ?: continue
@@ -512,7 +512,8 @@ object GuideSteps {
             }
             val list = unitCount.map { (bench, us) -> (if (us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }) "Drawer from step $bench" else "${unitWord(bench, 1).replaceFirstChar { it.uppercase() }} from step $bench") to us.size } +
                 // In ordinary type, as the rest of the guide is: "Item 3 (top): panel 3/4 x 11-3/4 x 30-1/2".
-                count.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })}: ${loose.first { it.item == item }.desc.lowercase()}" to n }
+                // Bought parts (casters) are in the hardware list below, not here.
+                count.filter { (item, _) -> loose.none { it.item == item && it.name == "Caster" } }.map { (item, n) -> "Item ${item ?: "-"}${named(loose.filter { it.item == item })}: ${loose.first { it.item == item }.desc.lowercase()}" to n }
             val o = overrides[stepKey(st.partIds)]
             val auto = when {
                 st.subassembly -> {
@@ -597,7 +598,7 @@ object GuideSteps {
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "glass" -> continue
-                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
+                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }
                 hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides" || j.kind == "sliding" || j.kind == "foldhinge") 1 else j.count)
