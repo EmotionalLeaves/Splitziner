@@ -730,3 +730,6 @@ Departures from the build spec, newest first.
 
 ## v2.11
 - When the sizes typed leave some part no room, the dialog says so in the picture's place instead of adding a line above the description.
+
+## v2.12
+- A closed plinth with a ballast shelf has its top screwed down through its face into the cleats, a few countersunk screws, after the ballast is loaded: once the shelf is in, nothing can reach the cleats from inside, and the top has to come off again to empty the ballast when the plinth moves. The heads are filled only if it never will.
