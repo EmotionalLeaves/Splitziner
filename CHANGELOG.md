@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.0 - finishing notes in guide
+
+- **Finishing notes in the printed guide.** The glass size, hanging hardware, canvas size, crate capacity and the advice to weigh a plinth down now also appear on the guide's "When it is together" page, not only on the Check tab.
+
 ## v2.2.0 - canvas size
 
 - **Canvas size for stretchers.** A stretcher now tells you how big to cut the canvas, with enough to wrap round the back and grip while stretching.

@@ -151,7 +151,7 @@ fun main(args: Array<String>) {
                     val cuts = splitziner.joinery.Fastening.cutLines(fasten) { p -> "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${p.name.lowercase()})" else "") }
                     val making = a.cutList.rows.mapNotNull { r -> val p = a.parts.first { it.id == r.memberIds[0] }
                         val st = splitziner.check.HowTo.steps(r, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format), cuts[r.item].orEmpty()); splitziner.check.HowTo.making(st)?.let { "Item ${r.item}" + (if (r.name.isNotBlank()) " (${r.name.lowercase()})" else "") + ": ${r.description}" to it } }
-                    splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second, making) }, steps, a.cutList.rows, hero)
+                    splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second + splitziner.check.DesignCheck.finishNotes(runCatching { splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, null, housed = a.housed) }.getOrNull()), making) }, steps, a.cutList.rows, hero)
                 pages.forEachIndexed { i, d -> File(out, "guide%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("guide     ${steps.size} steps, ${pages.size} pages")
             }

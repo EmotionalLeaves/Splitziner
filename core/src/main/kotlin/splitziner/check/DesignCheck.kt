@@ -204,6 +204,13 @@ object DesignCheck {
         }
     }
 
+    /** Notes worth printing at the end of the build guide: what to get or do once the piece is made. */
+    private val FINISH_TITLES = listOf("Glass, backing and hanging", "Glass and hanging", "Hanging (not in the model)", "Canvas to cut", "What it takes", "Weigh it down")
+
+    /** The [report]'s notes that belong at the end of the build guide, each as "Title. Detail". */
+    fun finishNotes(report: CheckReport?): List<String> = report?.findings.orEmpty().filter { f -> FINISH_TITLES.any { f.title.startsWith(it) } }
+        .map { f -> f.title.replace(Regex(" \\(not in the model\\)$"), "") + ": " + f.detail }
+
     fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt), housed: List<Pair<String, String>> = emptyList()): CheckReport {
         val housedPairs = housed.map { setOf(it.first, it.second) }.toSet()
         val live = parts.filter { !it.excluded }

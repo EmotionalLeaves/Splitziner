@@ -700,3 +700,6 @@ Departures from the build spec, newest first.
 
 ## v2.2
 - A flat frame of mitred bars in one layer (with any braces) gets a note, hedged "if it is a stretcher", of the canvas to cut: the outside size plus, on every side, its depth and 2 in (50 mm) to wrap round the back and grip while stretching. A frame with back strips (a picture frame) does not get it.
+
+## v2.3
+- The build guide's "When it is together" page carries the check's finishing notes: glass and backing sizes, hanging, the canvas to cut, what a crate takes, and weighing a plinth down. They are what you do or get once the piece is made, so they belong in the printed guide as well as on the Check tab.
