@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.33.0 - Headboards
+
+- Beds: a headboard (and a footboard) between the posts is now called that.
+
 ## v1.32.0 - Shorter start
 
 - Guides are a page shorter: the first step no longer just says "place the side". It places it and fits the next parts in the same step.

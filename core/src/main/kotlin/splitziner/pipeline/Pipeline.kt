@@ -168,7 +168,9 @@ object Pipeline {
                 (minOf(o.mesh.bounds.max.x, b.max.x) - maxOf(o.mesh.bounds.min.x, b.min.x)) * (minOf(o.mesh.bounds.max.z, b.max.z) - maxOf(o.mesh.bounds.min.z, b.min.z)) > 0.5 * b.extents.x * b.extents.z &&
                 o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.z > b.min.z && o.mesh.bounds.min.z < b.max.z } }
         val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door") && atFront(id) && open(id) }
-        return 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && atFront(id) }) + minOf(3, names.values.count { it in BACK_ROLES })
+        val back = ps.filter { it.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } }.maxOfOrNull { it.mesh.bounds.max.y } ?: ps.maxOf { it.mesh.bounds.max.y }
+        fun atBack(id: String) = (byId[id]?.mesh?.bounds?.max?.y ?: Double.MIN_VALUE) >= back - FRONT_DEPTH
+        return 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
     }
 
     /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */
@@ -176,7 +178,7 @@ object Pipeline {
 
     /** Roles found only at the front, and only at the back, of a piece standing the right way round. */
     private val FRONT_ROLES = setOf("Kick board", "Stile", "Sliding door", "Drawer rail")   // not face frame rails alone: any flat strips at the front look like them
-    private val BACK_ROLES = setOf("Back panel", "Back", "Modesty panel", "Hanging rail")
+    private val BACK_ROLES = setOf("Back panel", "Back", "Hanging rail")
 
     // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
     private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",

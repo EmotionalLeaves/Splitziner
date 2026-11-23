@@ -396,6 +396,16 @@ object Roles {
         live.firstOrNull { out[it.id] == "Seat" }?.let { seat ->
             for (p in live) if (out[p.id] in setOf("Side rail", "End rail", "Rail", "Apron") && p.mesh.bounds.min.z >= seat.mesh.bounds.max.z - 0.5) out[p.id] = "Back rail"
         }
+        // In a bed (slats), a tall board between two legs or posts, standing above the bed's rails: the headboard,
+        // or, at the lower end, the footboard.
+        if (live.any { out[it.id] == "Slat" }) {
+            val railTop = live.filter { out[it.id] in setOf("Side rail", "End rail", "Centre rail") && it.mesh.bounds.extents.z <= 300.0 }.maxOfOrNull { it.mesh.bounds.max.z }
+            val boards = live.filter { p -> val e = p.mesh.bounds.extents; val t = minOf(e.x, e.y, e.z)
+                railTop != null && t <= 40.0 && e.z > 300.0 && e.z > t * 6 && p.mesh.bounds.min.z >= railTop - 1.0 && minOf(e.x, e.y) == t &&
+                    live.count { o -> out[o.id] in setOf("Leg", "Post") && touches(p, o) } >= 2 }
+            val highest = boards.maxOfOrNull { it.mesh.bounds.max.z }
+            for (bd in boards) out[bd.id] = if (boards.size > 1 && bd.mesh.bounds.max.z < highest!! - 1.0) "Footboard" else "Headboard"
+        }
         // A bed's side or end rail carrying no slats, with one on the same side below it that does: a guard rail
         // round a top bunk.
         if (live.any { out[it.id] == "Slat" }) {

@@ -426,3 +426,8 @@ Departures from the build spec, newest first.
 ## v1.32
 - A first main step that would only put one part down ("start with the side") now also fits the next parts in the same step: "Place item 1 (side). Fit items 8 and 2 from the front." The part put down is not drawn pulled out, and the others' positions are given against it. A first step that sets out several units (frames, cabinets) keeps its own page, since it says how far apart they stand. One page less in most guides.
 - Rewritten text for the first two steps of a project saved before this version no longer matches them (they are one step now) and falls back to the app's own text.
+
+## v1.33
+- In a bed (slats), a board (40 mm thick or less, over 300 mm tall) standing above the bed's rails between two legs or posts is the headboard; when there are two, the lower one is the footboard.
+- Facing the front: a back counts only at the back of the carcass (within 1 in of its rear face); a modesty panel no longer counts, being set in from the back.
+- Known weak case, left for now: a platform bed whose legs all stand apart (corner, middle and centre-beam legs, no leg frames) gets a poor order (centre beam and slats before the side rails). Making lone legs wait for their rail did not fix it.
