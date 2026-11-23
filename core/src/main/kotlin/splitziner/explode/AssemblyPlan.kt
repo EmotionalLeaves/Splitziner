@@ -285,6 +285,11 @@ object AssemblyPlan {
             // Everything is either above or below the top: nothing passes through it.
             if (above.size < 4 || below.size < 2 || above.size + below.size + 1 != live.size) continue
             if (above.none { touch(it, top) }) continue
+            // Stacked shelves (spacers and boards repeated level on level) are one piece, not a case set on another:
+            // a hutch's parts are not the same as the ones under it.
+            fun size(p: Part) = p.mesh.bounds.extents.let { e -> listOf(e.x, e.y, e.z).sorted().map { Math.round(it) } }
+            val belowSizes = (below + top).map { size(it) }.toSet()
+            if (above.all { size(it) in belowSizes }) continue
             // One connected group.
             val seen = HashSet<String>(); val q = ArrayDeque(listOf(above[0]))
             while (q.isNotEmpty()) { val p = q.removeFirst(); if (!seen.add(p.id)) continue; above.filter { it.id !in seen && touch(it, p) }.forEach { q += it } }

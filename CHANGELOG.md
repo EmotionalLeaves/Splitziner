@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.42.0 - stacked shelves
+
+- Stacked shelf units (boards on spacers, level on level) are built from the bottom up, instead of the top levels being treated as a separate hutch.
+
 ## v2.41.0 - round feet
 
 - Turning a downloaded one-piece model into boards no longer loses round feet: they're kept, listed as round feet, and fixed on last with hanger bolts.

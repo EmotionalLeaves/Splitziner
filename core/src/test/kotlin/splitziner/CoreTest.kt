@@ -2813,3 +2813,18 @@ class RoundFeetTest {
         assertTrue(f.hardware.any { it.contains(splitziner.joinery.Fastening.FOOT_BOLTS) }, f.hardware.toString())
     }
 }
+
+class StackedShelvesTest {
+    @Test fun spacersAndBoardsLevelOnLevelAreNotAHutch() {
+        fun b(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double) = Fixtures.box(x, x + w, y, y + d, z, z + h)
+        val L = 2100.0; val D = 350.0; val t = 50.0; val gap = 350.0
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (lv in 0..3) {
+            val z = lv * (t + gap)
+            ms += b(0.0, 0.0, z, L, D, t)
+            if (lv < 3) { ms += b(150.0, 0.0, z + t, t, D, gap); ms += b(L - 200.0, 0.0, z + t, t, D, gap) }
+        }
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "s.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertNull(splitziner.explode.AssemblyPlan.upperUnit(a.parts.filter { !it.excluded }))
+    }
+}

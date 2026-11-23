@@ -851,3 +851,6 @@ Departures from the build spec, newest first.
 - "Make it from boards" keeps round parts standing out beyond the boards (turned feet under a downloaded TV unit), which its grid of flat faces could not see and used to drop: each becomes a cylinder from the board it stands under to its end. Anything else standing out beyond the boards that is not round stops the change ("it has curved parts the boards would leave out") rather than losing it; points between boards inside the piece are treated as before.
 - Three or more alike round parts standing under a piece narrower than 2 in across are round feet, not casters (a caster's wheel and housing are wider): cut from dowel or bought turned, fixed last with hanger bolts (glued dowel feet as the alternative), listed as parts, with the hanger bolts on the shopping list. A foot's top may sit up to 4 mm into the board above (a thickness rounded up by the fixer).
 - "Feet", not "foots", in step titles.
+
+## v2.42
+- Stacked shelves (boards with spacers between them, the same sizes level on level, as in a downloaded bookcase) are built from the bottom up, level by level, not with their upper levels made first as a "hutch": a case set on another is one whose parts differ from those under it.
