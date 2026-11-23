@@ -376,3 +376,8 @@ Departures from the build spec, newest first.
 - A corbel must be solid (1 in or more thick) and bracket-sized (under 700 mm): a thin shaped panel in a real-world desk model was being called one.
 - Projects saved less than a minute ago read "Just now", not "0 minutes ago".
 - scripts/guide-diff.sh takes UNITS from the environment (UNITS="" lets the file's units be detected), so real-world samples can be compared too.
+
+## v1.23
+- A strip on edge across the back of a case, just under its top and against a thin back (6-10 mm), is a hanging rail: the cabinet is meant to hang on a wall.
+- With a hanging rail the hardware lists screws to hang it (#10 x 3 in, or 5 x 75 mm; two per stud at 16 in centres, at least four) instead of an anti-tip strap, and "When it is together" says how to hang it on a batten into the studs. The check says to hang it from studs, not plasterboard.
+- A face frame is in the front half of the piece: a strip across the back of an open case is not one.

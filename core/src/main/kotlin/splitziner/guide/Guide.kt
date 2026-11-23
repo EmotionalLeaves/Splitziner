@@ -672,7 +672,9 @@ object GuideLayout {
         // The work before the first step and after the last, on a page of its own.
         if (info.before.isNotEmpty() || info.after.isNotEmpty()) {
             val pg = pages.new(); var yy = h - 26
-            val after = info.after + if (info.hardware.any { it.contains("anti-tip") }) listOf("Stand it where it will live and fix it to the wall with the anti-tip strap, screwed into a stud.") else emptyList()
+            val after = info.after + if (info.hardware.any { it.contains("anti-tip") }) listOf("Stand it where it will live and fix it to the wall with the anti-tip strap, screwed into a stud.")
+                else if (info.hardware.any { it.contains("to hang it") }) listOf("Hang it: find the studs and mark them, screw a straight batten to the wall level at the height of its bottom to rest it on, lift it onto the batten and drive two of the hanging screws through the hanging rail and the back into each stud it crosses; take the batten off after. On a masonry wall use plugs and screws made for it.")
+                else emptyList()
             for ((head, items) in listOf("BEFORE YOU BUILD" to info.before, "WHEN IT IS TOGETHER" to after)) {
                 if (items.isEmpty()) continue
                 pg.text(25.0, yy, head, 4.0, vAlign = VAlign.TOP, bold = true); yy -= 8

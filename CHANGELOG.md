@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.23.0 - Wall cabinets
+
+- Wall cabinets: the strip across the back under the top is recognised as a hanging rail. The shopping list has the screws to hang it, and the guide says how to hang it on the studs.
+
 ## v1.22.0 - Small fixes
 
 - Thin shaped panels are no longer mistaken for corbels.

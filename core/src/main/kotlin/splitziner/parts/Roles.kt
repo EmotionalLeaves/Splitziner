@@ -104,6 +104,8 @@ object Roles {
             val front = live.none { o -> o !== p && o.mesh.bounds.max.y <= b.min.y + 0.5 && o.mesh.bounds.min.x < b.max.x - 0.5 && o.mesh.bounds.max.x > b.min.x + 0.5 &&
                 o.mesh.bounds.min.z < b.max.z - 0.5 && o.mesh.bounds.max.z > b.min.z + 0.5 }
             // Flat to the front (a square leg is not a stile).
+            // And in the front half of the piece: a strip across the back of an open case is not a face frame.
+            if (b.max.y > all.min.y + 0.5 * all.extents.y) continue
             if (!front || e.y > 0.7 * minOf(e.x, e.z) || maxOf(e.x, e.z) < 4 * minOf(e.x, e.z) || minOf(e.x, e.z) > 6 * e.y) continue
             val behind = live.count { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 &&
                 o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.z < b.max.z && o.mesh.bounds.max.z > b.min.z }
@@ -177,6 +179,12 @@ object Roles {
             // An upright board off the floor joining two or more legs: a rail (a bed's side rail), unless it is an apron.
             val onEdge = (e.x <= t + 0.01 || e.y <= t + 0.01) && e.z < dims[2] - 0.01
             val joinsLegs = legs.isNotEmpty() && b.min.z > all.min.z + 1.0 && live.count { o -> o.id in legs && touches(p, o) } >= 2
+            // A strip on edge across the back, just under the top and in front of a thin back: the hanging rail a
+            // wall cabinet is screwed to the wall through.
+            if (e.y <= t + 0.01 && e.x > 4 * e.z && dims[1] < NARROW && live.any { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.y <= 10.0 && oe.y < minOf(oe.x, oe.z) } &&
+                    kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 && o.mesh.bounds.min.z <= b.min.z + 0.5 && o.mesh.bounds.max.z >= b.max.z - 0.5 } &&
+                live.any { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && touches(p, o) } &&
+                b.max.z >= all.max.z - 3 * NARROW) { out[p.id] = "Hanging rail"; continue }
             // A shallow upright board high up, right under a flat part: a table's apron or a desk's rail.
             val upright = e.x <= t + 0.01 || e.y <= t + 0.01
             if (upright && e.z < 0.3 * h && b.min.z > all.min.z + 0.3 * h && live.any { o -> o !== p && o.mesh.bounds.extents.z <= minOf(o.mesh.bounds.extents.x, o.mesh.bounds.extents.y) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 }) {

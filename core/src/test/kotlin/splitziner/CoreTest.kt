@@ -1947,3 +1947,18 @@ class ChairTest {
         assertTrue(names.none { it == "Rung" || it == "Ladder side" }, names.toString())
     }
 }
+
+class WallCabinetTest {
+    @Test fun wallCabinetHangsByItsRail() {
+        val T = 19.05; val W = 762.0; val D = 304.8; val H = 762.0
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = listOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, 0.0, W - 2 * T, D - 6.35, T), b(T, 0.0, H - T, W - 2 * T, D - 6.35, T),
+            b(T, D - 6.35 - T, H - T - 88.9, W - 2 * T, T, 88.9), b(T, D - 6.35, 0.0, W - 2 * T, 6.35, H))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "wall.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(1, a.parts.count { it.name == "Hanging rail" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.hardware.any { it.contains("to hang it") }, f.hardware.toString())
+        assertTrue(f.hardware.none { it.contains("anti-tip") }, f.hardware.toString())
+    }
+}

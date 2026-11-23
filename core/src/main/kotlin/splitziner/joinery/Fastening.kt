@@ -632,7 +632,10 @@ object Fastening {
         // Tall, shallow pieces get a wall anchor (see the check's "Fix it to the wall").
         if (live.isNotEmpty()) {
             val h = live.maxOf { it.mesh.bounds.max.z } - live.minOf { it.mesh.bounds.min.z }; val dd = live.maxOf { it.mesh.bounds.max.y } - live.minOf { it.mesh.bounds.min.y }
-            if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
+            // A cabinet with a hanging rail is screwed to the wall through it instead: two screws into each stud it crosses.
+            val rail = live.firstOrNull { it.name == "Hanging rail" }
+            if (rail != null) totals[if (fmt.isInch) "#10 x 3 in screws to hang it (into studs)" else "5 x 75 mm screws to hang it (into studs)"] = 2 * maxOf(2, ceil(rail.mesh.bounds.extents.x / 406.4).toInt())
+            else if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
         }
         val every = joints.values.flatten()
         // Identical sub-assemblies are made more than once in one bench step. Every copy's joints are already in
