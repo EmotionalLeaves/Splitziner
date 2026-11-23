@@ -238,8 +238,18 @@ object CutPlanner {
         return null
     }
 
-    fun plan(rows0: List<CutListRow>, stock: StockSettings): CutPlanResult {
+    fun plan(rows00: List<CutListRow>, stock: StockSettings): CutPlanResult {
         val leftOut = ArrayList<String>()
+        // Glass (or acrylic) is not cut from wood stock: a glass shop cuts it, a little under the drawn size so it drops in.
+        val glass = rows00.filter { r -> r.name.split(" / ").any { it == "Glass" } }
+        val rows0 = rows00 - glass.toSet()
+        // Inch stock (a 4 x 8 ft sheet, or boards in whole feet) means an inch user.
+        val inch = kotlin.math.abs(stock.sheetW - 1219.2) < 1.0 || kotlin.math.abs(stock.boardL / 304.8 - Math.rint(stock.boardL / 304.8)) < 1e-3 && stock.lumber
+        val d = { v: Double -> if (inch) splitziner.dims.LengthFormat("in", "fraction").format(v) + " in" else "${Math.round(v)} mm" }
+        for (r in glass) {
+            val under = if (inch) 1.5875 else 2.0
+            leftOut += "Glass or acrylic, ${d(r.t)} thick: ${r.qty} piece${if (r.qty == 1) "" else "s"} ${d(r.w - under)} x ${d(r.l - under)} (item ${r.item}), cut by a glass shop ${d(under)} under the drawn size so ${if (r.qty == 1) "it drops" else "they drop"} into the rabbet. Ask for the edges to be smoothed."
+        }
         // A panel thicker than any sheet is cut as layers of one, each a piece of its own on the plan.
         val layered = HashMap<Int, Pair<Int, Double>>()
         // A panel of solid wood is not cut from a sheet (oak is not sold 4 x 8): it is glued up edge to edge from boards.

@@ -468,6 +468,11 @@ object GuideSteps {
                 lines += how
                 // The grooves are cut before anything goes together.
                 if (doorGroup != null) lines.filter { it.startsWith("Cut a groove") }.let { g -> lines.removeAll(g); lines.addAll(0, g) }
+                // A glazed door is glued up empty; its glass goes in at the end.
+                if (doorGroup != null && lines.any { it.startsWith("Glue the frame up empty") }) {
+                    val i = lines.indexOfFirst { it.startsWith("Lay one ") }
+                    if (i >= 0) lines[i] = lines[i].replace(", its groove facing in.", ".").replace(Regex(""", slide [^,]+ into [^,]+ until it seats in the groove in [^,]+,"""), ",").replace(Regex(""", slide [^,]+ into the grooves as the pieces go together,"""), ",")
+                }
                 val seq = seqOf(st)
                 if (st.makeCount > 1 && seq.size > 1 && st.continues == null) lines.add(0, "Build all ${st.makeCount} side by side, a step at a time: this step on each, then the next.")
                 if (st.makeCount > 1 && (seq.size <= 1 || st.step == seq.maxOf { it.step })) lines += "Make ${st.makeCount} of these, all the same."
@@ -564,7 +569,7 @@ object GuideSteps {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
-                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole" -> continue
+                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "glass" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }

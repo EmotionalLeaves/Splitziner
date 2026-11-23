@@ -11,6 +11,8 @@ import splitziner.parts.Part
 object HowTo {
     /** [extra] are further cuts to make in this item (rabbets and grooves for thin parts), told before the copies. */
     fun steps(row: CutListRow, part: Part, fmt: LengthFormat, tools: Set<Tool>?, grooves: List<String> = emptyList(), extra: List<String> = emptyList()): List<String> {
+        // Glass is cut by a glass shop; nothing to make here.
+        if (part.name == "Glass") return listOf("Have it cut by a glass shop, ${if (fmt.isInch) "1/16 in" else "2 mm"} under the drawn size each way, with smoothed edges; see the cutting plan's list.")
         val w = runCatching { DesignCheck.workFor(part, fmt) }.getOrNull() ?: return emptyList()
         val d = { v: Double -> fmt.format(v) }
         val u = if (fmt.isInch) "in" else "mm"

@@ -33,7 +33,7 @@ object Roles {
         val framedDoors = runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).map { it.id }.toSet()
         for (g in framed) {
             val door = g.ids.any { it in framedDoors }
-            for (id in g.panels) out[id] = if (door) "Door panel" else "Panel"
+            for (id in g.panels) out[id] = if (splitziner.check.FramePanels.isGlass(live.first { it.id == id })) "Glass" else if (door) "Door panel" else "Panel"
             // Posts round a panel (a headboard's) stay posts or legs: the later passes name them.
             val pk = live.first { it.id == g.panel }.mesh.bounds.extents.let { e -> (0..2).minByOrNull { e[it] }!! }
             for (id in g.stiles) if (!splitziner.check.FramePanels.isPost(live.first { it.id == id }, pk)) out[id] = if (door) "Door stile" else "Stile"

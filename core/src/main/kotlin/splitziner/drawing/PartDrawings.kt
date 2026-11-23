@@ -280,11 +280,20 @@ object PartDrawings {
      * the part one way (dados and rabbets cut end to end) are cut, along the direction most of them run; others are
      * left to the notes. Null when there is nothing to cut.
      */
+    /** Glass sits in a rabbet: its seat runs out to the strip's back face, the nearer one, not a groove inside it. */
+    private fun glassSeat(q: Part, a: splitziner.math.Aabb, b: splitziner.math.Aabb): splitziner.math.Aabb {
+        if (q.name != "Glass") return b
+        val k = (0..2).minByOrNull { b.extents[it] }!!
+        val toMax = a.max[k] - b.max[k]; val toMin = b.min[k] - a.min[k]
+        fun with(v: Vec3, x: Double) = Vec3(if (k == 0) x else v.x, if (k == 1) x else v.y, if (k == 2) x else v.z)
+        return if (toMax <= toMin) splitziner.math.Aabb(b.min, with(b.max, a.max[k])) else splitziner.math.Aabb(with(b.min, a.min[k]), b.max)
+    }
+
     fun carveGrooves(p: Part, parts: List<Part>, housed: List<Pair<String, String>>): splitziner.mesh.Mesh? {
         val byId = parts.associateBy { it.id }
         val a = p.mesh.bounds
         val boxes = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
-            val b = byId[pid]?.mesh?.bounds ?: return@mapNotNull null
+            val b = byId[pid]?.let { glassSeat(it, a, it.mesh.bounds) } ?: return@mapNotNull null
             val lo = splitziner.math.Vec3(maxOf(a.min.x, b.min.x), maxOf(a.min.y, b.min.y), maxOf(a.min.z, b.min.z))
             val hi = splitziner.math.Vec3(minOf(a.max.x, b.max.x), minOf(a.max.y, b.max.y), minOf(a.max.z, b.max.z))
             if ((0..2).any { hi[it] <= lo[it] }) null else lo to hi
@@ -321,7 +330,7 @@ object PartDrawings {
         val byId = parts.associateBy { it.id }
         class Pk(val k: Int, val sign: Int, val lo: splitziner.math.Vec3, val hi: splitziner.math.Vec3)
         val pockets = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
-            val b = byId[pid]?.mesh?.bounds ?: return@mapNotNull null
+            val b = byId[pid]?.let { glassSeat(it, a, it.mesh.bounds) } ?: return@mapNotNull null
             val lo = splitziner.math.Vec3(maxOf(a.min.x, b.min.x), maxOf(a.min.y, b.min.y), maxOf(a.min.z, b.min.z))
             val hi = splitziner.math.Vec3(minOf(a.max.x, b.max.x), minOf(a.max.y, b.max.y), minOf(a.max.z, b.max.z))
             if ((0..2).any { hi[it] <= lo[it] + 0.1 }) return@mapNotNull null
@@ -374,7 +383,7 @@ object PartDrawings {
             val a = p.mesh.bounds; val b = q.mesh.bounds.let { qb -> val qk = (0..2).minByOrNull { qb.extents[it] }!!
                 splitziner.check.FramePanels.edgeRange(q, qk)?.takeIf { (lo, hi) -> hi - lo < qb.extents[qk] - 0.5 }?.let { (lo, hi) ->
                     fun with(v: Vec3, x: Double) = Vec3(if (qk == 0) x else v.x, if (qk == 1) x else v.y, if (qk == 2) x else v.z)
-                    splitziner.math.Aabb(with(qb.min, lo), with(qb.max, hi)) } ?: qb }
+                    splitziner.math.Aabb(with(qb.min, lo), with(qb.max, hi)) } ?: qb }.let { glassSeat(q, a, it) }
             val e = doubleArrayOf(minOf(a.max.x, b.max.x) - maxOf(a.min.x, b.min.x), minOf(a.max.y, b.max.y) - maxOf(a.min.y, b.min.y), minOf(a.max.z, b.max.z) - maxOf(a.min.z, b.min.z))
             if (e.any { it <= 0 }) return@mapNotNull null
             // The overlap is the groove. Its depth runs along the direction the housed part sticks out of this one;

@@ -2442,3 +2442,21 @@ class UpGuessFrameTest {
     /** A coat rack, made to hang, is stood up on its back board's edge, not laid on its back. */
     @Test fun aWallRackExportedYUpStandsUp() = assertEquals("y", up("coat_rack_yup.stl"))
 }
+
+class GlassTest {
+    @Test fun thinPanelsInDoorFramesAreGlassInARabbet() {
+        val bytes = javaClass.getResourceAsStream("/complex/vitrine.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "vitrine.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, a.parts.count { it.name == "Glass" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"), housed = a.housed)
+        assertTrue(f.all.any { it.kind == "glass" })
+        assertTrue(f.all.none { it.kind != "glass" && (it.into.name == "Glass" || it.through.name == "Glass") })
+        // Bought from a glass shop, not cut from a sheet.
+        val cp = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, splitziner.cutplan.StockSettings.defaultFor(LengthFormat("in", "fraction")))
+        assertTrue(cp.leftOut.any { it.startsWith("Glass or acrylic") }, cp.leftOut.toString())
+        assertTrue(cp.sheets.none { s -> s.pieces.any { pc -> a.cutList.rows.first { it.item == pc.item }.name == "Glass" } })
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null, housed = a.housed)
+        assertTrue(report.findings.none { it.title.contains("not a thickness shops stock") || it.title.contains("occupy the same space") }, report.findings.map { it.title }.toString())
+    }
+}

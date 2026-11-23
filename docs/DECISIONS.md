@@ -577,3 +577,7 @@ Departures from the build spec, newest first.
 ## v1.68
 - New-design templates for showing work: a display plinth (four sides round a flush top on cleats, a low ballast shelf on cleats, open bottom), a picture ledge (back board, shelf on its face, front lip) and an art crate (a frame of boards on edge round the work, plywood on both faces, battens across the lid). Sizes default to common gallery ones: a 16 x 16 x 42 in plinth, a 48 in ledge with a 3-1/2 in shelf, a crate for a 40 x 32 in frame.
 - A crate (battens across a lid) gets no anti-tip check: it is packing, not furniture.
+
+## v1.69
+- A panel in a frame no thicker than 5 mm (3/16 in) at its edge is taken for glass or acrylic: no shop sells plywood that thin. It is named "Glass"; the door is glued up empty, a rabbet is routed round the opening at the back after glue-up (its corners squared with a chisel), and the glass goes in last, after finishing, held by glazing points or pinned stops, no glue. The strips' drawings show the rabbet out to the back face.
+- Glass is left out of the cutting plan and listed to buy from a glass shop, 1/16 in (2 mm) under the drawn size each way with smoothed edges; it gets no thickness or tool checks.

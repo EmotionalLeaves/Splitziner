@@ -92,6 +92,7 @@ object DesignCheck {
         val flat = p.kind == PartKind.PANEL || p.kind == PartKind.BOARD || p.t < 0.3 * p.w
         if (!flat) return ItemWork(p.item ?: 0, setOf(Work.CARVE), holes, 0)
         work += if (p.w >= 250.0) Work.SHEET_CUT else Work.STRAIGHT_CUT
+        if (p.name == "Glass") return ItemWork(p.item ?: 0, emptySet(), holes, 0)
         if (nearestStock(p.t, fmt).size != 1) work += Work.THICKNESS
         // A stick with its ends sawn at an angle is a saw-setting job, not a shape to mark out and cut.
         if (p.desc.contains("ENDS CUT AT") || p.desc.contains("EDGE BEVELLED")) { work += Work.ANGLE_CUT; return ItemWork(p.item ?: 0, work, holes, 0) }
@@ -189,7 +190,8 @@ object DesignCheck {
         val work = byItem.entries.sortedBy { it.key }.map { (_, ps) -> runCatching { workFor(ps[0], fmt) }.getOrDefault(ItemWork(ps[0].item ?: 0, emptySet(), emptyList(), 0)) }
         val workOf = work.associateBy { it.item }
 
-        val flatParts = live.filter { it.kind != PartKind.ROD && (it.kind == PartKind.PANEL || it.kind == PartKind.BOARD || it.t < 0.3 * it.w) }
+        // Glass is bought cut to size, whatever its thickness; it is not wood stock.
+        val flatParts = live.filter { it.kind != PartKind.ROD && it.name != "Glass" && (it.kind == PartKind.PANEL || it.kind == PartKind.BOARD || it.t < 0.3 * it.w) }
         for ((_, ps) in flatParts.filter { nearestStock(it.t, fmt).size != 1 }.groupBy { Math.round(it.t * 20) }.entries.sortedBy { it.key }) {
             val t = ps[0].t; val near = nearestStock(t, fmt)
             out += Finding(Severity.CHECK, "${d(t)} $u is not a thickness shops stock",

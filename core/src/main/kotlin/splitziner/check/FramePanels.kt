@@ -49,6 +49,16 @@ object FramePanels {
     /** Whether strip [p] of a frame is a post or leg rather than a board stile. */
     fun isPost(p: Part, k: Int) = p.mesh.bounds.extents[k] > MAX_BOARD
 
+    /** A panel this thin or thinner at its edge (mm) is taken for glass (or acrylic): 3/16 in, under any plywood a shop sells. */
+    const val GLASS_MAX = 5.0
+
+    /** Whether panel [p] of a frame is glass: its edge no thicker than [GLASS_MAX]. */
+    fun isGlass(p: Part): Boolean {
+        val e = p.mesh.bounds.extents; val k = (0..2).minByOrNull { e[it] }!!
+        val (lo, hi) = edgeRange(p, k) ?: return false
+        return hi - lo <= GLASS_MAX
+    }
+
     /** The groups that hang as doors. */
     fun doors(parts: List<Part>): List<Group> {
         val groups = find(parts); if (groups.isEmpty()) return groups

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.69.0 - glass doors
+
+- **Glass doors.** A very thin panel in a door frame (3/16 in or less) is now treated as glass or acrylic. The door is glued up empty, and a rabbet is routed at the back. The glass goes in last, held by glazing points or thin stops so it can be replaced. The glass is listed to buy cut to size from a glass shop instead of from a sheet of plywood.
+
 ## v1.68.0 - artist templates
 
 - **New designs for showing your work:** "Display plinth" (a gallery pedestal with a ballast shelf so it can't tip), "Picture ledge" (for leaning framed work against a wall) and "Art crate" (for shipping a framed painting). Pick them under New design and set the sizes.
