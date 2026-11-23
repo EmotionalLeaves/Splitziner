@@ -635,3 +635,6 @@ Departures from the build spec, newest first.
 
 ## v1.83
 - The new-design picker shows its designs in two labelled groups, "Art and studio" first (plinth, easel, stretcher, picture frame, canvas rack, taboret, art crate, picture ledge), then "Furniture", with "One board" at the end. The app's own user works in a studio; the grouping lives in core (Templates.groups) so the order is one list.
+
+## v1.84
+- A "Flat file" template: a low carcass on a plinth set back 2 in (50 mm) at the front, wide shallow drawers on slides (each slot at least 40 mm), fronts over the sides, the bottom one down over the bottom's edge and the top one up over the top's. Default 40 x 28 x 18 in, 5 drawers, a 3 in plinth. Listed with the studio designs.

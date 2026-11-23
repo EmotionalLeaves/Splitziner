@@ -64,7 +64,7 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "easel", "stretcher", "frame", "rack", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "easel", "stretcher", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
@@ -362,6 +362,36 @@ object Templates {
                 quadZ(listOf(ow to 0.0, ow to oh, ow - bw to oh - bw, ow - bw to bw), z0, z1))
             // Face down on the bench: the face bars at the bottom, the strips on their backs.
             ring(ow, 0.0, t, b) + ring(ow, t, t + st, sb)
+        },
+        Template("flatfile", "Flat file", "A low cabinet of wide, shallow drawers for storing works on paper flat: a carcass on a set-back plinth, the drawers on full-extension slides, each with a front over the opening.", listOf(
+            Field("w", "Width", 1016.0, 40.0), Field("d", "Depth", 711.0, 28.0), Field("h", "Height", 457.0, 18.0),
+            Field("n", "Drawers", 5.0, 5.0, count = true), Field("kick", "Plinth height", 76.0, 3.0),
+            Field("t", "Board thickness", 18.0, 0.75), Field("dt", "Drawer box thickness", 12.0, 0.5),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val dt = v.getValue("dt"); val kick = v.getValue("kick")
+            val n = v.getValue("n").toInt().coerceIn(1, 10)
+            val back = 6.0; val inner = w - 2 * t; val dIn = d - back
+            // The plinth: a frame set back 50 mm (2 in) under the front, flush at the back and sides.
+            val setback = 50.0
+            val out = arrayListOf(box(0.0, 0.0, kick, t, d, h - kick), box(w - t, 0.0, kick, t, d, h - kick),
+                box(t, 0.0, kick, inner, dIn, t), box(t, 0.0, h - t, inner, dIn, t), box(t, d - back, kick, inner, back, h - kick),
+                box(t, setback, 0.0, inner, t, kick), box(t, d - t, 0.0, inner, t, kick),
+                box(0.0, setback, 0.0, t, d - setback, kick), box(w - t, setback, 0.0, t, d - setback, kick))
+            val z0 = kick + t; val share = (h - t - z0) / n
+            // A drawer needs some depth for its sides and bottom: about 1-1/2 in (40 mm) a slot at the least.
+            if (share < 40.0) throw SizesDoNotFit()
+            val slide = 12.7; val bx0 = t + slide; val bx1 = w - t - slide; val y1 = dIn - 10.0
+            for (k in 0 until n) {
+                val zs = z0 + k * share; val zb = zs + 6.0; val bh = share - 12.0
+                out += box(bx0, 0.0, zb, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, zb, bx1 - bx0, dt, bh)
+                out += box(bx0, dt, zb, dt, y1 - 2 * dt, bh); out += box(bx1 - dt, dt, zb, dt, y1 - 2 * dt, bh)
+                out += box(bx0 + dt, dt, zb, bx1 - bx0 - 2 * dt, y1 - 2 * dt, 6.0)
+                // Fronts over the sides, 2 mm in from the outside; the bottom one down over the bottom's edge.
+                val f0 = if (k == 0) kick + 2.0 else zs + 2.0
+                val f1 = if (k == n - 1) h - 2.0 else zs + share - 2.0
+                out += box(2.0, -t, f0, w - 4.0, t, f1 - f0)
+            }
+            out
         },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
             Field("w", "Outside width", 610.0, 24.0), Field("h", "Outside height", 762.0, 30.0),

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.84.0 - flat file template
+
+- **New design: Flat file.** A low cabinet of wide, shallow drawers for storing drawings and prints flat, on a set-back plinth. Choose the size and the number of drawers.
+
 ## v1.83.0 - grouped design picker
 
 - **Easier to find a starting design.** New design now shows "Art and studio" designs (plinth, easel, stretcher, picture frame, canvas rack, taboret, art crate, picture ledge) in their own group, above the furniture.
