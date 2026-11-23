@@ -346,8 +346,8 @@ class ExplodeTest {
         assertEquals(cut.parts.map { it.id }.sorted(), plan.steps.flatMap { it.partIds }.sorted())
         assertEquals((1..plan.steps.size).toList(), plan.steps.map { it.step })
         assertTrue(plan.steps.size <= 10)
-        // The base is the bottom panel: largest footprint on the floor.
-        assertEquals(listOf("P03"), plan.steps[0].partIds)
+        // The base is the bottom panel: largest footprint on the floor. It goes down first, with the parts fitted to it.
+        assertEquals("P03", plan.steps[0].partIds.first())
         assertNull(plan.parts.first { it.id == "P03" }.explode)
     }
 
@@ -386,8 +386,9 @@ class GuideTest {
         val plan = splitziner.explode.AssemblyPlan.plan(cut.parts)
         val steps = splitziner.guide.GuideSteps.build(plan.parts, plan.steps)
         assertEquals(plan.steps.size, steps.size)
+        // The bottom goes down and the sides go on it in the same step.
         assertEquals("Place item 2.", steps[0].text[0])
-        assertTrue(steps[1].text[0].startsWith("Fit 2× item 1 from the left and right"), steps[1].text[0])
+        assertTrue(steps[0].text[1].startsWith("Fit 2× item 1 from the left and right"), steps[0].text.toString())
         // The top panel goes on only after both sides are there to carry it.
         val stepOf = plan.parts.associate { it.id to it.step!! }
         assertTrue(stepOf.getValue("P04") > stepOf.getValue("P01") && stepOf.getValue("P04") > stepOf.getValue("P02"))
@@ -1896,7 +1897,7 @@ class IslandTest {
         assertEquals(2, names.count { it == "Corbel" }, names.toString())
         val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
         val first = pl.steps.first { !it.subassembly }
-        assertTrue(first.partIds.all { id -> a.parts.first { it.id == id }.name == "Side" }, first.partIds.map { id -> a.parts.first { it.id == id }.name }.toString())
+        assertEquals("Side", a.parts.first { it.id == first.partIds.first() }.name, first.partIds.map { id -> a.parts.first { it.id == id }.name }.toString())
     }
 }
 

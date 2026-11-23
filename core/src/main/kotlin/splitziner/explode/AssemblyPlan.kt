@@ -26,6 +26,8 @@ data class BuildStep(
     val makeCount: Int = 1,
     /** A big sub-assembly (a cabinet) is built in several bench steps: this is the first of them, on later ones. */
     val continues: Int? = null,
+    /** The first step of the main build when it also fits parts: the ids just put down, before the rest are fitted. */
+    val placed: List<String> = emptyList(),
 )
 
 class PlanResult(val parts: List<Part>, val steps: List<BuildStep>)
@@ -252,6 +254,16 @@ object AssemblyPlan {
         }
     }
 
+    /**
+     * A first step that only puts one part down ("start with the side") is a page with nothing to do: the next parts go
+     * on in it. Several units set out together (frames, cabinets) keep their own step, which says how far apart.
+     */
+    private fun loneBase(steps: List<BuildStep>) = steps.size >= 3 && steps[0].partIds.size == 1 && !steps[1].subassembly && steps[1].partIds.none { it.startsWith("drawer") }
+
+    private fun foldBase(steps: List<BuildStep>): List<BuildStep> =
+        listOf(steps[1].copy(step = 1, partIds = steps[0].partIds + steps[1].partIds, items = (steps[0].items + steps[1].items).distinct().sorted(), placed = steps[0].partIds)) +
+            steps.drop(2).map { it.copy(step = it.step - 1) }
+
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val live = all.filter { !it.excluded }
         val keyOf = unitKeys(live)
@@ -262,9 +274,11 @@ object AssemblyPlan {
         if (subs.isEmpty()) {
             val r = planCore(all, maxSteps, order)
             val moved = HashMap<String, Int>()
-            val (st, ren) = mergeFloating(r.steps, live, moved = moved)
-            if (st.size == r.steps.size && ren.all { (k, v) -> k == v } && moved.isEmpty()) return r
-            return PlanResult(shareGroups(r.parts.map { p -> p.copy(step = moved[p.id] ?: p.step?.let { ren[it] ?: it }) }), st)
+            val (st0, ren) = mergeFloating(r.steps, live, moved = moved)
+            val lone = loneBase(st0)
+            if (!lone && st0.size == r.steps.size && ren.all { (k, v) -> k == v } && moved.isEmpty()) return r
+            val st = if (lone) foldBase(st0) else st0
+            return PlanResult(shareGroups(r.parts.map { p -> p.copy(step = (moved[p.id] ?: p.step?.let { ren[it] ?: it })?.let { if (lone && it >= 2) it - 1 else it }) }), st)
         }
         // Identical sub-assemblies (two leg frames) are made in one step: same items in the same numbers.
         val kinds = subs.values.groupBy { u -> u.mapNotNull { it.item }.sorted() }.values.toList()
@@ -339,8 +353,11 @@ object AssemblyPlan {
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
             members = subs)
         val moved = HashMap<String, Int>()
-        val (mainSteps, renumber) = mergeFloating(main.steps, unitParts, subs, moved)
-        val unitOf = main.parts.associate { it.id to it.copy(step = moved[it.id] ?: it.step?.let { s0 -> renumber[s0] ?: s0 }) }
+        val (mainSteps0, renumber) = mergeFloating(main.steps, unitParts, subs, moved)
+        val unitOf0 = main.parts.associate { it.id to it.copy(step = moved[it.id] ?: it.step?.let { s0 -> renumber[s0] ?: s0 }) }
+        val lone = loneBase(mainSteps0)
+        val mainSteps = if (!lone) mainSteps0 else foldBase(mainSteps0)
+        val unitOf = if (!lone) unitOf0 else unitOf0.mapValues { (_, p) -> p.copy(step = p.step?.let { if (it >= 2) it - 1 else it }) }
         val steps = ArrayList<BuildStep>(bench)
         for (st in mainSteps) {
             val ids = st.partIds.flatMap { id -> subs[id]?.map { it.id } ?: listOf(id) }

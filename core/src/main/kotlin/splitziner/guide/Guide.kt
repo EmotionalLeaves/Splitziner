@@ -203,7 +203,12 @@ object GuideSteps {
             for ((root, ms) in units) unitCount.getOrPut(benchOf.getValue(kind(unitOf.getValue(root)))) { ArrayList() } += ms
             // This step's parts pulled out, earlier parts in place and greyed, later parts left out.
             // A sub-assembly is made on the bench: only its own parts, framed to fill the picture.
-            val base = !st.subassembly && steps.firstOrNull { !it.subassembly }?.step == st.step
+            // The first step of the main build; a pure base step puts parts down and nothing more. When the first part
+            // put down shares its step with the parts fitted to it, it is placed and they are fitted.
+            val firstMain = !st.subassembly && steps.firstOrNull { !it.subassembly }?.step == st.step
+            // Unit ids in [placed] stand for their parts.
+            val placedHere = if (firstMain && st.placed.isNotEmpty()) cur.filter { p -> p.id in st.placed || (keyOf[p.id] ?: "") in st.placed }.map { it.id }.toSet() else emptySet()
+            val base = firstMain && placedHere.isEmpty()
             // On the bench, a later step of a big unit shows what is already joined, greyed.
             val benchDone = if (st.subassembly) seqOf(st).filter { it.step < st.step }.flatMap { it.partIds }.toSet() else emptySet()
             val scene = (if (st.subassembly) drawn.filter { it.id in benchDone }.map { it.copy(explode = null) } else drawn.filter { it.id in done }.map { it.copy(explode = null) }) +
@@ -228,12 +233,13 @@ object GuideSteps {
             val lines = ArrayList<String>()
             for ((bench, us) in unitCount) {
                 val sides = us.mapNotNull { u -> u[0].explode?.normalized()?.let { whereFrom(it.x, it.y, it.z) } }.distinct()
-                val where = if (base || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
+                val put = base || us.all { u -> u.all { it.id in placedHere } }
+                val where = if (put || sides.isEmpty()) "" else " " + sides.joinToString(" and ")
                 val drawer = us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true }
                 // The second of two frames made alike is "the other frame".
                 val all = if (us.size == 1 && (placedUnits[bench] ?: 0) > 0) otherOf(bench) else if (us.size == 1 && (steps.firstOrNull { it.step == bench }?.makeCount ?: 1) > 1) "one" else when (us.size) { 1 -> "the"; 2 -> "both"; else -> "all ${us.size}" }
                 lines += if (drawer) "Slide ${if (us.size > 1) "$all drawers" else "the drawer"} from step $bench in$where."
-                    else "${if (base) "Place" else "Fit"} $all ${unitWord(bench, us.size)} from step $bench$where."
+                    else "${if (put) "Place" else "Fit"} $all ${unitWord(bench, us.size)} from step $bench$where."
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
@@ -243,15 +249,15 @@ object GuideSteps {
                 // On the bench a part moves as the bench picture shows it, not as its unit later goes into the build.
                 for (p in loose) if (p.item == item) (if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode)?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
                 val where = when {
-                    base || (st.step == 1 && !st.subassembly) || sides.isEmpty() -> ""
+                    base || (st.step == 1 && !st.subassembly && placedHere.isEmpty()) || sides.isEmpty() -> ""
                     sides.size == 2 && sides.all { it.startsWith("from the ") } -> " from the ${sides[0].removePrefix("from the ")} and ${sides[1].removePrefix("from the ")}"
                     sides.size == 2 && sides.all { it.startsWith("from ") } -> " from ${sides[0].removePrefix("from ")} and ${sides[1].removePrefix("from ")}"
                     else -> " " + sides.joinToString(", ")
                 }
                 // On the bench, the part that does not move is laid down first and the others joined to it.
-                val stillN = if (st.subassembly) cur.count { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null } else 0
+                val stillN = if (st.subassembly) cur.count { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null } else cur.count { it.item == item && it.id in placedHere }
                 val still = stillN > 0
-                val verb = if (base) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
+                val verb = if (base) "Place" else if (still && !st.subassembly) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
                 val what = if (item != null) "item $item" + named(loose.filter { it.item == item }) else "the part"
                 // Some of an item laid down and the rest joined on (a slatted panel's bottom rail, then its top rail on the
                 // spindles): each said where it happens, the joined ones after everything else.
@@ -270,9 +276,10 @@ object GuideSteps {
                 }
                 if (still && moving > 0 && moving < n) {
                     lines.add(0, "$verb ${if (stillN > 1) "$stillN× " else ""}$what.")
-                    val mv = cur.filter { it.item == item && st.explodeOf[it.id] != null }
-                    val mWhere = mv.mapNotNull { p -> st.explodeOf[p.id]?.normalized()?.let { d -> whereFrom(d.x, d.y, d.z) } }.distinct().let { if (it.isEmpty()) "" else " " + it.joinToString(" and ") }
-                    late += Triple("Join", mWhere, "${if (moving > 1) "$moving× " else ""}$what")
+                    fun moveOf(p: Part) = if (st.subassembly) st.explodeOf[p.id] else if (p.id in placedHere) null else p.explode
+                    val mv = cur.filter { it.item == item && moveOf(it) != null }
+                    val mWhere = mv.mapNotNull { p -> moveOf(p)?.normalized()?.let { d -> whereFrom(d.x, d.y, d.z) } }.distinct().let { if (it.isEmpty()) "" else " " + it.joinToString(" and ") }
+                    late += Triple(if (st.subassembly) "Join" else "Fit", mWhere, "${if (moving > 1) "$moving× " else ""}$what")
                     continue
                 }
                 val one = "${if (n > 1) "$n× " else ""}$what"
@@ -364,10 +371,11 @@ object GuideSteps {
             }
             // Where loose parts sit on what is built, when nothing else in the step says (a toe-kick set back, a modesty panel set in).
             if (fmt != null && !st.subassembly && !base) {
-                val built = drawn.filter { it.id in done }
+                val built = drawn.filter { it.id in done || it.id in placedHere }
                 // Only where it reads as an instruction: a busy step of a sculpted model, with parts set every which way, would
                 // list offsets the picture already shows better.
-                val said = if (built.isNotEmpty() && loose.map { it.item }.distinct().size <= 2) placing(loose, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold + levelItems) else emptyList()
+                val fitted = loose.filter { it.id !in placedHere }
+                val said = if (built.isNotEmpty() && fitted.map { it.item }.distinct().size <= 2) placing(fitted, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, built, gapTold + levelItems) else emptyList()
                 if (said.size <= MAX_PLACING) lines += said
             }
             // How the step is held together, when the joining method is known; otherwise the general reminder.
@@ -480,8 +488,8 @@ object GuideSteps {
                     if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in trestleBench }) "trestle ends" else if (unitCount.keys.all { it in frameBench }) "frames" else if (unitCount.keys.all { it in moduleBench }) unitWord(unitCount.keys.first(), 2) else if (unitCount.keys.size == 1 && unitCount.keys.first() in letterOf) unitWord(unitCount.keys.first(), 2) else "sub-assemblies"}"
                     else if (bits.isEmpty()) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
                     // Many kinds of part: the first few, and how many more.
-                    else if (bits.size > 3) "Step ${st.step}: ${if (base) "start with " else ""}${bits.take(2).joinToString(", ")} and ${bits.size - 2} more"
-                    else if (base) "Step ${st.step}: start with $said"
+                    else if (bits.size > 3) "Step ${st.step}: ${if (firstMain) "start with " else ""}${bits.take(2).joinToString(", ")} and ${bits.size - 2} more"
+                    else if (firstMain) "Step ${st.step}: start with $said"
                     else "Step ${st.step}: $said"
                 }
             }

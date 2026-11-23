@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.32.0 - Shorter start
+
+- Guides are a page shorter: the first step no longer just says "place the side". It places it and fits the next parts in the same step.
+
 ## v1.31.0 - Facing the front
 
 - A model drawn facing sideways or backwards is now turned to face you on import, so the Front view, the drawings and the guide's "from the front" are right. Which way is up (project menu) has Turn left and Turn right buttons if it needs fixing.

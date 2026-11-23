@@ -422,3 +422,7 @@ Departures from the build spec, newest first.
 - More roles count towards a way up (plinth, lid, runners, kickers, drawer rails, hanging rail, corbels, rungs and ladder sides, back rails, guard rails), up to 24 parts; aprons count four at most (a desk on its head turns every drawer side into one). Spindles and seats do not count: a cabinet on its back is full of upright strips between level boards.
 - Checked on every test model: 0 wrong turns or tips on 68 models standing as drawn (and their mirror images); 32 of 34 models saved with Y up stood up (a picture frame and a mitred box are flat, with no clear up); of 34 models turned a quarter and a half turn, the 24 with drawers, doors or a kick board turned back correctly and the rest were left alone.
 - Which way is up (project menu) has Turn left and Turn right buttons.
+
+## v1.32
+- A first main step that would only put one part down ("start with the side") now also fits the next parts in the same step: "Place item 1 (side). Fit items 8 and 2 from the front." The part put down is not drawn pulled out, and the others' positions are given against it. A first step that sets out several units (frames, cabinets) keeps its own page, since it says how far apart they stand. One page less in most guides.
+- Rewritten text for the first two steps of a project saved before this version no longer matches them (they are one step now) and falls back to the app's own text.
