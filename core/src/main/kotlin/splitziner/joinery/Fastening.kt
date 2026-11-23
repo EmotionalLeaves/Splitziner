@@ -43,7 +43,7 @@ const val LID_SUPPORT = "lid support that holds the lid open at any angle"
 const val CAP_WIDTH = 101.6
 
 /** What stops a folding back leg (an easel's) sliding out: a light chain or cord between it and the front legs. */
-const val FOLD_STOP = "light chain or cord, about 24 in (600 mm)"
+fun foldStop(inch: Boolean) = if (inch) "light chain or cord, about 24 in long" else "light chain or cord, about 600 mm long"
 
 class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>, val all: List<Joint> = byStep.values.flatten())
 
@@ -216,7 +216,7 @@ object Fastening {
                 val hs = if (fmt.isInch) "2 in" else "50 mm"
                 joints.getOrPut(mainOf(leg)) { ArrayList() } += Joint(to, leg, 2, hs, "foldhinge", false)
                 totals["pair of $hs butt hinges"] = 1
-                totals[FOLD_STOP] = 1
+                totals[foldStop(fmt.isInch)] = 1
                 continue
             }
             // A lid is hinged, never fixed: it is dealt with on its own below. So is a wall cleat: it goes on the wall.

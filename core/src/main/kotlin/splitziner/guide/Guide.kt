@@ -570,7 +570,7 @@ object GuideSteps {
                 }
                 hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides" || j.kind == "sliding" || j.kind == "foldhinge") 1 else j.count)
                 if (j.kind == "lid") hw[splitziner.joinery.LID_SUPPORT] = (hw[splitziner.joinery.LID_SUPPORT] ?: 0) + 1
-                if (j.kind == "foldhinge") hw[splitziner.joinery.FOLD_STOP] = 1
+                if (j.kind == "foldhinge") hw[splitziner.joinery.foldStop(j.size.endsWith(" in"))] = 1
                 if (j.kind == "sliding") hw["flush pulls (recessed handles)"] = (hw["flush pulls (recessed handles)"] ?: 0) + j.count
                 if (j.kind == "counterbored") { val plug = if (j.at.endsWith(" in")) "3/8 in wood plugs" else "10 mm wood plugs"; hw[plug] = (hw[plug] ?: 0) + j.count }
                 // Each drawer and door gets a handle; its style is the maker's choice.

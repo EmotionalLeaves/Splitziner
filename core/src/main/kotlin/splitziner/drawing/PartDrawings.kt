@@ -234,14 +234,14 @@ object PartDrawings {
         return listOf("ELLIPSE ${fmt.format(a)} X ${fmt.format(b)}. MARK WITH NAILS ON THE LONG CENTRE LINE ${fmt.format(f)} EACH SIDE OF THE CENTRE AND A STRING ${fmt.format(a)} LONG TIED BETWEEN THEM, PENCIL HELD AGAINST THE STRING; NO TEMPLATE NEEDED.")
     }
 
-    private fun bevelNotes(row: CutListRow): List<String> {
+    private fun bevelNotes(row: CutListRow, fmt: LengthFormat): List<String> {
         Regex("""TAPERED ON (.+?) TO ([^,]+), STARTING ([^ ]+) FROM THE (TOP|THICK END)""").find(row.description)?.let { m ->
             return listOf("TAPERED ON ${m.groupValues[1]} (SEE THE SIDE VIEWS): FULL SIZE FOR ${m.groupValues[3]} FROM THE ${m.groupValues[4]}, THEN STRAIGHT DOWN TO ${m.groupValues[2]} AT THE OTHER END. " +
                 "ON A LEG THE TAPERS GO ON THE INSIDE FACES, SO IT LOOKS STRAIGHT FROM OUTSIDE. CUT THE JOINERY (MORTISES, POCKET HOLES) WHILE THE LEG IS STILL SQUARE.")
         }
         Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)?.let { m ->
             return listOf("RAISED PANEL: FLAT BACK; FRONT BEVELLED ${m.groupValues[2]} WIDE ALL ROUND DOWN TO AN EDGE ${m.groupValues[1]} THICK, WHICH FITS THE FRAME'S GROOVES (SEE THE EDGE VIEWS). " +
-                "CUT THE END-GRAIN EDGES FIRST. LEAVE ABOUT 1/16 IN (2 MM) SPARE IN EACH GROOVE ACROSS THE GRAIN SO A SOLID-WOOD PANEL CAN SWELL.")
+                "CUT THE END-GRAIN EDGES FIRST. LEAVE ABOUT ${if (fmt.isInch) "1/16 IN" else "2 MM"} SPARE IN EACH GROOVE ACROSS THE GRAIN SO A SOLID-WOOD PANEL CAN SWELL.")
         }
         val deg = Regex("""ONE EDGE BEVELLED AT (\S+)""").find(row.description)?.groupValues?.get(1) ?: return emptyList()
         return listOf("ONE LONG EDGE BEVELLED AT $deg OFF SQUARE, RIGHT ACROSS THE THICKNESS (SEE THE END VIEW). RIP IT WITH THE BLADE TILTED; THE WIDTH IS MEASURED ON THE WIDE FACE.")
@@ -436,7 +436,7 @@ object PartDrawings {
             val itemInfo = info.copy(
                 title = "${info.title.ifBlank { "PART" }} — ITEM ${row.item}",
                 drawingNo = "$base-${row.item}",
-                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + circleNotes(p, fmt) + angleNotes(row) + bevelNotes(row) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
+                notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + circleNotes(p, fmt) + angleNotes(row) + bevelNotes(row, fmt) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
             val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh) + runCatching { pegHoles(p, parts, housed) }.getOrDefault(emptyList()), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))

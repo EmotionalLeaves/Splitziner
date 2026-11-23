@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.59.0 - units in new notes
+
+- Metric projects no longer show inch sizes in the newer notes (the easel's chain, the wall screws, the raised-panel groove allowance), and inch projects no longer show millimetres.
+
 ## v1.58.0 - picture ledges
 
 - **Picture ledges and wall shelves.** A ledge that hangs on the wall is no longer flagged as tipping over; it gets the "Hang it on the wall" note instead. Its parts are named back board, shelf and lip.
