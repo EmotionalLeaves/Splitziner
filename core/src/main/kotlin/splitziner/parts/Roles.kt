@@ -678,6 +678,12 @@ object Roles {
                 if (b.min.x > all.min.x + 0.5 && b.max.x < all.max.x - 0.5 && b.min.y > all.min.y + 0.5 && b.max.y < all.max.y - 0.5) out[p.id] = "Brace"
             }
         }
+        // A rail lying on spindles' tops (a drying rack's, a railing's) is their top rail, whatever else it touches.
+        run {
+            val sp = live.filter { out[it.id] == "Spindle" }
+            if (sp.size >= 3) for (p in live) if (out[p.id] in setOf("Stretcher", "Rail", "Apron") && sp.count { q -> kotlin.math.abs(p.mesh.bounds.min.z - q.mesh.bounds.max.z) < 1.0 &&
+                    q.mesh.bounds.center.x in p.mesh.bounds.min.x..p.mesh.bounds.max.x && q.mesh.bounds.center.y in p.mesh.bounds.min.y..p.mesh.bounds.max.y } >= 3) out[p.id] = "Top rail"
+        }
         // Two or more like strips on edge in the back plane (above and below a door in a case's back) are back rails,
         // one name for one item, not a rail below and an apron under the top.
         run {

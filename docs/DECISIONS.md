@@ -882,3 +882,7 @@ Departures from the build spec, newest first.
 ## v2.50
 - A project made from a design (New design, or Make a crate/plinth/shadow box for this) remembers which design and its sizes. The project menu's "Design sizes" shows them to change and builds the design again in place, so iterating on a size no longer means starting a new project. Materials stay; changes made to the model since, the step order and wording, and part names and exclusions (all tied to the old parts) are dropped, and the dialog says so in red when there are any.
 - A phone test changes a plinth's height that way.
+
+## v2.51
+- Design sizes shows a small picture of the design at the sizes typed, or why they do not fit, as New design does.
+- A rail lying on the tops of three or more spindles is their "Top rail" (a drying rack's were called stretchers).

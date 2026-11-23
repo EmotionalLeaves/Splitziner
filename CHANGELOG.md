@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.51.0 - sizes preview
+
+- Design sizes shows a picture of the design as you type.
+- A drying rack's rails over its dividers are called top rails.
+
 ## v2.50.0 - design sizes
 
 - Change the sizes of a design after making it: open the project menu, then Design sizes. The design is rebuilt in place and keeps its materials.

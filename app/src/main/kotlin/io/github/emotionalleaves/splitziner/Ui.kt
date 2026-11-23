@@ -2316,6 +2316,20 @@ private fun DesignSizesDialog(open: OpenProject, vm: AppViewModel, onDismiss: ()
     val start = splitziner.edit.Templates.defaults(t, inch) + open.meta.templateValues
     val values = remember { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { t.fields.forEach { put(it.key, show(start[it.key] ?: 0.0, it.count)) } } }
     var error by remember { mutableStateOf<String?>(null) }
+    // A small picture at the sizes typed so far, as in New design; or why they do not fit.
+    var sizesWrong by remember { mutableStateOf<String?>(null) }
+    val sizesKey = values.entries.sortedBy { it.key }.joinToString { "${it.key}=${it.value}" }
+    val preview by androidx.compose.runtime.produceState<io.github.emotionalleaves.splitziner.render.PreparedSheet?>(null, sizesKey) {
+        kotlinx.coroutines.delay(250)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            runCatching {
+                val mm = t.fields.associate { f -> f.key to (values[f.key]?.replace(',', '.')?.trim()?.toDoubleOrNull()?.let { v -> if (f.count) v else if (inch) v * 25.4 else v } ?: (start[f.key] ?: 0.0)) }
+                val parts = try { t.build(splitziner.edit.Templates.defaults(t, false) + mm) } catch (e: splitziner.edit.Templates.SizesDoNotFit) { sizesWrong = e.message; return@runCatching null }.mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
+                sizesWrong = null
+                io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(parts, 90.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false)))
+            }.getOrNull()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = {
@@ -2332,6 +2346,11 @@ private fun DesignSizesDialog(open: OpenProject, vm: AppViewModel, onDismiss: ()
         title = { Text("${t.name}: sizes") },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.fillMaxWidth().height(130.dp), contentAlignment = Alignment.Center) {
+                    val wrong = sizesWrong
+                    if (wrong != null) Text(wrong, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    else preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
+                }
                 val changes = open.meta.edits.size
                 Text(if (changes > 0) "Builds the design again at these sizes. The $changes change${if (changes == 1) "" else "s"} made to the model since, and any step order or wording, will be dropped; materials stay."
                     else "Builds the design again at these sizes; materials stay.", style = MaterialTheme.typography.bodySmall, color = if (changes > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
