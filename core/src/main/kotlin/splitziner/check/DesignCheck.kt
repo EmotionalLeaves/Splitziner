@@ -105,12 +105,12 @@ object DesignCheck {
         if (p.name == "Glass") return ItemWork(p.item ?: 0, emptySet(), holes, 0)
         if (nearestStock(p.t, fmt).size != 1) work += Work.THICKNESS
         // A stick with its ends sawn at an angle is a saw-setting job, not a shape to mark out and cut.
-        if (p.desc.contains("ENDS CUT AT") || p.desc.contains("EDGE BEVELLED")) { work += Work.ANGLE_CUT; return ItemWork(p.item ?: 0, work, holes, 0) }
+        if (p.desc.contains("ENDS CUT AT") || p.desc.contains("EDGE BEVELLED") || p.desc.contains("LONG EDGES CUT AT")) { work += Work.ANGLE_CUT; return ItemWork(p.item ?: 0, work, holes, 0) }
         // A tapered leg or a raised panel is a saw or router setting too, with its own tools.
         if (p.desc.contains("TAPERED ON")) { work += Work.TAPER; return ItemWork(p.item ?: 0, work, holes, 0) }
         if (p.desc.contains(", RAISED (")) { work += Work.RAISE; return ItemWork(p.item ?: 0, work, holes, 0) }
         // A sloped edge is one straight saw cut, marked from end to end.
-        if (p.desc.contains("ONE EDGE SLOPED") || p.desc.contains("A RIGHT TRIANGLE") || p.desc.contains(" CUT OFF ") || p.desc.contains(" ROUNDED TO ")) return ItemWork(p.item ?: 0, work, holes, 0)
+        if (p.desc.contains("ONE EDGE SLOPED") || p.desc.contains("A RIGHT TRIANGLE") || p.desc.contains(" CUT OFF ") || p.desc.contains(" ROUNDED TO ") || p.desc.contains(", A REGULAR ")) return ItemWork(p.item ?: 0, work, holes, 0)
         // Laid flat: length along X, thickness along Y, width along Z. Looking along Y shows the outline to cut.
         val m = PartDrawings.squaredUp(p.mesh)
         val e = m.extents
@@ -206,6 +206,8 @@ object DesignCheck {
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
         val top = live.filter { flat(it) && it.mesh.bounds.max.z >= all.max.z - 1.0 }.maxByOrNull { it.mesh.bounds.extents.x * it.mesh.bounds.extents.y } ?: return false
         val b = top.mesh.bounds
+        // A many-sided column's staves close it all round.
+        if (runCatching { splitziner.parts.Staves.find(live) }.getOrDefault(emptyList()).let { st -> st.isNotEmpty() && st.all { it.mesh.bounds.max.z >= b.min.z - 1.0 } }) return true
         val floor = standZ(live, all)
         return listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== top && !flat(w) && w.mesh.bounds.min.z <= floor + 1.0 && w.mesh.bounds.max.z >= b.min.z - 1.0 &&
             (if (lo) w.mesh.bounds.max[ax] <= b.min[ax] + 25.0 else w.mesh.bounds.min[ax] >= b.max[ax] - 25.0) && w.mesh.bounds.min[1 - ax] <= b.max[1 - ax] && w.mesh.bounds.max[1 - ax] >= b.min[1 - ax] } }

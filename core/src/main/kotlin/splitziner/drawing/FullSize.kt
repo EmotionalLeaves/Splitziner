@@ -97,7 +97,7 @@ object FullSize {
             val p = byItem[row.item]?.firstOrNull() ?: continue
             if (p.name == "Caster") continue
             // Ends sawn at an angle are set on the saw, not traced from paper.
-            if (row.description.contains("ENDS CUT AT") || row.description.contains("EDGE BEVELLED") || row.description.contains("RAISED") || row.description.contains("TAPERED") || row.description.contains("SLOPED") || row.description.contains("A RIGHT TRIANGLE") || row.description.contains(" CUT OFF ") || row.description.contains(" ROUNDED TO ")) continue
+            if (row.description.contains("ENDS CUT AT") || row.description.contains("EDGE BEVELLED") || row.description.contains("RAISED") || row.description.contains("TAPERED") || row.description.contains("SLOPED") || row.description.contains("A RIGHT TRIANGLE") || row.description.contains(" CUT OFF ") || row.description.contains(" ROUNDED TO ") || row.description.contains(", A REGULAR ")) continue
             val pr = runCatching { Prisms.of(p.mesh) }.getOrNull() ?: continue
             var g = pr.outline
             if (g.isEmpty || !shaped(g)) continue

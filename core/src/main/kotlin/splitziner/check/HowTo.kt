@@ -45,6 +45,18 @@ object HowTo {
                     (if (big && tool.contains("circular")) ", clamping a straight board as a fence" else "") + (if (row.grain) ", with the grain along the ${d(row.l)} $u length" else "") + "."
             }
         }
+        // A many-sided plinth's staves: both long edges ripped at the same tilt, sloping towards each other.
+        Regex("""LONG EDGES CUT AT (\S+) \(BEVEL\), NARROW FACE (\S+)""").find(row.description)?.let { sm ->
+            out += "Rip both long edges at ${sm.groupValues[1]} with the saw blade tilted, sloping towards each other, so the outside face is ${d(row.w)} $u wide and the inside face ${sm.groupValues[2]} $u. Cut all ${row.qty} at one setting, and check the tilt on offcuts first: a full ring of test pieces should close with no gap."
+        }
+        // A regular polygon: a circle through its corners, stepped round.
+        Regex(""", A REGULAR (\S+(?: POLYGON)?), SIDES (\S+)""").find(row.description)?.let { pm ->
+            val n = when (pm.groupValues[1]) { "PENTAGON" -> 5; "HEXAGON" -> 6; "OCTAGON" -> 8; else -> pm.groupValues[1].substringBefore('-').toIntOrNull() ?: 0 }
+            if (n > 0) {
+                val side = row.description.substringAfter("SIDES ").trim()
+                out += "Mark it out: draw a circle through the corners (" + (if (n == 6) "for a hexagon its radius equals the side, $side $u, so step the compass round the circle six times at that setting to mark the corners" else "set out ${n} corners round it ${360 / n}° apart with a protractor, each side $side $u") + "), join the corners with a straight edge and saw to the lines. Check the sides all measure the same before fixing it."
+            }
+        }
         val bevel = Regex("""ONE EDGE BEVELLED AT (\S+)""").find(row.description)?.groupValues?.get(1)
         if (Work.ANGLE_CUT in w.work && bevel != null) {
             out += "Rip one long edge at $bevel with the saw blade tilted (on a table saw, or with a circular saw run against a straight board clamped as a fence), so the slope runs right across the thickness and the wide face stays ${d(row.w)} $u. Make a pair (a French cleat) by ripping one board down the middle at $bevel: one half goes on the wall, the other on the back of the piece, the slopes hooking together."

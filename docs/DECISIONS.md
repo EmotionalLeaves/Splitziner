@@ -805,3 +805,10 @@ Departures from the build spec, newest first.
 - A top over a closed box is a hinged lid only when the box has a bottom; an open-bottomed box (a display cube) keeps a fixed top.
 - A case's bottom laid on its plinth: the guide says how far it overhangs the plinth all round, and to mark the outline first.
 - Round spindles standing between level boards count towards which way is up (a drying rack stands on its base); square ones still do not, since a cabinet on its back is full of upright strips.
+
+## v2.33
+- A board with both long edges bevelled the same, through its thickness and sloping towards each other (45° or less), is a stave: "LONG EDGES CUT AT a (BEVEL), NARROW FACE n". Its making step rips both edges at one saw tilt, with a test ring of offcuts. A raised panel is still checked first.
+- Five or more like boards standing evenly round a centre are the staves of a many-sided column: named Side, glued up in one first step (taped flat, rolled into the column, checked across opposite corners), every corner a mitre, including those whose boxes only just touch.
+- A tall stave column is a closed pedestal: its top is screwed down through its face into the staves' top edges and filled, not bracketed from inside out of reach.
+- A flat part whose outline is a regular polygon of 5 to 12 sides is "A REGULAR HEXAGON (OCTAGON, …), SIDES s": a detail drawing and a making step (a circle through the corners, a hexagon's side equal to its radius), no full-size pages.
+- Build mode shows which piece a step belongs to in a set of separate pieces.

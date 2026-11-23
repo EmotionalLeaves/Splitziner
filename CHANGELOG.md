@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.33.0 - many-sided plinths
+
+- Six- and eight-sided plinths: the sides are listed with their bevel angle and narrow face, glued up in one go (taped flat and rolled into the column), and the top is named as a regular hexagon or octagon, with how to mark it out with a compass.
+- Build mode shows which piece you are on when a file holds several separate pieces.
+
 ## v2.32.0 - sets of pieces
 
 - A file with several separate pieces (a set of nesting plinths, a pair of nightstands) is now treated as a set: each piece is named and built in turn in the guide ("piece 2 of 3"), drawn on its own, with one cut list and shopping list for all of them. It is no longer flagged as a problem.

@@ -999,7 +999,9 @@ private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Close") }
                     Column(Modifier.weight(1f)) {
-                        Text("Step ${at + 1} of ${work.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        // In a set of separate pieces, which piece this step is building: from the step that started it.
+                        val piece = (at.coerceIn(0, work.size - 1) downTo 0).firstNotNullOfOrNull { i -> Regex("""^Step \d+, (piece \d+ of \d+):""").find(work[i].title)?.groupValues?.get(1) }
+                        Text("Step ${at + 1} of ${work.size}" + (piece?.let { " \u00b7 $it" } ?: ""), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         // A step with no title of its own is named by its first instruction ("Fit item 1 (side) from the left").
                         Text(st.title.substringAfter(": ", st.title).replaceFirstChar { it.uppercase() }.let { if (it.startsWith("Step ")) (st.text.firstOrNull()?.trimEnd('.') ?: "Fit the parts") else it },
                             style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)

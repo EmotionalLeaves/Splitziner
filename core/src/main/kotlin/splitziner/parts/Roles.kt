@@ -42,6 +42,8 @@ object Roles {
         // Separate pieces in one file are each named on their own: one's sides are not another's dividers.
         Pieces.find(live)?.let { ps -> return ps.fold(HashMap<String, String>()) { m, p -> m.putAll(names(p)); m } }
         val out = HashMap<String, String>()
+        // The staves of a many-sided column are its sides.
+        for (p in runCatching { Staves.find(live) }.getOrDefault(emptyList())) out[p.id] = "Side"
         // Frame-and-panel doors first: their stiles and rails are not a face frame, their panel not a back.
         val framed = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList())
         val framedDoors = runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).map { it.id }.toSet()

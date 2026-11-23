@@ -355,6 +355,17 @@ object AssemblyPlan {
         val onTop = live0.filter { o -> o.name != "Spindle" && standing.any { p -> kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 1.0 && over(p, o) } }
         val rackLate = if (standing.size >= 3 && onTop.isNotEmpty() && onTop.all { o -> o.mesh.bounds.extents.let { minOf(it.x, it.y) } <= SLAT_RAIL_MAX }) standing + onTop else emptyList()
         val late = casters + lid + stops + sbBack + rackLate
+        // A many-sided column's staves are taped flat, glued and rolled up together: one first step, the rest on it.
+        val staves = runCatching { splitziner.parts.Staves.find(live0) }.getOrDefault(emptyList())
+        if (staves.isNotEmpty() && late.isEmpty() && staves.size < live0.size) {
+            val r0 = pairSingles(foldLone(planInner(all - staves.toSet(), maxSteps, null)))
+            val first = BuildStep(1, staves.map { it.id }, listOf(Vec3(0.0, 0.0, 1.0)), staves.mapNotNull { it.item }.distinct().sorted())
+            val shifted = r0.steps.map { it.copy(step = it.step + 1, continues = it.continues?.let { c -> c + 1 }) }
+            val ids = staves.map { it.id }.toSet()
+            val parts = r0.parts.filter { it.id !in ids }.map { it.copy(step = it.step?.let { s -> s + 1 }) } + staves.map { it.copy(step = 1, explode = null) }
+            val planned = parts.associateBy { it.id }
+            return PlanResult(all.map { planned[it.id] ?: it }, listOf(first) + shifted)
+        }
         if (late.isEmpty() || late.size == all.count { !it.excluded }) return pairSingles(foldLone(planInner(all, maxSteps, order)))
         var r = pairSingles(foldLone(planInner(all - late.toSet(), maxSteps, null)))
         if (rackLate.isNotEmpty()) { r = lastStep(r, rackLate.filter { it.name == "Spindle" }, Vec3(0.0, 0.0, 1.0)); r = lastStep(r, rackLate.filter { it.name != "Spindle" }, Vec3(0.0, 0.0, 1.0)) }

@@ -144,6 +144,7 @@ object Fastening {
     fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat, tools: Set<Tool>? = null, housed: List<Pair<String, String>> = emptyList()): FastenPlan {
         val live = parts.filter { !it.excluded }
         // A closed plinth with a ballast shelf (its top is screwed down through its face; see "balltop").
+        val staveIds = runCatching { splitziner.parts.Staves.find(live) }.getOrDefault(emptyList()).map { it.id }.toSet()
         val ballastIn = runCatching { splitziner.check.DesignCheck.ballastShelf(live) != null }.getOrDefault(false)
         val ballast = ballastIn || runCatching { splitziner.check.DesignCheck.closedPedestal(live) }.getOrDefault(false)
         val rel = DesignCheck.relations(live)
@@ -273,7 +274,8 @@ object Fastening {
             // Mitred corners: two pieces with ends cut opposite ways meet on a diagonal, so their boxes overlap at the
             // corner. Glued, closed with tape or a band clamp, and pinned (or splined) for strength.
             val mitreA = Regex("""\((MITRE|BEVEL)\)""").find(a.desc)?.groupValues?.get(1); val mitreB = Regex("""\((MITRE|BEVEL)\)""").find(b.desc)?.groupValues?.get(1)
-            if (gap > 2.0 && mitreA != null && mitreA == mitreB) {
+            // Staves meeting on an axis (a hexagon's corner straight ahead) have boxes that only just touch: still a mitre.
+            if ((gap > 2.0 || (a.id in staveIds && b.id in staveIds)) && mitreA != null && mitreA == mitreB) {
                 val sameUnit0 = unit(a) == unit(b) && benchOf.containsKey(a.id) && benchOf.containsKey(b.id)
                 val st0 = if (sameUnit0) maxOf(stepOf[a.id] ?: 0, stepOf[b.id] ?: 0) else maxOf(mainOf(a), mainOf(b))
                 val t0 = minOf(a.t.takeIf { it > 0 } ?: 19.0, b.t.takeIf { it > 0 } ?: 19.0)
@@ -524,7 +526,8 @@ object Fastening {
             // a few fasteners only hold them while the glue sets.
             // A back panel on a shelf's edge is not: that strip is too narrow to clamp a face to.
             // Nor is a rail against a leg: that is a structural joint, screwed.
-            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0 && !thr.name.endsWith("eg") && !into.name.endsWith("eg")
+            // A stave stands turned off the axes, so its box looks wide where only its edge meets: never face to face.
+            val faceToFace = width > 3 * tThrough + 1.0 && width > 40.0 && !thr.name.endsWith("eg") && !into.name.endsWith("eg") && thr.id !in staveIds && into.id !in staveIds
             // A top resting on its supports is never fixed through its visible face: brackets go underneath.
             // Nor is a top with nothing above it (a table top on its aprons): screw heads in it would be on show.
             val ti0 = idx.getValue(thr.id)
@@ -540,11 +543,13 @@ object Fastening {
             // stretchers, with screws that stop well short of its face.
             // A closed plinth with a ballast shelf: nothing can reach the top's cleats from inside once the shelf is in,
             // and the ballast goes in first. The top is screwed down through its face, a few screws that can come out.
-            if (k == 2 && setOf(thr.name, into.name) == setOf("Top", "Cleat") && ballast) {
+            // A many-sided plinth's top is screwed the same way, down into its staves' top edges.
+            val onStaves = "Top" in setOf(thr.name, into.name) && (thr.id in staveIds || into.id in staveIds)
+            if (k == 2 && (setOf(thr.name, into.name) == setOf("Top", "Cleat") || onStaves) && ballast) {
                 val top = if (thr.name == "Top") thr else into; val cl = if (top === thr) into else thr
                 val tt = top.mesh.bounds.extents.z; val ct = cl.mesh.bounds.extents.z
                 val sz = pick(tt + minOf(1.5 * tt, ct - 3.0), fmt, false)?.let { gauged(it, tt, fmt, ct) } ?: ""
-                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, if (ballastIn) "balltop" else "pedtop", false)
+                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, if (ballastIn) "balltop" else "pedtop", false, if (onStaves) "edges" else "")
                 if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + count
                 continue
             }
@@ -1184,7 +1189,9 @@ object Fastening {
                 val names = joinedNames(g.flatMap { listOf(itemName(it.through), itemName(it.into)) }.distinct())
                 val corners = if (g.size == 1) "the mitred corner" else "the ${count(g.size)} mitred corners"
                 val per = n / g.size
-                if (j.at == "BEVEL") "Join $corners of $names: lay the pieces outside face up, points touching end to end, and run tape across each joint. Spread glue in the mitres, fold them up into the box (around its bottom, if the bottom sits inside them) and tape the last corner; check it is square (equal diagonals) and let it dry. Then pin each corner with ${sized(per, j.size)} brads, half from each side, or cut slots across the corners and glue in thin splines for strength."
+                // Five or more round a ring (a many-sided plinth's staves) roll up into a column, checked across its corners.
+                if (j.at == "BEVEL" && g.size >= 5) "Join $corners of $names: lay the pieces side by side outside face up, points touching, and run tape along each joint. Spread glue in the mitres, roll them up into the column and tape the last joint; check that opposite corners are the same distance apart all round, stand it on a flat floor and let it dry. Then pin each corner with ${sized(per, j.size)} brads, half from each side, or leave the tape on until the glue has set and rely on the glue: long mitres glued along their length hold well."
+                else if (j.at == "BEVEL") "Join $corners of $names: lay the pieces outside face up, points touching end to end, and run tape across each joint. Spread glue in the mitres, fold them up into the box (around its bottom, if the bottom sits inside them) and tape the last corner; check it is square (equal diagonals) and let it dry. Then pin each corner with ${sized(per, j.size)} brads, half from each side, or cut slots across the corners and glue in thin splines for strength."
                 else "Join $corners of $names: glue the mitres and close them flat on the bench with a band clamp or corner clamps, checking the diagonals are equal. Once dry, drive ${sized(per, j.size)} brads across each corner from the outside edges (or a V-nail from the back); set the heads and fill."
             }
             else if (j.kind == "under") "From underneath, drill pilot holes up through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."
@@ -1203,7 +1210,7 @@ object Fastening {
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
             else if (j.kind == "balltop") "Load the ballast onto the low shelf first (sandbags or bricks). Then screw ${key.first} down through its face into ${key.second} with ${sized(js.filter { it.kind == "balltop" }.sumOf { it.count }, j.size)} screws, countersunk: a few, so the top can come off again to empty the ballast when the plinth moves. Fill the heads only if it never will."
-            else if (j.kind == "pedtop") "Screw ${key.first} down through its face into ${key.second} with ${sized(js.filter { it.kind == "pedtop" }.sumOf { it.count }, j.size)} screws, countersunk (the cleats are too far inside to reach from below); set the heads just below the surface and fill them before painting."
+            else if (j.kind == "pedtop") "Screw ${key.first} down through its face into ${if (j.at == "edges") "the top edges of " else ""}${key.second} with ${sized(js.filter { it.kind == "pedtop" }.sumOf { it.count }, j.size)} screws, countersunk (${if (j.at == "edges") "the inside is too deep to reach from below" else "the cleats are too far inside to reach from below"}); set the heads just below the surface and fill them before painting."
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "pocketin") "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes along ${if (key.second.contains(" and ")) "their" else "its"} edge, on the inside, so nothing shows outside$times. Glue the joint too."

@@ -89,6 +89,43 @@ object PartDescriber {
     }
 
     /**
+     * A board with both long edges bevelled the same, through its whole thickness, wider on one face than the other
+     * (the staves of a six- or eight-sided plinth, which meet in mitres): the angle off square (degrees), or null.
+     */
+    fun bevelledEdges(m: Mesh, obb: splitziner.mesh.OrientedBox): Double? {
+        val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val li = e.indexOf(e.max()); val ln = e[li]
+        val rest = e.filterIndexed { i, _ -> i != li }.sorted()
+        if (ln < 1.5 * rest[1] || rest[0] < 3.0) return null
+        val axis = obb.axes[li]
+        val secs = listOf(-0.25, 0.0, 0.25).map { f -> Slicer.sectionLoops(m, obb.center + axis * (f * ln), axis) }
+        if (secs.any { it.size != 1 }) return null
+        val areas = secs.map { abs(Slicer.loopArea(it[0])) }
+        if (areas.max() - areas.min() > 0.01 * areas.max()) return null
+        val lp = secs[1][0]
+        val pts = lp.indices.filter { i -> val a = lp[(i + lp.size - 1) % lp.size]; val b = lp[i]; val c = lp[(i + 1) % lp.size]
+            abs((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)) > 1e-3 * (rest[1] * rest[1]) }.map { lp[it] }
+        if (pts.size != 4) return null
+        val edges = pts.indices.map { i -> val a = pts[i]; val b = pts[(i + 1) % 4]; splitziner.math.Vec2(b.x - a.x, b.y - a.y) }
+        // The two faces are the long edges of the section, parallel to each other; the other two slope.
+        val ref = edges.maxByOrNull { it.length }!!.normalized()
+        fun off(v: splitziner.math.Vec2): Double { val c = abs(v.normalized().x * ref.x + v.normalized().y * ref.y).coerceIn(0.0, 1.0); val deg = Math.toDegrees(kotlin.math.acos(c)); return minOf(deg, 90 - deg) }
+        val faces = edges.filter { off(it) <= 0.5 && abs(abs(it.normalized().x * ref.x + it.normalized().y * ref.y) - 1.0) < 1e-3 }
+        val sloped = edges.filter { off(it) > 1.0 }
+        if (faces.size != 2 || sloped.size != 2) return null
+        val t = abs(faces[0].let { f -> val n = splitziner.math.Vec2(-ref.y, ref.x); (pts[0].x - pts[2].x) * n.x + (pts[0].y - pts[2].y) * n.y })
+        val runs = sloped.map { s -> abs(s.x * ref.x + s.y * ref.y) to abs(s.x * -ref.y + s.y * ref.x) }
+        if (runs.any { (_, across) -> abs(across - rest[0]) > 0.05 * rest[0] }) return null
+        val degs = runs.map { (along, across) -> Math.toDegrees(kotlin.math.atan2(along, across)) }
+        // A ring of five or more sides needs 36 degrees or less; steeper is something else (a raised panel's field).
+        if (abs(degs[0] - degs[1]) > 1.0 || degs.max() > 45.0) return null
+        // Wider on one face: the faces differ by both runs (a parallelogram's are equal, ripped the same way).
+        if (abs(abs(faces[0].length - faces[1].length) - (runs[0].first + runs[1].first)) > 0.05 * (runs[0].first + runs[1].first) + 0.2) return null
+        if (t <= 0.0) return null
+        return degs.average()
+    }
+
+    /**
      * A raised panel (a frame-and-panel door's): flat on the back, a thin tongue all round its edge to sit in the
      * frame's grooves, and bevelled up from it to a flat field in the middle. Returns the tongue's thickness and the
      * bevel's width (mm), or null for anything else.
@@ -308,6 +345,21 @@ object PartDescriber {
         return if (ok) missing.size to r else null
     }
 
+    /** A flat part whose outline is a regular polygon of five to twelve sides (a hexagonal top): sides and their length (mm). */
+    fun regularPolygon(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Pair<Int, Double>? {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return null
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
+        val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
+        val n = c.size
+        if (n !in 5..12) return null
+        val sides = (0 until n).map { i -> Math.hypot(c[(i + 1) % n].x - c[i].x, c[(i + 1) % n].y - c[i].y) }
+        if (sides.max() - sides.min() > 0.01 * sides.average()) return null
+        // Every corner the same: the polygon's area is that of the regular one with these sides.
+        val ideal = n * sides.average() * sides.average() / (4 * kotlin.math.tan(PI / n))
+        if (kotlin.math.abs(g.area - ideal) > 0.01 * ideal) return null
+        return n to sides.average()
+    }
+
     /** A flat part whose outline is a triangle with one square corner. */
     fun rightTriangle(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Boolean {
         val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return false
@@ -384,11 +436,25 @@ object PartDescriber {
         raisedPanel(m, obb)?.let { (tongue, bevel) ->
             return PartDescription(PartKind.PANEL, t, w, l, fill, "PANEL ${d(t)} X ${d(w)} X ${d(l)}, RAISED (EDGE ${d(tongue)} THK, BEVEL ${d(bevel)} WIDE)")
         }
+        // A stave of a many-sided plinth: both long edges bevelled to meet its neighbours in mitres. Named with the
+        // angle (the saw's tilt) and the narrow face, so it is ripped, not traced; "(BEVEL)" marks the mitre for joining.
+        bevelledEdges(m, obb)?.let { deg ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            val a = (Math.round(deg * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
+            val narrow = w - 2 * t * kotlin.math.tan(Math.toRadians(deg))
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, LONG EDGES CUT AT $a (BEVEL), NARROW FACE ${d(narrow)}")
+        }
         // The outline through the thickness, worked out once for the shape words below.
         val outline by lazy { runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline }
         // A board with one edge sawn on a slope (a print bin's side): four corners, two of them square, the sloped
         // edge between the long and the short end. Marked and sawn along a straight line, not traced from a template.
         // A right triangle (a gusset, a shelf bracket): a rectangle sawn corner to corner, two from one blank.
+        // A regular polygon (a hexagonal plinth's top): named with its sides, marked out with a compass.
+        outline?.let { regularPolygon(m, it) }?.let { (n, side) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            val shape = when (n) { 5 -> "PENTAGON"; 6 -> "HEXAGON"; 8 -> "OCTAGON"; else -> "$n-SIDED POLYGON" }
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A REGULAR $shape, SIDES ${d(side)}")
+        }
         if (outline?.let { rightTriangle(m, it) } == true) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A RIGHT TRIANGLE")

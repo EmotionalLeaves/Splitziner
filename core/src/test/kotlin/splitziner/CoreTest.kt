@@ -2693,3 +2693,29 @@ class SeparatePiecesTest {
         assertEquals("z", Pipeline.guessUp(a.parts))
     }
 }
+
+class ManySidedPlinthTest {
+    private fun load(name: String) = Pipeline.analyze(javaClass.getResourceAsStream("/complex/$name")!!.readBytes(), name,
+        splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction"))
+
+    @Test fun aHexagonalPlinthsStavesAreBevelledAndGluedUpInOneGo() {
+        val a = load("hex_plinth.stl")
+        assertEquals(6, a.parts.count { it.name == "Side" }, a.parts.map { it.name }.toString())
+        assertTrue(a.cutList.rows.any { it.qty == 6 && it.description.contains("LONG EDGES CUT AT 30° (BEVEL), NARROW FACE 11-1/8") }, a.cutList.rows.map { it.description }.toString())
+        assertTrue(a.cutList.rows.any { it.description.contains("A REGULAR HEXAGON, SIDES 12") }, a.cutList.rows.map { it.description }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(2, pl.steps.size)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(6, f.all.count { it.kind == "mitre" })
+        // Too deep to reach inside: the top is screwed down into the staves' edges, not bracketed.
+        assertTrue(f.all.none { it.kind == "brackets" })
+        val lines = splitziner.joinery.Fastening.lines(f, 1, { p -> "item ${p.item}" })
+        assertTrue(lines.any { it.contains("roll them up into the column") }, lines.toString())
+    }
+
+    @Test fun anOctagonIsAnOctagon() {
+        val a = load("oct_plinth.stl")
+        assertTrue(a.cutList.rows.any { it.qty == 8 && it.description.contains("LONG EDGES CUT AT 22.5° (BEVEL)") }, a.cutList.rows.map { it.description }.toString())
+        assertTrue(a.cutList.rows.any { it.description.contains("A REGULAR OCTAGON") })
+    }
+}
