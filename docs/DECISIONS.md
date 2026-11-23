@@ -567,3 +567,6 @@ Departures from the build spec, newest first.
 
 ## v1.65
 - Which way it faces: shelves or a hutch standing on a desk or counter top, flush with one long edge of it and leaving at least 30% of its depth clear, are against its back: 4 points for that way.
+
+## v1.66
+- Which way it faces: a seat's back (back rails, slats or supports) standing behind the middle of the piece by more than 15% of its depth is 4 points for that way; back rails and slats at the very back count as back evidence too.

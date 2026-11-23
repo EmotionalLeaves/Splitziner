@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.66.0 - seat facing
+
+- Chairs and garden benches drawn turned sideways or backwards now come in facing you, worked out from where their back is.
+
 ## v1.65.0 - hutch facing
 
 - A desk with a hutch drawn turned sideways now comes in facing you: the hutch tells the app where the back is.

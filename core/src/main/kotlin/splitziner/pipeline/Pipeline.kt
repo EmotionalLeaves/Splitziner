@@ -231,7 +231,14 @@ object Pipeline {
             val ob = on.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
             if (kotlin.math.abs(ob.max.y - tb.max.y) < 2.0 && ob.min.y > tb.min.y + 0.3 * tb.extents.y) 4 else 0
         }
-        return board + climbs + easel + upper + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
+        // A seat's back (its back rails, slats or supports) is behind the middle of the seat.
+        val seatBack = run {
+            val backs = names.filter { it.value in setOf("Back rail", "Back slat", "Back support") }.keys.mapNotNull { byId[it] }
+            if (backs.isEmpty()) return@run 0
+            val cy = ps.map { it.mesh.bounds.center.y }.average()
+            if (backs.map { it.mesh.bounds.center.y }.average() > cy + 0.15 * (ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y })) 4 else 0
+        }
+        return board + climbs + easel + upper + seatBack + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
     }
 
     /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */
@@ -239,7 +246,7 @@ object Pipeline {
 
     /** Roles found only at the front, and only at the back, of a piece standing the right way round. */
     private val FRONT_ROLES = setOf("Kick board", "Stile", "Sliding door", "Drawer rail", "Ledge")   // not face frame rails alone: any flat strips at the front look like them
-    private val BACK_ROLES = setOf("Back panel", "Back", "Hanging rail", "Back board")
+    private val BACK_ROLES = setOf("Back panel", "Back", "Hanging rail", "Back board", "Back rail", "Back slat")
 
     // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
     private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",
