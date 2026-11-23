@@ -2410,3 +2410,21 @@ class PlanterTest {
         assertTrue(f.all.none { it.kind == "brackets" })
     }
 }
+
+class CoatRackTest {
+    @Test fun pegsAreGluedIntoHolesAndTheRackHangsOnTheWall() {
+        val bytes = javaClass.getResourceAsStream("/complex/coat_rack.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "coat_rack.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(5, a.parts.count { it.name == "Peg" }, a.parts.map { it.name }.toString())
+        assertEquals(2, a.parts.count { it.name == "Bracket" })
+        assertEquals(1, a.parts.count { it.name == "Back board" })
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null, housed = a.housed)
+        assertTrue(report.findings.none { it.title.contains("occupy the same space") || it.title == "It would tip over" }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.any { it.title == "Hang it on the wall" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"), housed = a.housed)
+        assertEquals(5, f.all.count { it.kind == "peghole" })
+        // All five pegs go in together, along their length.
+        assertEquals(1, pl.steps.count { st -> st.partIds.any { id -> pl.parts.first { it.id == id }.name == "Peg" } })
+    }
+}

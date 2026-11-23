@@ -348,7 +348,9 @@ object GuideSteps {
                 val stack = all.filter { o -> o.mesh.bounds.min.x < h0.max.x - 0.5 && o.mesh.bounds.max.x > h0.min.x + 0.5 && o.mesh.bounds.min.y < h0.max.y - 0.5 && o.mesh.bounds.max.y > h0.min.y + 0.5 }
                 val stackGap = if (whole == null && flat && stack.size in 3 until all.size) evenGap(stack, drawn) else null
                 if (stackGap != null) { levelTold += levelKey; levelItems += item }
-                val gap = whole ?: stackGap ?: if (flat && level.size < all.size) evenGap(level, drawn) else null
+                // The ones at this height may lie flat while others of the item stand (a planter's slats, cut like its end boards).
+                val levelFlat = level.all { p -> p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) } }
+                val gap = whole ?: stackGap ?: if (levelFlat && level.size >= 3 && level.size < all.size) evenGap(level, drawn) else null
                 if (gap != null) {
                     if (whole != null) gapTold += item else { levelTold += levelKey; levelItems += item }
                     val g = "${fmt.format(gap)} ${if (fmt.isInch) "in" else "mm"}"
@@ -560,7 +562,7 @@ object GuideSteps {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
-                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel" -> continue
+                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }

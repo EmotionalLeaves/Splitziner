@@ -327,7 +327,9 @@ object Pipeline {
             live.firstOrNull { o -> o !== t && o.mesh.bounds.let { ob -> (0..2).all { k -> tb.min[k] >= ob.min[k] - 0.5 && tb.max[k] <= ob.max[k] + 0.5 } } }?.let { t.id to it.id } }
         // A panel set in grooves in the frame round it overlaps each strip by the groove's depth: housed as drawn too.
         val grooved = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).flatMap { it.sunk }
-        val housed = ((edited?.housed ?: emptyList()) + tenons + grooved).distinct()
+        // A rod with one end sunk into a board (a coat rack's peg) sits in a drilled hole: housed as drawn.
+        val pegs = live.filter { it.kind == splitziner.parts.PartKind.ROD }.mapNotNull { r -> splitziner.check.Pegs.host(r, live)?.let { r.id to it.id } }
+        val housed = ((edited?.housed ?: emptyList()) + tenons + grooved + pegs).distinct()
         return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed)
     }
 }

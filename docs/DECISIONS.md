@@ -524,3 +524,8 @@ Departures from the build spec, newest first.
 - A top piece 4 in (101.6 mm) wide or less (a cap rail) is screwed down, not held with brackets: it barely moves.
 - A cleat beside the board it carries is screwed through from the cleat's side, so the heads stay inside.
 - When one of two like parts is flush with an edge, that is said even when it rests on the other.
+
+## v1.55
+- A rod with one end sunk into a board by less than half its length, and wholly inside it the other two ways, is a peg glued into a drilled hole: housed as drawn (no clash), named "Peg", fitted along its own length out of the board, all alike in one step. The board's drawing lists the holes (diameter, depth, centres); the guide says to drill them square (or at the drawn angle) with a guide block and glue the pegs in.
+- A piece whose only part reaching its lowest point is a full-width board at the back hangs on a wall: small upright boards under a shelf against it are brackets, the board the back board, what lies on the brackets a shelf (screwed down into them, not bracketed). Instead of "It would tip over" it gets "Hang it on the wall": into the studs with two #10 x 3 in (5 x 75 mm) screws at each, or masonry plugs; plasterboard anchors only for light loads.
+- Flat parts at one height are spaced evenly with a spacer block even when other parts of the same item stand on edge (a planter's slats cut like its end boards).

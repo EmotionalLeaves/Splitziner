@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.55.0 - pegs and wall shelves
+
+- **Coat racks and peg rails.** Dowel pegs set into a board are now glued into drilled holes. The board's drawing lists the hole size, depth and centres. Before, they were reported as two parts in the same space.
+- **Wall shelves:** a piece that hangs on the wall, like a back board with brackets and a shelf, now gets a "Hang it on the wall" note on screwing into studs, instead of a tip-over warning. Its parts are named back board, bracket and shelf.
+- **Slats** are spaced evenly with a spacer block even when they're cut the same as other boards in the piece.
+
 ## v1.54.0 - planters
 
 - **Planters and boarded walls.** Boards stacked on edge into a wall, like the sides of a planter or crate, are now side boards and end boards. They are screwed to the legs; before, the guide told you to edge-glue them to each other. The ends are built as frames first.

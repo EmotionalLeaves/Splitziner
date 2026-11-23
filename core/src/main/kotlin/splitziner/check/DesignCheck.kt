@@ -368,7 +368,12 @@ object DesignCheck {
                     margin = minOf(margin, e.x * (c.y - p.y) - e.y * (c.x - p.x))
                 }
                 val size = Math.hypot(hi.maxOf { it.x } - lo.minOf { it.x }, hi.maxOf { it.y } - lo.minOf { it.y })
-                if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover ($basis). It needs a wider base, a counterweight, or fixing to a wall.")
+                // Made to hang (a back board carrying pegs or a shelf on brackets): it is not meant to stand at all.
+                val hangs = live.any { it.name == "Back board" } || live.any { it.name == "Wall cleat" || it.name == "Hanging rail" }
+                if (margin < 0 && hangs) { val bb = live.firstOrNull { it.name == "Back board" }
+                    out += Finding(Severity.CHECK, "Hang it on the wall", "It is made to hang, not to stand. Screw ${bb?.let { "the back board (item ${it.item})" } ?: "it"} to the wall into the studs, " +
+                        "two #10 x 3 in (5 x 75 mm) screws at each stud, or into masonry with plugs made for it. Plasterboard anchors alone are only for light loads: coats and bags pull hard.", listOfNotNull(bb?.id)) }
+                else if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover ($basis). It needs a wider base, a counterweight, or fixing to a wall.")
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }

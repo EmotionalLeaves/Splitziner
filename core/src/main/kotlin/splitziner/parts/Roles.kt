@@ -237,7 +237,7 @@ object Roles {
             if (dims[1] < 2.5 * t && (dims[2] > 4 * dims[1] || (dims[2] > 3 * dims[1] && live.count { o -> o.id in legs && touches(p, o) } >= 2))) {
                 // Round in section and lying down: a rod (a wardrobe's hanging rod, a towel rail's bar).
                 val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
-                if (e.z < dims[2] - 0.01 && fill in 0.70..0.82 && dims[1] < 1.1 * t) { out[p.id] = "Rod"; continue }
+                if (e.z < dims[2] - 0.01 && fill in 0.70..0.82 && dims[1] < 1.1 * t) { out[p.id] = if (splitziner.check.Pegs.host(p.copy(name = "Rod"), live) != null) "Peg" else "Rod"; continue }
                 out[p.id] = if (e.z >= dims[2] - 0.01 && b.min.z <= all.min.z + 1.0) "Leg" else if (e.z >= dims[2] - 0.01) "Post" else "Rail"
                 continue
             }
@@ -490,6 +490,26 @@ object Roles {
                     (kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 0.5 || kotlin.math.abs(o.mesh.bounds.max.z - p.mesh.bounds.min.z) < 0.5) } }
             val longAx = if (all.extents.x >= all.extents.y) 0 else 1
             for (p in stacked) out[p.id] = if (p.mesh.bounds.extents[longAx] >= p.mesh.bounds.extents[1 - longAx]) "Side board" else "End board"
+        }
+        // A board hung on a wall with things standing out from it: the small boards under a shelf, against the back
+        // board, are its brackets.
+        run {
+            val backB = live.filter { p -> p.mesh.bounds.let { b -> b.max.y >= all.max.y - 0.5 && b.extents.y < minOf(b.extents.x, b.extents.z) && b.extents.x >= 0.8 * all.extents.x } }
+            // Hung, not standing: only the back board reaches down to the lowest point.
+            if (backB.isEmpty() || live.any { it.mesh.bounds.min.z <= all.min.z + 0.5 && it !in backB }) return@run
+            for (p in live) {
+                val b = p.mesh.bounds
+                if (p in backB || out[p.id] in setOf("Peg", "Rod")) continue
+                // Upright, thin side to side, against the back board and under something it holds up.
+                if (b.extents.x < minOf(b.extents.y, b.extents.z) && backB.any { touches(p, it) } && live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 0.5 && touches(p, o) }) out[p.id] = "Bracket"
+            }
+            // With brackets or pegs on it, the back board is what hangs on the wall, and what lies on the brackets a shelf.
+            val brackets = live.filter { out[it.id] == "Bracket" }
+            if (brackets.isNotEmpty() || live.any { out[it.id] == "Peg" && backB.any { b -> touches(it, b) } }) {
+                for (bb in backB) if (out[bb.id] !in setOf("French cleat", "Wall cleat", "Hanging rail")) out[bb.id] = "Back board"
+                for (p in live) if (p !in backB && brackets.any { br -> kotlin.math.abs(p.mesh.bounds.min.z - br.mesh.bounds.max.z) < 0.5 && touches(p, br) } &&
+                    p.mesh.bounds.extents.z < minOf(p.mesh.bounds.extents.x, p.mesh.bounds.extents.y)) out[p.id] = "Shelf"
+            }
         }
         return out
     }

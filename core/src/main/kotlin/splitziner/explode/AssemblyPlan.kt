@@ -884,7 +884,15 @@ object AssemblyPlan {
         fun blockers(i: Int, d: Dir, among: Set<Int>): List<Int> = allBlockers(i, d).filter { it in among }
 
         val floorZ = lo.minOf { it.z }
+        // A peg goes in along its own length, out of the board it is glued into, and no other way.
+        val pegOut = HashMap<Int, Dir>()
+        for (i in 0 until n) if (parts[i].name == "Peg") {
+            val e = hi[i] - lo[i]; val ax = (0..2).maxByOrNull { e[it] }!!
+            val host = (0 until n).firstOrNull { j -> j != i && (0..2).all { k -> lo[j][k] < hi[i][k] - 0.5 && lo[i][k] < hi[j][k] - 0.5 } }
+            if (host != null) pegOut[i] = Dir(ax, if ((lo[i][ax] + hi[i][ax]) / 2 >= (lo[host][ax] + hi[host][ax]) / 2) 1 else -1)
+        }
         fun dirs(i: Int): List<Dir> {
+            pegOut[i]?.let { return listOf(it) }
             val e = hi[i] - lo[i]
             val k0 = if (e.x <= e.y && e.x <= e.z) 0 else if (e.y <= e.z) 1 else 2
             val s0 = if ((lo[i][k0] + hi[i][k0]) / 2 >= cen[k0]) 1 else -1
@@ -1013,6 +1021,7 @@ object AssemblyPlan {
             val placed = HashSet<Int>(); placed += base
             val pool = ArrayList(raw); raw.clear()
             fun freeDir(i: Int): Dir? {
+                pegOut[i]?.let { return it }
                 val d0 = dirOf.getValue(i)
                 // A board laid on top of what is built (a desk top on its ends, with a hutch to come on it) goes on
                 // from above, though in the finished piece something above stops it lifting off.

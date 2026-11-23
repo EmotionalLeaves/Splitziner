@@ -357,6 +357,16 @@ object PartDrawings {
             val atMin = lo < 0.5
             val edgeName = when (w) { 2 -> if (atMin) "BOTTOM END" else "TOP END"; 1 -> if (atMin) "FRONT EDGE" else "BACK EDGE"; else -> if (atMin) "LEFT EDGE" else "RIGHT EDGE" }
             val from = if (w == 2) "THE BOTTOM END" else if (a.extents[w] >= maxOf(a.extents.x, a.extents.y, a.extents.z) - 0.5) "ONE END" else "THE FRONT EDGE"
+            // A peg sits in a round hole drilled into the face.
+            if (q.kind == splitziner.parts.PartKind.ROD || q.name == "Peg") {
+                val ax = (0..2).maxByOrNull { b.extents[it] }!!
+                val dia = (0..2).filter { it != ax }.maxOf { b.extents[it] }
+                // Measured along the board's length (u) and across it (v).
+                val (u, v) = (0..2).filter { it != ax }.sortedByDescending { a.extents[it] }
+                val cu = (b.min[u] + b.max[u]) / 2 - a.min[u]; val cv = (b.min[v] + b.max[v]) / 2 - a.min[v]
+                fun nm(k: Int) = if (k == 2) "THE BOTTOM EDGE" else if (k == 1) "THE FRONT EDGE" else "THE LEFT END"
+                return@mapNotNull G("HOLE FOR ITEM ${q.item}: ${d(dia)} DIA X ${d(e[ax])} DEEP", cu, nm(u), ", ${d(cv)} FROM ${nm(v)}")
+            }
             // A tenon sits in a mortise: a slot closed at both ends, opening on the face the tenon is flush with.
             if (q.name == "Tenon") {
                 val mk = (0..2).firstOrNull { ax -> kotlin.math.abs(b.max[ax] - a.max[ax]) < 0.5 || kotlin.math.abs(b.min[ax] - a.min[ax]) < 0.5 } ?: k
@@ -372,7 +382,8 @@ object PartDrawings {
         // Alike only when cut the same and measured from the same edge (a leg's two mortises face different ways).
         return gs.groupBy { Triple(it.text, it.from, it.extra) }.map { (key, g) -> val t = key.first
             val ats = g.mapNotNull { it.at }.distinct().sorted()
-            val where = if (ats.isEmpty()) "ALONG THE ${g[0].from} (AS ASSEMBLED)"
+            val where = if (t.startsWith("HOLE")) "CENTRES ${ats.dropLast(1).joinToString(", ") { d(it) }}${if (ats.size > 1) " AND " else ""}${d(ats.last())} FROM ${g[0].from} (AS ASSEMBLED)"
+                else if (ats.isEmpty()) "ALONG THE ${g[0].from} (AS ASSEMBLED)"
                 else "${ats.dropLast(1).joinToString(", ") { d(it) }}${if (ats.size > 1) " AND " else ""}${d(ats.last())} FROM ${g[0].from} (AS ASSEMBLED) TO THE NEAR SIDE OF ${if (ats.size > 1) "EACH" else "THE"} ${if (t.startsWith("MORTISE")) "MORTISE" else "GROOVE"}"
             "$t${if (g.size > 1) " (${g.size} PLACES)" else ""}, $where${g[0].extra}."
         }
