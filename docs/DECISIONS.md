@@ -570,3 +570,6 @@ Departures from the build spec, newest first.
 
 ## v1.66
 - Which way it faces: a seat's back (back rails, slats or supports) standing behind the middle of the piece by more than 15% of its depth is 4 points for that way; back rails and slats at the very back count as back evidence too.
+
+## v1.67
+- Which way it faces: a thin back panel at the back counts one point more than other back evidence: it is a sure sign of the back.

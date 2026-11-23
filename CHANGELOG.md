@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.67.0 - back panel clue
+
+- Bookcases drawn turned sideways now come in facing you more reliably: the thin back panel counts as a stronger clue.
+
 ## v1.66.0 - seat facing
 
 - Chairs and garden benches drawn turned sideways or backwards now come in facing you, worked out from where their back is.

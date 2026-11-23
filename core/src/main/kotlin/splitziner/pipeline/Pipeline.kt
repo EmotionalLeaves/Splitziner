@@ -238,7 +238,7 @@ object Pipeline {
             val cy = ps.map { it.mesh.bounds.center.y }.average()
             if (backs.map { it.mesh.bounds.center.y }.average() > cy + 0.15 * (ps.maxOf { it.mesh.bounds.max.y } - ps.minOf { it.mesh.bounds.min.y })) 4 else 0
         }
-        return board + climbs + easel + upper + seatBack + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
+        return board + climbs + easel + upper + seatBack + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) }) + (if (names.any { (id, n) -> n == "Back panel" && atBack(id) }) 1 else 0)
     }
 
     /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */
