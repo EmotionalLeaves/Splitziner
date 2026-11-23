@@ -2522,6 +2522,18 @@ class CasterTest {
     }
 }
 
+class MatTest {
+    @Test fun aFramesMatIsOrderedNotCut() {
+        val t = splitziner.edit.Templates.byKey("frame")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true) + mapOf("mat" to 63.5)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "f.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction"))
+        assertEquals(1, a.parts.count { it.name == "Mat" && it.excluded }, a.parts.map { it.name }.toString())
+        assertEquals(4, a.parts.count { it.name == "Back strip" })
+        // An 11 x 14 in print in a 2-1/2 in mat: the window overlaps the art 1/4 in all round.
+        assertTrue(a.orders.any { it.startsWith("Mat board") && it.contains("window 10-1/2 x 13-1/2 in") }, a.orders.toString())
+    }
+}
+
 class PictureFrameTest {
     @Test fun aFrameHasBackStripsMakingItsRabbetAndSaysWhatGlassToGet() {
         val t = splitziner.edit.Templates.byKey("frame")

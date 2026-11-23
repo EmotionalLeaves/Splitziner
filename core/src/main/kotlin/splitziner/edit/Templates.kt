@@ -397,11 +397,13 @@ object Templates {
             Field("aw", "Art width", 279.4, 11.0), Field("ah", "Art height", 355.6, 14.0),
             Field("bar", "Face bar width", 50.0, 2.0), Field("t", "Face bar thickness", 19.0, 0.75),
             Field("lip", "Lip over the art", 10.0, 0.375), Field("st", "Back strip thickness", 12.0, 0.5),
+            Field("mat", "Mat border (0 for none)", 0.0, 0.0),
         )) { v ->
             val b = v.getValue("bar"); val t = v.getValue("t"); val r = v.getValue("lip"); val st = v.getValue("st")
+            val mat = v["mat"] ?: 0.0
             if (r >= b - 6.0) throw SizesDoNotFit()
-            // A little play round the art (1/8 in in all) so it drops in.
-            val iw = v.getValue("aw") + 3.0; val ih = v.getValue("ah") + 3.0
+            // A little play round what goes in (1/8 in in all) so it drops in: the art, or the mat round it.
+            val iw = v.getValue("aw") + 2 * mat + 3.0; val ih = v.getValue("ah") + 2 * mat + 3.0
             val ow = iw - 2 * r + 2 * b; val oh = ih - 2 * r + 2 * b
             val sb = b - r
             fun ring(w0: Double, z0: Double, z1: Double, bw: Double) = listOf(
@@ -410,7 +412,17 @@ object Templates {
                 quadZ(listOf(0.0 to 0.0, bw to bw, bw to oh - bw, 0.0 to oh), z0, z1),
                 quadZ(listOf(ow to 0.0, ow to oh, ow - bw to oh - bw, ow - bw to bw), z0, z1))
             // Face down on the bench: the face bars at the bottom, the strips on their backs.
-            ring(ow, 0.0, t, b) + ring(ow, t, t + st, sb)
+            val out = ring(ow, 0.0, t, b) + ring(ow, t, t + st, sb)
+            if (mat <= 0.0) out else {
+                // The mat: a sheet the size of the rabbet with a window overlapping the art 1/4 in (6.35 mm) all round, lying
+                // in the rabbet on the face bars (where the glass goes; the glass is not drawn).
+                val gf = org.locationtech.jts.geom.GeometryFactory()
+                fun rect(x0: Double, y0: Double, x1: Double, y1: Double) = gf.createLinearRing(arrayOf(org.locationtech.jts.geom.Coordinate(x0, y0), org.locationtech.jts.geom.Coordinate(x1, y0),
+                    org.locationtech.jts.geom.Coordinate(x1, y1), org.locationtech.jts.geom.Coordinate(x0, y1), org.locationtech.jts.geom.Coordinate(x0, y0)))
+                val mx0 = sb + 1.5; val my0 = sb + 1.5; val mx1 = ow - sb - 1.5; val my1 = oh - sb - 1.5
+                val wx = mat + 6.35; val poly = gf.createPolygon(rect(mx0, my0, mx1, my1), arrayOf(rect(mx0 + wx, my0 + wx, mx1 - wx, my1 - wx)))
+                out + splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("top", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)), poly, t, t + 1.5))
+            }
         },
         Template("flatfile", "Flat file", "A low cabinet of wide, shallow drawers for storing works on paper flat: a carcass on a set-back plinth, the drawers on full-extension slides, each with a front over the opening.", listOf(
             Field("w", "Width", 1016.0, 40.0), Field("d", "Depth", 711.0, 28.0), Field("h", "Height", 457.0, 18.0),

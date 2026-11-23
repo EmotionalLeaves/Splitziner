@@ -419,8 +419,16 @@ object Pipeline {
                 "${fmt.format(bx.extents.x)} x ${fmt.format(bx.extents.y)} x ${fmt.format(bx.extents.z)}$u outside, glued, with polished edges. It rests on the top and lifts off."))
             orders += "Clear acrylic cover, ${fmt.format(bx.extents.x)} x ${fmt.format(bx.extents.y)} x ${fmt.format(bx.extents.z)}$u outside, ${fmt.format(th)}$u thick, open at the bottom: made up by a plastics fabricator"
         }
+        // A mat in a frame is cut from mat board, not wood: named, left out of the wood lists, and ordered.
+        val mats = runCatching { splitziner.check.Mats.find(beforeCover.filter { it.id !in coverIds }) }.getOrDefault(emptyList()).filter { "+${it.id}" !in options.excludedPartIds }
+        val matIds = mats.map { it.id }.toSet()
+        for (mt in mats) {
+            val u = if (fmt.isInch) " in" else " mm"
+            orders += "Mat board, ${fmt.format(mt.w)} x ${fmt.format(mt.h)}$u outside, with a window ${fmt.format(mt.ww)} x ${fmt.format(mt.wh)}$u: cut with a bevelled window (a framer or art shop cuts these)"
+        }
         // Parts with no name of their own get one from what they look like they are.
-        val toCut = beforeCover.map { p -> if (p.id in coverIds) p.copy(name = if (p.id in options.partNames) p.name else "Acrylic cover", excluded = true) else p }.let { ps ->
+        val toCut = beforeCover.map { p -> if (p.id in coverIds) p.copy(name = if (p.id in options.partNames) p.name else "Acrylic cover", excluded = true)
+            else if (p.id in matIds) p.copy(name = if (p.id in options.partNames) p.name else "Mat", excluded = true) else p }.let { ps ->
             val roles = timed("roles") { runCatching { splitziner.parts.Roles.names(ps) }.getOrDefault(emptyMap()) }
             // A board split from a drawn part carries that part's id as its name ("P04" on "P04.2"): no name of its own either.
             fun unnamed(p: Part) = (p.name == p.id || p.name == p.id.substringBefore('.')) && p.id !in options.partNames && p.id.substringBefore('.') !in options.partNames

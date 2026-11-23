@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.27.0 - frame mats
+
+- **Picture frames with a mat.** Give a mat border and the frame is sized for the mat. The mat board, with its window size, goes on the "To order" list for a framer or art shop to cut.
+
 ## v2.26.0 - pair single steps
 
 - Shorter guides: two single-part steps in a row that go on from the same side are now one step.

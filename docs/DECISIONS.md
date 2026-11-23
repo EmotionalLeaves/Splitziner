@@ -777,3 +777,7 @@ Departures from the build spec, newest first.
 
 ## v2.26
 - Two steps in a row that each fit one part from the same side are one step ("the rail and the shelf"), when the build has more than three steps; a part hung on hinges (a lid, a door, an easel's back leg, a crate lid) keeps its own step.
+
+## v2.27
+- The picture frame can take a mat: a border width (0 for none) makes the rabbet the art plus the border all round, and draws the mat in it, its window overlapping the art 1/4 in (6.35 mm) all round.
+- A mat in any model (a sheet no thicker than 1/8 in, lying flat, with one window) is named "Mat", left out of the wood lists, and ordered: outside size and window, cut with a bevelled window by a framer or art shop.
