@@ -2889,3 +2889,13 @@ class PlyTest {
         }
     }
 }
+
+class ScanUnitsTest {
+    @Test fun aSmallModelWithOddSizesIsReadInMetresNotInches() {
+        val g = splitziner.split.UnitGuesser.guess(doubleArrayOf(0.2873, 0.1931, 0.3117, 0.0517, 0.1442), 0.3117)
+        assertEquals(1000.0, g.scale, 1e-9)
+        // A small millimetre part is still millimetres.
+        val k = splitziner.split.UnitGuesser.guess(doubleArrayOf(20.0, 12.0, 8.0), 20.0)
+        assertEquals(1.0, k.scale, 1e-9)
+    }
+}

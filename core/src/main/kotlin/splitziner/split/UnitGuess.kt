@@ -51,6 +51,10 @@ object UnitGuesser {
      */
     private const val INCH_DESIGN_HURDLE = 0.2
 
+    /** A model this small (mm) when read in a unit other than millimetres is unlikely to be meant so. */
+    private const val TINY = 25.0
+    private const val TINY_PENALTY = 0.5
+
     /** At least this share of the sizes must sit on an inch grid for a non-inch file to count as inch-designed. */
     private const val MIN_INCH_ROUNDNESS = 0.5
 
@@ -103,15 +107,18 @@ object UnitGuesser {
         val arr = lens.toDoubleArray()
         val cands = ArrayList<Candidate>()
         // (scale to mm, file unit, prior): millimetre files are the norm, then inches, metres, centimetres.
-        for ((scale, unit, prior) in listOf(Triple(1.0, "mm", 0.3), Triple(25.4, "in", 0.1), Triple(1000.0, "m", 0.0), Triple(10.0, "cm", -0.1))) {
+        for ((scale, unit, prior0) in listOf(Triple(1.0, "mm", 0.3), Triple(25.4, "in", 0.1), Triple(1000.0, "m", 0.0), Triple(10.0, "cm", -0.1))) {
             if (mmOnly && scale != 1.0) continue
             val size = sc0 * scale
             if (mmOnly) { val mm = score(arr, 1.0, MM, MM_TOL); val inch = score(arr, 1.0 / 25.4, IN, IN_TOL)
-                cands += Candidate(mm + prior, 1.0, "mm", "mm", mm)
-                if (inch >= MIN_INCH_ROUNDNESS) cands += Candidate(inch + prior - INCH_DESIGN_HURDLE, 1.0, "mm", "in", inch)
+                cands += Candidate(mm + prior0, 1.0, "mm", "mm", mm)
+                if (inch >= MIN_INCH_ROUNDNESS) cands += Candidate(inch + prior0 - INCH_DESIGN_HURDLE, 1.0, "mm", "in", inch)
                 continue }
             // Anything from 5 mm to 5 m is a plausible object; metre files may describe rooms and buildings.
             if (size < 5 || size > (if (unit == "m") 50000.0 else 5000.0)) continue
+            // Read in another unit, something under an inch is unlikely: a scan in metres (0.3 long) is a 300 mm work,
+            // not a 7.6 mm one in inches. A millimetre file that small is left alone.
+            val prior = if (unit != "mm" && size < TINY) prior0 - TINY_PENALTY else prior0
             val mm = score(arr, scale, MM, MM_TOL)
             val inch = score(arr, scale / 25.4, IN, IN_TOL)
             cands += Candidate(mm + prior, scale, unit, "mm", mm)

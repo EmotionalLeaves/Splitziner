@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.46.0 - scan units
+
+- Scans saved in metres now open at the right size, instead of being read as tiny inch models.
+
 ## v2.45.0 - PLY import
 
 - PLY files (from scanning and sculpting apps) now open. Scan a work, open it, and use "Make a crate for this" or "Make a plinth for this".

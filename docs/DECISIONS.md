@@ -866,3 +866,6 @@ Departures from the build spec, newest first.
 ## v2.45
 - PLY opens, text or binary (either byte order): vertex positions and faces, larger faces fanned into triangles, other properties and elements skipped. It records no unit, so units are guessed as for an STL. A PLY with no faces (a raw scan's point cloud) is refused with a message to mesh it first. Scanning apps export PLY, and a scanned work is what "Make a crate for this" is for.
 - A phone test opens a design and makes a plinth for it from the project menu.
+
+## v2.46
+- Unit guessing: read in a unit other than millimetres, a model under 25 mm (an inch) is unlikely, so that reading loses 0.5 points. A scan exported in metres (0.31 long) now opens as a 310 mm work, not a 7.9 mm one in inches; a small millimetre file (a 20 mm knob) is unaffected. Every test model's units are unchanged.
