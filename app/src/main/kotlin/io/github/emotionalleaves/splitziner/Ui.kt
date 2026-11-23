@@ -2107,7 +2107,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                         }
                     }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    for (f in template.fields) if (f.toggle) Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The whole row toggles, its words as well as the box: a small box is hard to hit on a phone.
+                    for (f in template.fields) if (f.toggle) Row(Modifier.fillMaxWidth().clickable { values[f.key] = if (values[f.key] == "1") "0" else "1"; error = null }, verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
                         Text(f.label, style = MaterialTheme.typography.bodyMedium)
                     } else OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },

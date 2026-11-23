@@ -703,3 +703,7 @@ Departures from the build spec, newest first.
 
 ## v2.3
 - The build guide's "When it is together" page carries the check's finishing notes: glass and backing sizes, hanging, the canvas to cut, what a crate takes, and weighing a plinth down. They are what you do or get once the piece is made, so they belong in the printed guide as well as on the Check tab.
+
+## v2.4
+- In the new-design dialog a yes/no option toggles when its words are tapped, not only its small box.
+- A device test makes a display plinth with its clear cover through the dialog, as a person would, and checks the cover is left out and ordered.

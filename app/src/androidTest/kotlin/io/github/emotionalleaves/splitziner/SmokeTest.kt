@@ -291,6 +291,33 @@ class SmokeTest {
         }
     }
 
+    /** A studio design the way a person would make one: New design, Display plinth, tick the clear cover, Create. */
+    @Test fun plinthWithACoverFromTemplate() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            fun tap(label: String) {
+                rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
+                rule.onAllNodesWithText(label).onFirst().performClick()
+                rule.waitForIdle()
+            }
+            rule.waitUntil(30_000) { rule.onAllNodesWithText("New design").fetchSemanticsNodes().isNotEmpty() }
+            tap("New design"); tap("Display plinth"); tap("A clear acrylic cover on top (a vitrine)"); shot("p01_plinth_cover")
+            tap("Create")
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val a = vm.state.value.open!!.analysis
+            assertEquals(5, a.parts.count { it.excluded })
+            assertEquals(1, a.orders.size)
+            tap("Guide")
+            waitFor(vm, 120_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
+            shot("p02_plinth_guide")
+            println("SMOKE plinth parts=${a.parts.size} orders=${a.orders} guide steps=${vm.state.value.guide!!.stepCount}")
+            assertNull(Diagnostics.lastCrash())
+        }
+    }
+
     /** Starting a design from a template, the way a person would: New design, pick Bookcase, Create. */
     @Test fun newBookcaseFromTemplate() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

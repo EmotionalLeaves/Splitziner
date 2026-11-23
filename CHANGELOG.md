@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.4.0 - tappable options
+
+- In New design, tap an option's words (like "A clear acrylic cover on top") to tick it, not just the small box.
+
 ## v2.3.0 - finishing notes in guide
 
 - **Finishing notes in the printed guide.** The glass size, hanging hardware, canvas size, crate capacity and the advice to weigh a plinth down now also appear on the guide's "When it is together" page, not only on the Check tab.
