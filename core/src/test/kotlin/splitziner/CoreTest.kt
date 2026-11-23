@@ -2151,3 +2151,28 @@ class SpindleGapTest {
         assertTrue(f.any { it.title.startsWith("Spindles 80") && it.detail.contains("crib") }, f.map { it.title }.toString())
     }
 }
+
+class FrenchCleatTest {
+    @Test fun bevelledStripsAreAFrenchCleatAndItsWallHalf() {
+        val T = 19.05; val W = 610.0; val D = 254.0; val H = 457.2
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        // A strip along X, its profile in y-z with the top cut at 45 degrees across the thickness.
+        fun bev(yfr: Double, ybk: Double, z0: Double, z1: Double, backLower: Boolean): splitziner.mesh.Mesh {
+            val yz = if (backLower) listOf(yfr to z0, ybk to z0, ybk to z1 - (ybk - yfr), yfr to z1) else listOf(yfr to z0, ybk to z0 + (ybk - yfr), ybk to z1, yfr to z1)
+            val v = ArrayList<Double>(); for (x in listOf(T, W - T)) for ((y, z) in yz) { v += x; v += y; v += z }
+            val t = intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)
+            return splitziner.mesh.Mesh(v.toDoubleArray(), t)
+        }
+        val ms = listOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, 0.0, W - 2 * T, D, T), b(T, 0.0, H - T, W - 2 * T, D, T),
+            b(T, D - T - 6.35, T, W - 2 * T, 6.35, H - 2 * T), bev(D - T, D, H - T - 76.2, H - T, true), bev(D, D + T, H - T - 127.0, H - 2 * T, false))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "cc.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertTrue(a.cutList.rows.count { it.description.contains("ONE EDGE BEVELLED AT 45") } == 2, a.cutList.rows.map { it.description }.toString())
+        assertEquals(1, a.parts.count { it.name == "Wall cleat" }, a.parts.map { it.name }.toString())
+        assertEquals(1, a.parts.count { it.name == "French cleat" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.any { it.kind == "wallcleat" })
+        assertTrue(f.all.none { it.kind != "wallcleat" && (it.through.name == "Wall cleat" || it.into.name == "Wall cleat") })
+        assertEquals(pl.steps.size, pl.parts.first { it.name == "Wall cleat" }.step)
+    }
+}

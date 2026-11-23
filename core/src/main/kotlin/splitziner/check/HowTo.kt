@@ -40,7 +40,10 @@ object HowTo {
                     (if (big && tool.contains("circular")) ", clamping a straight board as a fence" else "") + (if (row.grain) ", with the grain along the ${d(row.l)} $u length" else "") + "."
             }
         }
-        if (Work.ANGLE_CUT in w.work) {
+        val bevel = Regex("""ONE EDGE BEVELLED AT (\S+)""").find(row.description)?.groupValues?.get(1)
+        if (Work.ANGLE_CUT in w.work && bevel != null) {
+            out += "Rip one long edge at $bevel with the saw blade tilted (on a table saw, or with a circular saw run against a straight board clamped as a fence), so the slope runs right across the thickness and the wide face stays ${d(row.w)} $u. Make a pair (a French cleat) by ripping one board down the middle at $bevel: one half goes on the wall, the other on the back of the piece, the slopes hooking together."
+        } else if (Work.ANGLE_CUT in w.work) {
             val v = Regex("""ENDS CUT AT (.*)$""").find(row.description)?.groupValues?.get(1) ?: ""
             val deg = v.substringBefore(" (").lowercase()
             val saw = pick(Work.ANGLE_CUT)

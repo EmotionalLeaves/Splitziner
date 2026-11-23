@@ -145,7 +145,7 @@ object GuideSteps {
         val out = ArrayList<GuideStep>()
         // " (side)" after an item number, when its parts share a name of their own.
         // "item 2 (side)"; one item under a few names reads "item 2 (front and back)".
-        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name.lowercase() }.distinct().let { ns ->
+        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name.lowercase().replace("french", "French") }.distinct().let { ns ->
             when (ns.size) { 1 -> " (${ns[0]})"; 2, 3 -> " (" + ns.dropLast(1).joinToString(", ") + " and " + ns.last() + ")"; else -> "" } }
         // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
         // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
@@ -245,6 +245,8 @@ object GuideSteps {
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
             val late = ArrayList<Triple<String, String, String>>(); val lateTop = ArrayList<Triple<String, String, String>>()
             for ((item, n) in count) {
+                // A wall cleat is not fitted to the piece: its own line says it goes on the wall.
+                if (loose.filter { it.item == item }.all { it.name == "Wall cleat" }) continue
                 val sides = ArrayList<String>()
                 // On the bench a part moves as the bench picture shows it, not as its unit later goes into the build.
                 for (p in loose) if (p.item == item) (if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode)?.let { e -> val d = e.normalized(); whereFrom(d.x, d.y, d.z)?.let { if (it !in sides) sides += it } }
@@ -472,7 +474,7 @@ object GuideSteps {
                     for ((item, n) in count) {
                         val ps = loose.filter { it.item == item }
                         // Every part named: counted by its own name ("the bottom and 3 shelves", one item under two names).
-                        if (ps.all { it.name != it.id }) { for (p in ps) { val k = p.name.lowercase(); byName[k] = (byName[k] ?: 0) + 1 }; continue }
+                        if (ps.all { it.name != it.id }) { for (p in ps) { val k = p.name.lowercase().replace("french", "French"); byName[k] = (byName[k] ?: 0) + 1 }; continue }
                         val key = "\u0000" + (if (item != null) "item $item" else "part")
                         byName[key] = (byName[key] ?: 0) + n
                     }
@@ -501,7 +503,7 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "lid" -> j.size; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
+                    "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "dowels" -> j.size; "thin", "edge", "housed" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
@@ -696,6 +698,7 @@ object GuideLayout {
         if (info.before.isNotEmpty() || info.after.isNotEmpty()) {
             val pg = pages.new(); var yy = h - 26
             val after = info.after + if (info.hardware.any { it.contains("anti-tip") }) listOf("Stand it where it will live and fix it to the wall with the anti-tip strap, screwed into a stud.")
+                else if (info.hardware.any { it.contains("to hang it") } && steps.any { s -> s.text.any { it.contains("slopes lock together") } }) emptyList()
                 else if (info.hardware.any { it.contains("to hang it") }) listOf("Hang it: find the studs and mark them, screw a straight batten to the wall level at the height of its bottom to rest it on, lift it onto the batten and drive two of the hanging screws through the hanging rail and the back into each stud it crosses; take the batten off after. On a masonry wall use plugs and screws made for it.")
                 else emptyList()
             for ((head, items) in listOf("BEFORE YOU BUILD" to info.before, "WHEN IT IS TOGETHER" to after)) {

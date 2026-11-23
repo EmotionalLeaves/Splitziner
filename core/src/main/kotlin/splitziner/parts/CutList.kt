@@ -51,6 +51,39 @@ object PartDescriber {
      * For a long straight stick whose two end faces are flat but not square to its length: the angles (degrees) the
      * ends lean off square across its thickness and across its width. Null for square ends or anything else.
      */
+    /**
+     * The bevel (degrees off square) of a board whose cross-section, the same all along, is a rectangle with one edge
+     * cut sloping right across the thickness; null for anything else.
+     */
+    fun bevelledEdge(m: Mesh, obb: splitziner.mesh.OrientedBox): Double? {
+        val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val li = e.indexOf(e.max()); val ln = e[li]
+        val rest = e.filterIndexed { i, _ -> i != li }.sorted()
+        if (ln < 3 * rest[1] || rest[0] < 3.0) return null
+        val axis = obb.axes[li]
+        // The same section at a quarter, the middle and three quarters along.
+        val secs = listOf(-0.25, 0.0, 0.25).map { f -> Slicer.sectionLoops(m, obb.center + axis * (f * ln), axis) }
+        if (secs.any { it.size != 1 }) return null
+        val areas = secs.map { abs(Slicer.loopArea(it[0])) }
+        if (areas.max() - areas.min() > 0.01 * areas.max()) return null
+        // Corners of the middle section, dropping points on straight runs.
+        val lp = secs[1][0]
+        val pts = lp.indices.filter { i -> val a = lp[(i + lp.size - 1) % lp.size]; val b = lp[i]; val c = lp[(i + 1) % lp.size]
+            abs((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)) > 1e-3 * (rest[1] * rest[1]) }.map { lp[it] }
+        if (pts.size != 4) return null
+        val edges = pts.indices.map { i -> val a = pts[i]; val b = pts[(i + 1) % 4]; splitziner.math.Vec2(b.x - a.x, b.y - a.y) }
+        // Square edges run along one of two directions at right angles; one edge, and only one, slopes.
+        val ref = edges.maxByOrNull { it.length }!!.normalized()
+        fun off(v: splitziner.math.Vec2): Double { val c = abs(v.normalized().x * ref.x + v.normalized().y * ref.y).coerceIn(0.0, 1.0); val deg = Math.toDegrees(kotlin.math.acos(c)); return minOf(deg, 90 - deg) }
+        val sloped = edges.filter { off(it) > 1.0 }
+        if (sloped.size != 1) return null
+        // The slope crosses the whole thickness: its run across the faces' normal equals the board's thickness.
+        val s = sloped[0]; val across = abs(s.x * -ref.y + s.y * ref.x)
+        if (abs(across - rest[0]) > 0.05 * rest[0]) return null
+        val along = abs(s.x * ref.x + s.y * ref.y)
+        return Math.toDegrees(kotlin.math.atan2(along, across))
+    }
+
     fun angledEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
         val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
         val order = e.indices.sortedBy { e[it] }
@@ -145,6 +178,13 @@ object PartDescriber {
             val ends = if (a1 >= 0.5 && a2 >= 0.5) "ENDS CUT AT ${deg(a1)} AND ${deg(a2)} (COMPOUND)"
                 else if (mirrored) "ENDS CUT AT ${deg(maxOf(a1, a2))} (${if (a1 > a2) "BEVEL" else "MITRE"})" else "ENDS CUT AT ${deg(maxOf(a1, a2))}"
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, $ends")
+        }
+        // A strip ripped with the blade tilted along one edge (a French cleat): the same cross-section all along, a
+        // rectangle with one side sloped right across the thickness. Named with its angle off square, not "notched".
+        bevelledEdge(m, obb)?.let { deg ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            val a = (Math.round(deg * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE BEVELLED AT $a")
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD

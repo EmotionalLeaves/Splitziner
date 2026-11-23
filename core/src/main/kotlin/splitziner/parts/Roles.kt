@@ -395,6 +395,16 @@ object Roles {
             val closed = under.count { it == "Side" } >= 2 && "Front" in under && (under.contains("Back") || under.contains("Back panel"))
             if (closed && live.none { out[it.id] in setOf("Door", "Drawer front", "Sliding door") } && live.none { it.mesh.bounds.min.z >= tb.max.z - 0.5 && it !== top }) out[top.id] = "Lid"
         }
+        // A strip with one long edge bevelled, at the back: half of a French cleat. The half behind everything else is
+        // screwed to the wall; the other is fixed to the piece and hooks over it.
+        for (p in live) {
+            if (p.mesh.bounds.extents.z > 300.0) continue
+            val obb = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh) }.getOrNull() ?: continue
+            if (runCatching { PartDescriber.bevelledEdge(p.mesh, obb) }.getOrNull() == null) continue
+            val behind = live.filter { it !== p }.maxOfOrNull { it.mesh.bounds.max.y } ?: continue
+            if (p.mesh.bounds.max.y < all.max.y - 0.25 * all.extents.y) continue
+            out[p.id] = if (p.mesh.bounds.min.y >= behind - 1.0) "Wall cleat" else "French cleat"
+        }
         // Above a seat, the rails between the back legs carry the back: back rails.
         live.firstOrNull { out[it.id] == "Seat" }?.let { seat ->
             for (p in live) if (out[p.id] in setOf("Side rail", "End rail", "Rail", "Apron") && p.mesh.bounds.min.z >= seat.mesh.bounds.max.z - 0.5) out[p.id] = "Back rail"

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.42.0 - French cleats
+
+- French cleats: a strip with one edge bevelled is listed as such in the cut list, with how to rip it. A cabinet hung on a French cleat gets a last step that screws the wall half to the studs and hooks the cabinet on.
+
 ## v1.41.0 - Guard rail height
 
 - Bunk and loft beds: the check tells you the thickest mattress the guard rails allow, since they must stand 5 in above the mattress.

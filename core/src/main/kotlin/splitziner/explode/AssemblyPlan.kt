@@ -1007,7 +1007,7 @@ object AssemblyPlan {
             val slatted = slatZ.isNotEmpty() && slatZ.max() - slatZ.min() < 50.0 && parts.none { it.name == "Back slat" || it.name == "Back support" }
             fun bedRank(i: Int) = if (!slatted) 0 else when (parts[i].name) {
                 "Centre rail", "Centre leg", "Cleat" -> 1; "Slat" -> 2; "Headboard", "Footboard", "Guard rail" -> 3; else -> 0 }
-            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 30; g.any { parts[it].id in hungIds } -> 20; g.any { parts[it].id == "faceframe" } -> 10; else -> g.maxOf { bedRank(it) } }
+            fun rank(g: List<Int>) = when { g.any { parts[it].name == "Wall cleat" } -> 40; g.any { parts[it].id in hungFirst } -> 30; g.any { parts[it].id in hungIds } -> 20; g.any { parts[it].id == "faceframe" } -> 10; else -> g.maxOf { bedRank(it) } }
             while (pool.isNotEmpty()) {
                 val low = pool.minOf { rank(it) }
                 // Bottom up where there is a choice: a bunk bed's lower deck before the upper one closes it in.

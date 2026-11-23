@@ -458,3 +458,7 @@ Departures from the build spec, newest first.
 
 ## v1.41
 - A top bunk's guard rails are checked against the US bunk bed rule that their top stand at least 5 in (127 mm) above the top of the mattress: the check gives the thickest mattress the rails allow (their height above the slats less 5 in), and says to raise the rails when that is under 6 in (152 mm), thinner than most mattresses, or nothing at all.
+
+## v1.42
+- A board whose cross-section is the same all along, a rectangle with one long edge sloped right across its thickness, is "ONE EDGE BEVELLED AT n°" in the cut list (not "notched"), with how to rip it with the blade tilted, and how to make a French cleat pair from one board.
+- Such strips at the back of a piece are a French cleat: the one fixed to the piece is the "French cleat", the one behind everything else the "Wall cleat". The wall cleat is not fixed to the piece; the last step screws it to the wall into the studs (the hanging screws on the shopping list) and hooks the piece over it.

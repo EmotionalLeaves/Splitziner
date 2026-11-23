@@ -189,8 +189,8 @@ object Fastening {
             if (!seen.add(minOf(i, j).toLong() * 100000 + maxOf(i, j))) continue
             val a = live[i]; val b = live[j]
             if (a.id in doorIds || b.id in doorIds) continue
-            // A lid is hinged, never fixed: it is dealt with on its own below.
-            if (a.name == "Lid" || b.name == "Lid") continue
+            // A lid is hinged, never fixed: it is dealt with on its own below. So is a wall cleat: it goes on the wall.
+            if (a.name == "Lid" || b.name == "Lid" || a.name == "Wall cleat" || b.name == "Wall cleat") continue
             // A drawer's front may rest against the carcass edges when shut; it is never fixed to them.
             if ((drawerOf[a.id] ?: -1) != (drawerOf[b.id] ?: -1)) continue
             if ((a.id in applied) != (b.id in applied)) {
@@ -651,9 +651,14 @@ object Fastening {
         if (live.isNotEmpty()) {
             val h = live.maxOf { it.mesh.bounds.max.z } - live.minOf { it.mesh.bounds.min.z }; val dd = live.maxOf { it.mesh.bounds.max.y } - live.minOf { it.mesh.bounds.min.y }
             // A cabinet with a hanging rail is screwed to the wall through it instead: two screws into each stud it crosses.
-            val rail = live.firstOrNull { it.name == "Hanging rail" }
+            val rail = live.firstOrNull { it.name == "Hanging rail" } ?: live.firstOrNull { it.name == "Wall cleat" }
             if (rail != null) totals[if (fmt.isInch) "#10 x 3 in screws to hang it (into studs)" else "5 x 75 mm screws to hang it (into studs)"] = 2 * maxOf(2, ceil(rail.mesh.bounds.extents.x / 406.4).toInt())
             else if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
+        }
+        // A wall cleat is screwed to the wall, and the piece hung on it, last.
+        live.firstOrNull { it.name == "Wall cleat" }?.let { wc ->
+            val partner = live.firstOrNull { it.name == "French cleat" } ?: return@let
+            joints.getOrPut(mainOf(wc)) { ArrayList() } += Joint(wc, partner, 1, "", "wallcleat", false)
         }
         // A lid hangs on a piano hinge along the back, with a support that holds it open at any angle so it cannot
         // drop shut on fingers (or a child's head, in a toy box).
@@ -899,6 +904,7 @@ object Fastening {
             }
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
+            else if (j.kind == "wallcleat") "Screw ${key.first} to the wall first, its sloped edge up and facing the wall, dead level, with two of the hanging screws into each stud it crosses (on masonry, plugs and screws made for it). Then lift the piece so ${key.second} drops over it and the slopes lock together; the cleats hold it tight to the wall."
             else if (j.kind == "lid") "Hinge ${key.first} along the back with the ${j.size}: set it on with its overhangs even, screw one leaf to its underside and the other to the top edge of ${key.second}, about $anInch from each end. Then fit the lid support at one end, following its instructions: it holds the lid open at any angle, so it cannot drop shut on fingers or a child's head."
             else if (j.kind == "runners") "It runs on its runners, not slides: rub candle or paste wax on them and on the bottom edges of its sides so it runs smoothly; plane a side a shaving at a time if it sticks. The kickers over its sides stop it tipping down as it opens. Fit its handle or knob in the middle of the front."
             else if (j.kind == "slides") {
@@ -979,7 +985,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "wallcleat" -> "hung on a French cleat"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
