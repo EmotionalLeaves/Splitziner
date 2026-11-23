@@ -388,7 +388,18 @@ object GuideSteps {
                     }
                     lines += "Space the spindles (item $sItem) ${fmt.format(sGap)}$u apart, evenly$endText; a spacer block cut to ${fmt.format(sGap)}$u keeps every gap the same."
                 }
-                if (fmt != null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, skipItems = if (sGap != null) setOf(sItem) else emptySet())
+                // A ladder's rungs, evenly pitched: the rise between them and where the lowest sits, not each one's height.
+                val rungs = cur.filter { it.name == "Rung" }
+                val rItem = rungs.map { it.item }.distinct().singleOrNull()
+                val rGap = if (fmt != null && rItem != null && rungs.size >= 3) evenGap(rungs, cur) else null
+                if (fmt != null && rGap != null) {
+                    val u = if (fmt.isInch) " in" else " mm"
+                    val sides = cur.filter { it.name == "Ladder side" }
+                    val lowest = rungs.minOf { it.mesh.bounds.min.z } - (sides.minOfOrNull { it.mesh.bounds.min.z } ?: rungs.minOf { it.mesh.bounds.min.z })
+                    val pitch = rGap + rungs[0].mesh.bounds.extents.z
+                    lines += "Mark the rungs (item $rItem) on both sides at once, clamped together: the lowest ${fmt.format(lowest)}$u up from the bottom, then every ${fmt.format(pitch)}$u, so every rung is level and every step the same; a spacer block cut to ${fmt.format(rGap)}$u sets each gap."
+                }
+                if (fmt != null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, skipItems = listOfNotNull(if (sGap != null) sItem else null, if (rGap != null) rItem else null).toSet())
                 lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
                 lines += how
                 val seq = seqOf(st)

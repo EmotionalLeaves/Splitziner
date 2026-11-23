@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.24.0 - Ladder rungs
+
+- Ladders: the guide gives the height of the lowest rung and the step between rungs, marked on both sides at once, instead of a list of heights.
+
 ## v1.23.0 - Wall cabinets
 
 - Wall cabinets: the strip across the back under the top is recognised as a hanging rail. The shopping list has the screws to hang it, and the guide says how to hang it on the studs.

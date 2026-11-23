@@ -1870,6 +1870,7 @@ class LoftBedTest {
         assertTrue(rungs.all { it.step == pl.steps.maxOf { s -> s.step } }, rungs.map { it.step }.toString())
         val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fmt = LengthFormat("in", "fraction"))
         assertTrue(g.any { p -> p.title.contains("make the ladder from") }, g.map { it.title }.toString())
+        assertTrue(g.any { p -> p.text.any { it.startsWith("Mark the rungs") && it.contains("then every 11 in") } }, g.flatMap { it.text }.toString())
     }
 }
 

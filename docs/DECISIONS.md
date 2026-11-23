@@ -381,3 +381,6 @@ Departures from the build spec, newest first.
 - A strip on edge across the back of a case, just under its top and against a thin back (6-10 mm), is a hanging rail: the cabinet is meant to hang on a wall.
 - With a hanging rail the hardware lists screws to hang it (#10 x 3 in, or 5 x 75 mm; two per stud at 16 in centres, at least four) instead of an anti-tip strap, and "When it is together" says how to hang it on a batten into the studs. The check says to hang it from studs, not plasterboard.
 - A face frame is in the front half of the piece: a strip across the back of an open case is not one.
+
+## v1.24
+- A ladder's evenly pitched rungs are given as where the lowest sits and the rise between them, marked on both sides clamped together, with a spacer block for the gap, instead of each rung's height up from the bottom and down from the top.
