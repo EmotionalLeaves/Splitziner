@@ -573,3 +573,7 @@ Departures from the build spec, newest first.
 
 ## v1.67
 - Which way it faces: a thin back panel at the back counts one point more than other back evidence: it is a sure sign of the back.
+
+## v1.68
+- New-design templates for showing work: a display plinth (four sides round a flush top on cleats, a low ballast shelf on cleats, open bottom), a picture ledge (back board, shelf on its face, front lip) and an art crate (a frame of boards on edge round the work, plywood on both faces, battens across the lid). Sizes default to common gallery ones: a 16 x 16 x 42 in plinth, a 48 in ledge with a 3-1/2 in shelf, a crate for a 40 x 32 in frame.
+- A crate (battens across a lid) gets no anti-tip check: it is packing, not furniture.

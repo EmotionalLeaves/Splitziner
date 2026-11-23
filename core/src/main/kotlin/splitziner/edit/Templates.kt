@@ -204,6 +204,35 @@ object Templates {
             val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val bt = v.getValue("bt")
             listOf(box(0.0, 0.0, 0.0, w, t, h), box(0.0, d - t, 0.0, w, t, h), box(0.0, t, 0.0, t, d - 2 * t, h), box(w - t, t, 0.0, t, d - 2 * t, h), box(t, t, 0.0, w - 2 * t, d - 2 * t, bt))
         },
+        // For showing work: a gallery plinth, a picture ledge, a crate to ship a painting in.
+        Template("plinth", "Display plinth", "A gallery pedestal: four sides butted round a top set in flush, cleats under the top, and a low shelf on cleats to hold ballast so it cannot tip. Open at the bottom.", listOf(
+            Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 400.0, 16.0), Field("h", "Height", 1050.0, 42.0), Field("t", "Board thickness", 18.0, 0.75),
+            Field("cleat", "Cleat size", 19.0, 0.75), Field("shelf", "Ballast shelf height", 100.0, 4.0),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val c = v.getValue("cleat"); val sh = v.getValue("shelf")
+            listOf(box(0.0, 0.0, 0.0, w, t, h), box(0.0, d - t, 0.0, w, t, h), box(0.0, t, 0.0, t, d - 2 * t, h), box(w - t, t, 0.0, t, d - 2 * t, h),
+                box(t, t, h - t, w - 2 * t, d - 2 * t, t),
+                box(t, t, h - t - c, w - 2 * t, c, c), box(t, d - t - c, h - t - c, w - 2 * t, c, c),
+                box(t, t, sh, w - 2 * t, c, c), box(t, d - t - c, sh, w - 2 * t, c, c), box(t, t, sh + c, w - 2 * t, d - 2 * t, t))
+        },
+        Template("ledge", "Picture ledge", "A shelf for leaning framed work against a wall: a back board screwed to the wall, a shelf on its face, and a lip along the front so frames cannot slide off.", listOf(
+            Field("w", "Length", 1200.0, 48.0), Field("d", "Shelf depth", 90.0, 3.5), Field("back", "Back board height", 100.0, 4.0), Field("lip", "Lip height", 45.0, 1.75),
+            Field("t", "Board thickness", 18.0, 0.75),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val bh = v.getValue("back"); val lip = v.getValue("lip"); val t = v.getValue("t")
+            val z = minOf(25.0, bh - t - 1.0)
+            listOf(box(0.0, 0.0, 0.0, w, t, bh), box(0.0, -d, z, w, d, t), box(0.0, -d - t, z, w, t, lip))
+        },
+        Template("crate", "Art crate", "A crate to ship a framed painting: a frame of boards on edge round it, plywood screwed on both faces (one is the lid), and battens across the lid to stiffen it and lift it.", listOf(
+            Field("w", "Inside width", 1000.0, 40.0), Field("h", "Inside height", 800.0, 32.0), Field("d", "Inside depth", 120.0, 5.0), Field("t", "Frame thickness", 18.0, 0.75),
+            Field("ply", "Plywood thickness", 12.0, 0.5), Field("bat", "Batten width", 90.0, 3.5),
+        )) { v ->
+            val iw = v.getValue("w"); val ih = v.getValue("h"); val id = v.getValue("d"); val t = v.getValue("t"); val p = v.getValue("ply"); val bw = v.getValue("bat")
+            val W = iw + 2 * t; val H = ih + 2 * t
+            listOf(box(0.0, p, 0.0, W, id, t), box(0.0, p, H - t, W, id, t), box(0.0, p, t, t, id, H - 2 * t), box(W - t, p, t, t, id, H - 2 * t),
+                box(0.0, 0.0, 0.0, W, p, H), box(0.0, p + id, 0.0, W, p, H),
+                box(0.0, -t, 0.0, bw, t, H), box(W / 2 - bw / 2, -t, 0.0, bw, t, H), box(W - bw, -t, 0.0, bw, t, H))
+        },
     )
 
     private fun table(v: Map<String, Double>): List<Mesh> {

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.68.0 - artist templates
+
+- **New designs for showing your work:** "Display plinth" (a gallery pedestal with a ballast shelf so it can't tip), "Picture ledge" (for leaning framed work against a wall) and "Art crate" (for shipping a framed painting). Pick them under New design and set the sizes.
+
 ## v1.67.0 - back panel clue
 
 - Bookcases drawn turned sideways now come in facing you more reliably: the thin back panel counts as a stronger clue.

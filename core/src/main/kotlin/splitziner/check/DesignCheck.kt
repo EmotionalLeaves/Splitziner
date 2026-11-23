@@ -417,7 +417,8 @@ object DesignCheck {
             val h = all.maxOf { it.max.z } - all.minOf { it.min.z }; val dd = all.maxOf { it.max.y } - all.minOf { it.min.y }
             if (live.any { it.name == "Hanging rail" }) out += Finding(Severity.CHECK, "Hang it from the studs",
                 "It has a hanging rail across the back: it is screwed to the wall through that rail, into the studs (or with plugs made for masonry). Plasterboard alone will not hold a loaded cabinet.")
-            else if (h > 760.0 && h > 2.0 * dd) out += Finding(Severity.CHECK, "Fix it to the wall",
+            // A crate (battens across a lid) is packing, not furniture: it is not stood in a room.
+            else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" }) out += Finding(Severity.CHECK, "Fix it to the wall",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +
                     // Nothing that pulls out: it may stand away from any wall (a display plinth), so weight is the other answer.
                     (if (live.none { it.name in setOf("Door", "Drawer front", "Sliding door") || it.name.startsWith("Drawer") || it.name.startsWith("Door") })
