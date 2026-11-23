@@ -533,3 +533,6 @@ Departures from the build spec, newest first.
 ## v1.56
 - Between two stringers, an upright board under the front edge of a tread (its centre within the tread's front quarter) is a riser; one under the back edge stays a back.
 - Nothing is placed by height against a stringer or other shaped part: its box has no plain top or bottom edge there (a tread sits in its notch). Leaning legs, whose level-cut ends are their top and bottom, still are.
+
+## v1.57
+- The holes for pegs are drawn on the board's detail drawing (front view, with the usual hole callout and ordinate dimensions), mapped through the same squaring-up as the board itself.

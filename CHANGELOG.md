@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.57.0 - peg holes drawn
+
+- **Peg holes on the drawing.** A board with pegs glued into it now shows the holes on its detail drawing, with their size, depth and positions measured from the end, ready to mark out.
+
 ## v1.56.0 - risers
 
 - **Step stools and stairs:** the upright board under the front of a step is now named a riser. The guide no longer says to "centre" a tread on the height of its stepped side.

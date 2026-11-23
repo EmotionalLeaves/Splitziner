@@ -20,6 +20,38 @@ object PartDrawings {
      * toward the viewer, its thickness seen from above and from the side. A part that sits at an
      * angle in the assembly is squared up first.
      */
+    /** The mapping [squaredUp] applies to [mesh]: a point of the model to the laid-down drawing, and a direction. */
+    fun squaredUpMap(mesh: Mesh): Pair<(Vec3) -> Vec3, (Vec3) -> Vec3> {
+        val box = OrientedBounds.of(mesh)
+        val ext = listOf(box.extents.x, box.extents.y, box.extents.z)
+        val order = ext.indices.sortedByDescending { ext[it] }
+        val aL = box.axes[order[0]]; val aW = box.axes[order[1]]; val aT = aW cross aL
+        val c = box.center
+        var x0 = Double.MAX_VALUE; var y0 = x0; var z0 = x0
+        for (i in 0 until mesh.vertexCount) { val q = mesh.vertex(i) - c; x0 = minOf(x0, q dot aL); y0 = minOf(y0, q dot aT); z0 = minOf(z0, q dot aW) }
+        return Pair({ v: Vec3 -> val q = v - c; Vec3((q dot aL) - x0, (q dot aT) - y0, (q dot aW) - z0) }, { d: Vec3 -> Vec3(d dot aL, d dot aT, d dot aW) })
+    }
+
+    /** The holes drilled in [p] for pegs glued into it, in the coordinates of its laid-down drawing. */
+    fun pegHoles(p: Part, parts: List<Part>, housed: List<Pair<String, String>>): List<splitziner.features.Hole> {
+        val byId = parts.associateBy { it.id }
+        val pegs = housed.filter { it.second == p.id }.mapNotNull { byId[it.first] }.filter { it.kind == splitziner.parts.PartKind.ROD || it.name == "Peg" }
+        if (pegs.isEmpty()) return emptyList()
+        val (pt, dir) = squaredUpMap(p.mesh)
+        val hb = p.mesh.bounds
+        return pegs.map { q ->
+            val b = q.mesh.bounds; val ax = (0..2).maxByOrNull { b.extents[it] }!!
+            val dia = (0..2).filter { it != ax }.maxOf { b.extents[it] }
+            // The hole opens on the face the peg stands out of and runs into the board.
+            val outward = (b.min[ax] + b.max[ax]) / 2 >= (hb.min[ax] + hb.max[ax]) / 2
+            val face = if (outward) hb.max[ax] else hb.min[ax]
+            val depth = minOf(b.max[ax], hb.max[ax]) - maxOf(b.min[ax], hb.min[ax])
+            val c = b.center.let { m -> Vec3(if (ax == 0) face else m.x, if (ax == 1) face else m.y, if (ax == 2) face else m.z) }
+            val inward = Vec3(if (ax == 0) (if (outward) -1.0 else 1.0) else 0.0, if (ax == 1) (if (outward) -1.0 else 1.0) else 0.0, if (ax == 2) (if (outward) -1.0 else 1.0) else 0.0)
+            splitziner.features.Hole(pt(c), dir(inward), dia, depth, false)
+        }
+    }
+
     fun squaredUp(mesh: Mesh): Mesh {
         val box = OrientedBounds.of(mesh)
         val ext = listOf(box.extents.x, box.extents.y, box.extents.z)
@@ -407,7 +439,7 @@ object PartDrawings {
                 notes = listOf("ITEM ${row.item} OF ${info.drawingNo.ifBlank { "THE ASSEMBLY DRAWING" }}. QUANTITY REQUIRED: ${row.qty}.") + outlineNotes(laid.mesh, fmt) + circleNotes(p, fmt) + angleNotes(row) + bevelNotes(row) + pinNotes(p, parts, fmt) + hingeNotes(p, parts, fmt) + grooveNotes(row.memberIds.firstNotNullOfOrNull { id -> byId[id]?.takeIf { g -> housed.any { it.second == g.id } } } ?: p, parts, housed, fmt) + info.notes,
             )
             // A detail drawing rarely needs more than a small sheet; a pinned sheet size applies to the assembly only.
-            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))
+            val r = DrawingBuilder.build(listOf(laid), listOf(row), vs, itemInfo, settings.copy(sheet = if (settings.sheet == "AB") "AB" else "auto"), fmt, extraHoles = hingeCups(p, parts, laid.mesh) + runCatching { pegHoles(p, parts, housed) }.getOrDefault(emptyList()), tags = runCatching { openingTags(laid.mesh) }.getOrDefault(emptyList()))
             r.sheets.forEach { it.qa.clear() }
             out += row to DrawingResult(r.sheets.map { rename(it, "item%02d".format(row.item)) }, r.sheet, r.scale, r.scaleText, r.qa.map { "Item ${row.item}: $it" })
         }
