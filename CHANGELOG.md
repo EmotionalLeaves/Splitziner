@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.21.0 - Frame order
+
+- Frames with spindles (crib ends, chair backs) now read in true order: bottom rail, spindles, top rail, then the second leg.
+
 ## v1.20.0 - Chairs
 
 - Chairs: the seat is called the seat, and the rails up the back are back rails with the splats between them. A chair's back is no longer mistaken for a ladder.

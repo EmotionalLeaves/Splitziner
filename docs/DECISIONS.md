@@ -368,3 +368,6 @@ Departures from the build spec, newest first.
 ## v1.20
 - A flat board 380-520 mm off the floor (15 to 20-1/2 in), with a part rising more than 250 mm above it from its back edge, is a seat. Rails above a seat are back rails.
 - A ladder's rungs must be a climbable step apart (150-460 mm) and evenly so (the largest rise no more than 1.5 times the smallest): a chair's back, with one rail under the seat and two up the back, is not a ladder.
+
+## v1.21
+- On a bench with spindles, a rail resting on top of them is said after them, even when another part of its item (an apron, a bottom rail) goes on first; and before the second leg of a frame.

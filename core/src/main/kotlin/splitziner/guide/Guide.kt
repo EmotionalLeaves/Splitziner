@@ -235,7 +235,7 @@ object GuideSteps {
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
-            val late = ArrayList<Triple<String, String, String>>()
+            val late = ArrayList<Triple<String, String, String>>(); val lateTop = ArrayList<Triple<String, String, String>>()
             for ((item, n) in count) {
                 val sides = ArrayList<String>()
                 // On the bench a part moves as the bench picture shows it, not as its unit later goes into the build.
@@ -254,6 +254,18 @@ object GuideSteps {
                 // Some of an item laid down and the rest joined on (a slatted panel's bottom rail, then its top rail on the
                 // spindles): each said where it happens, the joined ones after everything else.
                 val moving = n - stillN
+                // On a bench with spindles, a rail resting on top of them goes on after them, whatever else of its item
+                // goes on before (a chair back's top rail, while its twin is the apron below).
+                val spTop = cur.filter { it.name == "Spindle" }.maxOfOrNull { it.mesh.bounds.max.z }
+                val onTop = if (st.subassembly && spTop != null) cur.filter { it.item == item && it.name != "Spindle" && st.explodeOf[it.id] != null && it.mesh.bounds.min.z >= spTop - 0.5 } else emptyList()
+                if (onTop.isNotEmpty() && onTop.size < n && !still) {
+                    val rest = n - onTop.size
+                    fun wh(ps: List<Part>) = ps.mapNotNull { p -> st.explodeOf[p.id]?.normalized()?.let { d -> whereFrom(d.x, d.y, d.z) } }.distinct().let { if (it.isEmpty()) "" else " " + it.joinToString(" and ") }
+                    val restParts = cur.filter { it.item == item && it !in onTop }
+                    fits += Triple(verb, wh(restParts), "${if (rest > 1) "$rest× " else ""}item $item" + named(restParts))
+                    lateTop += Triple("Join", wh(onTop), "${if (onTop.size > 1) "${onTop.size}× " else ""}item $item" + named(onTop))
+                    continue
+                }
                 if (still && moving > 0 && moving < n) {
                     lines.add(0, "$verb ${if (stillN > 1) "$stillN× " else ""}$what.")
                     val mv = cur.filter { it.item == item && st.explodeOf[it.id] != null }
@@ -264,7 +276,7 @@ object GuideSteps {
                 val one = "${if (n > 1) "$n× " else ""}$what"
                 if (still) lines.add(0, "$verb $one.") else fits += Triple(verb, where, one)
             }
-            fits += late
+            fits += lateTop; fits += late
             var i = 0
             while (i < fits.size) {
                 var j = i
