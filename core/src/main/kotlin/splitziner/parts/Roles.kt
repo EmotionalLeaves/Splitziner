@@ -12,6 +12,9 @@ object Roles {
     /** A cradled panel's face is no thicker than this (mm, 1/2 in): a painting surface, not a table top. */
     private const val CRADLE_FACE = 13.0
 
+    /** A painting panel's cradle is no deeper than this (mm, 4 in; most are 1-1/2 to 3 in). */
+    private const val CRADLE_DEPTH = 101.6
+
     /** A round part standing on the floor no taller than this (mm, 6 in) is a caster, not a leg. */
     private const val CASTER_MAX = 152.4
 
@@ -36,6 +39,8 @@ object Roles {
     fun names(parts: List<Part>): Map<String, String> {
         val live = parts.filter { !it.excluded }
         if (live.size < 2) return emptyMap()
+        // Separate pieces in one file are each named on their own: one's sides are not another's dividers.
+        Pieces.find(live)?.let { ps -> return ps.fold(HashMap<String, String>()) { m, p -> m.putAll(names(p)); m } }
         val out = HashMap<String, String>()
         // Frame-and-panel doors first: their stiles and rails are not a face frame, their panel not a back.
         val framed = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList())
@@ -458,7 +463,9 @@ object Roles {
             // Panelled frames standing under it count as its front and back.
             val frames = framed.count { g -> g.ids.any { it in underIds } && g.ids.none { it in framedDoors } }
             val closed = under.count { it == "Side" } >= 2 && ("Front" in under || frames >= 1) && (under.contains("Back") || under.contains("Back panel") || frames >= 2 || (frames >= 1 && "Front" in under))
-            if (closed && live.none { out[it.id] in setOf("Door", "Drawer front", "Sliding door") } && live.none { it.mesh.bounds.min.z >= tb.max.z - 0.5 && it !== top }) out[top.id] = "Lid"
+            // And a box with a bottom: an open-bottomed one (a display cube) is lifted off whole, its top fixed.
+            val floored = live.any { o -> o !== top && o.mesh.bounds.extents.let { e -> e.z < minOf(e.x, e.y) } && o.mesh.bounds.max.z < (tb.min.z + all.min.z) / 2 }
+            if (closed && floored && live.none { out[it.id] in setOf("Door", "Drawer front", "Sliding door") } && live.none { it.mesh.bounds.min.z >= tb.max.z - 0.5 && it !== top }) out[top.id] = "Lid"
         }
         // A strip with one long edge bevelled, at the back: half of a French cleat. The half behind everything else is
         // screwed to the wall; the other is fixed to the piece and hooks over it.
@@ -592,6 +599,8 @@ object Roles {
                 .singleOrNull() ?: return@run
             val fb = face.mesh.bounds
             if (kotlin.math.abs(fb.extents.x - all.extents.x) > 1.0 || kotlin.math.abs(fb.extents.y - all.extents.y) > 1.0) return@run
+            // A cradle is shallow: a deep open box with a thin top is a display cube, not a painting panel.
+            if (all.extents.z - fb.extents.z > CRADLE_DEPTH) return@run
             val rest = live - face
             val down = kotlin.math.abs(fb.min.z - all.min.z) < 0.5
             if (rest.size < 4 || rest.any { p -> val b = p.mesh.bounds; kotlin.math.abs(if (down) b.min.z - fb.max.z else b.max.z - fb.min.z) > 0.5 || b.extents.z <= minOf(b.extents.x, b.extents.y) }) return@run

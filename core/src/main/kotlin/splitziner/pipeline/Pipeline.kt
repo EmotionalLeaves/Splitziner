@@ -112,7 +112,11 @@ object Pipeline {
             // Nor do pegs sunk in a board, standing up like posts when the board lies flat.
             val framed = runCatching { splitziner.check.FramePanels.find(ps).flatMap { it.ids } }.getOrDefault(emptyList()).toSet() +
                 runCatching { splitziner.check.Pegs.ids(ps) }.getOrDefault(emptySet())
-            val names = runCatching { splitziner.parts.Roles.names(ps).filterKeys { it !in framed }.values }.getOrDefault(emptyList())
+            val nameMap = runCatching { splitziner.parts.Roles.names(ps).filterKeys { it !in framed } }.getOrDefault(emptyMap())
+            val names = nameMap.values
+            // Round spindles standing between level boards (a drying rack's dowels) only stand that way the right way
+            // up; square ones may be a cabinet on its back, full of upright strips, so they do not count.
+            val roundSpindles = ps.count { p -> nameMap[p.id] == "Spindle" && p.mesh.bounds.extents.let { e -> kotlin.math.abs(p.mesh.volume) / maxOf(1e-9, e.x * e.y * e.z) in 0.7..0.86 } }
             val drawers = runCatching { splitziner.check.Drawers.find(ps).size }.getOrDefault(0)
             val doors = runCatching { splitziner.check.Doors.find(ps).size }.getOrDefault(0)
             // Lying on its back, a whole panel rests on the floor; standing, only edges and feet do.
@@ -149,7 +153,7 @@ object Pipeline {
             val stands = hangs || hull.size >= 3 && vm > 0 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) >= -1.0 } || hull.size >= 3 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) <= 1.0 }
-            return (if (stands) 0 else -FALLS) + 3 * drawers + 2 * doors + 2 * minOf(STRONG_CAP, names.count { it in STRONG_ROLES && it != "Apron" } + minOf(4, names.count { it == "Apron" })) + minOf(6, names.count { it in WEAK_ROLES }) +
+            return (if (stands) 0 else -FALLS) + 3 * drawers + 2 * doors + 2 * minOf(STRONG_CAP, names.count { it in STRONG_ROLES && it != "Apron" } + minOf(4, names.count { it == "Apron" }) + roundSpindles) + minOf(6, names.count { it in WEAK_ROLES }) +
                 (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) FLAT_ON_FLOOR else 0) + (if (onFeet) ON_FEET else 0)
         }
         // Each way up is judged as it is, plus whatever facing another way would add to the part that depends on facing:

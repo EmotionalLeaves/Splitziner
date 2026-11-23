@@ -798,3 +798,10 @@ Departures from the build spec, newest first.
 - A ring of boards on edge under a case is its plinth when what stands on it is the case's bottom (a recessed base under a gallery plinth), not only when the case's sides stand on it; before, its front board read as a face frame rail.
 - A case's walls may stand on its plinth rather than the floor, and a door closes a side, for the "weigh it down" check: a storage plinth with a door in its back is weighed down on its bottom (sandbags or bricks), not strapped to a wall.
 - Two or more like strips on edge in the back plane (above and below a door in a case's back) are back rails: one name for the item, not a rail and an apron.
+
+## v2.32
+- Separate pieces drawn in one file (nesting plinths, a pair of nightstands) are a set: groups of three or more parts that touch each other and stand at least 10 mm clear of every other group. Each piece is named on its own (one cube's sides are not another's dividers), built in turn in the guide ("Step 5, piece 2 of 3: start with …"), and drawn alone in its steps. The check notes "N separate pieces" instead of calling the groups a problem. Cut list, cutting plan and shopping list cover them together.
+- A thin top over a deep open box is not a cradled painting panel: a cradle is no deeper than 4 in.
+- A top over a closed box is a hinged lid only when the box has a bottom; an open-bottomed box (a display cube) keeps a fixed top.
+- A case's bottom laid on its plinth: the guide says how far it overhangs the plinth all round, and to mark the outline first.
+- Round spindles standing between level boards count towards which way is up (a drying rack stands on its base); square ones still do not, since a cabinet on its back is full of upright strips.

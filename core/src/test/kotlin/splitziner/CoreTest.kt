@@ -2669,3 +2669,27 @@ class StoragePlinthTest {
         assertTrue(report.findings.none { it.title == "Fix it to the wall" })
     }
 }
+
+class SeparatePiecesTest {
+    @Test fun nestingPlinthsAreThreePiecesBuiltInTurn() {
+        val bytes = javaClass.getResourceAsStream("/complex/nesting_plinths.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "nesting_plinths.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(3, splitziner.parts.Pieces.find(a.parts.filter { !it.excluded })?.size)
+        // Each cube named on its own: sides, a front and back, a fixed top (an open-bottomed box has no lid).
+        assertEquals(6, a.parts.count { it.name == "Side" }, a.parts.map { it.name }.toString())
+        assertEquals(3, a.parts.count { it.name == "Top" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(listOf(1, 2, 3), pl.steps.map { it.piece }.distinct())
+        // A piece's steps hold only its own parts.
+        for (st in pl.steps) assertEquals(1, st.partIds.map { id -> a.parts.first { it.id == id }.mesh.bounds.min.x.let { x -> if (x < 470) 1 else if (x < 950) 2 else 3 } }.distinct().size)
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "3 separate pieces" }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.none { it.severity == splitziner.check.Severity.PROBLEM }, report.findings.map { it.title }.toString())
+    }
+
+    @Test fun aDryingRackStandsOnItsBase() {
+        val bytes = javaClass.getResourceAsStream("/complex/drying_rack.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "drying_rack.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals("z", Pipeline.guessUp(a.parts))
+    }
+}

@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.32.0 - sets of pieces
+
+- A file with several separate pieces (a set of nesting plinths, a pair of nightstands) is now treated as a set: each piece is named and built in turn in the guide ("piece 2 of 3"), drawn on its own, with one cut list and shopping list for all of them. It is no longer flagged as a problem.
+- Display cubes keep a fixed top (no lid on a box with no bottom), and a deep box is no longer mistaken for a cradled panel.
+- A case on a plinth: the guide says how far the bottom overhangs the plinth.
+- A drying rack drawn lying down is stood upright on its base.
+
 ## v2.31.0 - storage plinths
 
 - Storage plinths (a gallery plinth with a door and a recessed base) read properly: the base is the plinth, the strips around the door are back rails, and the advice is to weigh it down with sandbags in its bottom rather than strap it to a wall.

@@ -28,6 +28,9 @@ data class BuildStep(
     val continues: Int? = null,
     /** The first step of the main build when it also fits parts: the ids just put down, before the rest are fitted. */
     val placed: List<String> = emptyList(),
+    /** In a set of separate pieces drawn in one file, which piece this step builds (1-based) and how many there are; 0 for one piece. */
+    val piece: Int = 0,
+    val pieces: Int = 0,
 )
 
 class PlanResult(val parts: List<Part>, val steps: List<BuildStep>)
@@ -325,6 +328,17 @@ object AssemblyPlan {
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         if (order != null) return planInner(all, maxSteps, order)
+        // Separate pieces in one file (nesting plinths, a pair of nightstands): each built on its own, one after another.
+        splitziner.parts.Pieces.find(all.filter { !it.excluded })?.let { ps ->
+            val steps = ArrayList<BuildStep>(); val planned = HashMap<String, Part>()
+            for ((i, piece) in ps.withIndex()) {
+                val r = plan(piece, maxSteps)
+                val off = steps.size
+                steps += r.steps.map { it.copy(step = it.step + off, continues = it.continues?.let { c -> c + off }, piece = i + 1, pieces = ps.size) }
+                for (p in r.parts) planned[p.id] = p.copy(step = p.step?.let { it + off })
+            }
+            return PlanResult(all.map { planned[it.id] ?: it }, steps)
+        }
         val casters = all.filter { it.name == "Caster" && !it.excluded }
         // A crate's lid, with the battens on it, is screwed on last, once the work is packed in.
         val lid = if (all.any { it.name == "Crate lid" && !it.excluded }) all.filter { (it.name == "Crate lid" || it.name == "Batten") && !it.excluded } else emptyList()

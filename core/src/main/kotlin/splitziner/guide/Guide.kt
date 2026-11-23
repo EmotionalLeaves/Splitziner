@@ -261,13 +261,18 @@ object GuideSteps {
             // A sub-assembly is made on the bench: only its own parts, framed to fill the picture.
             // The first step of the main build; a pure base step puts parts down and nothing more. When the first part
             // put down shares its step with the parts fitted to it, it is placed and they are fitted.
-            val firstMain = !st.subassembly && steps.firstOrNull { !it.subassembly }?.step == st.step
+            // Each of a set of separate pieces starts afresh.
+            val firstMain = !st.subassembly && steps.firstOrNull { !it.subassembly && it.piece == st.piece }?.step == st.step
             // Unit ids in [placed] stand for their parts.
             val placedHere = if (firstMain && st.placed.isNotEmpty()) cur.filter { p -> p.id in st.placed || (keyOf[p.id] ?: "") in st.placed }.map { it.id }.toSet() else emptySet()
             val base = firstMain && placedHere.isEmpty()
             // On the bench, a later step of a big unit shows what is already joined, greyed.
             val benchDone = if (st.subassembly) seqOf(st).filter { it.step < st.step }.flatMap { it.partIds }.toSet() else emptySet()
-            val scene = (if (st.subassembly) drawn.filter { it.id in benchDone }.map { it.copy(explode = null) } else drawn.filter { it.id in done }.map { it.copy(explode = null) }) +
+            // One of a set of separate pieces is drawn alone: the pieces already built are elsewhere in the room.
+            val pieceIds = if (st.pieces > 1) steps.filter { it.piece == st.piece }.flatMap { it.partIds }.toSet() else null
+            val shownDone = if (pieceIds == null) done.toSet() else done.filter { it in pieceIds }.toSet()
+            val frame = if (pieceIds == null) frame else ExplodedView.assembledBounds(drawn.filter { it.id in pieceIds }, view)
+            val scene = (if (st.subassembly) drawn.filter { it.id in benchDone }.map { it.copy(explode = null) } else drawn.filter { it.id in shownDone }.map { it.copy(explode = null) }) +
                 cur.map { p -> p.copy(explode = if (base) null else if (st.explodeOf.containsKey(p.id)) st.explodeOf[p.id] else p.explode, qty = count[p.item] ?: 1) }
             // Framed on what is built so far, but never closer than about half the finished piece, so early steps
             // with a few parts are big enough to read and the picture does not jump about from step to step.
@@ -280,7 +285,7 @@ object GuideSteps {
             }
             val pic = ExplodedView.render(
                 scene, PICTURE_W, PICTURE_H,
-                ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = if (st.subassembly) benchDone else done.toSet(), textHeight = 3.4,
+                ExplodeOptions(balloons = true, arrows = !base, qtyTags = true, highlight = cur.map { it.id }.toSet(), ghost = if (st.subassembly) benchDone else shownDone, textHeight = 3.4,
                     unitCounts = unitCount.values.flatMap { us -> us.flatMap { u -> u.map { it.id to us.size } } }.toMap()),
                 view, "step%02d".format(st.step), stepFrame,
             )
@@ -467,6 +472,20 @@ object GuideSteps {
                     }
                 }
             }
+            // A case's bottom laid on its plinth: how far it overhangs the plinth on each side, so the base sits set in evenly.
+            if (fmt != null && !st.subassembly) {
+                val plinth = drawn.filter { it.name == "Plinth" }
+                val pb = plinth.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) }
+                val onIt = if (pb == null) null else cur.firstOrNull { p -> p.name != "Plinth" && kotlin.math.abs(p.mesh.bounds.min.z - pb.max.z) < 1.0 && p.mesh.bounds.extents.let { e -> e.z < minOf(e.x, e.y) } &&
+                    p.mesh.bounds.min.x <= pb.min.x + 0.5 && p.mesh.bounds.max.x >= pb.max.x - 0.5 && p.mesh.bounds.min.y <= pb.min.y + 0.5 && p.mesh.bounds.max.y >= pb.max.y - 0.5 }
+                if (pb != null && onIt != null && cur.any { it.name == "Plinth" }) {
+                    val ob = onIt.mesh.bounds; val u = if (fmt.isInch) " in" else " mm"
+                    val l = pb.min.x - ob.min.x; val r = ob.max.x - pb.max.x; val f = pb.min.y - ob.min.y; val bk = ob.max.y - pb.max.y
+                    val name = "item ${onIt.item ?: "-"}" + named(listOf(onIt))
+                    if (listOf(l, r, f, bk).all { it > 1.0 }) lines += "Lay $name on the plinth " + (if (listOf(l, r, f, bk).let { it.max() - it.min() } <= 1.0) "overhanging it ${fmt.format(l)}$u all round"
+                        else "overhanging it ${fmt.format(f)}$u at the front, ${fmt.format(bk)}$u at the back, ${if (kotlin.math.abs(l - r) <= 1.0) "${fmt.format(l)}$u at each side" else "${fmt.format(l)}$u at the left and ${fmt.format(r)}$u at the right"}") + "; mark the plinth's outline on its underside first."
+                }
+            }
             // Where loose parts sit on what is built, when nothing else in the step says (a toe-kick set back, a modesty panel set in).
             if (fmt != null && !st.subassembly && !base && !rowsTold) {
                 val built = drawn.filter { it.id in done || it.id in placedHere }
@@ -628,7 +647,9 @@ object GuideSteps {
                     else "Step ${st.step}: $said"
                 }
             }
-            val title = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
+            val title0 = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
+            // The first step of each of a set of separate pieces says which piece it starts.
+            val title = if (st.pieces > 1 && steps.firstOrNull { it.piece == st.piece }?.step == st.step) title0.replaceFirst("Step ${st.step}: ", "Step ${st.step}, piece ${st.piece} of ${st.pieces}: ") else title0
             for ((bench, us) in unitCount) placedUnits[bench] = (placedUnits[bench] ?: 0) + us.size
             // The list says how many of each part the whole step needs, all copies of the sub-assembly included.
             // And the hardware the step uses, so it can be laid out with the parts.

@@ -516,7 +516,11 @@ object DesignCheck {
                 alone.map { live[it].id })
             // Groups of parts joined to each other but to nothing else.
             val groups = rel.groups
-            val islands = groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
+            val pieces = runCatching { splitziner.parts.Pieces.find(live) }.getOrNull()
+            // Separate pieces drawn together on purpose (nesting plinths, a pair of nightstands) are a set, not a slip.
+            if (pieces != null) out += Finding(Severity.NOTE, "${pieces.size} separate pieces",
+                "The file holds ${pieces.size} pieces that stand apart (${pieces.joinToString("; ") { pc -> items(pc).replaceFirstChar { it.lowercase() } }}). The guide builds each in turn; the cut list, cutting plan and shopping list cover them all together.")
+            val islands = if (pieces != null) emptyList() else groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
             for (g in islands) out += Finding(Severity.PROBLEM, "${g.size} parts are joined to each other but not to the rest",
                 "${items(g.map { live[it] })} touch each other and nothing else, so as drawn they are a separate object.", g.map { live[it].id })
         }
