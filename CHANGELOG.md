@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.99.0 - help for studio designs
+
+- Help now lists every design and has a new topic, "Making for showing art", on what the studio designs tell you beyond the wood.
+
 ## v1.98.0 - keep cover in
 
 - If you want to make the acrylic cover yourself, tick any of its sheets back in (tap the part in the Parts list) and the whole cover comes back into the lists.

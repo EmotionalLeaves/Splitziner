@@ -687,3 +687,6 @@ Departures from the build spec, newest first.
 
 ## v1.98
 - A clear cover the app leaves out can be brought back: including any of its sheets in the part's dialog keeps the whole cover in the lists. Stored as a "+id" mark in the project's excluded set, so old projects read the same.
+
+## v1.99
+- Help lists every design by group, and has a topic, "Making for showing art", on what the studio designs add beyond the wood (ballast, covers to order, glass sizes, crate capacity and lid, cradle gluing, casters).
