@@ -833,6 +833,8 @@ object Fastening {
 
     /** The lines a step gets instead of "then fasten". */
     fun lines(plan: FastenPlan, step: Int, itemName: (Part) -> String, maxLines: Int = 4): List<String> {
+        // "An inch" in a guide in inches, "25 mm" in one in millimetres (told by the sizes on the shopping list).
+        val anInch = if (plan.hardware.any { it.contains(" mm") } && plan.hardware.none { it.contains(" in") }) "25 mm" else "an inch"
         val js = plan.byStep[step].orEmpty()
         if (js.isEmpty()) return emptyList()
         val out = ArrayList<String>()
@@ -897,7 +899,7 @@ object Fastening {
             }
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
-            else if (j.kind == "lid") "Hinge ${key.first} along the back with the ${j.size}: set it on with its overhangs even, screw one leaf to its underside and the other to the top edge of ${key.second}, about 1 in in from each end. Then fit the lid support at one end, following its instructions: it holds the lid open at any angle, so it cannot drop shut on fingers or a child's head."
+            else if (j.kind == "lid") "Hinge ${key.first} along the back with the ${j.size}: set it on with its overhangs even, screw one leaf to its underside and the other to the top edge of ${key.second}, about $anInch from each end. Then fit the lid support at one end, following its instructions: it holds the lid open at any angle, so it cannot drop shut on fingers or a child's head."
             else if (j.kind == "runners") "It runs on its runners, not slides: rub candle or paste wax on them and on the bottom edges of its sides so it runs smoothly; plane a side a shaving at a time if it sticks. The kickers over its sides stop it tipping down as it opens. Fit its handle or knob in the middle of the front."
             else if (j.kind == "slides") {
                 val handle = j.into === j.through
@@ -921,7 +923,7 @@ object Fastening {
             else if (j.kind == "applied") (if (g.size > 1) "Fit each ${key.second}: close its drawer, hold the front in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw the front on from inside with ${sized(n / g.size, j.size)} screws through ${key.first}. Fit each handle or knob in the middle of its front."
                 else "Close the drawer and hold ${key.second} in place with even gaps all round (double-sided tape or a couple of clamps hold it while you check), then open the drawer and screw it on from inside with ${sized(n, j.size)} screws through ${key.first}. Fit its handle or knob in the middle of the front.")
             else if (j.kind == "housed") "Glue ${key.second} into the dado or rabbet cut for it in ${key.first}$times (its drawing gives the size), and clamp until dry."
-            else if (j.kind == "edgebolt") "Join ${key.first} to ${key.second} edge to edge from underneath with ${count(n)} worktop connector bolts$times: rout the recesses for them with the bolts' template, about 1 in in from each end and evenly between, put a few biscuits or dowels in the edges to keep the faces level, then tighten the bolts until the joint closes flush."
+            else if (j.kind == "edgebolt") "Join ${key.first} to ${key.second} edge to edge from underneath with ${count(n)} worktop connector bolts$times: rout the recesses for them with the bolts' template, about $anInch from each end and evenly between, put a few biscuits or dowels in the edges to keep the faces level, then tighten the bolts until the joint closes flush."
             else if (j.kind == "edge") "Glue the edge of ${key.first} to the edge of ${key.second}$times and clamp until dry; they lie in one plane, so nothing can be screwed through."
             else if (j.kind == "tenon") "Glue ${key.second} into a mortise cut in the end of ${key.first}$times, standing out as drawn (a loose tenon); or, if you prefer, cut ${key.first} longer by the tenon's length and cut the tenon on it. Let the glue set before fitting it."
             else if (j.kind == "mortise") "Cut a mortise in ${key.first} for each tenon$times (its drawing gives the size and place), spread glue in the mortises and on the tenons of ${key.second}, push them home and clamp across the joint until dry. Check it is square as you clamp."

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.39.0 - Wording
+
+- Small wording fixes in the hinge and worktop-bolt instructions.
+
 ## v1.38.0 - Fit directions
 
 - Fixed: in some tables, workbenches and chairs the rails and aprons were missing the direction to fit them from, and weren't drawn pulled out.

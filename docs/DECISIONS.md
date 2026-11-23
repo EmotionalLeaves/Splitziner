@@ -448,3 +448,7 @@ Departures from the build spec, newest first.
 
 ## v1.38
 - Fixed: parts of a table or workbench sometimes lost their "from the front / back / left / right" in the guide (and were drawn not pulled out). The search for repeated cabinets found the two leg frames' rails repeating, gave them a cabinet's key, and cabinets are drawn pulled along the row, which these were not. Now a "cabinet" left with fewer than three parts after the leg frames take theirs is no cabinet, and a cabinet key with no row position keeps the part's own pull.
+
+## v1.39
+- Lid hinges and worktop bolts go "about an inch from each end" (25 mm in a metric guide), not "1 in in from each end".
+- A test now checks that every part fitted in every template's guide says which way it goes in.

@@ -2120,3 +2120,17 @@ class SquareUpTest {
         assertEquals(square.overallSize, angled.overallSize)
     }
 }
+
+class FitDirectionsTest {
+    @Test fun everyPartFittedInATemplateGuideSaysWhichWay() {
+        for (t in splitziner.edit.Templates.ALL) {
+            val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+            val bos = ByteArrayOutputStream(); StlWriter.writeParts(ms, bos)
+            val a = Pipeline.analyze(bos.toByteArray(), "${t.key}.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+            val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+            val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fmt = LengthFormat("in", "fraction"))
+            val bare = g.flatMap { it.text }.filter { Regex("""^(Fit|Join) [^.]*\)\.$""").matches(it) }
+            assertTrue(bare.isEmpty(), "${t.key}: $bare")
+        }
+    }
+}
