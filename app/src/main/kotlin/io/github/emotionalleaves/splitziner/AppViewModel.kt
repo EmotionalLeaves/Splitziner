@@ -480,9 +480,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val file = store.source(meta.id)
                     Diagnostics.log("import $name, ${file.length()} bytes")
                     val head = file.inputStream().use { s -> ByteArray(1024).let { b -> b.copyOf(maxOf(0, s.read(b))) } }
-                    if (!name.lowercase().endsWith(".stl") && !name.lowercase().endsWith(".obj") && !name.lowercase().endsWith(".3mf") && !name.lowercase().endsWith(".glb") && !name.lowercase().endsWith(".gltf") && !StlReader.looksLikeStl(head, file.length())) {
+                    if (!name.lowercase().endsWith(".stl") && !name.lowercase().endsWith(".obj") && !name.lowercase().endsWith(".3mf") && !name.lowercase().endsWith(".glb") && !name.lowercase().endsWith(".gltf") && !name.lowercase().endsWith(".ply") && !StlReader.looksLikeStl(head, file.length())) {
                         store.delete(meta.id)
-                        error("That file is not an STL, OBJ, 3MF or glTF model.")
+                        error("That file is not an STL, OBJ, 3MF, glTF or PLY model.")
                     }
                     meta
                 }

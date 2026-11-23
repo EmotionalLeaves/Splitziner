@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.45.0 - PLY import
+
+- PLY files (from scanning and sculpting apps) now open. Scan a work, open it, and use "Make a crate for this" or "Make a plinth for this".
+
 ## v2.44.0 - crate or plinth for a work
 
 - Made a sculpture or other work in 3D? Open it and use the project menu's "Make a crate for this" or "Make a plinth for this". You get a crate sized with foam all round, or a plinth sized to show it at eye level.

@@ -2868,3 +2868,24 @@ class FitToWorkTest {
         for (k in listOf("crate", "plinth")) { val t = splitziner.edit.Templates.byKey(k); assertTrue(t.build(splitziner.edit.Templates.defaults(t, false) + splitziner.edit.Templates.fitTo(k, 300.0, 200.0, 500.0, false)).isNotEmpty()) }
     }
 }
+
+class PlyTest {
+    @Test fun asciiAndBinaryPlyOpen() {
+        // A 100 x 200 x 50 box as eight corners and six four-sided faces.
+        val c = listOf(0.0 to 0.0, 100.0 to 0.0, 100.0 to 200.0, 0.0 to 200.0)
+        val vs = c.map { (x, y) -> Triple(x, y, 0.0) } + c.map { (x, y) -> Triple(x, y, 50.0) }
+        val faces = listOf(listOf(0, 3, 2, 1), listOf(4, 5, 6, 7), listOf(0, 1, 5, 4), listOf(1, 2, 6, 5), listOf(2, 3, 7, 6), listOf(3, 0, 4, 7))
+        val ascii = "ply\nformat ascii 1.0\nelement vertex 8\nproperty float x\nproperty float y\nproperty float z\nelement face 6\nproperty list uchar int vertex_indices\nend_header\n" +
+            vs.joinToString("\n") { "${it.first} ${it.second} ${it.third}" } + "\n" + faces.joinToString("\n") { "4 " + it.joinToString(" ") } + "\n"
+        val head = "ply\nformat binary_little_endian 1.0\nelement vertex 8\nproperty float x\nproperty float y\nproperty float z\nelement face 6\nproperty list uchar int vertex_indices\nend_header\n".toByteArray()
+        val body = java.nio.ByteBuffer.allocate(8 * 12 + 6 * 17).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        for (v in vs) body.putFloat(v.first.toFloat()).putFloat(v.second.toFloat()).putFloat(v.third.toFloat())
+        for (f in faces) { body.put(4.toByte()); f.forEach { body.putInt(it) } }
+        for ((bytes, name) in listOf(ascii.toByteArray() to "a.ply", head + body.array() to "b.ply")) {
+            val a = Pipeline.analyze(bytes, name, splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+            assertEquals(1, a.parts.size, name)
+            assertTrue(a.parts[0].watertight, name)
+            assertEquals(1_000_000.0, kotlin.math.abs(a.parts[0].mesh.volume), 1.0)
+        }
+    }
+}

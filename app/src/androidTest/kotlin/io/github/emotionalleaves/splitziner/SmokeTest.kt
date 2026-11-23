@@ -346,6 +346,33 @@ class SmokeTest {
         }
     }
 
+    /** A plinth sized for the open model, from the project menu: a new design, its top wider than the model. */
+    @Test fun plinthForTheOpenModel() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            fun tap(label: String) {
+                rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
+                rule.onAllNodesWithText(label).onFirst().performClick()
+                rule.waitForIdle()
+            }
+            rule.waitUntil(30_000) { rule.onAllNodesWithText("New design").fetchSemanticsNodes().isNotEmpty() }
+            tap("New design"); tap("Taboret"); tap("Create")
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val work = vm.state.value.open!!.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            rule.onNodeWithContentDescription("Project menu").performClick(); rule.waitForIdle()
+            tap("Make a plinth for this")
+            waitFor(vm, 120_000) { (vm.state.value.open?.meta?.name == "Display plinth" && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val b = vm.state.value.open!!.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            assertTrue(b.extents.x > work.extents.x && b.extents.y > work.extents.y)
+            shot("w01_plinth_for_work")
+            assertNull(Diagnostics.lastCrash())
+        }
+    }
+
     /** Starting a design from a template, the way a person would: New design, pick Bookcase, Create. */
     @Test fun newBookcaseFromTemplate() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

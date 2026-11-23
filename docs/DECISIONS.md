@@ -862,3 +862,7 @@ Departures from the build spec, newest first.
 
 ## v2.44
 - The project menu has "Make a crate for this" and "Make a plinth for this": a new design sized from the open model taken as a work. The crate's inside is the work plus 2 in (50.8 mm) of foam all round (the wider of its two level sizes across, its height up, the narrower as depth). The plinth's top is the work's footprint plus 4 in (101.6 mm) each side (at least 300 mm), and its height puts the work's middle near 57 in (1.45 m), the usual gallery eye level, kept between 18 and 42 in. Sizes are rounded up to 1/4 in or 5 mm; the design's usual material is picked. Help explains it.
+
+## v2.45
+- PLY opens, text or binary (either byte order): vertex positions and faces, larger faces fanned into triangles, other properties and elements skipped. It records no unit, so units are guessed as for an STL. A PLY with no faces (a raw scan's point cloud) is refused with a message to mesh it first. Scanning apps export PLY, and a scanned work is what "Make a crate for this" is for.
+- A phone test opens a design and makes a plinth for it from the project menu.

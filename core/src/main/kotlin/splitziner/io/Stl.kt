@@ -61,7 +61,7 @@ object StlReader {
      */
     const val MAX_TRIANGLES = 20_000_000
 
-    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head) || ObjReader.looksLikeObj(head) || ThreeMfReader.looksLike3mf(head) || GltfReader.looksLikeGlb(head) || GltfReader.looksLikeGltf(head)
+    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head) || ObjReader.looksLikeObj(head) || ThreeMfReader.looksLike3mf(head) || GltfReader.looksLikeGlb(head) || GltfReader.looksLikeGltf(head) || PlyReader.looksLikePly(head)
 
     private fun declaredCount(head: ByteArray): Long =
         if (head.size < 84) -1 else ByteBuffer.wrap(head, 80, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
@@ -92,6 +92,11 @@ object StlReader {
         if (name.lowercase().endsWith(".glb") || name.lowercase().endsWith(".gltf") || GltfReader.looksLikeGlb(head) || GltfReader.looksLikeGltf(head)) {
             val r = open().use { GltfReader.read(it, warnings) }
             return RawModel(r.soup, name, warnings).also { it.groups = r.groups; it.unitsKnown = true }
+        }
+        // PLY (scans and sculpts), by name or its first line.
+        if (name.lowercase().endsWith(".ply") || PlyReader.looksLikePly(head)) {
+            val soup = open().use { PlyReader.read(it, warnings) }
+            return RawModel(soup, name, warnings)
         }
         // OBJ files are read too, by name or by their first lines.
         if (name.lowercase().endsWith(".obj") || (!isBinary(head, size) && !isAscii(head) && ObjReader.looksLikeObj(head))) {
