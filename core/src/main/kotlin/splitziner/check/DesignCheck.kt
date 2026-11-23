@@ -617,6 +617,9 @@ object DesignCheck {
             else if (h > 760.0 && h > 2.0 * dd && ballastShelf(live) != null) out += Finding(Severity.CHECK, "Weigh it down",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep, and stands free. Load the ${ballastShelf(live)!!.let { b -> if (b.name == "Bottom") "bottom" else "low shelf" }} inside (item ${ballastShelf(live)!!.item}) with sandbags or bricks before anything goes on top, so it cannot be tipped; if it stands against a wall, an anti-tip strap into a stud does as well.")
             // A crate (battens across a lid) is packing, not furniture: it is not stood in a room.
+            // A freestanding wall stands on its feet, in the middle of a room.
+            else if (h > 760.0 && runCatching { splitziner.parts.StudWalls.find(live) }.getOrNull() != null) out += Finding(Severity.CHECK, "Keep it on its feet",
+                "It is ${d(h)} $u tall and ${d(dd)} $u deep across its feet, and stands free. In a show, screw the feet to the floor where that is allowed, or lay sandbags on them, and hang work on it evenly on both faces so it does not lean. Without feet it must be fixed to the floor and ceiling or to a wall.")
             else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" } && runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() == null) out += Finding(Severity.CHECK, "Fix it to the wall",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +
                     // Nothing that pulls out: it may stand away from any wall (a display plinth), so weight is the other answer.

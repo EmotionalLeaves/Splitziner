@@ -44,6 +44,12 @@ object Roles {
         if (live.size < 2) return emptyMap()
         // Separate pieces in one file are each named on their own: one's sides are not another's dividers.
         Pieces.find(live)?.let { ps -> return ps.fold(HashMap<String, String>()) { m, p -> m.putAll(names(p)); m } }
+        // A stud wall: skins, studs, plates and its feet.
+        runCatching { StudWalls.find(live) }.getOrNull()?.let { w ->
+            val m = HashMap<String, String>()
+            for (p in w.skins) m[p.id] = "Skin"; for (p in w.studs) m[p.id] = "Stud"; for (p in w.plates) m[p.id] = "Plate"; for (p in w.feet) m[p.id] = "Foot"
+            return m
+        }
         // A folding screen's panels: each a frame of stiles and rails, with a sheet in it.
         Screens.leaves(live)?.let { ls ->
             val m = HashMap<String, String>()

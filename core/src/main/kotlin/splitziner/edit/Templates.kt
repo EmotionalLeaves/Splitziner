@@ -103,14 +103,14 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "polyplinth", "wallplinth", "screen", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "polyplinth", "wallplinth", "screen", "wall", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
 
     /**
      * The material a design is usually made from, offered first in the new-design dialog (each part can be changed):
      * plywood for cases and plinths that are painted, poplar for frames and easels, pine for stretcher bars.
      */
     fun suggestedMaterial(key: String): String? = when (key) {
-        "plinth", "polyplinth", "wallplinth", "flatfile", "taboret", "browser", "rack" -> "Birch plywood"
+        "plinth", "polyplinth", "wallplinth", "flatfile", "taboret", "browser", "rack", "wall" -> "Birch plywood"
         "crate" -> "Plywood"
         "frame", "shadowbox", "easel", "ledge", "screen" -> "Poplar"
         "stretcher" -> "Pine"
@@ -120,6 +120,9 @@ object Templates {
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     /** Foam all round a work in its crate (mm, 2 in), as the crate's sizes by the work assume. */
     private const val CRATE_FOAM = 50.8
+
+    /** A sheet of plywood's width (mm, 4 ft): a display wall's skin is joined on a stud past this. */
+    private const val SHEET_W = 1220.0
 
     /** Air round a work in a shadow box (mm, 1 in), at its sides and in front of it. */
     private const val BOX_AIR = 25.4
@@ -149,7 +152,7 @@ object Templates {
 
     /** The studio designs by what they are for, for headings in the list: showing work, making it, storing and moving it. */
     fun studioSections(): List<Pair<String, List<Template>>> = listOf(
-        "Showing work" to listOf("plinth", "polyplinth", "wallplinth", "screen", "frame", "shadowbox", "ledge"),
+        "Showing work" to listOf("plinth", "polyplinth", "wallplinth", "screen", "wall", "frame", "shadowbox", "ledge"),
         "Making work" to listOf("easel", "stretcher", "cradle", "taboret"),
         "Storing and moving" to listOf("rack", "browser", "flatfile", "crate"),
     ).map { (h, ks) -> h to ks.mapNotNull { k -> ALL.firstOrNull { it.key == k } } }
@@ -400,6 +403,32 @@ object Templates {
                 // The sheet covers the frame's whole back, glued and pinned to every member.
                 out += box(x0, t, 0.0, w, sk, h)
             }
+            out
+        },
+        Template("wall", "Display wall", "A freestanding gallery wall: a frame of studs between top and bottom plates, skinned with plywood on one face or both, standing on two feet that reach out each side so it needs no fixing to a wall.", listOf(
+            Field("w", "Width", 1220.0, 48.0), Field("h", "Height", 2440.0, 96.0), Field("oc", "Studs apart, on centre", 406.0, 16.0),
+            Field("sw", "Stud thickness", 38.0, 1.5), Field("sd", "Stud width (the wall's depth)", 89.0, 3.5), Field("ply", "Skin thickness", 12.0, 0.5),
+            Field("feet", "Feet length", 760.0, 30.0), Field("both", "Skin on both faces", 1.0, 1.0, count = true, toggle = true),
+        )) { v ->
+            val w = v.getValue("w"); val h = v.getValue("h"); val oc = v.getValue("oc"); val sw = v.getValue("sw"); val sd = v.getValue("sd"); val ply = v.getValue("ply"); val fl = v.getValue("feet")
+            val both = (v["both"] ?: 1.0) >= 0.5
+            if (w < 3 * sw || h < 600.0 || oc < 2 * sw || fl < sd + 2 * ply) throw SizesDoNotFit()
+            // Feet on edge under the bottom plate, as tall as a stud is wide; the wall stands on them.
+            val z0 = sd; val y0 = ply
+            val out = arrayListOf(box(0.0, y0, z0, w, sd, sw), box(0.0, y0, h - sw, w, sd, sw))
+            val xs = (listOf(0.0) + generateSequence(oc - sw / 2) { it + oc }.takeWhile { it + sw < w - sw - 1.0 }.toList() + listOf(w - sw)).distinct()
+            for (x in xs) out += box(x, y0, z0 + sw, sw, sd, h - z0 - 2 * sw)
+            // Skins in sheets no wider than a 4 ft (1220 mm) sheet, joined on a stud's centre.
+            val joint = (1..20).map { it * oc }.lastOrNull { it <= SHEET_W + 0.5 } ?: w
+            // A sliver left at the end (a 2440 mm wall on 1219 mm sheets) goes on the last sheet instead.
+            val cuts = (generateSequence(joint) { it + joint }.takeWhile { it < w - 25.0 }.toList())
+            val spans = (listOf(0.0) + cuts).zip(cuts + w)
+            for ((a, b) in spans) {
+                out += box(a, 0.0, z0, b - a, ply, h - z0)
+                if (both) out += box(a, y0 + sd, z0, b - a, ply, h - z0)
+            }
+            val depth = y0 + sd + (if (both) ply else 0.0)
+            for (x in listOf(76.0, w - 76.0 - sw)) out += box(x, depth / 2 - fl / 2, 0.0, sw, fl, sd)
             out
         },
         Template("easel", "Easel", "A studio A-frame easel: two front legs leaning in and back, joined by a block at the top, a ledge for the canvas and a brace, and a back leg hinged to the block so it folds.", listOf(

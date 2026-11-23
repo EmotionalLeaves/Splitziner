@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.52.0 - display wall
+
+- New studio design: a freestanding display wall (stud frame, plywood skin on one or both faces, feet). The guide frames it, skins it, and stands it on its feet.
+- Imported stud walls are recognised too, instead of being read as a cabinet with doors.
+
 ## v2.51.0 - sizes preview
 
 - Design sizes shows a picture of the design as you type.

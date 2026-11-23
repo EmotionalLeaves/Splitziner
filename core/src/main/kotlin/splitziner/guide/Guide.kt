@@ -477,6 +477,18 @@ object GuideSteps {
                     }
                 }
             }
+            // A stud wall's frame, laid out flat: the studs' spacing on centre, the usual way framers set them out.
+            if (fmt != null && cur.count { it.name == "Stud" } >= 2 && cur.any { it.name == "Plate" }) {
+                val studs = cur.filter { it.name == "Stud" }; val plate = cur.first { it.name == "Plate" }
+                val ax = if (plate.mesh.bounds.extents.x >= plate.mesh.bounds.extents.y) 0 else 1
+                val cs = studs.map { it.mesh.bounds.center[ax] }.sorted(); val u = if (fmt.isInch) " in" else " mm"
+                val gaps = cs.zipWithNext { a, b -> b - a }
+                val sName = "item ${studs[0].item ?: "-"}" + named(listOf(studs[0])); val pName = "item ${plate.item ?: "-"}" + named(listOf(plate))
+                lines += "Lay the two $pName on edge on a flat floor, ${fmt.format(studs[0].mesh.bounds.extents.z)}$u apart inside, and the ${studs.size} $sName between them: one flush with each end" +
+                    (if (gaps.isNotEmpty() && gaps.max() - gaps.min() <= 1.5) ", the rest ${fmt.format(gaps[0])}$u apart on centre"
+                        else if (cs.size > 2) ", the others' centres ${cs.drop(1).dropLast(1).joinToString(", ") { fmt.format(it - plate.mesh.bounds.min[ax]) + u }} from the ${if (ax == 0) "left" else "front"} end of the plates" else "") +
+                    ". Check the frame is square (equal diagonals) before the skin goes on: the skin then holds it so."
+            }
             // A case's bottom laid on its plinth: how far it overhangs the plinth on each side, so the base sits set in evenly.
             if (fmt != null && !st.subassembly) {
                 val plinth = drawn.filter { it.name == "Plinth" }

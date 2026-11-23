@@ -239,6 +239,10 @@ object Fastening {
         for (i in live.indices) for (j in rel.touching[i]) {
             if (!seen.add(minOf(i, j).toLong() * 100000 + maxOf(i, j))) continue
             val a = live[i]; val b = live[j]
+            // A stud wall's skins rest on its feet: the feet are fixed to the plate, nothing to the skin's edge.
+            if (setOf(a.name, b.name) == setOf("Foot", "Skin")) continue
+            // Two sheets of a skin meet on a stud's centre: each is screwed to the stud, nothing joins their edges.
+            if (a.name == "Skin" && b.name == "Skin") continue
             // A round foot is screwed on with a hanger bolt in its end, into the board it stands under.
             val foot = if (a.name == "Round foot") a else if (b.name == "Round foot") b else null
             if (foot != null) {
@@ -910,7 +914,7 @@ object Fastening {
             val rail = live.firstOrNull { it.name == "Hanging rail" } ?: live.firstOrNull { it.name == "Wall cleat" }
             if (rail != null) totals[if (fmt.isInch) "#10 x 3 in screws to hang it (into studs)" else "5 x 75 mm screws to hang it (into studs)"] = 2 * maxOf(2, ceil(rail.mesh.bounds.extents.x / 406.4).toInt())
             // A crate (battens across its lid) is packing, not furniture: never anchored to a wall.
-            else if (h > 760.0 && h > 2.0 * dd && splitziner.check.DesignCheck.ballastShelf(live) == null && live.none { it.name == "Batten" } && runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() == null) totals["anti-tip wall strap kit"] = 1
+            else if (h > 760.0 && h > 2.0 * dd && splitziner.check.DesignCheck.ballastShelf(live) == null && live.none { it.name == "Batten" } && runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() == null && runCatching { splitziner.parts.StudWalls.find(live) }.getOrNull() == null) totals["anti-tip wall strap kit"] = 1
         }
         // A folding screen's panels are hinged stile to stile, across the hinge gap: they never touch, so nothing above found them.
         runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull()?.let { ls ->

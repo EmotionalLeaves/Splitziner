@@ -886,3 +886,7 @@ Departures from the build spec, newest first.
 ## v2.51
 - Design sizes shows a small picture of the design at the sizes typed, or why they do not fit, as New design does.
 - A rail lying on the tops of three or more spindles is their "Top rail" (a drying rack's were called stretchers).
+
+## v2.52
+- A stud wall (upright studs between level plates, a sheet over one or both faces, boards on the floor across it as feet) is named so: Skin, Stud, Plate, Foot. Its skins are not doors, its studs not spindles. It is built frame first in one step (laid flat, plates on edge, studs flush at each end and the others' centres given), then each face's sheets, then the feet. Sheets meeting on a stud are not joined to each other. No anti-tip strap: a CHECK says to screw the feet to the floor or sandbag them, and hang work evenly on both faces.
+- New studio design, under Showing work: Display wall, by width, height, stud spacing on centre, stud size, skin thickness, feet length, and skin on one or both faces. Skins come in sheets no wider than 4 ft (1220 mm), joined on a stud's centre; a sliver under 25 mm at the end goes on the last sheet instead. Usual material: birch plywood.

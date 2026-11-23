@@ -2913,3 +2913,22 @@ class WorkNoteTest {
         assertTrue(report.findings.any { it.title == "A work to show or ship?" }, report.findings.map { it.title }.toString())
     }
 }
+
+class DisplayWallTest {
+    @Test fun aStudWallIsFramedSkinnedAndStoodOnItsFeet() {
+        val t = splitziner.edit.Templates.byKey("wall")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true) + mapOf("w" to 1830.0)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "w.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction"))
+        val names = a.parts.groupingBy { it.name }.eachCount()
+        assertEquals(mapOf("Skin" to 4, "Stud" to 6, "Plate" to 2, "Foot" to 2), names)
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(4, pl.steps.size)
+        assertTrue(pl.steps.last().partIds.all { id -> pl.parts.first { it.id == id }.name == "Foot" })
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.none { it.kind == "edgebolt" || it.kind == "hinges" }, f.all.map { it.kind }.distinct().toString())
+        assertTrue(f.hardware.none { it.contains("anti-tip") })
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "Keep it on its feet" }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.none { it.title == "Fix it to the wall" || it.title.startsWith("Spindles") || it.severity == splitziner.check.Severity.PROBLEM }, report.findings.map { it.title }.toString())
+    }
+}

@@ -46,6 +46,8 @@ object Doors {
     }
 
     fun find(parts: List<Part>): List<Door> {
+        // A stud wall's skins are not doors.
+        if (runCatching { splitziner.parts.StudWalls.find(parts.filter { !it.excluded }) }.getOrNull() != null) return emptyList()
         val slide = sliding(parts).toSet()
         // A frame-and-panel door is one door: its stiles, rails and panel are looked at as one piece, known by its
         // first stile (where the hinge cups go, on whichever edge they are hinged).

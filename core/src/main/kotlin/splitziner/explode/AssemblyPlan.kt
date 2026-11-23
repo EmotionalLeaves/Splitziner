@@ -370,6 +370,21 @@ object AssemblyPlan {
         // A table with its legs straight into the top: the top laid face down, the legs bolted on last, from below.
         val bareLegs = if (casters.isEmpty()) runCatching { splitziner.parts.Apronless.legs(live0) }.getOrDefault(emptyList()) else emptyList()
         val late = casters + lid + stops + sbBack + rackLate + bareLegs
+        // A stud wall: the frame first, then a skin on each face, then it is stood up on its feet.
+        runCatching { splitziner.parts.StudWalls.find(live0) }.getOrNull()?.let { w ->
+            // The frame in one go, laid flat: plates on edge, the studs between them.
+            val frame = w.studs + w.plates
+            var r = PlanResult(all.filter { it.id in frame.map { f -> f.id }.toSet() }.map { it.copy(step = 1, explode = null) },
+                listOf(BuildStep(1, frame.map { it.id }, emptyList(), frame.mapNotNull { it.item }.distinct().sorted())))
+            val ax = if (w.skins[0].mesh.bounds.extents.y < w.skins[0].mesh.bounds.extents.x) 1 else 0
+            val mid = (w.studs + w.plates).map { it.mesh.bounds }.reduce { x, y -> x.union(y) }.center[ax]
+            // Each face's sheets in one step.
+            for ((front, ss) in w.skins.groupBy { it.mesh.bounds.center[ax] < mid }.entries.sortedBy { if (it.key) 0 else 1 })
+                r = lastStep(r, ss, if (ax == 1) Vec3(0.0, if (front) -1.0 else 1.0, 0.0) else Vec3(if (front) -1.0 else 1.0, 0.0, 0.0))
+            if (w.feet.isNotEmpty()) r = lastStep(r, w.feet, Vec3(0.0, 0.0, -1.0))
+            val planned = r.parts.associateBy { it.id }
+            return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
+        }
         // A many-sided column's staves are taped flat, glued and rolled up together: one first step, the rest on it.
         val staves = runCatching { splitziner.parts.Staves.find(live0) }.getOrDefault(emptyList())
         if (staves.isNotEmpty() && late.isEmpty() && staves.size < live0.size) {
