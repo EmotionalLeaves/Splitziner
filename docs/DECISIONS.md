@@ -724,3 +724,6 @@ Departures from the build spec, newest first.
 ## v2.9
 - A picture frame's glass and backing board, and a shadow box's glass, are on the "To order" list (shopping list and the guide's cover), cut to the sizes the notes give.
 - On the guide's cover, a size that would run into the hardware heading goes under its label.
+
+## v2.10
+- The new-design dialog keeps the picture's room while the picture is drawn, so the chips and fields below do not jump when it arrives (a tap could land on the wrong thing; v2.8's device run failed on exactly that, and v2.9's passed).

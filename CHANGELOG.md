@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.10.0 - steady dialog
+
+- Fixed: in New design, the options no longer jump down when the picture appears, so a quick tap lands where you meant.
+
 ## v2.9.0 - glass to order
 
 - The glass and backing for frames and shadow boxes are now on the "To order" list, with their sizes.

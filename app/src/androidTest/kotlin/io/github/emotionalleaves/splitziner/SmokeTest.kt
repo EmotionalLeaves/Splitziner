@@ -304,6 +304,8 @@ class SmokeTest {
             }
             rule.waitUntil(30_000) { rule.onAllNodesWithText("New design").fetchSemanticsNodes().isNotEmpty() }
             tap("New design"); tap("Canvas stretcher")
+            // Let the design's picture draw before tapping below it.
+            Thread.sleep(800); rule.waitForIdle()
             // Inches or centimetres, as the phone's locale has it.
             val size = if (vm.inchLocale) "16 x 20 in" else "40 x 50 cm"
             tap(size); shot("s01_stretcher_size")
