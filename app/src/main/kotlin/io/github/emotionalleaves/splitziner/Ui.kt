@@ -265,6 +265,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     val r = a.report
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showUnits by remember { mutableStateOf(r.units.lowConfidence && open.meta.fileUnits == null) }
+    var showSizes by remember { mutableStateOf(false) }
     var showUp by remember { mutableStateOf(false) }
     if (showUp) AlertDialog(
         onDismissRequest = { showUp = false },
@@ -351,6 +352,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         val b = open.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) }
                         if (b != null) vm.newDesign(k, splitziner.edit.Templates.fitTo(k, b.extents.x, b.extents.y, b.extents.z, vm.inchLocale), splitziner.edit.Templates.suggestedMaterial(k))
                     })
+                    if (open.meta.template != null) DropdownMenuItem(text = { Text("Design sizes") }, onClick = { projectMenu = false; showSizes = true })
                     DropdownMenuItem(text = { Text("Units") }, onClick = { projectMenu = false; showUnits = true })
                     DropdownMenuItem(text = { Text("Which way is up") }, onClick = { projectMenu = false; showUp = true })
                 }
@@ -570,6 +572,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     }
 
     if (showHelp) HelpDialog(onDismiss = { showHelp = false }, onCopyReport = { copy(context, vm.diagnosticReport()) })
+    if (showSizes) DesignSizesDialog(open, vm, onDismiss = { showSizes = false })
     if (showUnits) UnitsDialog(open, onDismiss = { showUnits = false }) { file, display, style ->
         showUnits = false
         vm.update { it.copy(fileUnits = file, displayUnits = display, inchStyle = style) }
@@ -2300,4 +2303,46 @@ internal fun toDo(line: String): String {
     val verbs = mapOf("Made" to "Make", "Moved" to "Move", "Joined" to "Join", "Kept" to "Keep", "Changed" to "Change", "Cut" to "Cut", "Removed" to "Remove", "Added" to "Add", "Turned" to "Turn")
     val first = line.substringBefore(' ')
     return verbs[first]?.let { it + line.removePrefix(first) } ?: line
+}
+
+
+/** The sizes a design was made from a template at, to change and build again in place. */
+@Composable
+private fun DesignSizesDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> Unit) {
+    val t = open.meta.template?.let { k -> runCatching { splitziner.edit.Templates.byKey(k) }.getOrNull() } ?: run { onDismiss(); return }
+    val inch = vm.inchLocale
+    val unit = if (inch) "in" else "mm"
+    fun show(mm: Double, count: Boolean) = if (count) "${mm.toInt()}" else if (inch) "%.2f".format(java.util.Locale.US, mm / 25.4).trimEnd('0').trimEnd('.') else "${Math.round(mm)}"
+    val start = splitziner.edit.Templates.defaults(t, inch) + open.meta.templateValues
+    val values = remember { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { t.fields.forEach { put(it.key, show(start[it.key] ?: 0.0, it.count)) } } }
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = {
+            val mm = HashMap<String, Double>()
+            for (f in t.fields) {
+                val v = values[f.key]?.replace(',', '.')?.trim()?.toDoubleOrNull()
+                if (v == null || v < 0 || (!f.count && v == 0.0 && !f.key.startsWith("back"))) { error = "Enter a number for ${f.label.lowercase()}."; return@TextButton }
+                mm[f.key] = if (f.count) v else if (inch) v * 25.4 else v
+            }
+            splitziner.edit.Templates.problem(t, splitziner.edit.Templates.defaults(t, inch) + mm)?.let { error = it; return@TextButton }
+            onDismiss(); vm.redesign(mm)
+        }) { Text("Build again") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("${t.name}: sizes") },
+        text = {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                val changes = open.meta.edits.size
+                Text(if (changes > 0) "Builds the design again at these sizes. The $changes change${if (changes == 1) "" else "s"} made to the model since, and any step order or wording, will be dropped; materials stay."
+                    else "Builds the design again at these sizes; materials stay.", style = MaterialTheme.typography.bodySmall, color = if (changes > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                for (f in t.fields) if (f.toggle) Row(Modifier.fillMaxWidth().clickable { values[f.key] = if (values[f.key] == "1") "0" else "1"; error = null }, verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
+                    Text(f.label, style = MaterialTheme.typography.bodyMedium)
+                } else OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },
+                    label = { Text(if (f.count) f.label else "${f.label} ($unit)") }, singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
 }

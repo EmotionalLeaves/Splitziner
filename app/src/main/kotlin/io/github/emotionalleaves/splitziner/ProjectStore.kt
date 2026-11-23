@@ -53,6 +53,9 @@ data class ProjectMeta(
     val size: String = "",
     /** When the project was last opened or changed, for the project list. */
     val updatedAt: Long = 0L,
+    /** The design it was made from (a template's key) and the sizes it was built at (mm), so they can be changed. */
+    val template: String? = null,
+    val templateValues: Map<String, Double> = emptyMap(),
 ) {
     fun drawingInfo(version: String) = splitziner.sheet.DrawingInfo(
         title = title.ifBlank { name }, drawingNo = drawingNo, rev = rev.ifBlank { "-" }, organisation = organisation,
@@ -156,6 +159,7 @@ class ProjectStore(context: Context) {
         for ((k, v) in meta.stepText) st.put(k, JSONObject().put("title", v.title ?: "").put("lines", JSONArray(v.lines ?: emptyList<String>())).put("check", v.check ?: ""))
         o.put("stepText", st)
         o.put("size", meta.size).put("updatedAt", meta.updatedAt)
+        o.put("template", meta.template ?: JSONObject.NULL).put("templateValues", JSONObject(meta.templateValues))
         // Write to a temporary file first so a crash never leaves a half-written project.
         val tmp = File(dir(meta.id), "project.json.tmp")
         tmp.writeText(o.toString())
@@ -193,6 +197,8 @@ class ProjectStore(context: Context) {
                 }
             } ?: emptyMap(),
             size = o.optString("size"), updatedAt = o.optLong("updatedAt", 0L),
+            template = if (o.isNull("template")) null else o.optString("template").ifBlank { null },
+            templateValues = o.optJSONObject("templateValues")?.let { n -> n.keys().asSequence().associateWith { n.getDouble(it) } } ?: emptyMap(),
         )
     }
 

@@ -878,3 +878,7 @@ Departures from the build spec, newest first.
 
 ## v2.49
 - The project menu also has "Make a shadow box for this": the box's inside is the work's face (the wider level size by its height) plus an inch (25.4 mm) of air each side, and its depth the work's thinner level size plus an inch in front, under the glass. The note on solid shapes and Help mention it.
+
+## v2.50
+- A project made from a design (New design, or Make a crate/plinth/shadow box for this) remembers which design and its sizes. The project menu's "Design sizes" shows them to change and builds the design again in place, so iterating on a size no longer means starting a new project. Materials stay; changes made to the model since, the step order and wording, and part names and exclusions (all tied to the old parts) are dropped, and the dialog says so in red when there are any.
+- A phone test changes a plinth's height that way.

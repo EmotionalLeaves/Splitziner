@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.50.0 - design sizes
+
+- Change the sizes of a design after making it: open the project menu, then Design sizes. The design is rebuilt in place and keeps its materials.
+
 ## v2.49.0 - shadow box for a work
 
 - "Make a shadow box for this" in the project menu: a shadow box sized for the open model, with an inch of air round it.

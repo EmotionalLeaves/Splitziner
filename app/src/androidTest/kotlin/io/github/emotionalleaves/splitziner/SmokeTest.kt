@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -369,6 +370,18 @@ class SmokeTest {
             val b = vm.state.value.open!!.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
             assertTrue(b.extents.x > work.extents.x && b.extents.y > work.extents.y)
             shot("w01_plinth_for_work")
+            // Its sizes can be changed and the design built again in place.
+            rule.onNodeWithContentDescription("Project menu").performClick(); rule.waitForIdle()
+            tap("Design sizes")
+            val unit = if (vm.inchLocale) "in" else "mm"
+            rule.waitUntil(30_000) { rule.onAllNodesWithText("Height ($unit)").fetchSemanticsNodes().isNotEmpty() }
+            rule.onAllNodesWithText("Height ($unit)").onFirst().performTextReplacement(if (vm.inchLocale) "30" else "760")
+            shot("w02_design_sizes")
+            tap("Build again")
+            waitFor(vm, 120_000) { (vm.state.value.open?.meta?.templateValues?.get("h")?.let { kotlin.math.abs(it - 760.0) < 5 } == true && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val h = vm.state.value.open!!.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }.extents.z
+            assertEquals(if (vm.inchLocale) 762.0 else 760.0, h, 2.0)
             assertNull(Diagnostics.lastCrash())
         }
     }

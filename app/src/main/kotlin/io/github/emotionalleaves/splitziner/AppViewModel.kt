@@ -514,7 +514,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val name = t?.name ?: "New design"
                     val bytes = java.io.ByteArrayOutputStream().also { splitziner.io.StlWriter.writeParts(meshes, it) }.toByteArray()
                     val m = store.create("$name.stl", bytes.inputStream())
-                    m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm", inchStyle = if (inch) "fraction" else m.inchStyle).also { store.save(it) }
+                    m.copy(name = name, fileUnits = "mm", displayUnits = if (inch) "in" else "mm", inchStyle = if (inch) "fraction" else m.inchStyle,
+                        template = t?.key, templateValues = t?.let { splitziner.edit.Templates.defaults(it, inch) + values } ?: emptyMap()).also { store.save(it) }
                 }
                 analyze(meta, deleteOnFailure = true)
                 // The material chosen with the template, given to every item; each can still be changed on the Cut list tab.
@@ -522,6 +523,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     update { m -> m.copy(items = m.items + o.analysis.cutList.rows.associate { r -> CutList.itemKey(r.kind, r.t, r.w, r.l) to ItemOverride(material = material) }) }
                 }
             } catch (e: Throwable) { fail("new design", e) }
+        }
+    }
+
+    /**
+     * Builds the open project's design again at new sizes (mm), in place: the model is replaced, so changes made to
+     * the old one, step order and wording, and part names and exclusions (all keyed by its parts) are dropped.
+     */
+    fun redesign(values: Map<String, Double>) {
+        if (_state.value.busyLabel != null) return
+        val open = _state.value.open ?: return
+        val t = open.meta.template?.let { k -> runCatching { splitziner.edit.Templates.byKey(k) }.getOrNull() } ?: return
+        viewModelScope.launch {
+            try {
+                val meta = withContext(Dispatchers.IO) {
+                    val all = open.meta.templateValues + values
+                    val meshes = t.build(splitziner.edit.Templates.defaults(t, inchLocale) + all)
+                    store.source(open.meta.id).outputStream().use { splitziner.io.StlWriter.writeParts(meshes, it) }
+                    open.meta.copy(templateValues = all, edits = emptyList(), stepOrder = null, stepText = emptyMap(), excluded = emptySet(), partNames = emptyMap()).also { store.save(it) }
+                }
+                analyze(meta, deleteOnFailure = false)
+            } catch (e: Throwable) { fail("change design sizes", e) }
         }
     }
 
