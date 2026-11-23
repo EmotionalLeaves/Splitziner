@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.19.0 - paired triangles
+
+- The cutting plan now cuts two triangles from each blank, so corner shelves and brackets use half the material.
+
 ## v2.18.0 - right triangles
 
 - Triangular parts (corner shelves, brackets, gussets) are now described as right triangles, with "saw the blank corner to corner, one blank makes two", instead of as odd shapes needing a printed template.

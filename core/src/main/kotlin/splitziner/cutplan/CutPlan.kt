@@ -79,7 +79,9 @@ class CutPlanResult(val stock: StockSettings, val sheets: List<SheetLayout>, val
     /** Solid-wood panels glued up edge to edge from boards: item to how many boards. */
     val edgeGlued: Map<Int, Int> = emptyMap(),
     /** Thick sticks of no standard size (a 2-1/2 in square leg), cut from the next standard lumber up: item to its name. */
-    val downsized: Map<Int, String> = emptyMap())
+    val downsized: Map<Int, String> = emptyMap(),
+    /** Right triangles cut two from each blank: item to how many blanks the plan holds for it. */
+    val paired: Map<Int, Int> = emptyMap())
 
 /**
  * Lays panels out on sheets and boards along bought lengths. Every sheet layout can be cut with
@@ -258,7 +260,9 @@ object CutPlanner {
         // A panel of solid wood is not cut from a sheet (oak is not sold 4 x 8): it is glued up edge to edge from boards.
         val edgeGlued = HashMap<Int, Int>()
         val downsized = HashMap<Int, String>()
-        val rows = rows0.map { r ->
+        // Right triangles are sawn two from one blank: the plan holds half as many blanks (rounded up).
+        val paired = HashMap<Int, Int>()
+        val rows = rows0.map { r -> if (r.description.contains("A RIGHT TRIANGLE") && r.qty > 1) r.copy(qty = (r.qty + 1) / 2).also { paired[r.item] = it.qty } else r }.map { r ->
             // A thick stick of no standard size (a 2-1/2 in square leg) comes from the next lumber up, planed or ripped down.
             if (stock.lumber && r.kind == PartKind.BOARD && r.t > SHEET_MAX_IN + 0.5 && Lumber.fit(r.t, r.w) == null) {
                 Lumber.SIZES.filter { it.t >= r.t - 0.8 && it.w >= r.w - 0.8 }.minByOrNull { it.t * it.w }?.let { sz ->
@@ -372,7 +376,7 @@ object CutPlanner {
                 else BoardLayout(first.kind, mmT(first.t), first.w, first.material, cuts, off, length = own)
             }
         }
-        return CutPlanResult(stock, sheets, boards, leftOut, layered, edgeGlued, downsized)
+        return CutPlanResult(stock, sheets, boards, leftOut, layered, edgeGlued, downsized, paired)
     }
 
     /** "Before you build" for each panel glued up from layers of sheet: how to make it. */
@@ -395,7 +399,9 @@ object CutPlanner {
     }
 
     /** What each glued-up panel is made of, for the plan, the shopping list and the guide. */
-    fun layerNotes(r: CutPlanResult, fmt: LengthFormat): List<String> = r.downsized.entries.sortedBy { it.key }.map { (item, name) ->
+    fun layerNotes(r: CutPlanResult, fmt: LengthFormat): List<String> = r.paired.entries.sortedBy { it.key }.map { (item, n) ->
+        "Item $item: each of its $n piece${if (n == 1) "" else "s"} on the plan is a blank for two triangles, sawn corner to corner."
+    } + r.downsized.entries.sortedBy { it.key }.map { (item, name) ->
         "Item $item is no standard lumber size: cut it from $name and plane or rip it down to the cut list's size."
     } + r.edgeGlued.entries.sortedBy { it.key }.map { (item, n) ->
         "Item $item is solid wood, glued up edge to edge from $n boards cut a little long, then cut to size (or buy an edge-glued panel that size)."

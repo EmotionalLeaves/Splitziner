@@ -752,3 +752,6 @@ Departures from the build spec, newest first.
 
 ## v2.18
 - A flat part whose outline is a right triangle (a corner shelf, a corbel, a gusset) is "A RIGHT TRIANGLE" of its blank's size, not "shaped": a detail drawing and a making step (saw the blank corner to corner; one blank makes two), no full-size pages.
+
+## v2.19
+- The cutting plan holds half as many blanks (rounded up) for right triangles, and notes that each blank makes two, sawn corner to corner.
