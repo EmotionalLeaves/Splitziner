@@ -2017,3 +2017,31 @@ class ChestTest {
         assertTrue(splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, LengthFormat("in", "fraction"), null).findings.any { it.title == "Hold the lid open" })
     }
 }
+
+class PicnicTest {
+    /** A board [w] x [t] x [len] centred at [c], its length tilted [deg] from upright in the y-z plane. */
+    private fun splayed(c: Vec3, w: Double, t: Double, len: Double, deg: Double): splitziner.mesh.Mesh {
+        val a = Math.toRadians(deg); val cs = kotlin.math.cos(a); val sn = kotlin.math.sin(a)
+        val m = Fixtures.box(Vec3(-t / 2, -w / 2, -len / 2), Vec3(t / 2, w / 2, len / 2))
+        val v = m.vertices.copyOf()
+        for (i in 0 until v.size / 3) { val y = v[3 * i + 1]; val z = v[3 * i + 2]; v[3 * i] += c.x; v[3 * i + 1] = y * cs - z * sn + c.y; v[3 * i + 2] = y * sn + z * cs + c.z }
+        return splitziner.mesh.Mesh(v, m.triangles)
+    }
+
+    @Test fun splayedBoardLegsMakeEndFramesWithTheirCrosspieces() {
+        val L = 1828.8; val Wt = 762.0; val t2 = 38.1; val w6 = 139.7; val w4 = 88.9; val Htop = 762.0; val Hs = 457.2; val ang = 22.0
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        val len = (Htop - t2) / kotlin.math.cos(Math.toRadians(ang))
+        for (xe in listOf(152.4, L - 152.4 - t2)) {
+            ms += b(xe, 0.0, Htop - t2 - w4, t2, Wt, w4); ms += b(xe, -381.0, Hs - t2 - w6, t2, Wt + 762.0, w6)
+            for (side in listOf(-1, 1)) ms += splayed(Vec3(xe - t2 / 2, Wt / 2 + side * kotlin.math.tan(Math.toRadians(ang)) * (Htop - t2) / 2, (Htop - t2) / 2), w6, t2, len, -side * ang)
+        }
+        for (i in 0 until 5) ms += b(0.0, i * (w6 + (Wt - 5 * w6) / 4), Htop - t2, L, w6, t2)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "picnic.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Leg" }, a.parts.map { it.name }.toString())
+        val frames = splitziner.explode.AssemblyPlan.legFrames(a.parts)
+        assertEquals(2, frames.size, frames.toString())
+        assertTrue(frames.all { it.size == 4 }, frames.toString())
+    }
+}

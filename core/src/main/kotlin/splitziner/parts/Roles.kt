@@ -157,6 +157,17 @@ object Roles {
         }
         val legBox = live.filter { o -> o.id !in out && o.mesh.bounds.extents.let { oe -> val od = listOf(oe.x, oe.y, oe.z).sorted()
             od[1] < 2.5 * od[0] && oe.z >= od[2] - 0.01 && oe.z > 1.5 * od[1] && o.mesh.bounds.min.z <= all.min.z + 1.0 } }.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) } ?: all
+        // A board splayed out from the vertical (5 to 35 degrees), standing on the floor, long for its width: a leg
+        // (a picnic table's or a sawhorse's), though its box, being tilted, is wide.
+        for (p in live) {
+            if (p.id in out || p.mesh.bounds.min.z > all.min.z + 1.0) continue
+            val obb = runCatching { splitziner.mesh.OrientedBounds.of(p.mesh) }.getOrNull() ?: continue
+            if (kotlin.math.abs(p.mesh.volume) < 0.9 * obb.volume) continue
+            val oe = obb.extents.let { listOf(it.x, it.y, it.z) }; val od = oe.sorted()
+            val longAx = obb.axes[oe.indices.maxByOrNull { oe[it] }!!]
+            val deg = Math.toDegrees(kotlin.math.acos(kotlin.math.abs(longAx.z).coerceIn(0.0, 1.0)))
+            if (deg in 5.0..35.0 && od[2] > 3 * od[1] && od[1] < NARROW && od[2] > 0.5 * h) { out[p.id] = "Leg"; legs += p.id }
+        }
         for (p in live) {
             if (p.id in out) continue
             val e = p.mesh.bounds.extents; val dims = listOf(e.x, e.y, e.z).sorted()

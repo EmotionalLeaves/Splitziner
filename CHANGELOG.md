@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.27.0 - Splayed legs
+
+- Picnic tables and anything with splayed board legs: the legs are recognised as legs, and each end (two legs and their crosspieces) is made as a frame on the bench.
+
 ## v1.26.0 - Chests and lids
 
 - Blanket chests and toy boxes:

@@ -234,7 +234,8 @@ object AssemblyPlan {
         fun longAxis(p: Part): Int { val e = p.mesh.bounds.extents; return if (e.x >= e.y && e.x >= e.z) 0 else if (e.y >= e.z) 1 else 2 }
         // Rails on edge only: a board lying flat across two legs (a slat) is not part of a frame.
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
-        val rails = live.filter { (it.name == "Apron" || it.name.endsWith("ail")) && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
+        // A crosspiece named a cleat that joins two splayed legs (a picnic table's top cleat and seat support) is a rail here.
+        val rails = live.filter { (it.name == "Apron" || it.name.endsWith("ail") || (it.name == "Cleat" && legs.count { l -> touch(it, l) } == 2)) && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
         val legIds = legs.map { it.id }.toSet()
         // Rails one way whose leg pairs cover every leg once: an apron and a stretcher between the same two legs
         // are one pair, so a frame can have both.
@@ -247,7 +248,7 @@ object AssemblyPlan {
             val frameRails = rails.filter { it.second.map { l -> l.id }.toSet() == pair }.map { it.first }
             // A cleat screwed along one of the frame's rails is made with it on the bench.
             val cleats = live.filter { c -> c.name == "Cleat" && frameRails.any { r -> touch(c, r) } }
-            pair.toList() + frameRails.map { it.id } + cleats.map { it.id }
+            (pair.toList() + frameRails.map { it.id } + cleats.map { it.id }).distinct()
         }
     }
 
@@ -945,7 +946,7 @@ object AssemblyPlan {
                 // A tread goes down onto its stringers' notches.
                 // Nothing is fitted from below when the way from above is just as clear: the part is let down, not held up.
                 if (d0.k == 2 && d0.sign == -1 && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
-                if (d0.k != 2 && parts[i].name == "Tread" && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
+                if (d0.k != 2 && (parts[i].name == "Tread" || parts[i].name == "Slat") && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 if (d0.k != 2 && (lyingFlat(i) || parts[i].id == "upper") && placed.any { j -> touches(i, j) && hi[j].z <= lo[i].z + tol } &&
                     placed.none { j -> touches(i, j) && lo[j].z < hi[i].z - tol && hi[j].z > lo[i].z + tol } && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 return if (blockers(i, d0, placed).isEmpty()) d0 else dirs(i).firstOrNull { blockers(i, it, placed).isEmpty() }

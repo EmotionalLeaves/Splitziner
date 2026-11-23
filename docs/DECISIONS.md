@@ -396,3 +396,9 @@ Departures from the build spec, newest first.
 - A case's bottom resting on supports at both ends is still screwed to the case's sides, front and back (the rule that a board resting on supports is not also fixed through its neighbours is for shelves).
 - An upright panel flush with the front of everything standing up is the front, though a lid or top overhangs it.
 - A top over a closed box (front, back, both sides under it, no doors or drawers, nothing above) is a lid. It hangs on a piano hinge 2 in (50 mm) shorter than the back, with a lid support that holds it open at any angle; the check says why (fingers, and a child in a toy box), and to leave air holes in a toy box. No brackets fix it down.
+
+## v1.27
+- A board standing on the floor whose length leans 5-35 degrees from upright, more than three times as long as it is wide and longer than half the piece's height, is a leg, though its tilted box is wide (a picnic table's 2x6 legs, a sawhorse's).
+- A crosspiece called a cleat that joins two legs counts as a frame rail: a picnic table's ends (two legs, top cleat, seat support) are made on the bench as frames.
+- A frame's part list no longer repeats a cleat that is also one of its rails.
+- Slats go on from above whenever the way up is clear, like treads.
