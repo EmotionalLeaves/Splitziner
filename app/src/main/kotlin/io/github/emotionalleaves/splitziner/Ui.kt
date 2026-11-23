@@ -2099,13 +2099,6 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 else {
                     preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
                     sizesWrong?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    if (template != null) {
-                        Text("Material (optional; each part can be changed later)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
-                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            androidx.compose.material3.FilterChip(selected = material == null, onClick = { material = null }, label = { Text("Not set") })
-                            for (m in listOf("Plywood", "Birch plywood", "MDF", "Pine", "Poplar", "Oak")) androidx.compose.material3.FilterChip(selected = material == m, onClick = { material = m }, label = { Text(m) })
-                        }
-                    }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     // Standard canvas and print sizes, one tap each, for the designs that have them.
                     val presets = splitziner.edit.Templates.presets(template, inch)
@@ -2125,6 +2118,12 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                     } else OutlinedTextField(value = values[f.key] ?: "", onValueChange = { values[f.key] = it; error = null },
                         label = { Text(if (f.count) f.label else "${f.label} ($unit)") }, singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
+                    // The material last: the sizes are what most people come to change.
+                    Text("Material (optional; each part can be changed later)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        androidx.compose.material3.FilterChip(selected = material == null, onClick = { material = null }, label = { Text("Not set") })
+                        for (m in listOf("Plywood", "Birch plywood", "MDF", "Pine", "Poplar", "Oak")) androidx.compose.material3.FilterChip(selected = material == m, onClick = { material = m }, label = { Text(m) })
+                    }
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }

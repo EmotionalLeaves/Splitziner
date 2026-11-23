@@ -717,3 +717,6 @@ Departures from the build spec, newest first.
 ## v2.7
 - The display plinth offers common gallery sizes too: 12 x 12 x 42, 16 x 16 x 42, 18 x 18 x 36 and 24 x 24 x 30 in (30 x 30 x 105 to 60 x 60 x 75 cm). These are typical, not a standard.
 - A device test makes a stretcher at a common size through the dialog.
+
+## v2.8
+- The new-design dialog reads top to bottom as people use it: picture, description, common sizes, the sizes, then the optional material.

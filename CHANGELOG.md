@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.8.0 - dialog order
+
+- New design reads in a better order: picture, description, common sizes, your sizes, then the optional material.
+
 ## v2.7.0 - plinth sizes
 
 - The display plinth now has common gallery sizes to pick from too, such as 16 x 16 x 42 in.
