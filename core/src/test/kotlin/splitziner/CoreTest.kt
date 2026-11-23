@@ -2104,3 +2104,19 @@ class NotALadderTest {
         assertTrue(names.values.none { it == "Rung" || it == "Ladder side" }, names.toString())
     }
 }
+
+class SquareUpTest {
+    @Test fun aCabinetDrawnAtAnAngleIsSquaredUp() {
+        val t = splitziner.edit.Templates.byKey("drawers")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+        fun stl(meshes: List<splitziner.mesh.Mesh>): ByteArray { val bos = ByteArrayOutputStream(); StlWriter.writeParts(meshes, bos); return bos.toByteArray() }
+        val a = Math.toRadians(30.0); val c = kotlin.math.cos(a); val s = kotlin.math.sin(a)
+        val turned = ms.map { m -> splitziner.mesh.Mesh(DoubleArray(m.vertices.size) { i -> val v = 3 * (i / 3); when (i % 3) { 0 -> c * m.vertices[v] - s * m.vertices[v + 1]; 1 -> s * m.vertices[v] + c * m.vertices[v + 1]; else -> m.vertices[v + 2] } }, m.triangles) }
+        val square = Pipeline.analyze(stl(ms), "d.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val angled = Pipeline.analyze(stl(turned), "d.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertTrue(angled.report.warnings.any { it.contains("squared up") }, angled.report.warnings.toString())
+        assertTrue(square.report.warnings.none { it.contains("squared up") })
+        assertEquals(square.parts.map { it.name }.sorted(), angled.parts.map { it.name }.sorted())
+        assertEquals(square.overallSize, angled.overallSize)
+    }
+}

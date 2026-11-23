@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.0 - Squared up
+
+- Models drawn at an angle (turned on the floor plan in the 3D program) are squared up on import, so the cut list, drawings and guide come out right. The project notes say when this happened.
+
 ## v1.36.0 - Frames are not ladders
 
 - Fixed: a frame of boards (a desk's O-shaped leg, once split into its pieces) was mistaken for a ladder.

@@ -441,3 +441,7 @@ Departures from the build spec, newest first.
 
 ## v1.36
 - A ladder's sides run on past its end rungs (at least 50 mm, top and bottom). Bars flush with the ends of two uprights make a frame, not a ladder: the real desk sample's O-shaped legs, once split into their boards, were being called a ladder.
+
+## v1.37
+- A model drawn turned on the floor plan (not square to the axes) is squared up on import: the angle is read from the upright faces of its parts (their normals, weighted by area, folded into one quarter turn), and the model is turned back when at least 60% of that area agrees and the angle is over 0.3 degrees. Its notes say so. Round pieces, or parts at many angles, are left alone. A turn of more than 45 degrees ends up facing sideways and is then turned to face the front as in v1.31.
+- No test model drawn square is moved by this; a dresser turned 30 degrees and a kitchen base turned 60 degrees come back with the same guide as the originals.

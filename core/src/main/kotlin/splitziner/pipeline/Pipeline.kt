@@ -196,6 +196,28 @@ object Pipeline {
     /** Points off a way up in which the piece would fall over. */
     private const val FALLS = 8
 
+    /**
+     * How far (degrees) the model is turned about the vertical from the axes, judged from the upright faces of its
+     * parts (their normals, by area, folded into one quarter turn). Null when it is square already (within
+     * [SQUARE_TOL]) or has no clear direction (round, or parts at many angles).
+     */
+    fun squareUpAngle(parts: List<Part>): Double? {
+        var sx = 0.0; var sy = 0.0; var total = 0.0
+        for (p in parts) { val m = p.mesh; val n = m.faceNormals; val a = m.faceAreas
+            for (f in 0 until m.triangleCount) { val nx = n[3 * f]; val ny = n[3 * f + 1]; val nz = n[3 * f + 2]
+                if (kotlin.math.abs(nz) > 0.3 || a[f] <= 0.0) continue
+                val ang = 4 * kotlin.math.atan2(ny, nx); sx += a[f] * kotlin.math.cos(ang); sy += a[f] * kotlin.math.sin(ang); total += a[f] } }
+        if (total <= 0.0 || kotlin.math.hypot(sx, sy) < SQUARE_AGREE * total) return null
+        val deg = Math.toDegrees(kotlin.math.atan2(sy, sx)) / 4
+        return if (kotlin.math.abs(deg) < SQUARE_TOL) null else deg
+    }
+
+    /** Below this (degrees) a model counts as square: drawing noise, not a turn. */
+    private const val SQUARE_TOL = 0.3
+
+    /** Share of the upright face area that must agree on one direction before the model is turned to it. */
+    private const val SQUARE_AGREE = 0.6
+
     /** Points by which another up axis must beat the file's own Z before the app turns the model. */
     private const val MARGIN = 3
 
@@ -227,11 +249,21 @@ object Pipeline {
             timed("split") { BodySplitter.split(raw, options.fileUnits, options.displayUnits) }
         }
         // Turned so the chosen axis points up. A rotation by quarter turns: sizes and right angles are kept exactly.
-        val turned = if (options.up == "z" || options.up == "z>0") split.parts else {
+        val turned0 = if (options.up == "z" || options.up == "z>0") split.parts else {
             val r = upRotation(options.up)
             split.parts.map { p -> p.copy(mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
                 val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
                 r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
+            }, p.mesh.triangles)) }
+        }
+        // Drawn at an angle on the floor plan (a model turned 30 degrees in SketchUp): squared up to the axes, so its
+        // boards run along X and Y as the drawings, the roles and the build order expect.
+        val yaw = squareUpAngle(turned0)
+        val turned = if (yaw == null) turned0 else {
+            val c = kotlin.math.cos(Math.toRadians(-yaw)); val sn = kotlin.math.sin(Math.toRadians(-yaw))
+            turned0.map { p -> p.copy(mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
+                val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]
+                when (i % 3) { 0 -> c * x - sn * y; 1 -> sn * x + c * y; else -> p.mesh.vertices[v + 2] }
             }, p.mesh.triangles)) }
         }
         // Very heavy models are worked with as a simplified copy, so drawings, the 3D view and the checks fit in a phone's memory.
@@ -258,6 +290,7 @@ object Pipeline {
             out
         }
         progress.report(0.8, "Building the cut list")
+        if (yaw != null) report = report.copy(warnings = report.warnings + "The model was drawn turned ${"%.1f".format(kotlin.math.abs(yaw))}\u00b0 on the floor plan, so it has been squared up: its boards now run straight across and back, as the drawings show them.")
         if (options.upGuessed && options.up.substringBefore('>') != "z") report = report.copy(warnings = report.warnings + "The model looked as if it was lying on its back (saved with ${options.up.substringBefore('>').uppercase()} up, as many programs do), so it has been stood up. If that is wrong, open the project menu (\u22ee, top right), then Which way is up.")
         if (options.upGuessed && options.up.contains('>')) report = report.copy(warnings = report.warnings + "The model's front looked as if it faced sideways (its drawers, doors or kick board were on a side), so it has been turned to face you. If that is wrong, open the project menu (\u22ee, top right), then Which way is up, and turn it.")
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
