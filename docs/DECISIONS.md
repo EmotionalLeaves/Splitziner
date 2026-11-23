@@ -677,3 +677,6 @@ Departures from the build spec, newest first.
 ## v1.95
 - A crate gets a note of what it takes: its inside size, and the largest work that fits once lined with 2 in (50 mm) of foam all round (a usual allowance for shipping art, stated as such). Too shallow to line, it gets a check instead.
 - The art crate template's default inside depth is 7 in (180 mm), so with foam it takes a work 3 in deep, the depth of a framed painting.
+
+## v1.96
+- A picture frame's glass note also gives the rabbet's depth (the back strips' thickness), which the glass, mat, art and backing must fit in together.

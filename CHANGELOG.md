@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.96.0 - rabbet depth
+
+- The picture frame note now gives the rabbet's depth too, so you can check that the glass, mat, art and backing will fit.
+
 ## v1.95.0 - crate capacity
 
 - **Crates say what fits.** The check now gives the crate's inside size and the largest work it takes with 2 in of foam all round. The art crate design is now 7 in deep inside by default, which fits a framed painting up to 3 in deep.

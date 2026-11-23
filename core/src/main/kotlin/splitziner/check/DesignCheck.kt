@@ -374,7 +374,7 @@ object DesignCheck {
             val w = o.extents.x - 2 * sw - gap; val h = o.extents.y - 2 * sw - gap
             val u = if (fmt.isInch) " in" else " mm"
             out += Finding(Severity.NOTE, "Glass, backing and hanging (not in the model)",
-                "The rabbet takes pieces ${d(w)} x ${d(h)}$u (its opening, less ${d(gap)}$u for play). Get glass or acrylic and a backing board (hardboard or foam board) cut to that size, " +
+                "The rabbet takes pieces ${d(w)} x ${d(h)}$u (its opening, less ${d(gap)}$u for play), ${d(strips.minOf { p -> p.mesh.bounds.extents.z })}$u deep: the glass, any mat, the art and the backing together must fit in that depth. Get glass or acrylic and a backing board (hardboard or foam board) cut to that size, " +
                     "framer's points (flexible or glazier's) to hold them in from the back, and two D-rings with picture wire to hang it, the rings about a third of the way down the sides.",
                 strips.map { it.id })
         }
