@@ -316,10 +316,25 @@ object AssemblyPlan {
             steps.drop(2).map { it.copy(step = it.step - 1) }
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
-        val casters = all.filter { it.name == "Caster" && !it.excluded }
         if (order != null) return planInner(all, maxSteps, order)
-        if (casters.isEmpty() || casters.size == all.count { !it.excluded }) return foldLone(planInner(all, maxSteps, order))
-        return castersLast(foldLone(planInner(all - casters.toSet(), maxSteps, null)), all, casters)
+        val casters = all.filter { it.name == "Caster" && !it.excluded }
+        // A crate's lid, with the battens on it, is screwed on last, once the work is packed in.
+        val lid = if (all.any { it.name == "Crate lid" && !it.excluded }) all.filter { (it.name == "Crate lid" || it.name == "Batten") && !it.excluded } else emptyList()
+        val late = casters + lid
+        if (late.isEmpty() || late.size == all.count { !it.excluded }) return foldLone(planInner(all, maxSteps, order))
+        var r = foldLone(planInner(all - late.toSet(), maxSteps, null))
+        if (lid.isNotEmpty()) r = lastStep(r, lid, Vec3(0.0, -1.0, 0.0))
+        if (casters.isNotEmpty()) r = lastStep(r, casters, Vec3(0.0, 0.0, -1.0))
+        val planned = r.parts.associateBy { it.id }
+        return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
+    }
+
+    /** [ps] fitted in a step of their own after everything in [r], coming in against [out] (the way they leave). */
+    private fun lastStep(r: PlanResult, ps: List<Part>, out: Vec3): PlanResult {
+        val last = BuildStep(r.steps.size + 1, ps.map { it.id }, listOf(out), ps.mapNotNull { it.item }.distinct().sorted())
+        val pull = maxOf(50.0, ps.maxOf { p -> p.mesh.bounds.extents.let { maxOf(it.x, it.y, it.z) } } * 0.3)
+        val ids = ps.map { it.id }.toSet()
+        return PlanResult(r.parts.filter { it.id !in ids } + ps.map { it.copy(step = last.step, explode = out * pull) }, r.steps + last)
     }
 
     /**
@@ -339,17 +354,6 @@ object AssemblyPlan {
         return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { if (it >= b.step) it - 1 else it }) }, steps)
     }
 
-    /**
-     * Casters go on last, in a step of their own, with the piece upside down: screwed to the underside of a case
-     * already built. The case is planned without them, so nothing is set out on them or started from them.
-     */
-    private fun castersLast(r: PlanResult, all: List<Part>, casters: List<Part>): PlanResult {
-        val last = BuildStep(r.steps.size + 1, casters.map { it.id }, listOf(Vec3(0.0, 0.0, -1.0)), casters.mapNotNull { it.item }.distinct().sorted())
-        val drop = maxOf(50.0, casters.maxOf { it.mesh.bounds.extents.z })
-        val planned = r.parts.associateBy { it.id }
-        val ids = casters.map { it.id }.toSet()
-        return PlanResult(all.map { p -> if (p.id in ids) p.copy(step = last.step, explode = Vec3(0.0, 0.0, -drop)) else planned[p.id] ?: p }, r.steps + last)
-    }
 
     private fun planInner(all: List<Part>, maxSteps: Int, order: List<List<String>>?): PlanResult {
         val live = all.filter { !it.excluded }

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.94.0 - crate lid last
+
+- **Crates build in a packing order.** The crate is built first, and the lid with its battens goes on last. The lid is screwed only, with no glue, after the work is packed in foam, so you can open it again at the gallery. Crates no longer get a wall strap on their hardware list.
+
 ## v1.93.0 - block role
 
 - Small unnamed pieces (spacers, glue blocks) are now called "block" in the guide and lists instead of just an item number.

@@ -669,3 +669,7 @@ Departures from the build spec, newest first.
 
 ## v1.93
 - A part no other rule names and with no side over 3 in (76 mm) is a "Block" (a spacer, a glue block), so the guide and lists call it something instead of a bare item number.
+
+## v1.94
+- A crate: the panel with two or more battens across it, with a matching panel at the back, is the "Crate lid". The case is built first (back, frame), and the lid with its battens goes on in a last step, screwed only (no glue) once the work is packed in foam, marked so it goes back the same way round. Crates never get a wall strap in their hardware.
+- Parts held back to a last step of their own (a crate's lid, casters) share one mechanism: the rest is planned without them, then each group is added as a final step.

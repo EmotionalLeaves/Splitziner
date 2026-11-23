@@ -596,6 +596,16 @@ object Roles {
             val alike = round.groupBy { Math.round(it.mesh.bounds.extents.x) to Math.round(it.mesh.bounds.extents.z) }.values.filter { it.size >= 3 }
             for (g in alike) for (p in g) out[p.id] = "Caster"
         }
+        // A crate: two or more battens across the face of a panel, with a matching panel at the back. The battened
+        // panel is the lid, screwed on last once the work is packed in.
+        run {
+            val battens = live.filter { out[it.id] == "Batten" }
+            if (battens.size < 2) return@run
+            val lid = live.filter { o -> o.mesh.bounds.extents.let { e -> e.y <= minOf(e.x, e.z) } && battens.all { b -> kotlin.math.abs(o.mesh.bounds.min.y - b.mesh.bounds.max.y) < 1.0 } }.singleOrNull() ?: return@run
+            val lb = lid.mesh.bounds
+            val twin = live.any { o -> o !== lid && o.mesh.bounds.let { b -> b.extents.y <= minOf(b.extents.x, b.extents.z) && kotlin.math.abs(b.extents.x - lb.extents.x) < 1.0 && kotlin.math.abs(b.extents.z - lb.extents.z) < 1.0 && b.min.y > lb.max.y } }
+            if (twin) out[lid.id] = "Crate lid"
+        }
         // A small piece with no other name (a spacer, a glue block): a block, so the guide can call it something.
         for (p in live) if (out[p.id] == null && p.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) <= BLOCK_MAX }) out[p.id] = "Block"
         // A flat frame lying on the bench (a canvas stretcher, a picture frame), every member the same thickness in one
