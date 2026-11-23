@@ -248,6 +248,36 @@ object PartDescriber {
         return minOf(a, b) to maxOf(a, b)
     }
 
+    /**
+     * A flat part whose outline is its rectangle with one or more corners sawn off in a straight line, all the same
+     * size: how many, and the cut's two legs along the edges. Null otherwise.
+     */
+    fun clippedCorners(m: Mesh): Pair<Int, Pair<Double, Double>>? {
+        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
+        val g = pr.outline
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
+        val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
+        if (c.size < 5 || c.size > 8) return null
+        val x0 = c.minOf { it.x }; val x1 = c.maxOf { it.x }; val y0 = c.minOf { it.y }; val y1 = c.maxOf { it.y }
+        val tol = 0.5
+        fun onX(p: org.locationtech.jts.geom.Coordinate) = kotlin.math.abs(p.x - x0) < tol || kotlin.math.abs(p.x - x1) < tol
+        fun onY(p: org.locationtech.jts.geom.Coordinate) = kotlin.math.abs(p.y - y0) < tol || kotlin.math.abs(p.y - y1) < tol
+        // Every corner of the outline is on the rectangle's edges; the box corners it misses are the clipped ones.
+        if (c.any { !onX(it) && !onY(it) }) return null
+        val corners = listOf(x0 to y0, x1 to y0, x1 to y1, x0 to y1)
+        val missing = corners.filter { (cx, cy) -> c.none { kotlin.math.abs(it.x - cx) < tol && kotlin.math.abs(it.y - cy) < tol } }
+        if (missing.isEmpty() || c.size != 4 + missing.size) return null
+        val legs = missing.map { (cx, cy) ->
+            val a = c.filter { kotlin.math.abs(it.y - cy) < tol }.minOf { kotlin.math.abs(it.x - cx) }
+            val b = c.filter { kotlin.math.abs(it.x - cx) < tol }.minOf { kotlin.math.abs(it.y - cy) }
+            a to b }
+        // A clip, not a notch: each leg well short of the side it is on; all the same size.
+        if (legs.any { (a, b) -> a < 3.0 || b < 3.0 || a > 0.5 * (x1 - x0) || b > 0.5 * (y1 - y0) }) return null
+        val first = legs[0]
+        if (legs.any { kotlin.math.abs(it.first - first.first) > 0.5 || kotlin.math.abs(it.second - first.second) > 0.5 }) return null
+        return missing.size to first
+    }
+
     /** A flat part whose outline is a triangle with one square corner. */
     fun rightTriangle(m: Mesh): Boolean {
         val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return false
@@ -331,6 +361,13 @@ object PartDescriber {
         if (rightTriangle(m)) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A RIGHT TRIANGLE")
+        }
+        // Corners sawn off straight (a shelf with its front corners clipped): named with the cut's size.
+        clippedCorners(m)?.let { (n, ab) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            val (ca, cb) = ab
+            val size = if (kotlin.math.abs(ca - cb) < 0.5) "${d(ca)}" else "${d(minOf(ca, cb))} X ${d(maxOf(ca, cb))}"
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ${if (n == 1) "ONE CORNER" else "$n CORNERS"} CUT OFF $size")
         }
         slopedEdge(m)?.let { (lo, hi) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD

@@ -2599,3 +2599,22 @@ class PresetTest {
         assertTrue(splitziner.edit.Templates.presets(splitziner.edit.Templates.byKey("stretcher"), true).any { it.label == "16 x 20 in" })
     }
 }
+
+class ShapeWordsTest {
+    private fun flat(vararg xy: Pair<Double, Double>): splitziner.mesh.Mesh {
+        val gf = org.locationtech.jts.geom.GeometryFactory()
+        val ring = (xy.toList() + xy[0]).map { org.locationtech.jts.geom.Coordinate(it.first, it.second) }.toTypedArray()
+        return splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef.TOP, gf.createPolygon(ring), 0.0, 19.0))
+    }
+
+    @Test fun clippedSlopedAndTriangularBoardsAreNamedByTheirCuts() {
+        val fmt = LengthFormat("mm")
+        // A shelf 600 x 300 with both front corners cut off 50 x 50.
+        val clipped = flat(50.0 to 0.0, 550.0 to 0.0, 600.0 to 50.0, 600.0 to 300.0, 0.0 to 300.0, 0.0 to 50.0)
+        assertTrue(splitziner.parts.PartDescriber.describe(clipped, fmt).desc.endsWith("2 CORNERS CUT OFF 50"), splitziner.parts.PartDescriber.describe(clipped, fmt).desc)
+        val sloped = flat(0.0 to 0.0, 350.0 to 0.0, 350.0 to 300.0, 0.0 to 150.0)
+        assertTrue(splitziner.parts.PartDescriber.describe(sloped, fmt).desc.endsWith("ONE EDGE SLOPED FROM 300 TO 150"), splitziner.parts.PartDescriber.describe(sloped, fmt).desc)
+        val tri = flat(0.0 to 0.0, 300.0 to 0.0, 0.0 to 300.0)
+        assertTrue(splitziner.parts.PartDescriber.describe(tri, fmt).desc.endsWith("A RIGHT TRIANGLE"))
+    }
+}

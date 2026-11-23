@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.21.0 - clipped corners
+
+- Shelves and tops with their corners cut off are now described that way ("2 corners cut off 2 in"), with a simple mark-and-saw step.
+
 ## v2.20.0 - nested sloped sides
 
 - Sloped sides (like the print browser's) are now cut two from one blank, nested head to tail, which saves wood and a cut.

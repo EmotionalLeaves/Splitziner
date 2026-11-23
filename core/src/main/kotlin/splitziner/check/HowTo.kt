@@ -80,6 +80,10 @@ object HowTo {
         val pw = row.pairW
         if (slope != null && pw != null && row.qty > 1) out += "Two nest head to tail in each blank: mark ${slope.groupValues[1]} $u along one end and ${slope.groupValues[2]} $u along the other, both from the same long edge, join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line). Each half is one${if (row.qty % 2 == 1) "; cut the odd one from a blank ${d(row.w)} x ${d(row.l)} $u the same way" else ""}."
         else if (slope != null) out += "Mark the slope, measuring both from the same long edge: ${slope.groupValues[1]} $u at one end (the full width) and ${slope.groupValues[2]} $u at the other. Join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line)."
+        Regex("""(ONE CORNER|\d+ CORNERS) CUT OFF ([^ ,]+)(?: X ([^ ,]+))?""").find(row.description)?.let { cm ->
+            val legs = if (cm.groupValues[3].isEmpty()) "${cm.groupValues[2]} $u along both edges" else "${cm.groupValues[2]} $u along one edge and ${cm.groupValues[3]} $u along the other"
+            out += "Mark ${if (cm.groupValues[1] == "ONE CORNER") "the corner to cut off" else "each corner to cut off (see the drawing for which)"}: $legs from the corner. Join the marks and saw the line, then sand the edge smooth."
+        }
         if (row.description.contains("A RIGHT TRIANGLE")) out += "Draw a line corner to corner across the blank and saw along it: each blank makes two triangles${if (row.qty > 1) ", so cut ${(row.qty + 1) / 2} blank${if ((row.qty + 1) / 2 == 1) "" else "s"} for ${row.qty}" else ""}."
         val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
         if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +
