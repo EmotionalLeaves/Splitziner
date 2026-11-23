@@ -310,7 +310,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         splitziner.cutplan.CutPlanner.gluingSteps(a.cutList.rows, a.format),
                         fasten?.let { splitziner.joinery.Fastening.pilotNote(it) })
                     val info = splitziner.guide.GuideLayout.Info(open.meta.title.ifBlank { open.meta.name }, "Build guide", a.overallSize, drawn.size, tools.map { it.replaceFirstChar { c -> c.uppercase() } },
-                        hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it },
+                        hardware = (fasten?.hardware ?: emptyList()).let { if (it.isEmpty()) it else listOf("Joined with: ${method.label.lowercase()}") + it } + a.orders.map { "To order: $it" },
                         before = ba.first, after = ba.second, making = makingSteps(a, toolsFor(open.meta), fasten))
                     val pages = splitziner.guide.GuideLayout.pages(info, steps, a.cutList.rows, hero)
                     Diagnostics.log("guide: ${steps.size} steps, ${pages.size} pages, ${(System.nanoTime() - t0) / 1_000_000} ms")

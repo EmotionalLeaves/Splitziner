@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.89.0 - orders on guide cover
+
+- The build guide's cover page now lists anything to order from elsewhere (an acrylic cover) under the hardware.
+
 ## v1.88.0 - cradled panel
 
 - **New design: Cradled panel.** A painting panel: a thin plywood face glued to a cradle of strips, with braces so it stays flat. You make the cradle first, then glue the face on and weigh it down, with nothing going through the painting surface.
