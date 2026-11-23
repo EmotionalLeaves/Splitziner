@@ -2753,7 +2753,7 @@ class PiecesAlikeTest {
         val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
         // 36 in deep, open below: the tops are screwed down into the walls' edges, never bracketed out of reach.
         assertTrue(f.all.none { it.kind == "brackets" }, f.all.map { it.kind }.distinct().toString())
-        val g = splitziner.guide.Guide.build(pl.parts, pl.steps, fasten = f, fmt = fmt)
+        val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fasten = f, fmt = fmt)
         assertTrue(g.first().title.contains("piece 1 of 2 (make 4 alike)"), g.first().title)
     }
 }

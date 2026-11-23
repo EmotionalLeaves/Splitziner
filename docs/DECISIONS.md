@@ -831,3 +831,6 @@ Departures from the build spec, newest first.
 - Identical pieces in a set (four plinths alike: the same parts in the same places, to the millimetre) are built once: their first step says "make 4 alike", and each step's parts and hardware are counted for all of them. The other copies are not drawn or stepped through again; the cut list and hardware totals still count every one.
 - A closed pedestal too deep to reach into from below, with no cleats under its top and no door, has its top screwed down through its face into the walls' top edges (countersunk, filled), as the stave columns' are, rather than corner brackets nobody could fix. In a set, each piece is judged on its own for this.
 - Such a top's line gives the screws for each joint group, not the whole step's on every line.
+
+## v2.37.1
+- v2.37 with its new unit test corrected (it called the guide builder by a wrong name, so CI could not compile the tests). Includes everything in v2.37 and v2.36 (v2.36's phone test crashed inside Compose's layout while drawing, in a test that passed unchanged before; treated as a flake and run again here).

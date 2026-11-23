@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.37.1 - test fix
+
+- Same as v2.37 (identical pieces built once, deep plinth tops screwed down) and v2.36 (folding screen design); a test fix so the build could be published.
+
 ## v2.37.0 - pieces made alike
 
 - Making several identical plinths in one file? The guide now builds one and says "make 4 alike", with parts and hardware counted for all of them, instead of repeating every step.
