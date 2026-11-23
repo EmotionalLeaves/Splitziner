@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.56.0 - risers
+
+- **Step stools and stairs:** the upright board under the front of a step is now named a riser. The guide no longer says to "centre" a tread on the height of its stepped side.
+
 ## v1.55.0 - pegs and wall shelves
 
 - **Coat racks and peg rails.** Dowel pegs set into a board are now glued into drilled holes. The board's drawing lists the hole size, depth and centres. Before, they were reported as two parts in the same space.

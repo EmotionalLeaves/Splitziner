@@ -76,6 +76,8 @@ object GuideSteps {
                     }
                 }
                 if (k == 2 && supported) continue
+                // A shaped host (a stepped stringer) has no plain top or bottom edge to measure up or down from.
+                if (k == 2 && (host.name == "Stringer" || host.kind == splitziner.parts.PartKind.SHAPED)) continue
                 if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
                 if (lo < 1.0 || hi < 1.0) continue

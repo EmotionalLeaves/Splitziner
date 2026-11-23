@@ -376,6 +376,18 @@ object Roles {
             if (!climbs) continue
             out[p.id] = "Stringer"; for (o in on) out[o.id] = "Tread"
         }
+        // Between two stringers, an upright board standing under the front edge of a tread is its riser.
+        run {
+            val stringers = live.filter { out[it.id] == "Stringer" }; val treads = live.filter { out[it.id] == "Tread" }
+            if (stringers.size < 2 || treads.isEmpty()) return@run
+            for (p in live) {
+                val b = p.mesh.bounds
+                if (out[p.id] == "Tread" || out[p.id] == "Stringer" || b.extents.y > minOf(b.extents.x, b.extents.z)) continue
+                if (stringers.count { touches(p, it) } >= 2 && treads.any { t -> kotlin.math.abs(t.mesh.bounds.min.z - b.max.z) < 0.5 && touches(p, t) &&
+                    // under its front edge, not its back (a back panel)
+                    b.center.y <= t.mesh.bounds.min.y + 0.25 * t.mesh.bounds.extents.y }) out[p.id] = "Riser"
+            }
+        }
         // A seat's back: boards leaned back off upright above the seat, the long ones slats, the upright ones supports.
         for (p in live) {
             if (out[p.id] == "Leg" || out[p.id] == "Centre leg") continue
