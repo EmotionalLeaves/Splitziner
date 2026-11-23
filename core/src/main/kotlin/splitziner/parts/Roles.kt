@@ -100,12 +100,13 @@ object Roles {
                 }
             }
         }
-        // A plinth: three or more boards on edge on the floor, joined in a ring, low, with the case standing on them.
+        // A plinth: three or more boards on edge on the floor, joined in a ring, low, with the case standing on them (its
+        // sides, or a bottom that spans them).
         run {
             fun near(a: Part, o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 1.0 && a.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 1.0 }
             val cand = live.filter { p -> p.id !in out && p.mesh.bounds.let { b -> val e = b.extents
                 b.min.z <= all.min.z + 1.0 && e.z < 0.25 * h && minOf(e.x, e.y) < e.z && maxOf(e.x, e.y) > 3 * e.z &&
-                    live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && near(p, o) && o.mesh.bounds.extents.z > e.z } } }
+                    live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && near(p, o) && o.mesh.bounds.extents.let { oe -> oe.z > e.z || minOf(oe.x, oe.y) > 3 * e.z } } } }
             if (cand.size >= 3 && cand.all { c -> cand.count { o -> o !== c && near(c, o) } >= if (cand.size >= 4) 2 else 1 }) for (c in cand) out[c.id] = "Plinth"
         }
         // A ladder: two slim bars standing side by side, a hand's span or more apart, with three or more level bars
@@ -647,6 +648,14 @@ object Roles {
                 val b = p.mesh.bounds
                 if (b.min.x > all.min.x + 0.5 && b.max.x < all.max.x - 0.5 && b.min.y > all.min.y + 0.5 && b.max.y < all.max.y - 0.5) out[p.id] = "Brace"
             }
+        }
+        // Two or more like strips on edge in the back plane (above and below a door in a case's back) are back rails,
+        // one name for one item, not a rail below and an apron under the top.
+        run {
+            val strips = live.filter { p -> out[p.id] in setOf("Rail", "Apron", "Stretcher") && p.mesh.bounds.let { b -> val e = b.extents
+                e.y < minOf(e.x, e.z) && e.x > e.z && kotlin.math.abs(b.max.y - all.max.y) < 1.0 } }
+            val alike = strips.groupBy { p -> p.mesh.bounds.extents.let { e -> listOf(e.x, e.y, e.z).map { kotlin.math.round(it) } } }.values.filter { it.size >= 2 }
+            for (g in alike) if (g.map { out[it.id] }.distinct().size > 1 || live.any { out[it.id] == "Door" && kotlin.math.abs(it.mesh.bounds.max.y - all.max.y) < 1.0 }) for (p in g) out[p.id] = "Back rail"
         }
         return out
     }

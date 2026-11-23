@@ -196,6 +196,9 @@ object DesignCheck {
      * A tall closed pedestal (a plinth): a top over four walls that stand on the floor, too tall (over 24 in) to reach
      * the top's underside from the open bottom. Its top is screwed down through its face.
      */
+    /** Where a case's walls stand: on its plinth (a recessed base under it), or else on the floor. */
+    private fun standZ(live: List<Part>, all: splitziner.math.Aabb): Double = live.filter { it.name == "Plinth" }.maxOfOrNull { it.mesh.bounds.max.z } ?: all.min.z
+
     fun closedPedestal(live: List<Part>): Boolean {
         if (live.size < 5) return false
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
@@ -203,7 +206,8 @@ object DesignCheck {
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
         val top = live.filter { flat(it) && it.mesh.bounds.max.z >= all.max.z - 1.0 }.maxByOrNull { it.mesh.bounds.extents.x * it.mesh.bounds.extents.y } ?: return false
         val b = top.mesh.bounds
-        return listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== top && !flat(w) && w.mesh.bounds.min.z <= all.min.z + 1.0 && w.mesh.bounds.max.z >= b.min.z - 1.0 &&
+        val floor = standZ(live, all)
+        return listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== top && !flat(w) && w.mesh.bounds.min.z <= floor + 1.0 && w.mesh.bounds.max.z >= b.min.z - 1.0 &&
             (if (lo) w.mesh.bounds.max[ax] <= b.min[ax] + 25.0 else w.mesh.bounds.min[ax] >= b.max[ax] - 25.0) && w.mesh.bounds.min[1 - ax] <= b.max[1 - ax] && w.mesh.bounds.max[1 - ax] >= b.min[1 - ax] } }
     }
 
@@ -215,11 +219,12 @@ object DesignCheck {
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
         val h = all.extents.z
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
+        val floor = standZ(live, all)
         return live.firstOrNull { s ->
             val b = s.mesh.bounds
             flat(s) && b.min.z > all.min.z + 25.0 && b.max.z < all.min.z + 0.25 * h && b.extents.x > 0.5 * all.extents.x && b.extents.y > 0.5 * all.extents.y &&
-                // Walled in on four sides by parts standing on the floor, reaching above it.
-                listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== s && !flat(w) && w.mesh.bounds.min.z <= all.min.z + 1.0 && w.mesh.bounds.max.z >= all.max.z - 50.0 &&
+                // Walled in on four sides by parts standing on the floor (or its plinth), reaching above it, or by a door.
+                listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== s && !flat(w) && ((w.mesh.bounds.min.z <= floor + 1.0 && w.mesh.bounds.max.z >= all.max.z - 50.0) || w.name == "Door") &&
                     (if (lo) w.mesh.bounds.max[ax] <= b.min[ax] + 25.0 && w.mesh.bounds.max[ax] >= all.min[ax] else w.mesh.bounds.min[ax] >= b.max[ax] - 25.0) &&
                     w.mesh.bounds.min[1 - ax] <= b.max[1 - ax] && w.mesh.bounds.max[1 - ax] >= b.min[1 - ax] } } &&
                 // And closed over: a flat part across the top.
@@ -590,7 +595,7 @@ object DesignCheck {
                 "It has a hanging rail across the back: it is screwed to the wall through that rail, into the studs (or with plugs made for masonry). Plasterboard alone will not hold a loaded cabinet.")
             // A closed pedestal with a low shelf inside (a display plinth) stands free: its shelf takes the weight.
             else if (h > 760.0 && h > 2.0 * dd && ballastShelf(live) != null) out += Finding(Severity.CHECK, "Weigh it down",
-                "It is ${d(h)} $u tall and only ${d(dd)} $u deep, and stands free. Load the low shelf inside (item ${ballastShelf(live)!!.item}) with sandbags or bricks before anything goes on top, so it cannot be tipped; if it stands against a wall, an anti-tip strap into a stud does as well.")
+                "It is ${d(h)} $u tall and only ${d(dd)} $u deep, and stands free. Load the ${ballastShelf(live)!!.let { b -> if (b.name == "Bottom") "bottom" else "low shelf" }} inside (item ${ballastShelf(live)!!.item}) with sandbags or bricks before anything goes on top, so it cannot be tipped; if it stands against a wall, an anti-tip strap into a stud does as well.")
             // A crate (battens across a lid) is packing, not furniture: it is not stood in a room.
             else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" }) out += Finding(Severity.CHECK, "Fix it to the wall",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +

@@ -2654,3 +2654,18 @@ class DryingRackTest {
         assertTrue(lines.any { it.contains("Cut item 4 to 29-1/4 in") }, lines.toString())
     }
 }
+
+class StoragePlinthTest {
+    @Test fun aPlinthWithADoorStandsOnItsBaseAndIsWeighedDown() {
+        val bytes = javaClass.getResourceAsStream("/complex/storage_plinth.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "storage_plinth.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction"))
+        // The recessed base under the bottom is a plinth, not a face frame; the strips above and below the door are back rails.
+        assertEquals(4, a.parts.count { it.name == "Plinth" }, a.parts.map { it.name }.toString())
+        assertEquals(2, a.parts.count { it.name == "Back rail" }, a.parts.map { it.name }.toString())
+        assertTrue(a.parts.none { it.name == "Face frame rail" })
+        // It stands free: weighed down on its bottom, not strapped to a wall.
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "Weigh it down" && it.detail.contains("bottom inside") }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.none { it.title == "Fix it to the wall" })
+    }
+}

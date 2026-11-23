@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.31.0 - storage plinths
+
+- Storage plinths (a gallery plinth with a door and a recessed base) read properly: the base is the plinth, the strips around the door are back rails, and the advice is to weigh it down with sandbags in its bottom rather than strap it to a wall.
+
 ## v2.30.0 - dowels and drying racks
 
 - Dowels and thin rods (a drying rack's dividers, a towel bar) are now glued into drilled holes, with the cut length adjusted for the holes, instead of hanging in closet rod sockets.
