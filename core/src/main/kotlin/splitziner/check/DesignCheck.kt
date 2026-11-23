@@ -410,7 +410,10 @@ object DesignCheck {
             if (live.any { it.name == "Hanging rail" }) out += Finding(Severity.CHECK, "Hang it from the studs",
                 "It has a hanging rail across the back: it is screwed to the wall through that rail, into the studs (or with plugs made for masonry). Plasterboard alone will not hold a loaded cabinet.")
             else if (h > 760.0 && h > 2.0 * dd) out += Finding(Severity.CHECK, "Fix it to the wall",
-                "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud.")
+                "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +
+                    // Nothing that pulls out: it may stand away from any wall (a display plinth), so weight is the other answer.
+                    (if (live.none { it.name in setOf("Door", "Drawer front", "Sliding door") || it.name.startsWith("Drawer") || it.name.startsWith("Door") })
+                        " If it has to stand away from a wall (a display plinth, a room divider), weigh its base down instead: a shelf low inside loaded with sandbags or bricks keeps it from tipping." else ""))
         }
         // A case (two upright sides) with no back panel racks: pushed sideways, it leans like a parallelogram.
         if (live.size >= 3) run {

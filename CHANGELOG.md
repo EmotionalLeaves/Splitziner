@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.51.0 - plinths and crates
+
+- **Gallery plinths and art crates.** A display plinth's front used to be mistaken for a door, and so did a crate's screwed-on lid. They are now plain sides. Strips screwed across the face of a panel, like a crate's battens, are named battens instead of face-frame stiles.
+- For a tall piece with no doors or drawers, such as a plinth, the tipping check now also says how to keep it steady away from a wall: weigh down the base with sandbags or bricks on a low shelf.
+
 ## v1.50.0 - tapered legs
 
 - **Tapered legs.** A leg that tapers on some of its faces used to be listed as a solid block to glue up from layers. It is now a plain board in the cut list, with the taper described: which faces, the foot size and where the taper starts. It gets its own drawing and the steps to make it: cut the joinery while the leg is still square, then use a taper jig on the table saw, or the band saw, and finish with a plane.

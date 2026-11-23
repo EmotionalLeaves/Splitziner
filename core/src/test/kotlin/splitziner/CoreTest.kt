@@ -2353,3 +2353,29 @@ class TaperTest {
         assertFalse(plain.desc.contains("TAPERED"))
     }
 }
+
+class DisplayPieceTest {
+    private val T = 19.05
+    private val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+
+    @Test fun aPlinthsFrontIsNotADoorAndItCanBeWeighted() {
+        val W = 406.4; val D = 406.4; val H = 1066.8
+        val ms = listOf(b(0.0, 0.0, 0.0, W, T, H), b(0.0, D - T, 0.0, W, T, H), b(0.0, T, 0.0, T, D - 2 * T, H), b(W - T, T, 0.0, T, D - 2 * T, H),
+            b(T, T, H - T, W - 2 * T, D - 2 * T, T), b(T, T, H - T - T, W - 2 * T, T, T), b(T, D - 2 * T, H - T - T, W - 2 * T, T, T),
+            b(T, T, 101.6, W - 2 * T, T, T), b(T, D - 2 * T, 101.6, W - 2 * T, T, T), b(T, T, 101.6 + T, W - 2 * T, D - 2 * T, T))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "p.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertTrue(a.parts.none { it.name == "Door" }, a.parts.map { it.name }.toString())
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "Fix it to the wall" && it.detail.contains("sandbags") })
+    }
+
+    @Test fun stripsOnACratesLidAreBattens() {
+        val W = 1016.0; val D = 152.4; val H = 812.8; val pt = 12.7; val fw = 88.9
+        val ms = arrayListOf(b(0.0, pt, 0.0, W, D - 2 * pt, T), b(0.0, pt, H - T, W, D - 2 * pt, T), b(0.0, pt, T, T, D - 2 * pt, H - 2 * T), b(W - T, pt, T, T, D - 2 * pt, H - 2 * T),
+            b(0.0, 0.0, 0.0, W, pt, H), b(0.0, D - pt, 0.0, W, pt, H))
+        for (x in listOf(0.0, W / 2 - fw / 2, W - fw)) ms += b(x, -T, 0.0, fw, T, H)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(3, a.parts.count { it.name == "Batten" }, a.parts.map { it.name }.toString())
+        assertTrue(a.parts.none { it.name == "Door" })
+    }
+}

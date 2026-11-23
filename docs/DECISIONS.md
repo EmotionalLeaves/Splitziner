@@ -504,3 +504,8 @@ Departures from the build spec, newest first.
 ## v1.50
 - A tapered leg is found from its cross-sections: rectangles that stay the same from one end for a way, then shrink in straight lines to the other end. It is a board, "TAPERED ON <faces> TO <foot size>, STARTING <distance> FROM THE TOP", with a detail drawing, the steps to make it (joinery first while square, then a taper jig on the table saw or the band saw and a plane), and its own tool need ("tapered legs": table saw, band saw or CNC; slowly with a hand saw, jigsaw or circular saw).
 - A raised panel likewise needs "raised panels": a router (table), table saw or CNC.
+
+## v1.51
+- A thin panel that covers a whole face of the piece, standing on the floor and reaching its top, is that face (a display plinth's side, a crate's lid), never an overlay door: a door clears what is round it.
+- A narrow strip at the front lying against the face of a panel (not the front edges of a case) is a batten, not a face frame stile.
+- The anti-tip check, for a piece with no doors or drawers, adds the other answer for something that must stand away from a wall: weight its base (a low shelf with sandbags or bricks).

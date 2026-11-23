@@ -74,11 +74,15 @@ object Doors {
         }
         // Doors over the front of a box (overlay doors) are the thin panels found next.
         val inset = out.map { it.id }.toSet()
+        val allB = b.reduce { x, y -> x.union(y) }
         val inDrawers = runCatching { Drawers.find(live) }.getOrDefault(emptyList()).flatMap { it.ids }.toSet()
         for ((i, p) in live.withIndex()) {
             if (p.id in inset || p.id in inDrawers || p.id in slide) continue
             val e = b[i].extents
             if (e.y > 0.15 * minOf(e.x, e.z) || e.y > 30.0) continue
+            // One that covers the whole of a face, floor to top and edge to edge, is that face (a plinth's side, a
+            // crate's lid screwed on), not a door: a door clears what is round it, and never stands on the floor.
+            if (b[i].min.z <= allB.min.z + 0.5 && b[i].max.z >= allB.max.z - 0.5) continue
             if (overlay(live, b, i)) out += Door(p.id, e.z, true)
         }
         // A pair of doors meeting in the middle hang from their outer edges.

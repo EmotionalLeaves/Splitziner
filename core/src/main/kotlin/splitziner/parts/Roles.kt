@@ -161,6 +161,10 @@ object Roles {
             val behind = live.count { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 &&
                 o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.z < b.max.z && o.mesh.bounds.max.z > b.min.z }
             if (behind == 0) continue
+            // Against the face of a panel rather than the edges of a case (a crate's lid, a door's back): a batten.
+            val backs = live.filter { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 &&
+                o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.z < b.max.z && o.mesh.bounds.max.z > b.min.z }
+            if (backs.all { o -> o.mesh.bounds.extents.let { oe -> oe.y <= minOf(oe.x, oe.z) && oe.x >= e.x - 0.5 && oe.z >= e.z - 0.5 } }) { out[p.id] = "Batten"; continue }
             out[p.id] = if (e.z > e.x) "Stile" else "Face frame rail"
         }
         // A rail between two stiles, flush with their faces, belongs to the frame even with an opening behind it
