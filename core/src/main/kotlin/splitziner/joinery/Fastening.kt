@@ -202,6 +202,7 @@ object Fastening {
                 continue
             }
             val lo = rel.lo; val hi = rel.hi
+            val envLo = DoubleArray(3) { ax -> lo.minOf { it[ax] } }; val envHi = DoubleArray(3) { ax -> hi.maxOf { it[ax] } }
             // The direction they meet along: where their boxes only just meet; the contact is the overlap on the other two.
             val k = (0..2).minByOrNull { ax -> minOf(hi[i][ax], hi[j][ax]) - maxOf(lo[i][ax], lo[j][ax]) }!!
             val gap = minOf(hi[i][k], hi[j][k]) - maxOf(lo[i][k], lo[j][k])
@@ -255,7 +256,12 @@ object Fastening {
             val length = dims.max()
             // Fastened through the part that is thinner along the meeting direction.
             val ea = hi[i][k] - lo[i][k]; val eb = hi[j][k] - lo[j][k]
-            val (thr, into, tThrough, depth) = if (ea <= eb) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
+            // Equal thicknesses (a cleat on a bed's side rail): through the one whose far face is inside the piece, so
+            // the screw heads do not show on the outside.
+            fun shows(n: Int): Boolean { val o = if (n == i) j else i; val far = if (lo[n][k] < lo[o][k]) lo[n][k] else hi[n][k]
+                return kotlin.math.abs(far - envLo[k]) < 1.0 || kotlin.math.abs(far - envHi[k]) < 1.0 }
+            val aFirst = if (kotlin.math.abs(ea - eb) < 0.5) !(shows(i) && !shows(j)) else ea <= eb
+            val (thr, into, tThrough, depth) = if (aFirst) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
             thr as Part; into as Part; tThrough as Double; depth as Double
             // Parts of one sub-assembly are joined on the bench. Anything else is joined in the main build, when the
             // later of the two is put in place: a frame is not screwed to a part it has not met yet.
@@ -324,7 +330,7 @@ object Fastening {
                 fun endOn(p: Part) = (0..2).maxByOrNull { p.mesh.bounds.extents[it] }!! == k
                 val hook = listOf(a, b).firstOrNull { endOn(it) && it.name.endsWith("rail") }
                 val plate = if (hook === a) b else if (hook === b) a else null
-                if (hook != null && plate != null && !endOn(plate) && (hook.name == "Side rail" || plate.name == "Side rail" || hook.name == "Centre rail") && (plate.name.endsWith("eg") || plate.name == "Post" || plate.name == "Side rail" || (plate.name == "End rail" && hook.name == "Centre rail"))) {
+                if (hook != null && plate != null && !endOn(plate) && (hook.name == "Side rail" || plate.name == "Side rail" || hook.name == "Centre rail" || hook.name == "Guard rail") && (plate.name.endsWith("eg") || plate.name == "Post" || plate.name == "Side rail" || (plate.name == "End rail" && hook.name == "Centre rail"))) {
                     joints.getOrPut(step) { ArrayList() } += Joint(plate, hook, 1, "", "bedrail", false)
                     totals["pairs of bed rail fasteners"] = (totals["pairs of bed rail fasteners"] ?: 0) + 1
                     continue

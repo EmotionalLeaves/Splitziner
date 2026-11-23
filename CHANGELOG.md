@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.15.0 - Bunk beds: guard rails and slats in one go
+
+- Bunk beds: the rails round the top bunk are now called guard rails and hook on like the side rails, so the bed still comes apart.
+- All a bed's slats are laid in one step after the cleats, instead of three or four steps of a few slats each.
+- Cleats are screwed on from the inside, so no screw heads show on the outside of the rails.
+
 ## v1.14.0 - Numbered cuts on the cutting plan
 
 - Cutting plans now number the cuts on each sheet in the order to make them, so you can break a sheet down without working it out at the saw, or ask the store to make the first rips.

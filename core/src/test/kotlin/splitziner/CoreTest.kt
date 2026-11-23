@@ -1811,3 +1811,30 @@ class CutOrderTest {
         }
     }
 }
+
+class BunkBedTest {
+    @Test fun guardRailsCleatsThenAllTheSlatsAndHiddenScrews() {
+        val T = 19.05; val L = 2032.0; val Wd = 990.6; val H = 1651.0; val post = 88.9
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (x in listOf(0.0, Wd - post)) for (y in listOf(0.0, L - post)) ms += b(x, y, 0.0, post, post, H)
+        for (z in listOf(304.8, 1219.2)) {
+            ms += b(0.0, post, z, T, L - 2 * post, 184.15); ms += b(Wd - T, post, z, T, L - 2 * post, 184.15)
+            ms += b(post, 0.0, z, Wd - 2 * post, T, 184.15); ms += b(post, L - T, z, Wd - 2 * post, T, 184.15)
+            ms += b(T, post, z + 50.8, T, L - 2 * post, 38.1); ms += b(Wd - 2 * T, post, z + 50.8, T, L - 2 * post, 38.1)
+            val gap = (L - 2 * post - 12 * 88.9) / 11
+            for (i in 0 until 12) ms += b(T, post + i * (88.9 + gap), z + 50.8 + 38.1, Wd - 2 * T, 88.9, T)
+        }
+        ms += b(0.0, post, 1524.0, T, L - 2 * post, 88.9); ms += b(Wd - T, post, 1524.0, T, L - 2 * post, 88.9)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "bunk.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(2, a.parts.count { it.name == "Guard rail" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        // Each deck's twelve slats go down in one step, after its cleats.
+        val slatSteps = pl.parts.filter { it.name == "Slat" }.groupBy { it.step }
+        assertEquals(listOf(12, 12), slatSteps.values.map { it.size }, slatSteps.keys.toString())
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        // Cleats are screwed from inside, through the cleat, so no heads show on the side rails.
+        assertTrue(f.all.filter { setOf(it.through.name, it.into.name) == setOf("Cleat", "Side rail") }.all { it.through.name == "Cleat" })
+        assertTrue(f.all.count { it.kind == "bedrail" && (it.through.name == "Guard rail" || it.into.name == "Guard rail") } >= 2)
+    }
+}

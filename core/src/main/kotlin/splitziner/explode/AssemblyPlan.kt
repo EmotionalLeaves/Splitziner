@@ -347,7 +347,28 @@ object AssemblyPlan {
         val ra = r0.mapValues { (_, v) -> ra1[v] ?: v }
         val (b, rb) = mergeAlike(a, units)
         for (k in moved.keys.toList()) moved[k] = rb[moved[k]!!] ?: moved[k]!!
-        return b to ra.mapValues { (_, v) -> rb[v] ?: v }
+        return slatsTogether(b, units, moved) to ra.mapValues { (_, v) -> rb[v] ?: v }
+    }
+
+    /**
+     * A step that fits a few slats with the cleats they rest on, followed by a step of the rest of those slats: the
+     * few move to the next step, so the cleats go on first and the slats are laid all together, spaced with one block.
+     */
+    private fun slatsTogether(steps: List<BuildStep>, units: List<Part>, moved: MutableMap<String, Int>): List<BuildStep> {
+        val byId = units.associateBy { it.id }
+        val out = steps.toMutableList()
+        for (n in 0 until out.size - 1) {
+            val a = out[n]; val b = out[n + 1]
+            if (a.subassembly || b.subassembly || b.partIds.isEmpty()) continue
+            val item = byId[b.partIds[0]]?.item ?: continue
+            if (!b.partIds.all { byId[it]?.name == "Slat" && byId[it]?.item == item }) continue
+            val few = a.partIds.filter { byId[it]?.name == "Slat" && byId[it]?.item == item }
+            if (few.isEmpty() || few.size == a.partIds.size) continue
+            out[n] = a.copy(partIds = a.partIds - few.toSet())
+            out[n + 1] = b.copy(partIds = few + b.partIds)
+            for (id in few) moved[id] = b.step
+        }
+        return out
     }
 
     /**
@@ -489,7 +510,9 @@ object AssemblyPlan {
             val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
                 (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) &&
                 // Drawers and their fronts go in all together, a chest's worth: hanging them is the same job each time.
-                last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" || nameOf[it] == "Door" }) MAX_DRAWERS else MAX_GROUP)
+                last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" || nameOf[it] == "Door" }) MAX_DRAWERS
+                    // A bed's or bench's slats go down in one go, spaced with one block: laying them is one job.
+                    else if ((last.partIds + st.partIds).all { nameOf[it] == "Slat" }) MAX_SLATS else MAX_GROUP)
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
@@ -622,6 +645,9 @@ object AssemblyPlan {
 
     /** A sub-assembly of more parts than this is built in several bench steps. */
     private const val BIG_SUB = 6
+
+    /** Slats laid in one step, at most: a big bed's worth. */
+    private const val MAX_SLATS = 30
 
     /** Drawers (or their fronts) hung in one step, at most. */
     private const val MAX_DRAWERS = 12
@@ -870,6 +896,8 @@ object AssemblyPlan {
                 // A board laid on top of what is built (a desk top on its ends, with a hutch to come on it) goes on
                 // from above, though in the finished piece something above stops it lifting off.
                 // A tread goes down onto its stringers' notches.
+                // Nothing is fitted from below when the way from above is just as clear: the part is let down, not held up.
+                if (d0.k == 2 && d0.sign == -1 && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 if (d0.k != 2 && parts[i].name == "Tread" && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)
                 if (d0.k != 2 && (lyingFlat(i) || parts[i].id == "upper") && placed.any { j -> touches(i, j) && hi[j].z <= lo[i].z + tol } &&
                     placed.none { j -> touches(i, j) && lo[j].z < hi[i].z - tol && hi[j].z > lo[i].z + tol } && blockers(i, Dir(2, 1), placed).isEmpty()) return Dir(2, 1)

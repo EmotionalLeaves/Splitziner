@@ -333,3 +333,9 @@ Departures from the build spec, newest first.
 ## v1.14
 - Cutting plans number the cuts on each sheet in the order to make them, as a panel-saw cutting diagram does: each cut runs right across the piece of sheet being cut; a rip along the sheet's length comes first wherever one frees whole strips (as a store cuts sheets), otherwise a crosscut; the last piece in a region is freed across its far end, then along its side. The number sits in a small box at the start of each cut.
 - Help: "Which way is up" now explains that the app stands up a model that plainly lies on its back.
+
+## v1.15
+- A bed's side or end rail that carries no slats, with one on the same side below that does, is a guard rail (a top bunk's). It hooks on with bed rail fasteners like the side rails, so the bunk still comes apart.
+- Two parts of equal thickness screwed face to face (a cleat on a bed rail) are screwed through the one whose far face is inside the piece, so no screw heads show outside. Thinner-through still decides when they differ.
+- A deck's slats are laid in one step after the cleats they rest on (up to 30), not spread over several steps of three to five; spacing them is one job with one block.
+- A part is never fitted "from below" when the way from above is just as clear.

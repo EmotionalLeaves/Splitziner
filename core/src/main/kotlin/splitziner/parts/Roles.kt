@@ -247,6 +247,19 @@ object Roles {
                 else -> "Rail"
             }
         }
+        // A bed's side or end rail carrying no slats, with one on the same side below it that does: a guard rail
+        // round a top bunk.
+        if (live.any { out[it.id] == "Slat" }) {
+            val carriers = live.filter { out[it.id] == "Slat" || out[it.id] == "Cleat" }
+            for (p in live) {
+                val r = out[p.id]; if (r != "Side rail" && r != "End rail") continue
+                if (carriers.any { touches(p, it) }) continue
+                val b = p.mesh.bounds; val thin = (0..1).minByOrNull { b.extents[it] }!!
+                val below = live.any { o -> o !== p && out[o.id] == r && o.mesh.bounds.max.z < b.min.z && kotlin.math.abs(o.mesh.bounds.min[thin] - b.min[thin]) < 1.0 &&
+                    carriers.any { c -> touches(o, c) } }
+                if (below) out[p.id] = "Guard rail"
+            }
+        }
         return out
     }
 }
