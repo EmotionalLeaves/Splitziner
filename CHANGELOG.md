@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.0 - cradle hanging
+
+- Cradled panels now list their hanging hardware too, with where to put the D-rings.
+
 ## v2.0.0 - hanging hardware
 
 - **Version 2.0.** Picture frames and shadow boxes now list their hanging hardware (D-rings and picture wire, plus framer's points for frames), and a shadow box's back screws are sized and counted.

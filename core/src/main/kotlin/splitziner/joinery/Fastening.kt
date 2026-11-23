@@ -805,7 +805,7 @@ object Fastening {
             totals["flush pulls (recessed handles)"] = (totals["flush pulls (recessed handles)"] ?: 0) + ds.size
         }
         // A picture frame or shadow box hangs on two D-rings and wire; a frame's glass and backing are held by points.
-        if (live.any { it.name == "Back strip" || it.name == "Glass stop" }) {
+        if (live.any { it.name == "Back strip" || it.name == "Glass stop" || it.name == "Cradle" }) {
             val w = live.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }.let { maxOf(it.extents.x, it.extents.y) }
             if (live.any { it.name == "Back strip" }) totals["framer's points (flexible or glazier's)"] = 8 + 2 * (w / 300.0).toInt()
             totals["D-rings, with their screws"] = 2

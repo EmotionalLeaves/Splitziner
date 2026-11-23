@@ -364,6 +364,9 @@ object DesignCheck {
             else out += Finding(Severity.CHECK, "Too shallow for foam",
                 "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u: too little to line with ${d(foam)}$u of foam all round. Make it deeper, or plan another way to hold the work still.", listOf(lid.id))
         }
+        // A cradled panel hangs by its cradle.
+        if (live.count { it.name == "Cradle" } >= 4 && live.any { it.name == "Panel face" })
+            out += Finding(Severity.NOTE, "Hanging (not in the model)", "Screw two D-rings to the inside of the cradle's sides, about a third of the way down, and string picture wire between them.", live.filter { it.name == "Cradle" }.map { it.id })
         // A shadow box's glass is not in the model: the size that drops in behind the lip.
         run {
             val sides = live.filter { it.name == "Box side" }
