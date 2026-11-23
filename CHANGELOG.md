@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.87.0 - to order list
+
+- The shopping list now has a "To order" line for an acrylic cover, with the size to give the plastics shop.
+
 ## v1.86.0 - weigh plinths down
 
 - **Plinths stand free.** A plinth with a low ballast shelf now gets "Weigh it down: load the shelf with sandbags or bricks" instead of being told to fix it to a wall, and no wall strap is added to its hardware.

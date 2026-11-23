@@ -645,3 +645,6 @@ Departures from the build spec, newest first.
 
 ## v1.86
 - A closed pedestal with a low shelf inside (a flat board in the bottom quarter, clear of the floor, walled in on four sides by parts standing on the floor, with a top over it) is a free-standing display piece: its tip check is "Weigh it down", naming the shelf to load with sandbags or bricks, and its hardware has no wall strap. A wall strap is still mentioned for one that stands against a wall.
+
+## v1.87
+- Things made to order elsewhere (so far a clear cover) are carried as a list on the analysis and shown under "To order" in the shopping list and its checklist, with the outside size and thickness.

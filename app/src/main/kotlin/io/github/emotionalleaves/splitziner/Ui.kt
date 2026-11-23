@@ -1387,6 +1387,7 @@ private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, 
             sb.append("• ").append(b.line).append(if (p != null) "  — ${money(p * b.count)}" else "").append('\n')
         }
         for (b in plan.leftOut) sb.append("• ").append(b).append('\n')
+        if (a.orders.isNotEmpty()) { sb.append("\nTo order\n"); for (o in a.orders) sb.append("• ").append(o).append('\n') }
         for (b in splitziner.cutplan.CutPlanner.layerNotes(plan, fmt)) sb.append("  ").append(b).append('\n')
         runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull()?.let { sb.append("• ").append(it).append('\n') }
         val hardware = vm.hardwareFor(open)
@@ -1416,7 +1417,7 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
                 val plan = splitziner.cutplan.CutPlanner.plan(open.analysis.cutList.rows, savedStock(context, fmt))
                 val buy = splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt)
                 val wood = buy.map { b -> ShopLine(b.line, priceOf(context, b.one)?.let { money(it * b.count) }) } +
-                    plan.leftOut.map { ShopLine(it, null) } +
+                    plan.leftOut.map { ShopLine(it, null) } + open.analysis.orders.map { ShopLine(it, null) } +
                     listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()).map { ShopLine(it, null) }
                 val (cost, missing) = woodCost(context, buy)
                 // Advice ("buy about 10% extra") is said under the list, not ticked off like a thing to buy.

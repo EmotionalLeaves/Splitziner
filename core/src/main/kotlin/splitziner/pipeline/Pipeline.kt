@@ -47,6 +47,8 @@ class Analysis(
     val editNotes: List<String> = emptyList(),
     /** (part, the part grooved to take it) pairs the user accepted as housing joints. */
     val housed: List<Pair<String, String>> = emptyList(),
+    /** Things made to order elsewhere (a clear cover from a plastics shop), one line each, for the shopping list. */
+    val orders: List<String> = emptyList(),
 ) {
     /** Overall size as "W x D x H units". */
     val overallSize: String get() {
@@ -385,6 +387,7 @@ object Pipeline {
         // drawings (and out of naming the rest), and said once with the size to order.
         val beforeCover = edited?.parts ?: named
         val coverIds = runCatching { splitziner.check.Covers.find(beforeCover) }.getOrDefault(emptyList()).toSet()
+        val orders = ArrayList<String>()
         if (coverIds.isNotEmpty()) {
             val cs = beforeCover.filter { it.id in coverIds }
             val bx = cs.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
@@ -392,6 +395,7 @@ object Pipeline {
             val u = if (fmt.isInch) " in" else " mm"
             report = report.copy(warnings = report.warnings + ("The clear cover on top is left out of the wood lists and drawings: have it made up by a plastics fabricator in ${fmt.format(th)}$u acrylic, " +
                 "${fmt.format(bx.extents.x)} x ${fmt.format(bx.extents.y)} x ${fmt.format(bx.extents.z)}$u outside, glued, with polished edges. It rests on the top and lifts off."))
+            orders += "Clear acrylic cover, ${fmt.format(bx.extents.x)} x ${fmt.format(bx.extents.y)} x ${fmt.format(bx.extents.z)}$u outside, ${fmt.format(th)}$u thick, open at the bottom: made up by a plastics fabricator"
         }
         // Parts with no name of their own get one from what they look like they are.
         val toCut = beforeCover.map { p -> if (p.id in coverIds) p.copy(name = if (p.id in options.partNames) p.name else "Acrylic cover", excluded = true) else p }.let { ps ->
@@ -414,6 +418,6 @@ object Pipeline {
         // A rod with one end sunk into a board (a coat rack's peg) sits in a drilled hole: housed as drawn.
         val pegs = live.filter { it.kind == splitziner.parts.PartKind.ROD }.mapNotNull { r -> splitziner.check.Pegs.host(r, live)?.let { r.id to it.id } }
         val housed = ((edited?.housed ?: emptyList()) + tenons + grooved + pegs).distinct()
-        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed)
+        return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed, orders)
     }
 }
