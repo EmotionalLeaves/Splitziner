@@ -2828,3 +2828,31 @@ class StackedShelvesTest {
         assertNull(splitziner.explode.AssemblyPlan.upperUnit(a.parts.filter { !it.excluded }))
     }
 }
+
+class GltfTest {
+    /** A glb of two unit boxes in metres, Y up, the second moved 2 m along X by its node. */
+    private fun glb(): ByteArray {
+        val v = ArrayList<Float>()
+        val b = Fixtures.box(0.0, 0.1, 0.0, 0.3, 0.0, 0.05)  // 100 x 300 (up) x 50 mm
+        for (t in 0 until b.triangleCount) for (c in 0..2) { val i = b.triangles[3 * t + c]; for (k in 0..2) v += b.vertices[3 * i + k].toFloat() }
+        val bin = java.nio.ByteBuffer.allocate(4 * v.size).order(java.nio.ByteOrder.LITTLE_ENDIAN).also { bb -> v.forEach { bb.putFloat(it) } }.array()
+        val n = v.size / 3
+        val js = """{"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0,1]}],"nodes":[{"mesh":0},{"mesh":0,"translation":[2.0,0,0]}],""" +
+            """"meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}],"buffers":[{"byteLength":${bin.size}}],"bufferViews":[{"buffer":0,"byteLength":${bin.size}}],""" +
+            """"accessors":[{"bufferView":0,"componentType":5126,"count":$n,"type":"VEC3"}]}"""
+        val jb = js.toByteArray().let { it + ByteArray((4 - it.size % 4) % 4) { ' '.code.toByte() } }
+        val out = java.nio.ByteBuffer.allocate(12 + 8 + jb.size + 8 + bin.size).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        out.putInt(0x46546C67).putInt(2).putInt(out.capacity()).putInt(jb.size).putInt(0x4E4F534A).put(jb).putInt(bin.size).putInt(0x004E4942).put(bin)
+        return out.array()
+    }
+
+    @Test fun aGlbOpensInMillimetresZUpWithAPartPerNode() {
+        val a = Pipeline.analyze(glb(), "two.glb", splitziner.pipeline.AnalysisOptions())
+        assertEquals(2, a.parts.size)
+        val all = a.parts.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+        // Y up in the file is Z up here: 300 mm tall, the two boxes 2 m apart along X.
+        assertEquals(300.0, all.extents.z, 0.5)
+        assertEquals(2100.0, all.extents.x, 0.5)
+        assertEquals(50.0, all.extents.y, 0.5)
+    }
+}

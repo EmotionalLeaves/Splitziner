@@ -187,7 +187,7 @@ private fun HomeScreen(state: UiState, vm: AppViewModel) {
                     Icon(Icons.Default.Create, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New design", maxLines = 1, softWrap = false)
                 }
             }
-            Text("STL, OBJ or 3MF files, or a project shared from the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            Text("STL, OBJ, 3MF or glTF (.glb) files, or a project shared from the app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             if (showNew) NewDesignDialog(vm, onDismiss = { showNew = false })
             BusyBar(state)
         }
@@ -1212,6 +1212,7 @@ private val HELP = listOf(
     "Build pack" to "The project menu (\u22ee, top right) has Share build pack: one zip with the drawings and the build guide as PDFs, the cutting plan, the cut list as a spreadsheet file (CSV) and the shopping list. Send it to a print shop, to whoever is helping you build, or to yourself.",
     "Doors, drawers and shelf pins" to "On the 3D tab, More > Add a shelf, divider, door or drawer fills an opening. Doors get concealed hinges (2, 3 or 4 by height) and their drawings show where the cups go; drawers get a box sized for ball-bearing slides; adjustable shelves rest on 4 pins in rows of holes on the 32 mm system. The guide hangs all of them last, once the box is finished, and their hardware is on the shopping list.",
     "Backing up" to "Open the project menu (\u22ee, top right), then Share project. It makes one file with the model and everything you set and changed. Open that file with Import (or Open with) on any phone with the app to get the project back.",
+    "File types" to "STL, OBJ, 3MF and glTF (.glb, or a .gltf with everything inside it) all open. Each object in a 3MF or glTF file becomes its own part. glTF and 3MF record their units, so sizes come out right; glTF is also turned Z-up. A compressed glTF (Draco) or one that keeps its geometry in a separate .bin file cannot be read: export it again as a single .glb, or as STL.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, open the project menu (\u22ee, top right), then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",
     "Holes" to "Each part's own drawing shows where its round holes are and how big: a size note such as 3X 8 DIA THRU, and each centre measured from the datum corner. The app finds straight round holes with a flat rim. It does not know about threads, countersinks or what a hole is for, and holes drilled at an angle are drawn but not dimensioned.",

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.43.0 - glTF import
+
+- glTF files (.glb) now open, the format many phone and web 3D apps export. Each object becomes a part, sizes come out right, and the model is turned the right way up.
+- 3MF and glTF files keep their stated units instead of being guessed.
+
 ## v2.42.0 - stacked shelves
 
 - Stacked shelf units (boards on spacers, level on level) are built from the bottom up, instead of the top levels being treated as a separate hutch.

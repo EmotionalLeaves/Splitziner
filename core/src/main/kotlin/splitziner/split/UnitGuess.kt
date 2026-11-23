@@ -96,14 +96,20 @@ object UnitGuesser {
     }
 
     /** [sc0] is the largest extent of everything, in file units. */
-    fun guess(lengths: DoubleArray, sc0: Double): UnitGuess {
+    /** [mmOnly]: the file said its unit (3MF, glTF), already turned to millimetres; only the design unit is guessed. */
+    fun guess(lengths: DoubleArray, sc0: Double, mmOnly: Boolean = false): UnitGuess {
         var lens = lengths.map { (it / sc0 * 1e7).roundToLong() }.distinct().map { it / 1e7 * sc0 }.filter { it > 1e-6 * sc0 }
         if (lens.size > 300) lens = lens.shuffled(Random(0)).take(300)
         val arr = lens.toDoubleArray()
         val cands = ArrayList<Candidate>()
         // (scale to mm, file unit, prior): millimetre files are the norm, then inches, metres, centimetres.
         for ((scale, unit, prior) in listOf(Triple(1.0, "mm", 0.3), Triple(25.4, "in", 0.1), Triple(1000.0, "m", 0.0), Triple(10.0, "cm", -0.1))) {
+            if (mmOnly && scale != 1.0) continue
             val size = sc0 * scale
+            if (mmOnly) { val mm = score(arr, 1.0, MM, MM_TOL); val inch = score(arr, 1.0 / 25.4, IN, IN_TOL)
+                cands += Candidate(mm + prior, 1.0, "mm", "mm", mm)
+                if (inch >= MIN_INCH_ROUNDNESS) cands += Candidate(inch + prior - INCH_DESIGN_HURDLE, 1.0, "mm", "in", inch)
+                continue }
             // Anything from 5 mm to 5 m is a plausible object; metre files may describe rooms and buildings.
             if (size < 5 || size > (if (unit == "m") 50000.0 else 5000.0)) continue
             val mm = score(arr, scale, MM, MM_TOL)

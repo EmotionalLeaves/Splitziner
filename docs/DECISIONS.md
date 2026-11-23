@@ -854,3 +854,8 @@ Departures from the build spec, newest first.
 
 ## v2.42
 - Stacked shelves (boards with spacers between them, the same sizes level on level, as in a downloaded bookcase) are built from the bottom up, level by level, not with their upper levels made first as a "hutch": a case set on another is one whose parts differ from those under it.
+
+## v2.43
+- glTF 2.0 opens: a binary .glb, or a .gltf with its buffers inside it (base64). Each mesh primitive placed in the scene is its own part, moved by its node's transform (matrix, or translation, rotation and scale, through the node tree). glTF is metres with Y up: sizes come out in millimetres with Z up. Draco or meshopt compression, and geometry kept in a separate .bin file, are refused with a message saying how to export instead. Lines, points and strips are skipped with a warning. Many phone and web modelling apps export glTF.
+- A file that states its unit (3MF, glTF) is no longer second-guessed as inches or centimetres: only whether it was designed in inches is still guessed, for how sizes are shown.
+- The import screen, the app's "Open with" types and Help (File types) say so.

@@ -19,6 +19,9 @@ class RawModel private constructor(private var f: FloatArray?, private var d: Do
      */
     var groups: IntArray? = null
 
+    /** The file declared its unit (3MF, glTF) and the reader has already turned it into millimetres. */
+    var unitsKnown = false
+
     /** Lets the triangles go once the splitter has indexed them; on a large file this frees most of its memory. */
     fun release() { f = null; d = null }
 
@@ -58,7 +61,7 @@ object StlReader {
      */
     const val MAX_TRIANGLES = 20_000_000
 
-    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head) || ObjReader.looksLikeObj(head) || ThreeMfReader.looksLike3mf(head)
+    fun looksLikeStl(head: ByteArray, size: Long): Boolean = isBinary(head, size) || isAscii(head) || ObjReader.looksLikeObj(head) || ThreeMfReader.looksLike3mf(head) || GltfReader.looksLikeGlb(head) || GltfReader.looksLikeGltf(head)
 
     private fun declaredCount(head: ByteArray): Long =
         if (head.size < 84) -1 else ByteBuffer.wrap(head, 80, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xffffffffL
@@ -83,7 +86,12 @@ object StlReader {
         if (name.lowercase().endsWith(".3mf") || ThreeMfReader.looksLike3mf(head)) {
             val r = open().use { ThreeMfReader.read(it, warnings) }
             if (r.soup.isEmpty()) throw StlException("The file contains no triangles")
-            return RawModel(r.soup, name, warnings).also { it.groups = r.groups }
+            return RawModel(r.soup, name, warnings).also { it.groups = r.groups; it.unitsKnown = true }
+        }
+        // glTF (.glb, or .gltf with its data inside), by name or by its first bytes.
+        if (name.lowercase().endsWith(".glb") || name.lowercase().endsWith(".gltf") || GltfReader.looksLikeGlb(head) || GltfReader.looksLikeGltf(head)) {
+            val r = open().use { GltfReader.read(it, warnings) }
+            return RawModel(r.soup, name, warnings).also { it.groups = r.groups; it.unitsKnown = true }
         }
         // OBJ files are read too, by name or by their first lines.
         if (name.lowercase().endsWith(".obj") || (!isBinary(head, size) && !isAscii(head) && ObjReader.looksLikeObj(head))) {

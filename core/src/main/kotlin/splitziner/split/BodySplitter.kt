@@ -80,7 +80,7 @@ object BodySplitter {
         val ext = bodyBounds.extents
         val size = maxOf(ext.x, ext.y, ext.z).let { if (it > 0) it else 1.0 }
         var units = if (unitsOverride != null) UnitGuess.fixed(unitsOverride, size)
-        else UnitGuesser.guess(UnitGuesser.lengthsOf(rawBodies.map { it!! }, size), size)
+        else UnitGuesser.guess(UnitGuesser.lengthsOf(rawBodies.map { it!! }, size), size, mmOnly = raw.unitsKnown)
         if (displayOverride != null) units = units.copy(designUnits = displayOverride)
 
         var fixed = 0
