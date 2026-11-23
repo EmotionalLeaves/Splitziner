@@ -489,7 +489,7 @@ object Roles {
             for (p in live) {
                 if (out[p.id] !in setOf(null, "Rail", "End rail", "Stretcher", "Shelf")) continue
                 val b = p.mesh.bounds
-                if (front.count { touches(p, it) } >= 2 && b.extents.x > 3 * b.extents.z && b.extents.z >= 50.0 && b.min.z in 0.25 * h..0.6 * h) out[p.id] = "Ledge"
+                if (front.count { touches(p, it) } >= 2 && maxOf(b.extents.x, b.extents.y) > 3 * b.extents.z && b.extents.z >= 50.0 && b.min.z in 0.25 * h..0.6 * h) out[p.id] = "Ledge"
             }
         }
         // Boards stacked on edge into a wall (a planter's, a crate's sides), each screwed across the same legs:

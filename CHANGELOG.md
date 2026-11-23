@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.61.0 - facing fixes
+
+- **Facing the right way.** Models drawn turned sideways now come in facing you in more cases: wall racks and ledges (by their back board), step stools (the steps climb away from you), easels (the back leg goes behind) and cabinets with Shaker doors. A picnic table lying on its side is no longer stood that way.
+
 ## v1.60.0 - up guess fixes
 
 - **The right way up, more often.** Cabinets with Shaker doors exported from a Y-up program (as Blender and many others do) were stood upside down; they now come in upright. Coat racks and picture ledges are stood up on their back board instead of being laid flat.

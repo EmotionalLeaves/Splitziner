@@ -548,3 +548,8 @@ Departures from the build spec, newest first.
 - Which way is up: every way up is now credited with the front it would have once turned to face the viewer, and judged facing that way; before, one already facing the viewer could lose to its upside-down twin that needed a turn (Shaker cabinets exported Y-up came out upside down).
 - The strips of a frame round a panel, and pegs, are left out of the roles that vote for a way up: they come out the same whichever way the piece lies.
 - A piece no deeper than 14 in (355.6 mm) that meets the floor only along a strip at its back, under a full-width back board, is made to hang: it does not count as falling over when the way up is guessed, and its back board, brackets and lip count for that way up. The same depth limit keeps a chest lying on its back from being taken for a wall rack.
+
+## v1.61
+- Way up: each way up is judged as it would stand once turned to face the viewer, without adding its front score itself (a picnic table on its side, its top boards reading as a face frame, beat the table on its legs). Standing on three or more small feet (each meeting the floor over under 3% of the footprint) earns 4 points.
+- A wall piece's strip of floor contact may be along any side, since it may not face the viewer yet.
+- Which way it faces: a back board at the back counts 3 points; stairs that climb away (lowest tread in front) 3; an easel's back leg standing behind its front legs 4. A panelled frame's stiles no longer count as a face frame at the front; a five-piece drawer front's panel counts as a face. Easels are left out of the long-side rule.

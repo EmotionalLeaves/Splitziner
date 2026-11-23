@@ -104,9 +104,14 @@ object Pipeline {
             val floor = ps.minOf { it.mesh.bounds.min.z }
             val all = ps.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
             var down = 0.0
+            val pads = ArrayList<Double>()
             for (p in ps) { val m = p.mesh; val n = m.faceNormals; val a = m.faceAreas; val v = m.vertices; val t = m.triangles
-                for (f in 0 until m.triangleCount) if (n[3 * f + 2] < -0.99 && v[3 * t[3 * f] + 2] < floor + 1.0) down += a[f] }
+                var mine = 0.0
+                for (f in 0 until m.triangleCount) if (n[3 * f + 2] < -0.99 && v[3 * t[3 * f] + 2] < floor + 1.0) { down += a[f]; mine += a[f] }
+                if (mine > 0) pads += mine }
             val frac = down / maxOf(1.0, all.extents.x * all.extents.y)
+            // Standing on three or more small feet (legs' ends), the usual way furniture stands; lying down, boards' faces meet the floor.
+            val onFeet = pads.size >= 3 && pads.all { it < 0.03 * all.extents.x * all.extents.y }
             // Roles that only make sense the right way up (a kick board, a stringer's treads) count most; ones that
             // come up either way a little; boards with no sensible role at all count against.
             // Counted by parts, not kinds: a bed's 24 slats and 4 legs outweigh a stray "foot" or two that a bed
@@ -120,14 +125,17 @@ object Pipeline {
             var vm = 0.0; var cx = 0.0; var cy = 0.0
             for (p in ps) { val v = kotlin.math.abs(p.mesh.volume); val c = p.mesh.bounds.center; vm += v; cx += v * c.x; cy += v * c.y }
             // Made to hang: it meets the floor only along a strip at the back, under a full-width back board.
-            val yMax = all.max.y
-            val hangs = feet.isNotEmpty() && all.extents.y <= splitziner.parts.Roles.WALL_DEPTH && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * all.extents.y) &&
-                ps.any { p -> p.mesh.bounds.min.z <= floor + 2.0 && p.mesh.bounds.extents.let { e -> e.x >= 0.8 * all.extents.x && e.y < minOf(e.x, e.z) } }
+            // Along any of its four sides (it may not face the viewer yet).
+            val hangs = feet.isNotEmpty() && (0..1).any { a -> val o = 1 - a
+                val fa = feet.map { if (a == 0) it.x else it.y }
+                all.extents[a] <= splitziner.parts.Roles.WALL_DEPTH && fa.max() - fa.min() <= maxOf(40.0, 0.25 * all.extents[a]) &&
+                    (fa.max() >= all.max[a] - 1.0 || fa.min() <= all.min[a] + 1.0) &&
+                    ps.any { p -> p.mesh.bounds.min.z <= floor + 2.0 && p.mesh.bounds.extents.let { e -> e[o] >= 0.8 * all.extents[o] && e[a] < minOf(e[o], e.z) } } }
             val stands = hangs || hull.size >= 3 && vm > 0 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) >= -1.0 } || hull.size >= 3 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) <= 1.0 }
             return (if (stands) 0 else -FALLS) + 3 * drawers + 2 * doors + 2 * minOf(STRONG_CAP, names.count { it in STRONG_ROLES && it != "Apron" } + minOf(4, names.count { it == "Apron" })) + minOf(6, names.count { it in WEAK_ROLES }) +
-                (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) FLAT_ON_FLOOR else 0)
+                (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) FLAT_ON_FLOOR else 0) + (if (onFeet) ON_FEET else 0)
         }
         // Each way up is judged as it is, plus whatever facing another way would add to the part that depends on facing:
         // a cabinet stood up but facing sideways still has its kick board, just not at the front, and must not lose to
@@ -140,7 +148,9 @@ object Pipeline {
             // beaten by its upside-down twin for needing a turn.
             val fronts = turns.associateWith { n -> if (n == 0) f0 else frontScore(turned("$u>$n")) }
             val best = fronts.maxByOrNull { it.value }!!.key
-            maxOf(score(ps0), if (best == 0) score(ps0) else score(turned("$u>$best"))) + fronts.getValue(best) }
+            // Judged as it would stand once facing that way; the front itself is not added, or a table on its side,
+            // its top boards reading as a face frame, would beat the table standing on its legs.
+            maxOf(score(ps0), if (best == 0) score(ps0) else score(turned("$u>$best"))) }
         if (System.getenv("DBGUP") != null) { System.err.println("DBGUP $scores"); for (u in listOf("y", "-y")) for (n in turns) { val ps0 = turned("$u>$n"); System.err.println("DBGUP $u>$n score=${score(ps0)} front=${frontScore(ps0)} " + runCatching { splitziner.parts.Roles.names(ps0).values.groupingBy { it }.eachCount() }.getOrDefault(emptyMap())) } }
         // Y up is the common export; its upside-down twin has to beat it clearly as well.
         val other = if (scores.getValue("-y") >= scores.getValue("y") + MARGIN) "-y" else "y"
@@ -161,6 +171,7 @@ object Pipeline {
                 r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
             }, p.mesh.triangles)) } }
         val scores = (0..3).associateWith { frontScore(turned(it)) }
+        if (System.getenv("DBGTURN") != null) System.err.println("DBGTURN $scores")
         val best = scores.maxByOrNull { it.value }!!
         // Two ways equally good (the piece looks the same from front and back): leave it as it is. With nothing to go
         // by either way, a chest, table or bench faces the way its long side does: a quarter turn when drawn end-on.
@@ -175,7 +186,7 @@ object Pipeline {
         return if (best.key != 0 && best.value >= scores.getValue(0) + MARGIN) best.key else 0
     }
 
-    private val BED_ROLES = setOf("Slat", "Side rail", "Headboard", "Footboard", "Guard rail", "Ladder side")
+    private val BED_ROLES = setOf("Slat", "Side rail", "Headboard", "Footboard", "Guard rail", "Ladder side", "Back leg", "Ledge")
 
     /** A piece this much longer front to back than side to side, with nothing else to go by, is drawn end-on. */
     private const val LONG_SIDE = 1.2
@@ -194,18 +205,31 @@ object Pipeline {
             return ps.none { o -> o.id != id && o.mesh.bounds.max.y <= b.min.y + 0.5 &&
                 (minOf(o.mesh.bounds.max.x, b.max.x) - maxOf(o.mesh.bounds.min.x, b.min.x)) * (minOf(o.mesh.bounds.max.z, b.max.z) - maxOf(o.mesh.bounds.min.z, b.min.z)) > 0.5 * b.extents.x * b.extents.z &&
                 o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.z > b.min.z && o.mesh.bounds.min.z < b.max.z } }
-        val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door" || n == "Door panel") && atFront(id) && open(id) }
+        val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door" || n == "Door panel" || n == "Drawer front panel") && atFront(id) && open(id) }
+        // A panelled frame's stiles say nothing about which way it faces; a door's do, through its panel above.
+        val framed = runCatching { splitziner.check.FramePanels.find(ps).flatMap { it.ids } }.getOrDefault(emptyList()).toSet()
         val back = ps.filter { it.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } }.maxOfOrNull { it.mesh.bounds.max.y } ?: ps.maxOf { it.mesh.bounds.max.y }
         fun atBack(id: String) = (byId[id]?.mesh?.bounds?.max?.y ?: Double.MIN_VALUE) >= back - FRONT_DEPTH
-        return 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
+        // A wall piece's back board is its only clue, and a sure one.
+        val board = if (names.any { (id, n) -> n == "Back board" && atBack(id) }) 3 else 0
+        // Steps climb away from the viewer: the lowest tread at the front.
+        val treads = names.filter { it.value == "Tread" }.keys.mapNotNull { byId[it] }
+        val climbs = if (treads.map { Math.round(it.mesh.bounds.min.z) }.distinct().size >= 2) {
+            val low = treads.minByOrNull { it.mesh.bounds.min.z }!!; val high = treads.maxByOrNull { it.mesh.bounds.min.z }!!
+            if (low.mesh.bounds.center.y < high.mesh.bounds.center.y - 1.0) 3 else 0 } else 0
+        // An easel's back leg stands behind its front legs.
+        val backLeg = names.filter { it.value == "Back leg" }.keys.mapNotNull { byId[it] }; val frontLegs = names.filter { it.value == "Leg" }.keys.mapNotNull { byId[it] }
+        fun footY(p: Part): Double { val v = p.mesh.vertices; var lo = Double.MAX_VALUE; var y = 0.0; for (i in 0 until p.mesh.vertexCount) if (v[3 * i + 2] < lo - 0.5) { lo = v[3 * i + 2]; y = v[3 * i + 1] }; return y }
+        val easel = if (backLeg.isNotEmpty() && frontLegs.size >= 2 && backLeg.all { b -> footY(b) > frontLegs.maxOf { footY(it) } + 50.0 }) 4 else 0
+        return board + climbs + easel + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
     }
 
     /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */
     private const val FRONT_DEPTH = 25.0
 
     /** Roles found only at the front, and only at the back, of a piece standing the right way round. */
-    private val FRONT_ROLES = setOf("Kick board", "Stile", "Sliding door", "Drawer rail")   // not face frame rails alone: any flat strips at the front look like them
-    private val BACK_ROLES = setOf("Back panel", "Back", "Hanging rail")
+    private val FRONT_ROLES = setOf("Kick board", "Stile", "Sliding door", "Drawer rail", "Ledge")   // not face frame rails alone: any flat strips at the front look like them
+    private val BACK_ROLES = setOf("Back panel", "Back", "Hanging rail", "Back board")
 
     // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
     private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",
@@ -219,6 +243,9 @@ object Pipeline {
     private const val FLAT_ON_FLOOR = 2
 
     // Aprons count four at most: a table has four, and a desk on its head turns every drawer side into one.
+
+    /** Points for a way up in which it stands on three or more small feet. */
+    private const val ON_FEET = 4
 
     /** Points off a way up in which the piece would fall over. */
     private const val FALLS = 8
