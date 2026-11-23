@@ -167,7 +167,7 @@ object Pipeline {
             return ps.none { o -> o.id != id && o.mesh.bounds.max.y <= b.min.y + 0.5 &&
                 (minOf(o.mesh.bounds.max.x, b.max.x) - maxOf(o.mesh.bounds.min.x, b.min.x)) * (minOf(o.mesh.bounds.max.z, b.max.z) - maxOf(o.mesh.bounds.min.z, b.min.z)) > 0.5 * b.extents.x * b.extents.z &&
                 o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.z > b.min.z && o.mesh.bounds.min.z < b.max.z } }
-        val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door") && atFront(id) && open(id) }
+        val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door" || n == "Door panel") && atFront(id) && open(id) }
         val back = ps.filter { it.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } }.maxOfOrNull { it.mesh.bounds.max.y } ?: ps.maxOf { it.mesh.bounds.max.y }
         fun atBack(id: String) = (byId[id]?.mesh?.bounds?.max?.y ?: Double.MIN_VALUE) >= back - FRONT_DEPTH
         return 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
@@ -312,7 +312,9 @@ object Pipeline {
         val live = cut.parts.filter { !it.excluded }
         val tenons = live.filter { it.name == "Tenon" }.mapNotNull { t -> val tb = t.mesh.bounds
             live.firstOrNull { o -> o !== t && o.mesh.bounds.let { ob -> (0..2).all { k -> tb.min[k] >= ob.min[k] - 0.5 && tb.max[k] <= ob.max[k] + 0.5 } } }?.let { t.id to it.id } }
-        val housed = ((edited?.housed ?: emptyList()) + tenons).distinct()
+        // A panel set in grooves in the frame round it overlaps each strip by the groove's depth: housed as drawn too.
+        val grooved = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).flatMap { it.sunk }
+        val housed = ((edited?.housed ?: emptyList()) + tenons + grooved).distinct()
         return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed)
     }
 }

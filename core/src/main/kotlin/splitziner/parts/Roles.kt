@@ -25,7 +25,18 @@ object Roles {
         val live = parts.filter { !it.excluded }
         if (live.size < 2) return emptyMap()
         val out = HashMap<String, String>()
-        runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).forEach { out[it.id] = "Door" }
+        // Frame-and-panel doors first: their stiles and rails are not a face frame, their panel not a back.
+        val framed = runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList())
+        val framedDoors = runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).map { it.id }.toSet()
+        for (g in framed) {
+            val door = g.ids.any { it in framedDoors }
+            for (id in g.panels) out[id] = if (door) "Door panel" else "Panel"
+            for (id in g.stiles) out[id] = if (door) "Door stile" else "Stile"
+            // A strip between the rails, running the way the stiles do, is a muntin.
+            val sAxis = live.first { it.id == g.stiles[0] }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] }!! }
+            for (id in g.rails) out[id] = if (live.first { it.id == id }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] } } == sAxis) "Muntin" else if (door) "Door rail" else "Rail"
+        }
+        runCatching { splitziner.check.Doors.find(live) }.getOrDefault(emptyList()).forEach { if (it.id !in out) out[it.id] = "Door" }
         runCatching { splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).forEach { out[it] = "Adjustable shelf" }
         val byId = live.associateBy { it.id }
         for (dr in runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList())) {
@@ -392,7 +403,10 @@ object Roles {
         live.filter { out[it.id] == "Top" }.singleOrNull()?.let { top ->
             val tb = top.mesh.bounds
             val under = live.filter { o -> o !== top && kotlin.math.abs(o.mesh.bounds.max.z - tb.min.z) < 1.0 }.map { out[it.id] }
-            val closed = under.count { it == "Side" } >= 2 && "Front" in under && (under.contains("Back") || under.contains("Back panel"))
+            val underIds = live.filter { o -> o !== top && kotlin.math.abs(o.mesh.bounds.max.z - tb.min.z) < 1.0 }.map { it.id }.toSet()
+            // Panelled frames standing under it count as its front and back.
+            val frames = framed.count { g -> g.ids.any { it in underIds } && g.ids.none { it in framedDoors } }
+            val closed = under.count { it == "Side" } >= 2 && ("Front" in under || frames >= 1) && (under.contains("Back") || under.contains("Back panel") || frames >= 2 || (frames >= 1 && "Front" in under))
             if (closed && live.none { out[it.id] in setOf("Door", "Drawer front", "Sliding door") } && live.none { it.mesh.bounds.min.z >= tb.max.z - 0.5 && it !== top }) out[top.id] = "Lid"
         }
         // A strip with one long edge bevelled, at the back: half of a French cleat. The half behind everything else is

@@ -2194,3 +2194,58 @@ class OutdoorTest {
         assertTrue(f.hardware.any { it.startsWith("All fasteners exterior-rated") }, f.hardware.toString())
     }
 }
+
+class FramePanelTest {
+    private val T = 19.05
+    private val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+
+    private fun guide(ms: List<splitziner.mesh.Mesh>): Triple<splitziner.pipeline.Analysis, splitziner.joinery.FastenPlan, List<splitziner.guide.GuideStep>> {
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "fp.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val fmt = LengthFormat("in", "fraction")
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+        return Triple(a, f, splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fasten = f, fmt = fmt))
+    }
+
+    @Test fun shakerDoorsAreMadeOnTheBenchAndHung() {
+        val W = 762.0; val D = 406.4; val H = 762.0
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, 0.0, W - 2 * T, D - 6.35, T), b(T, 0.0, H - T, W - 2 * T, D - 6.35, T),
+            b(T, D - 6.35, 0.0, W - 2 * T, 6.35, H))
+        val dw = W / 2 - 3.2; val dh = H - 3.2; val sw = 57.15; val g = 9.525
+        for (x0 in listOf(1.6, W / 2 + 1.6)) {
+            ms += listOf(b(x0, -T, 1.6, sw, T, dh), b(x0 + dw - sw, -T, 1.6, sw, T, dh), b(x0 + sw, -T, 1.6, dw - 2 * sw, T, sw), b(x0 + sw, -T, 1.6 + dh - sw, dw - 2 * sw, T, sw),
+                b(x0 + sw - g, -T + (T - 6.35) / 2, 1.6 + sw - g, dw - 2 * sw + 2 * g, 6.35, dh - 2 * sw + 2 * g))
+        }
+        val (a, f, steps) = guide(ms)
+        assertEquals(4, a.parts.count { it.name == "Door stile" }, a.parts.map { it.name }.toString())
+        assertEquals(2, a.parts.count { it.name == "Door panel" })
+        // The panels' edges sit in grooves: no clash.
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null, housed = a.housed)
+        assertTrue(report.findings.none { it.title.contains("occupy the same space") }, report.findings.map { it.title }.toString())
+        assertTrue(steps.any { it.title.contains("make 2 doors") }, steps.map { it.title }.toString())
+        assertTrue(steps.any { it.title.contains("hang the 2 doors") }, steps.map { it.title }.toString())
+        assertTrue(steps.flatMap { it.text }.any { it.startsWith("Cut a groove") && it.contains("not glued") })
+        // Never screwed to the case: only hinged.
+        assertTrue(f.all.none { j -> (j.through.name.startsWith("Door") != j.into.name.startsWith("Door")) && j.kind != "hinges" })
+        assertEquals(4, f.all.filter { it.kind == "hinges" }.sumOf { it.count })
+    }
+
+    @Test fun panelledChestIsScrewedFromInsideAndHasALid() {
+        val W = 914.4; val D = 457.2; val H = 482.6; val sw = 63.5; val g = 9.525; val pt = 6.35
+        val ms = arrayListOf<splitziner.mesh.Mesh>()
+        for (y0 in listOf(0.0, D - T)) {
+            val mx = W / 2 - sw / 2
+            ms += listOf(b(0.0, y0, 0.0, sw, T, H), b(W - sw, y0, 0.0, sw, T, H), b(sw, y0, 0.0, W - 2 * sw, T, sw), b(sw, y0, H - sw, W - 2 * sw, T, sw), b(mx, y0, sw, sw, T, H - 2 * sw))
+            for ((x0, x1) in listOf(sw to mx, mx + sw to W - sw)) ms += b(x0 - g, y0 + (T - pt) / 2, sw - g, x1 - x0 + 2 * g, pt, H - 2 * sw + 2 * g)
+        }
+        ms += listOf(b(0.0, T, 0.0, T, D - 2 * T, H), b(W - T, T, 0.0, T, D - 2 * T, H), b(T, T, 50.8, W - 2 * T, D - 2 * T, T), b(-12.7, -12.7, H, W + 25.4, D + 25.4, T))
+        val (a, f, steps) = guide(ms)
+        assertEquals(2, a.parts.count { it.name == "Muntin" }, a.parts.map { it.name }.toString())
+        assertEquals(1, a.parts.count { it.name == "Lid" })
+        assertTrue(steps.any { it.title.contains("make 2 panelled frames") }, steps.map { it.title }.toString())
+        assertTrue(f.all.any { it.kind == "lid" })
+        // Nothing driven through the frame's outside face.
+        assertTrue(f.all.none { j -> j.through.name in setOf("Stile", "Rail", "Muntin") && j.kind in setOf("screws", "brads", "front") }, f.all.map { "${it.through.name}>${it.into.name}:${it.kind}" }.toString())
+        assertTrue(f.all.any { it.kind == "pocketin" })
+    }
+}

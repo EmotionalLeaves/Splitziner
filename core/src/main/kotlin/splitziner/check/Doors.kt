@@ -47,7 +47,14 @@ object Doors {
 
     fun find(parts: List<Part>): List<Door> {
         val slide = sliding(parts).toSet()
-        val live = parts.filter { !it.excluded }
+        // A frame-and-panel door is one door: its stiles, rails and panel are looked at as one piece, known by its
+        // first stile (where the hinge cups go, on whichever edge they are hinged).
+        val groups = runCatching { FramePanels.find(parts) }.getOrDefault(emptyList())
+        val grouped = groups.flatMap { it.ids }.toSet()
+        val byIdAll = parts.associateBy { it.id }
+        val live = parts.filter { !it.excluded && it.id !in grouped } + groups.mapNotNull { g ->
+            val ms = g.ids.mapNotNull { byIdAll[it] }.filter { !it.excluded }; if (ms.size != g.ids.size) null
+            else ms.first { it.id == g.stiles[0] }.copy(mesh = splitziner.mesh.MeshOps.concatenate(ms.map { it.mesh })) }
         if (live.size < 3) return emptyList()
         val b = live.map { it.mesh.bounds }
         val out = ArrayList<Door>()

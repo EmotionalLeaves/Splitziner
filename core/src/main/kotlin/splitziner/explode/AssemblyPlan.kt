@@ -73,6 +73,12 @@ object AssemblyPlan {
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        // A frame-and-panel door is glued up flat on the bench, then hung whole.
+        // Any other frame round a panel (a panelled side) is made on the bench too, then fitted like a board.
+        val doorGroups = runCatching { splitziner.check.FramePanels.doors(live) }.getOrDefault(emptyList())
+        doorGroups.forEachIndexed { k, g -> for (id in g.ids) out[id] = "door${k + 1}" }
+        (runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).filter { g -> doorGroups.none { it.panel == g.panel } })
+            .forEachIndexed { k, g -> for (id in g.ids) out[id] = "fpanel${k + 1}" }
         // A drawer's runners and kickers are screwed to the inside of the side aprons: on the bench, with their frame.
         for (r in live.filter { (it.name == "Runner" || it.name == "Kicker") && '.' !in it.id }) {
             val rb = r.mesh.bounds
@@ -361,7 +367,7 @@ object AssemblyPlan {
         // Drawers are made whole and hung last, with any doors and shelves on pins.
         val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live) + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
-            unitParts.map { it.id }.filter { it.startsWith("drawer") || it == "ladder" } + appliedFronts
+            unitParts.map { it.id }.filter { it.startsWith("drawer") || it.startsWith("door") || it == "ladder" } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
             members = subs)
         val moved = HashMap<String, Int>()
@@ -544,7 +550,7 @@ object AssemblyPlan {
         for (k in i + 1 until list.size) {
             val st = list[k]
             // Doors, drawers and shelves on pins are hung in a squared case, so the back stays before them.
-            val hung = st.partIds.any { id -> id.startsWith("drawer") || byId[id]?.name in setOf("Door", "Drawer front", "Adjustable shelf") }
+            val hung = st.partIds.any { id -> id.startsWith("drawer") || id.startsWith("door") || byId[id]?.name in setOf("Door", "Drawer front", "Adjustable shelf") }
             // A later part that goes in the same way as the back, through where the back would be, must go first.
             fun crosses(id: String, d: Vec3): Boolean {
                 val x = byId[id]?.mesh?.bounds ?: return true

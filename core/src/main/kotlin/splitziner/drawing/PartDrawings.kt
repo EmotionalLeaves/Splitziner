@@ -99,6 +99,16 @@ object PartDrawings {
         val end = cupEnd(door.height)
         val d = { v: Double -> fmt.format(v) }
         val between = if (n > 2) ", ${n - 2} MORE EVENLY BETWEEN" else ""
+        // A frame-and-panel door takes its cups in one stile, the one on its hinge side.
+        val framed = runCatching { splitziner.check.FramePanels.find(parts) }.getOrDefault(emptyList())
+        if (framed.any { p.id in it.stiles }) {
+            val nDoors = framed.count { g -> parts.firstOrNull { it.id == g.stiles[0] }?.item == p.item }
+            val nStiles = parts.count { !it.excluded && it.item == p.item }
+            return listOf("HINGE CUPS FOR $n CONCEALED HINGES: 35 MM DIAMETER IN THE BACK FACE ALONG THE OUTER EDGE, CENTRES ${d(end)} FROM EACH END$between, " +
+                "IN THE HINGE-SIDE STILE OF EACH DOOR ONLY" + (if (nStiles > nDoors) " ($nDoors OF THE $nStiles)" else "") + ". " +
+                "THE CUPS ARE DRAWN AT THE USUAL 22 MM IN FROM THE EDGE AND 13 MM DEEP: CHECK BOTH AGAINST THE HINGES' TEMPLATE BEFORE DRILLING. DO NOT DRILL THROUGH." +
+                (if (nDoors > 1) " A PAIR OF DOORS IS MADE ONE OF EACH HAND." else ""))
+        }
         return listOf("HINGE CUPS FOR $n CONCEALED HINGES: 35 MM DIAMETER IN THE BACK FACE ALONG THE HINGE EDGE, CENTRES ${d(end)} FROM EACH END$between. " +
             "THE CUPS ARE DRAWN AT THE USUAL 22 MM IN FROM THE EDGE AND 13 MM DEEP: CHECK BOTH AGAINST THE HINGES' TEMPLATE BEFORE DRILLING. DO NOT DRILL THROUGH. A PAIR OF DOORS IS MADE ONE OF EACH HAND.")
     }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.45.0 - frame-and-panel doors
+
+- **Frame-and-panel (Shaker) doors and panelled sides.** A thin panel sitting in grooves in the stiles and rails round it is now understood. The app no longer reports the groove overlap as two parts in the same space. The strips' drawings show the grooves, and the guide gives the groove size.
+- Frame-and-panel doors are made on the bench ("make 2 doors"): lay a stile down, fit the rails, slide the panel in, close up with the other stile. They are hung on hinges at the end and never screwed to the case. The stile drawing says which stile takes the hinge cups.
+- Panelled fronts and backs (a blanket chest's, say) are made on the bench too, with muntins named as such. The case is pocket-screwed to them from inside, so no screw shows outside. A lid on a panelled chest gets its piano hinge along the back frame's full width.
+- The guide says a solid-wood panel must not be glued in, so it can move with the seasons; a plywood panel can be.
+
 ## v1.44.0 - Outdoor timber
 
 - Outdoor projects: pressure-treated pine, cedar, redwood and teak are in the material list. With any of them, the shopping list says to use exterior-rated screws and waterproof glue.

@@ -469,3 +469,13 @@ Departures from the build spec, newest first.
 ## v1.44
 - Outdoor timbers in the material list: pressure-treated pine (600 kg/m3), cedar (380), redwood (420), teak (650). The item material chips show them.
 - When any part is outdoor timber (or its material says treated, outdoor or exterior), the shopping list adds that all fasteners must be exterior-rated (coated deck screws rated for treated lumber, or stainless steel) and the glue waterproof: plain steel rusts outdoors, and the copper in treated lumber corrodes it.
+
+## v1.45
+- Frame-and-panel work: a panel 1/2 in (13 mm) thick or less whose edges sit up to 5/8 in (16 mm) inside four or more strips that are thicker than it on both faces is a panel in grooves. Two strips the whole length one way are the stiles; the rest are rails, or muntins when they run the way the stiles do. Panels sharing a strip are one frame.
+- The overlap of a panel into its frame is the groove, drawn as housed: no clash finding, a groove on each strip's drawing, and a line giving the groove's width (the panel's thickness) and depth (the overlap).
+- The panel is not glued when it is solid wood (it moves across its width with the seasons); a plywood or MDF panel may be. The app cannot tell which, so it says both.
+- Stiles, rails and muntins are joined with pocket screws (holes in the end that meets the other), the usual hobbyist method; the guide still offers dowels.
+- A frame that hangs as a door (found as one door from its outline) is made whole on the bench and hung on hinges last; its parts are never screwed to the case. The hinge cups go in one stile per door, the one on the hinge side, and the drawing says so.
+- Any other panelled frame (a chest's front) is made on the bench and fitted like a board. Case parts meeting a strip's inside face are pocket-screwed from inside along their edge, so nothing shows outside; screws or brads through the strip would.
+- A panelled front and back count as the front and back of a closed box for a lid; the piano hinge runs the panelled back's whole width less 2 in (50 mm).
+- Door panels count as doors when guessing which way a piece faces.
