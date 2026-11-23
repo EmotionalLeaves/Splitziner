@@ -96,7 +96,11 @@ object Pipeline {
             val e = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents
             val thin = (0..2).minByOrNull { e[it] }!!
             val others = (0..2).filter { it != thin }.minOf { e[it] }
-            if (thin != 2 && e[thin] <= FLAT_RATIO * others && e[thin] <= FLAT_MAX) return if (thin == 1) "y" else "x"
+            // Not a shallow case standing as it is used (a spice rack): its shelves lie level, right across its width and
+            // nearly its whole depth.
+            val across = 1 - thin
+            val shelves = live.any { p -> val b = p.mesh.bounds.extents; b.z <= minOf(b.x, b.y) && b[across] >= 0.8 * e[across] && b[thin] >= 0.9 * e[thin] }
+            if (thin != 2 && thin < 2 && !shelves && e[thin] <= FLAT_RATIO * others && e[thin] <= FLAT_MAX) return if (thin == 1) "y" else "x"
         }
         fun turned(up: String): List<Part> { if (up == "z" || up == "z>0") return live; val r = upRotation(up)
             return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->

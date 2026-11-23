@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.24.0 - shallow cases
+
+- Shallow shelf units like spice racks now stand the right way up, and their parts are called sides, shelves, top and bottom.
+
 ## v2.23.0 - ledge and crate sizes
 
 - More one-tap sizes: picture ledges by length, and art crates by the size of the work going in (the foam allowance is added for you).

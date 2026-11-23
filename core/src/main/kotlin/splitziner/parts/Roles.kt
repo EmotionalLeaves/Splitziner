@@ -284,6 +284,17 @@ object Roles {
                 out[p.id] = if (!outer) "Centre rail" else if (along == longWay) "Side rail" else "End rail"
                 continue
             }
+            // A shallow case (a spice rack): a narrow board lying flat between two full-height boards at its ends, as
+            // deep as they are, is a shelf, the case's top or its bottom, not a slat.
+            run {
+                if (dims[1] >= NARROW || e.z > t + 0.01) return@run
+                val la = if (e.x >= e.y) 0 else 1; val ac = 1 - la
+                val ends = live.filter { o -> o !== p && touches(p, o) && o.mesh.bounds.let { ob -> ob.extents[la] <= minOf(ob.extents[ac], ob.extents.z) &&
+                    ob.extents.z >= 0.9 * h && e[ac] >= 0.8 * ob.extents[ac] && (kotlin.math.abs(ob.max[la] - b.min[la]) < 1.0 || kotlin.math.abs(ob.min[la] - b.max[la]) < 1.0) } }
+                if (ends.size < 2 || ends.map { it.mesh.bounds.center[la] < b.center[la] }.distinct().size != 2) return@run
+                out[p.id] = if (b.min.z <= all.min.z + 1.0) "Bottom" else if (b.max.z >= all.max.z - 1.0) "Top" else "Shelf"
+            }
+            if (out[p.id] in setOf("Bottom", "Top", "Shelf")) continue
             // Several narrow boards alike, lying flat side by side: slats (a bed's, a bench seat's).
             // Spread across their length, not end to end: a row of cabinets' top stretchers in line are not slats.
             val alike = live.filter { o -> o.mesh.bounds.extents.let { oe -> kotlin.math.abs(oe.x - e.x) < 0.5 && kotlin.math.abs(oe.y - e.y) < 0.5 && kotlin.math.abs(oe.z - e.z) < 0.5 } }
@@ -596,6 +607,8 @@ object Roles {
             val alike = round.groupBy { Math.round(it.mesh.bounds.extents.x) to Math.round(it.mesh.bounds.extents.z) }.values.filter { it.size >= 3 }
             for (g in alike) for (p in g) out[p.id] = "Caster"
         }
+        // Narrow full-height boards that shelves stand between (a spice rack's ends) are its sides.
+        for (p in live) if (out[p.id] == "Upright" && live.count { o -> out[o.id] in setOf("Shelf", "Top", "Bottom") && touches(p, o) } >= 2) out[p.id] = "Side"
         // A crate: two or more battens across the face of a panel, with a matching panel at the back. The battened
         // panel is the lid, screwed on last once the work is packed in.
         run {

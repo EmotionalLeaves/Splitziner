@@ -767,3 +767,7 @@ Departures from the build spec, newest first.
 
 ## v2.23
 - More one-tap sizes: the picture ledge by length (24 to 72 in, 60 to 180 cm), and the art crate by the work it is for (the standard canvas sizes, its inside the work's size plus 2 in or 50 mm of foam all round, the long side across).
+
+## v2.24
+- The flat-piece rule for which way is up leaves a shallow case standing (a spice rack): one with level boards right across its width and nearly its whole depth is not laid down.
+- In a shallow case, a narrow board lying flat between two full-height boards at its ends, about as deep as they are, is a shelf (or the top, or the bottom), and those boards are its sides, rather than slats and uprights.
