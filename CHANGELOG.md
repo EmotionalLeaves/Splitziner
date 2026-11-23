@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.40.0 - Spindle gaps
+
+- Cribs and railings: the check warns when the gaps between spindles are wider than is safe for a crib (2-3/8 in) or a stair railing (4 in).
+
 ## v1.39.0 - Wording
 
 - Small wording fixes in the hinge and worktop-bolt instructions.

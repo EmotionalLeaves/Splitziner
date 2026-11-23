@@ -452,3 +452,6 @@ Departures from the build spec, newest first.
 ## v1.39
 - Lid hinges and worktop bolts go "about an inch from each end" (25 mm in a metric guide), not "1 in in from each end".
 - A test now checks that every part fitted in every template's guide says which way it goes in.
+
+## v1.40
+- With spindles, the check gives the widest clear gap between them when it is over 2-3/8 in (60.3 mm): the US crib standard's limit for slat spacing (16 CFR 1219/1220), so a baby's head cannot pass. Over 4 in (101.6 mm) it adds the usual residential building-code limit for stair and balcony railings (the 4 in sphere rule). A CHECK, not a PROBLEM: the app cannot tell a crib from a bench back.

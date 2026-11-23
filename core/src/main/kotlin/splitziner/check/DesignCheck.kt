@@ -47,6 +47,12 @@ object DesignCheck {
     /** A cut-back that would take away more than this share of a part is a redesign, not a trim, and is not offered. */
     private const val MAX_CUT_BACK = 0.25
 
+    /** Widest gap between a crib's slats (mm): 2-3/8 in, the US crib standard's limit. */
+    private const val CRIB_GAP = 60.3
+
+    /** Widest gap in a stair or balcony railing (mm): the 4 in sphere rule of US residential building codes. */
+    private const val RAIL_GAP = 101.6
+
     /** Thicknesses sheet goods and planed boards are commonly sold in. */
     val STOCK_IN = doubleArrayOf(0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0, 1.25, 1.5)
     val STOCK_MM = doubleArrayOf(3.0, 4.0, 6.0, 9.0, 12.0, 15.0, 18.0, 19.0, 22.0, 25.0, 30.0, 38.0, 40.0)
@@ -353,6 +359,22 @@ object DesignCheck {
                 if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover ($basis). It needs a wider base, a counterweight, or fixing to a wall.")
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
+        }
+        // Gaps between spindles: a child's head must not pass. The widest clear gap, measured along the row.
+        run {
+            val sp = live.filter { it.name == "Spindle" }
+            if (sp.size < 3) return@run
+            var widest = 0.0
+            for (g in sp.groupBy { Math.round(it.mesh.bounds.min.z) to Math.round(it.mesh.bounds.max.z) }.values) {
+                if (g.size < 2) continue
+                val b = g.map { it.mesh.bounds }
+                val ax = (0..1).maxByOrNull { k -> b.maxOf { it.center[k] } - b.minOf { it.center[k] } }!!
+                val sorted = b.sortedBy { it.min[ax] }
+                for ((x, y) in sorted.zipWithNext()) if (kotlin.math.abs(x.min[1 - ax] - y.min[1 - ax]) < 1.0) widest = maxOf(widest, y.min[ax] - x.max[ax])
+            }
+            if (widest > CRIB_GAP) out += Finding(Severity.CHECK, "Spindles ${d(widest)} $u apart",
+                "The widest gap between the spindles is ${d(widest)} $u. If this is a crib, the gaps must be no more than ${d(CRIB_GAP)} $u (2-3/8 in, 6 cm, the US crib rule) so a baby's head cannot pass through." +
+                    (if (widest > RAIL_GAP) " On a stair or balcony railing, the usual building-code limit is 4 in (10 cm)." else ""))
         }
         // A lid that can fall shut traps fingers, and in a toy box can trap a child.
         if (live.any { it.name == "Lid" }) out += Finding(Severity.CHECK, "Hold the lid open",

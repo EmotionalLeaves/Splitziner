@@ -2134,3 +2134,17 @@ class FitDirectionsTest {
         }
     }
 }
+
+class SpindleGapTest {
+    @Test fun wideSpindleGapsAreFlagged() {
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        // Two posts, two rails between them, five spindles with 80 mm clear between them.
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, 50.0, 50.0, 900.0), b(650.0, 0.0, 0.0, 50.0, 50.0, 900.0),
+            b(50.0, 15.0, 200.0, 600.0, 20.0, 60.0), b(50.0, 15.0, 760.0, 600.0, 20.0, 60.0))
+        for (i in 0 until 5) ms += b(50.0 + 60.0 + i * (40.0 + 80.0), 15.0, 260.0, 40.0, 20.0, 500.0)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "rail.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(5, a.parts.count { it.name == "Spindle" }, a.parts.map { it.name }.toString())
+        val f = splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, LengthFormat("mm"), null).findings
+        assertTrue(f.any { it.title.startsWith("Spindles 80") && it.detail.contains("crib") }, f.map { it.title }.toString())
+    }
+}
