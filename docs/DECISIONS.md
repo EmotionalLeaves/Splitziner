@@ -584,3 +584,7 @@ Departures from the build spec, newest first.
 
 ## v1.70
 - The Cabinet template has a "Glass doors" option: each door becomes a frame of stiles and rails 50 mm (about 2 in) wide round a 4 mm pane in a rabbet at its back, for a display cabinet. Doors under 160 mm either way stay plain.
+
+## v1.71
+- An "Easel" template: front legs leaning in and back with their ends cut level, a top block on them, a back leg hinged to the block, a ledge and a brace across the front. Default 72 in tall, legs 26 in apart at the floor, leaning back 15 in, the back leg's foot 30 in behind, the ledge at 30 in.
+- On an easel the block the back leg hangs from is the top block; other boards across both front legs are braces.

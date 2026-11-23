@@ -23,6 +23,22 @@ object Templates {
         return Editor.box(Vec3(x, y, z), Vec3(w, d, h))
     }
 
+    /**
+     * A board [w] wide (across, near X) and [t] thick whose centre line runs from (x0, y0, z0) to (x1, y1, z1), its two
+     * ends cut level (horizontal), as a leaning leg is.
+     */
+    private fun leaner(x0: Double, y0: Double, z0: Double, x1: Double, y1: Double, z1: Double, w: Double, t: Double): Mesh {
+        if (w < 1.0 || t < 1.0 || z1 - z0 < 1.0) throw SizesDoNotFit()
+        val ax = Vec3(x1 - x0, y1 - y0, z1 - z0).normalized()
+        val sx = Vec3(1.0, 0.0, 0.0).let { v -> (v - ax * (v dot ax)).normalized() }
+        val n = ax cross sx
+        val offs = listOf(sx * (-w / 2) - n * (t / 2), sx * (w / 2) - n * (t / 2), sx * (w / 2) + n * (t / 2), sx * (-w / 2) + n * (t / 2))
+        fun at(o: Vec3, z: Double): Vec3 { val p = Vec3(x0, y0, z0) + o; val lam = (z - p.z) / ax.z; return p + ax * lam }
+        val pts = offs.map { at(it, z0) } + offs.map { at(it, z1) }
+        val v = DoubleArray(24) { pts[it / 3].let { p -> if (it % 3 == 0) p.x else if (it % 3 == 1) p.y else p.z } }
+        return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
+    }
+
     /** Null when the sizes make the piece, else what is wrong, in words for the person who typed them. */
     fun problem(t: Template, values: Map<String, Double>): String? =
         try { t.build(values); null } catch (e: SizesDoNotFit) { e.message } catch (e: Exception) { "Those sizes do not make this piece." }
@@ -223,6 +239,31 @@ object Templates {
                 box(t, t, h - t, w - 2 * t, d - 2 * t, t),
                 box(t, t, h - t - c, w - 2 * t, c, c), box(t, d - t - c, h - t - c, w - 2 * t, c, c),
                 box(t, t, sh, w - 2 * t, c, c), box(t, d - t - c, sh, w - 2 * t, c, c), box(t, t, sh + c, w - 2 * t, d - 2 * t, t))
+        },
+        Template("easel", "Easel", "A studio A-frame easel: two front legs leaning in and back, joined by a block at the top, a ledge for the canvas and a brace, and a back leg hinged to the block so it folds.", listOf(
+            Field("h", "Height", 1830.0, 72.0), Field("spread", "Front legs apart at the floor", 660.0, 26.0), Field("lean", "Lean back of the front legs", 380.0, 15.0),
+            Field("reach", "Back leg's foot behind the front legs", 760.0, 30.0), Field("ledge", "Ledge height", 760.0, 30.0), Field("lw", "Leg width", 45.0, 1.75), Field("t", "Thickness", 19.0, 0.75),
+        )) { v ->
+            val h = v.getValue("h"); val sp = v.getValue("spread"); val lean = v.getValue("lean"); val reach = v.getValue("reach"); val zl = v.getValue("ledge"); val w = v.getValue("lw"); val t = v.getValue("t")
+            val block = 50.0; val hl = h - block; val xt = w * 1.6
+            if (zl + 90.0 > hl * 0.8 || sp / 2 < xt + w) throw SizesDoNotFit()
+            val left = leaner(-sp / 2, 0.0, 0.0, -xt, lean, hl, w, t); val right = leaner(sp / 2, 0.0, 0.0, xt, lean, hl, w, t)
+            // The legs' tops, as cut: the block sits on them, across.
+            val topY = right.bounds.let { b -> doubleArrayOf(b.min.y, b.max.y) }.let { _ -> val vs = right.vertices; (0 until right.vertexCount).filter { vs[3 * it + 2] > hl - 0.01 }.map { vs[3 * it + 1] } }
+            val yf = topY.min(); val yb = topY.max()
+            val out = arrayListOf(left, right, box(-xt - w / 2, yf, hl, 2 * xt + w, yb - yf, block))
+            // The back leg, its top against the block's back, hinged there.
+            val back = leaner(0.0, yb + reach, 0.0, 0.0, yb + t / 2 + 2.0, h - 12.0, w, t)
+            val bTop = back.vertices.let { vs -> (0 until back.vertexCount).filter { vs[3 * it + 2] > h - 12.01 }.minOf { vs[3 * it + 1] } }
+            out += splitziner.mesh.MeshOps.translated(back, Vec3(0.0, yb - bTop, 0.0))
+            // Ledge and brace across the front faces of the legs, touching them along their lower edges.
+            fun frontY(z: Double): Double { val vs = right.vertices; val lo = (0 until right.vertexCount).filter { vs[3 * it + 2] < 0.01 }.minOf { vs[3 * it + 1] }
+                val hi = (0 until right.vertexCount).filter { vs[3 * it + 2] > hl - 0.01 }.minOf { vs[3 * it + 1] }; return lo + (hi - lo) * z / hl }
+            fun halfX(z: Double) = sp / 2 - (sp / 2 - xt) * z / hl + w / 2
+            out += box(-halfX(zl) - 25.0, frontY(zl) + 0.3 - t, zl, 2 * halfX(zl) + 50.0, t, 90.0)
+            val zb = zl + (hl - zl) * 0.6
+            out += box(-halfX(zb + 63.0), frontY(zb) + 0.3 - t, zb, 2 * halfX(zb + 63.0), t, 63.0)
+            out
         },
         Template("ledge", "Picture ledge", "A shelf for leaning framed work against a wall: a back board screwed to the wall, a shelf on its face, and a lip along the front so frames cannot slide off.", listOf(
             Field("w", "Length", 1200.0, 48.0), Field("d", "Shelf depth", 90.0, 3.5), Field("back", "Back board height", 100.0, 4.0), Field("lip", "Lip height", 45.0, 1.75),

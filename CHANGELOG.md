@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.71.0 - easel template
+
+- **New design: Easel.** A studio A-frame easel with a folding back leg, a canvas ledge and a brace. Set the height, spread and lean; the angled cuts on the legs are worked out for you.
+
 ## v1.70.0 - glass door option
 
 - **Display cabinet:** the Cabinet design has a new "Glass doors" option. Each door becomes a frame with a glass pane, and the guide and shopping list handle the glass.

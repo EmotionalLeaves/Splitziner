@@ -491,6 +491,14 @@ object Roles {
                 val b = p.mesh.bounds
                 if (front.count { touches(p, it) } >= 2 && maxOf(b.extents.x, b.extents.y) > 3 * b.extents.z && b.extents.z >= 50.0 && b.min.z in 0.25 * h..0.6 * h) out[p.id] = "Ledge"
             }
+            // The block the back leg hangs from, on the front legs' tops; any other board across both front legs braces them.
+            val backLegs = leaning.filter { out[it.id] == "Back leg" }
+            for (p in live) {
+                if (out[p.id] in setOf("Leg", "Back leg", "Ledge")) continue
+                val b = p.mesh.bounds
+                if (backLegs.any { touches(p, it) } && front.count { touches(p, it) } >= 2) out[p.id] = "Top block"
+                else if (front.count { touches(p, it) } >= 2 && maxOf(b.extents.x, b.extents.y) > 2 * b.extents.z) out[p.id] = "Brace"
+            }
         }
         // Boards stacked on edge into a wall (a planter's, a crate's sides), each screwed across the same legs:
         // side boards along the long way, end boards across.
