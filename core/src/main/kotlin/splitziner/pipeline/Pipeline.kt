@@ -221,7 +221,17 @@ object Pipeline {
         val backLeg = names.filter { it.value == "Back leg" }.keys.mapNotNull { byId[it] }; val frontLegs = names.filter { it.value == "Leg" }.keys.mapNotNull { byId[it] }
         fun footY(p: Part): Double { val v = p.mesh.vertices; var lo = Double.MAX_VALUE; var y = 0.0; for (i in 0 until p.mesh.vertexCount) if (v[3 * i + 2] < lo - 0.5) { lo = v[3 * i + 2]; y = v[3 * i + 1] }; return y }
         val easel = if (backLeg.isNotEmpty() && frontLegs.size >= 2 && backLeg.all { b -> footY(b) > frontLegs.maxOf { footY(it) } + 50.0 }) 4 else 0
-        return board + climbs + easel + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
+        // Shelves or a hutch standing on a desk or counter top sit against its back edge, leaving the front clear.
+        val upper = run {
+            val tops = ps.filter { it.mesh.bounds.extents.let { e -> e.z < 0.2 * minOf(e.x, e.y) && e.y > 300.0 } }
+            val top = tops.maxByOrNull { it.mesh.bounds.extents.x * it.mesh.bounds.extents.y } ?: return@run 0
+            val tb = top.mesh.bounds
+            val on = ps.filter { o -> o !== top && kotlin.math.abs(o.mesh.bounds.min.z - tb.max.z) < 1.0 && o.mesh.bounds.extents.z > o.mesh.bounds.extents.y }
+            if (on.size < 2) return@run 0
+            val ob = on.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            if (kotlin.math.abs(ob.max.y - tb.max.y) < 2.0 && ob.min.y > tb.min.y + 0.3 * tb.extents.y) 4 else 0
+        }
+        return board + climbs + easel + upper + 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && id !in framed && atFront(id) }) + minOf(3, names.count { (id, n) -> n in BACK_ROLES && atBack(id) })
     }
 
     /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */

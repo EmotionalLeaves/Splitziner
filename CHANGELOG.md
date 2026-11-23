@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.65.0 - hutch facing
+
+- A desk with a hutch drawn turned sideways now comes in facing you: the hutch tells the app where the back is.
+
 ## v1.64.0 - pocket-screwed aprons
 
 - **Stronger, neater table and chair legs.** Aprons and rails are now pocket-screwed into the legs from the inside, instead of screwed through the leg into the apron's end grain. That joint held poorly and left screw heads showing on the legs. You can still choose glue and dowels.
