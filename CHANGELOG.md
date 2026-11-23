@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.19.0 - Clearer bench steps
+
+- Bench steps read in the order you build: lay down one rail, stand the spindles on it, put the other rail on top (and for frames: one leg, the rails, then the other leg).
+- Step pictures place "×N" tags more clearly and no longer count parts going in different ways together.
+
 ## v1.18.0 - Cribs and spindles
 
 - Cribs and railings: upright slats between two rails are now spindles. Each side is made flat on the bench as a slatted panel, and the guide gives the gap and a spacer block instead of a list of positions.

@@ -235,6 +235,7 @@ object GuideSteps {
             }
             // Consecutive parts that go in the same way are named in one instruction, in order.
             val fits = ArrayList<Triple<String, String, String>>()   // verb, where, what
+            val late = ArrayList<Triple<String, String, String>>()
             for ((item, n) in count) {
                 val sides = ArrayList<String>()
                 // On the bench a part moves as the bench picture shows it, not as its unit later goes into the build.
@@ -246,12 +247,24 @@ object GuideSteps {
                     else -> " " + sides.joinToString(", ")
                 }
                 // On the bench, the part that does not move is laid down first and the others joined to it.
-                val still = st.subassembly && cur.any { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null }
+                val stillN = if (st.subassembly) cur.count { it.item == item && st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null } else 0
+                val still = stillN > 0
                 val verb = if (base) "Place" else if (still) "Lay down" else if (st.subassembly) "Join" else "Fit"
                 val what = if (item != null) "item $item" + named(loose.filter { it.item == item }) else "the part"
+                // Some of an item laid down and the rest joined on (a slatted panel's bottom rail, then its top rail on the
+                // spindles): each said where it happens, the joined ones after everything else.
+                val moving = n - stillN
+                if (still && moving > 0 && moving < n) {
+                    lines.add(0, "$verb ${if (stillN > 1) "$stillN× " else ""}$what.")
+                    val mv = cur.filter { it.item == item && st.explodeOf[it.id] != null }
+                    val mWhere = mv.mapNotNull { p -> st.explodeOf[p.id]?.normalized()?.let { d -> whereFrom(d.x, d.y, d.z) } }.distinct().let { if (it.isEmpty()) "" else " " + it.joinToString(" and ") }
+                    late += Triple("Join", mWhere, "${if (moving > 1) "$moving× " else ""}$what")
+                    continue
+                }
                 val one = "${if (n > 1) "$n× " else ""}$what"
                 if (still) lines.add(0, "$verb $one.") else fits += Triple(verb, where, one)
             }
+            fits += late
             var i = 0
             while (i < fits.size) {
                 var j = i

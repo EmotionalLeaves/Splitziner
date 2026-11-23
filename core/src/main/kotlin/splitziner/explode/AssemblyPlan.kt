@@ -278,6 +278,15 @@ object AssemblyPlan {
                     benchExplode[p.id] = if (e != null && (p.name == "Apron" || p.name.endsWith("ail")) && kotlin.math.abs(e.z) < 0.1 * e.length && b.extents.z < maxOf(b.extents.x, b.extents.y) &&
                         (sitsOnThem || kotlin.math.abs(if (b.extents.x >= b.extents.y) e.x else e.y) < 0.5 * e.length) && b.max.z >= unitTop - 0.5 && !overlapsAbove) Vec3(0.0, 0.0, e.length) else e
                 }
+                // Spindles stand up on their bottom rail and the top rail comes down on them: drawn lifted straight up,
+                // the top rail above them, so the panel reads as it goes together.
+                val sp = u.filter { it.name == "Spindle" }
+                if (sp.size >= 3) {
+                    val lift = 0.6 * sp.maxOf { it.mesh.bounds.extents.z }
+                    val spTop = sp.maxOf { it.mesh.bounds.max.z }
+                    for (q in sp) benchExplode[q.id] = Vec3(0.0, 0.0, lift)
+                    for (q in u) if (q.name != "Spindle" && q.mesh.bounds.min.z >= spTop - 0.5 && q.mesh.bounds.extents.z < maxOf(q.mesh.bounds.extents.x, q.mesh.bounds.extents.y)) benchExplode[q.id] = Vec3(0.0, 0.0, 2 * lift)
+                }
                 ids += u.map { it.id }
             }
             val first = kind.first()

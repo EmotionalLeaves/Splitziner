@@ -359,3 +359,8 @@ Departures from the build spec, newest first.
 - Spindles go with their rails: into a leg frame when the rails are in one, else the two rails and their spindles are a "slatted panel" made on the bench.
 - Any sub-assembly lying in one plane (its thinnest overall size no more than its thickest part's thickness) is made in one bench step however many parts it has: the whole of it is in view in one picture.
 - Bench steps with spindles give the gap and a spacer block, with the end gaps when both ends match, instead of each spindle's place along the rail.
+
+## v1.19
+- On the bench, spindles are drawn lifted straight up off their bottom rail, with the top rail above them, so a slatted panel reads as it goes together.
+- When some parts of one item are laid down and the rest joined on (a slatted panel's two rails, a frame's two legs), the text says so: "Lay down item 2", then "Join ... item 2 from above" after the parts that go between them, as the picture shows.
+- "×N" tags count only parts going in the same way; a quantity tag that has no clear room beside its group tries further out, then the least-covered spot.

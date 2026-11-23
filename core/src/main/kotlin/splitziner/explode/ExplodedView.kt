@@ -304,7 +304,9 @@ object ExplodedView {
             val units = opt.unitCounts[p.id]
             val same = if (units != null) geo.parts.indices.filter { geo.parts[it].id in opt.unitCounts && keyOf(geo.parts[it]) == key && partBoxes[it] != null }
                 // One item doing two jobs (the same board as kick board and as stretcher) is two things in the picture.
-                else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && geo.parts[it].name == p.name && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts }
+                // and so are parts of one item going in different ways (a frame's bottom rail from the back, its top rail from above).
+                else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && geo.parts[it].name == p.name && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts &&
+                    geo.offsets[it].let { oi -> oi.length < 1e-9 || (oi.normalized() - od).length < 0.1 } }
             val n = units ?: same.size
             if (opt.qtyTags && n > 1 && same.isNotEmpty() && seenQty.add(if (units != null) "unit/$key" else "$key/${p.item}/${p.name}")) {
                 val gx0 = same.minOf { partBoxes[it]!!.x0 }; val gx1 = same.maxOf { partBoxes[it]!!.x1 }
@@ -314,7 +316,13 @@ object ExplodedView {
                     doubleArrayOf(gx1 + 3, (gy0 + gy1) / 2), doubleArrayOf(gx0 - 3 - tw, (gy0 + gy1) / 2),
                     doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy0 - 8), doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy1 + 4 + h / 2),
                 )
-                val spot = spots.firstOrNull { dl.overlapArea(Box(it[0] - 1, it[1] - 3, it[0] + tw + 1, it[1] + 3, "")) == 0.0 } ?: spots[0]
+                // Next to the group if there is room; else a little further out; else wherever it covers least.
+                val far = listOf(
+                    doubleArrayOf(gx1 + 12, (gy0 + gy1) / 2), doubleArrayOf(gx0 - 12 - tw, (gy0 + gy1) / 2),
+                    doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy0 - 16), doubleArrayOf((gx0 + gx1) / 2 - tw / 2, gy1 + 12 + h / 2),
+                    doubleArrayOf(gx1 + 3, gy0 - 4), doubleArrayOf(gx0 - 3 - tw, gy1 + 4))
+                fun cover(it: DoubleArray) = dl.overlapArea(Box(it[0] - 1, it[1] - 3, it[0] + tw + 1, it[1] + 3, ""))
+                val spot = spots.firstOrNull { cover(it) == 0.0 } ?: far.firstOrNull { cover(it) == 0.0 } ?: (spots + far).minByOrNull { cover(it) }!!
                 dl.text(spot[0], spot[1], txt, h, vAlign = VAlign.CENTER, bold = true, tag = "qty")
             }
         }
