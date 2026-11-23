@@ -29,6 +29,9 @@ object Templates {
      * that have none. Each sets the design's width and height fields.
      */
     fun presets(t: Template, inch: Boolean): List<Preset> {
+        // Gallery plinths: the usual footprints and heights (a sculpture plinth about hip to chest high).
+        if (t.key == "plinth") return if (inch) listOf(Triple(12, 12, 42), Triple(16, 16, 42), Triple(18, 18, 36), Triple(24, 24, 30)).map { (w, d, h) -> Preset("$w x $d x $h in", mapOf("w" to w * 25.4, "d" to d * 25.4, "h" to h * 25.4)) }
+            else listOf(Triple(30, 30, 105), Triple(40, 40, 105), Triple(45, 45, 90), Triple(60, 60, 75)).map { (w, d, h) -> Preset("$w x $d x $h cm", mapOf("w" to w * 10.0, "d" to d * 10.0, "h" to h * 10.0)) }
         val keys = when (t.key) { "stretcher", "cradle" -> "w" to "h"; "frame" -> "aw" to "ah"; "shadowbox" -> "iw" to "ih"; else -> return emptyList() }
         return if (inch) INCH_SIZES.map { (a, b) -> Preset("$a x $b in", mapOf(keys.first to a * 25.4, keys.second to b * 25.4)) }
         else CM_SIZES.map { (a, b) -> Preset("$a x $b cm", mapOf(keys.first to a * 10.0, keys.second to b * 10.0)) }

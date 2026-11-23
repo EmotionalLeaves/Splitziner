@@ -291,6 +291,32 @@ class SmokeTest {
         }
     }
 
+    /** A stretcher at a common size: New design, Canvas stretcher, 16 x 20 in, Create. */
+    @Test fun stretcherAtACommonSize() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var vm: AppViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[AppViewModel::class.java] }
+            fun tap(label: String) {
+                rule.waitUntil(30_000) { rule.onAllNodesWithText(label).fetchSemanticsNodes().isNotEmpty() }
+                runCatching { rule.onAllNodesWithText(label).onFirst().performScrollTo() }
+                rule.onAllNodesWithText(label).onFirst().performClick()
+                rule.waitForIdle()
+            }
+            rule.waitUntil(30_000) { rule.onAllNodesWithText("New design").fetchSemanticsNodes().isNotEmpty() }
+            tap("New design"); tap("Canvas stretcher")
+            // Inches or centimetres, as the phone's locale has it.
+            val size = if (vm.inchLocale) "16 x 20 in" else "40 x 50 cm"
+            tap(size); shot("s01_stretcher_size")
+            tap("Create")
+            waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
+            assertNull(vm.state.value.error)
+            val e = vm.state.value.open!!.analysis.bounds.extents
+            val want = if (vm.inchLocale) 16 * 25.4 to 20 * 25.4 else 400.0 to 500.0
+            assertEquals(want.first, minOf(e.x, e.y), 1.0); assertEquals(want.second, maxOf(e.x, e.y), 1.0)
+            assertNull(Diagnostics.lastCrash())
+        }
+    }
+
     /** A studio design the way a person would make one: New design, Display plinth, tick the clear cover, Create. */
     @Test fun plinthWithACoverFromTemplate() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

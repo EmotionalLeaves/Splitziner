@@ -713,3 +713,7 @@ Departures from the build spec, newest first.
 
 ## v2.6
 - Stretchers, cradled panels, picture frames and shadow boxes offer common sizes in the new-design dialog, one tap each: standard US canvas and print sizes in inches (8 x 10 to 36 x 48 in), or common metric canvas sizes in centimetres (20 x 30 to 80 x 120 cm). Each sets the design's width and height (outside for a stretcher or panel, the art for a frame, the inside for a shadow box). Every size builds (tested).
+
+## v2.7
+- The display plinth offers common gallery sizes too: 12 x 12 x 42, 16 x 16 x 42, 18 x 18 x 36 and 24 x 24 x 30 in (30 x 30 x 105 to 60 x 60 x 75 cm). These are typical, not a standard.
+- A device test makes a stretcher at a common size through the dialog.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.7.0 - plinth sizes
+
+- The display plinth now has common gallery sizes to pick from too, such as 16 x 16 x 42 in.
+
 ## v2.6.0 - common sizes
 
 - **Common sizes, one tap.** Stretchers, cradled panels, picture frames and shadow boxes now offer standard canvas and print sizes (8 x 10 to 36 x 48 in) in New design.
