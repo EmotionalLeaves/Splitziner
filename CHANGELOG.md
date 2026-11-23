@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.25.0 - outline once
+
+- Slightly quicker cut lists on big models.
+
 ## v2.24.0 - shallow cases
 
 - Shallow shelf units like spice racks now stand the right way up, and their parts are called sides, shelves, top and bottom.

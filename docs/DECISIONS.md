@@ -771,3 +771,6 @@ Departures from the build spec, newest first.
 ## v2.24
 - The flat-piece rule for which way is up leaves a shallow case standing (a spice rack): one with level boards right across its width and nearly its whole depth is not laid down.
 - In a shallow case, a narrow board lying flat between two full-height boards at its ends, about as deep as they are, is a shelf (or the top, or the bottom), and those boards are its sides, rather than slats and uprights.
+
+## v2.25
+- The shape words (rounded corners, clipped corners, right triangle, sloped edge) share one outline per part instead of working it out four times.

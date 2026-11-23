@@ -230,9 +230,8 @@ object PartDescriber {
      * A flat part whose outline is a right trapezoid: a rectangle with one edge sawn on a slope from one end to the
      * other. Returns the two widths at the ends (short, long), or null.
      */
-    fun slopedEdge(m: Mesh): Pair<Double, Double>? {
-        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
-        val g = pr.outline
+    fun slopedEdge(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Pair<Double, Double>? {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return null
         if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
         val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
         if (c.size != 4) return null
@@ -252,9 +251,8 @@ object PartDescriber {
      * A flat part whose outline is its rectangle with one or more corners sawn off in a straight line, all the same
      * size: how many, and the cut's two legs along the edges. Null otherwise.
      */
-    fun clippedCorners(m: Mesh): Pair<Int, Pair<Double, Double>>? {
-        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
-        val g = pr.outline
+    fun clippedCorners(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Pair<Int, Pair<Double, Double>>? {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return null
         if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
         val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
         if (c.size < 5 || c.size > 8) return null
@@ -282,9 +280,8 @@ object PartDescriber {
      * A flat part whose outline is its rectangle with one or more corners rounded to one radius: how many, and the
      * radius. Every point of the outline is on the rectangle's edges or on a rounded corner's arc. Null otherwise.
      */
-    fun roundedCorners(m: Mesh): Pair<Int, Double>? {
-        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
-        val g = pr.outline
+    fun roundedCorners(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Pair<Int, Double>? {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return null
         if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
         val c = g.coordinates.dropLast(1)
         if (c.size < 12) return null
@@ -312,9 +309,8 @@ object PartDescriber {
     }
 
     /** A flat part whose outline is a triangle with one square corner. */
-    fun rightTriangle(m: Mesh): Boolean {
-        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return false
-        val g = pr.outline
+    fun rightTriangle(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Boolean {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return false
         if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return false
         val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
         if (c.size != 3) return false
@@ -388,26 +384,28 @@ object PartDescriber {
         raisedPanel(m, obb)?.let { (tongue, bevel) ->
             return PartDescription(PartKind.PANEL, t, w, l, fill, "PANEL ${d(t)} X ${d(w)} X ${d(l)}, RAISED (EDGE ${d(tongue)} THK, BEVEL ${d(bevel)} WIDE)")
         }
+        // The outline through the thickness, worked out once for the shape words below.
+        val outline by lazy { runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline }
         // A board with one edge sawn on a slope (a print bin's side): four corners, two of them square, the sloped
         // edge between the long and the short end. Marked and sawn along a straight line, not traced from a template.
         // A right triangle (a gusset, a shelf bracket): a rectangle sawn corner to corner, two from one blank.
-        if (rightTriangle(m)) {
+        if (outline?.let { rightTriangle(m, it) } == true) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A RIGHT TRIANGLE")
         }
         // Corners rounded to one radius (a table top's): named with the radius.
-        roundedCorners(m)?.let { (n, r) ->
+        outline?.let { roundedCorners(m, it) }?.let { (n, r) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ${if (n == 1) "ONE CORNER" else "$n CORNERS"} ROUNDED TO ${d(r)} RADIUS")
         }
         // Corners sawn off straight (a shelf with its front corners clipped): named with the cut's size.
-        clippedCorners(m)?.let { (n, ab) ->
+        outline?.let { clippedCorners(m, it) }?.let { (n, ab) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             val (ca, cb) = ab
             val size = if (kotlin.math.abs(ca - cb) < 0.5) "${d(ca)}" else "${d(minOf(ca, cb))} X ${d(maxOf(ca, cb))}"
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ${if (n == 1) "ONE CORNER" else "$n CORNERS"} CUT OFF $size")
         }
-        slopedEdge(m)?.let { (lo, hi) ->
+        outline?.let { slopedEdge(m, it) }?.let { (lo, hi) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE SLOPED FROM ${d(hi)} TO ${d(lo)}", pairW = lo + hi)
         }
