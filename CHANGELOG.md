@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.26.0 - pair single steps
+
+- Shorter guides: two single-part steps in a row that go on from the same side are now one step.
+
 ## v2.25.0 - outline once
 
 - Slightly quicker cut lists on big models.

@@ -326,14 +326,39 @@ object AssemblyPlan {
         val stops = all.filter { it.name == "Glass stop" && !it.excluded }
         val sbBack = if (stops.isNotEmpty()) all.filter { it.name == "Back" && !it.excluded } else emptyList()
         val late = casters + lid + stops + sbBack
-        if (late.isEmpty() || late.size == all.count { !it.excluded }) return foldLone(planInner(all, maxSteps, order))
-        var r = foldLone(planInner(all - late.toSet(), maxSteps, null))
+        if (late.isEmpty() || late.size == all.count { !it.excluded }) return pairSingles(foldLone(planInner(all, maxSteps, order)))
+        var r = pairSingles(foldLone(planInner(all - late.toSet(), maxSteps, null)))
         if (lid.isNotEmpty()) r = lastStep(r, lid, Vec3(0.0, -1.0, 0.0))
         if (stops.isNotEmpty()) r = lastStep(r, stops, Vec3(0.0, 0.0, 1.0))
         if (sbBack.isNotEmpty()) r = lastStep(r, sbBack, Vec3(0.0, 0.0, 1.0))
         if (casters.isNotEmpty()) r = lastStep(r, casters, Vec3(0.0, 0.0, -1.0))
         val planned = r.parts.associateBy { it.id }
         return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
+    }
+
+    /**
+     * Two steps in a row that each fit one part from the same side (a spice rack's jar rail, then its shelf, both from
+     * the front) are one step: a page each for single parts makes a short build long. Order within it is kept.
+     */
+    private val HINGED = setOf("Lid", "Door", "Back leg", "Crate lid", "Sliding door")
+
+    private fun pairSingles(r: PlanResult): PlanResult {
+        val st = r.steps
+        if (st.size < 4) return r
+        val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
+        var i = 0
+        while (i < st.size) {
+            val a = st[i]; val b = st.getOrNull(i + 1)
+            // Not a part hung on hinges (a lid, a door, an easel's back leg): that stays a step of its own.
+            val nameOf = { id: String -> r.parts.firstOrNull { it.id == id }?.name }
+            val single = { x: BuildStep -> !x.subassembly && x.partIds.size == 1 && x.directions.size == 1 && x.placed.isEmpty() && x.partIds.none { it.startsWith("drawer") || nameOf(it) in HINGED } }
+            if (b != null && i > 0 && single(a) && single(b) && a.directions == b.directions && st.count { !it.subassembly } > 3) {
+                val m = b.copy(step = out.size + 1, partIds = a.partIds + b.partIds, items = (a.items + b.items).distinct().sorted(), explodeOf = a.explodeOf + b.explodeOf)
+                out += m; renumber[a.step] = m.step; renumber[b.step] = m.step; i += 2
+            } else { out += a.copy(step = out.size + 1, continues = a.continues?.let { renumber[it] ?: it }); renumber[a.step] = out.size; i++ }
+        }
+        if (out.size == st.size) return r
+        return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { renumber[it] ?: it }) }, out)
     }
 
     /** [ps] fitted in a step of their own after everything in [r], coming in against [out] (the way they leave). */

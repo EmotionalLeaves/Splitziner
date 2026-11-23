@@ -774,3 +774,6 @@ Departures from the build spec, newest first.
 
 ## v2.25
 - The shape words (rounded corners, clipped corners, right triangle, sloped edge) share one outline per part instead of working it out four times.
+
+## v2.26
+- Two steps in a row that each fit one part from the same side are one step ("the rail and the shelf"), when the build has more than three steps; a part hung on hinges (a lid, a door, an easel's back leg, a crate lid) keeps its own step.
