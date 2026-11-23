@@ -90,13 +90,28 @@ object GuideSteps {
                 if (kotlin.math.abs(lo - hi) < 1.0) { out.getOrPut("${label(s)}|centred on the ${if (k == 2) "height" else "width"}|${label(host)}") { ArrayList() } += -1.0; continue }
                 val where = when {
                     k == 2 -> if (lo <= hi) "up from the bottom edge" else "down from the top edge"
-                    k == len -> "from ${if (many) "each end" else "the end"}"
+                    // The end it is measured from, by name; copies set alike from both ends become "from each end" below.
+                    k == len -> if (!many) "from the end" else if (k == 0) (if (lo <= hi) "from the left end" else "from the right end") else (if (lo <= hi) "from the front end" else "from the back end")
                     k == 1 -> if (lo <= hi) "from the front edge" else "from the back edge"
                     else -> if (lo <= hi) "from the left edge" else "from the right edge"
                 }
                 out.getOrPut("${label(s)}|$where|${label(host)}") { ArrayList() } += near
                 axisOf["${label(s)}|$where|${label(host)}"] = k
             }
+        }
+        // Copies set the same distances from both ends of a host are one line, "from each end".
+        for (pair in listOf("left" to "right", "front" to "back")) for (key in out.keys.toList()) {
+            val (what, where, of) = key.split('|')
+            if (where != "from the ${pair.first} end") continue
+            val other = "$what|from the ${pair.second} end|$of"
+            val a1 = out[key] ?: continue; val a2 = out[other] ?: continue
+            out.remove(key); out.remove(other)
+            // Different distances from the two ends: one line naming each end.
+            if (a1.map { Math.round(it * 2) }.sorted() != a2.map { Math.round(it * 2) }.sorted()) {
+                out["$what|ends:${pair.first}:${pair.second}:${a1.size}|$of"] = (a1 + a2).toMutableList(); continue
+            }
+            out["$what|from each end|$of"] = (a1 + a2).toMutableList()
+            axisOf["$what|from each end|$of"] = axisOf[key] ?: 0
         }
         // Copies of one part set the same way against different neighbours (two shelves, each beside a different upright)
         // are one line naming both.
@@ -108,12 +123,17 @@ object GuideSteps {
         }
         return merged.entries.flatMap { (key, ds) ->
             val (what, where, of) = key.split('|')
-            val d = ds.map { Math.round(it * 2) / 2.0 }.distinct()
+            val d = ds.map { Math.round(it * 2) / 2.0 }.distinct().sorted()
             val fl = axisOf[key]?.let { flush["$what|$it|$of"] }
             if (fl != null && ds.size == 1 && !where.startsWith("centred"))
                 return@flatMap listOf("Set one $what flush with the $fl of $of, and the other ${fmt.format(d[0])}$u $where.")
             listOf(run {
-            if (where.startsWith("centred")) "Centre ${if (ds.size > 1) "each $what" else what} on the ${where.substringAfterLast(' ')} of $of."
+            if (where.startsWith("ends:")) {
+                val (_, e1, e2, n1) = where.split(':')
+                fun list(xs: List<Double>) = xs.map { Math.round(it * 2) / 2.0 }.distinct().sorted().let { v -> if (v.size == 1) fmt.format(v[0]) + u else v.dropLast(1).joinToString(", ") { fmt.format(it) + u } + " and " + fmt.format(v.last()) + u }
+                "Set ${if (ds.size > 1) "${ds.size}× " else ""}$what ${list(ds.take(n1.toInt()))} from the $e1 end and ${list(ds.drop(n1.toInt()))} from the $e2 end of $of."
+            }
+            else if (where.startsWith("centred")) "Centre ${if (ds.size > 1) "each $what" else what} on the ${where.substringAfterLast(' ')} of $of."
             else if (d.size == 1) "Set ${if (ds.size > 1) "each $what" else what} ${fmt.format(d[0])}$u $where of $of."
             else "Set ${ds.size}× $what ${d.dropLast(1).joinToString(", ") { fmt.format(it) + u }} and ${fmt.format(d.last())}$u $where of $of, as drawn."
             })

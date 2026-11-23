@@ -600,3 +600,6 @@ Departures from the build spec, newest first.
 
 ## v1.74
 - A "Canvas rack" template: a box open at the front and top (two ends, back, bottom), split into equal slots by plywood dividers standing on the bottom and against the back, with a rail across the front top resting on the dividers. Default 48 x 20 x 36 in, 6 slots, 1/2 in dividers, 3 in rail.
+
+## v1.75
+- Placing lines name the end a part is measured from ("from the left end", "from the front end"). "From each end" is kept only when copies sit at the same distances from both ends; when the two ends differ, one line gives each end its own distances. Distances are listed smallest first.

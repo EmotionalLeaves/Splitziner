@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.75.0 - which end to measure from
+
+- **Clearer measurements in the build steps.** When parts are set along a board, the guide now says which end to measure from. "From each end" is only used when the spacing really is the same from both ends; otherwise you get each end's distances separately, smallest first.
+
 ## v1.74.0 - canvas rack template
 
 - **New design: Canvas rack.** A floor rack for storing paintings on edge, split into equal slots by plywood dividers. Choose the size and how many slots; the guide spaces the dividers for you.
