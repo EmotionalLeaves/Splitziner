@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.79.0 - cleated panel wording
+
+- Plinth steps now read naturally: "make 2 cleated panels", then "set out the 2 cleated panels", with no pointless squareness check on a flat panel.
+
 ## v1.78.0 - oversize sheet advice
 
 - **Better advice for parts bigger than a sheet.** Instead of only "join two pieces", the check now says when a 4 x 10 ft sheet would do (and where to set that size), how to split a back panel behind a divider, and that thick panels can be glued up from solid boards.

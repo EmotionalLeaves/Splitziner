@@ -615,3 +615,6 @@ Departures from the build spec, newest first.
 
 ## v1.78
 - A part bigger than a sheet gets concrete ways out: longer sheets (1220 x 3048 mm, 4 x 10 ft) when only the length is over and it would fit one, with where to set the sheet size; a thin back in two pieces meeting behind a divider or shelf; a thick panel glued up from solid boards.
+
+## v1.79
+- A panel with its cleats made on the bench is a "cleated panel" in the guide ("make 2 cleated panels", "set out the 2 cleated panels"), and its bench step does not ask for equal diagonals: a panel with strips on its face has no corners to square.
