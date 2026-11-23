@@ -2739,3 +2739,21 @@ class FoldingScreenTest {
         assertTrue(report.findings.none { it.severity == splitziner.check.Severity.PROBLEM || it.title == "Fix it to the wall" || it.title.contains("tipping") }, report.findings.map { it.title }.toString())
     }
 }
+
+class PiecesAlikeTest {
+    @Test fun fourPlinthsAlikeAreBuiltOnce() {
+        val bytes = javaClass.getResourceAsStream("/complex/plinth_set.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "plinth_set.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        // Two kinds of piece: the four alike are one run of steps, done four times; the odd one its own.
+        assertEquals(listOf(1, 2), pl.steps.map { it.piece }.distinct())
+        assertEquals(setOf(4), pl.steps.filter { it.piece == 1 }.map { it.alike }.toSet())
+        assertEquals(setOf(1), pl.steps.filter { it.piece == 2 }.map { it.alike }.toSet())
+        val fmt = LengthFormat("in", "fraction")
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+        // 36 in deep, open below: the tops are screwed down into the walls' edges, never bracketed out of reach.
+        assertTrue(f.all.none { it.kind == "brackets" }, f.all.map { it.kind }.distinct().toString())
+        val g = splitziner.guide.Guide.build(pl.parts, pl.steps, fasten = f, fmt = fmt)
+        assertTrue(g.first().title.contains("piece 1 of 2 (make 4 alike)"), g.first().title)
+    }
+}

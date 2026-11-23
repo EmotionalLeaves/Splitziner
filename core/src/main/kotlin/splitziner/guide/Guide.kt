@@ -663,7 +663,10 @@ object GuideSteps {
             }
             val title0 = o?.title?.takeIf { it.isNotBlank() }?.let { "Step ${st.step}: $it" } ?: auto
             // The first step of each of a set of separate pieces says which piece it starts.
-            val title = if (st.pieces > 1 && steps.firstOrNull { it.piece == st.piece }?.step == st.step) title0.replaceFirst("Step ${st.step}: ", "Step ${st.step}, piece ${st.piece} of ${st.pieces}: ") else title0
+            val pieceFirst = st.pieces >= 1 && steps.firstOrNull { it.piece == st.piece }?.step == st.step
+            val alikeText = if (st.alike > 1) "make ${st.alike} alike" else null
+            val title = if (pieceFirst && st.pieces > 1) title0.replaceFirst("Step ${st.step}: ", "Step ${st.step}, piece ${st.piece} of ${st.pieces}${alikeText?.let { " ($it)" } ?: ""}: ")
+                else if (pieceFirst && alikeText != null) title0.replaceFirst("Step ${st.step}: ", "Step ${st.step} ($alikeText): ") else title0
             for ((bench, us) in unitCount) placedUnits[bench] = (placedUnits[bench] ?: 0) + us.size
             // The list says how many of each part the whole step needs, all copies of the sub-assembly included.
             // And the hardware the step uses, so it can be laid out with the parts.
@@ -684,8 +687,10 @@ object GuideSteps {
                 // Each drawer and door gets a handle; its style is the maker's choice.
                 if (j.kind == "hinges" || j.kind == "applied" || (j.kind == "slides" && j.into === j.through)) hw[splitziner.joinery.Fastening.HANDLE] = (hw[splitziner.joinery.Fastening.HANDLE] ?: 0) + 1
             }
-            val need = (if (st.makeCount > 1) list.map { (k, v) -> k to v * st.makeCount } else list) +
-                hw.map { (k, v) -> k.replaceFirstChar { it.uppercase() } to v * maxOf(1, st.makeCount) }
+            // All the copies' worth: of a sub-assembly made several times, and of identical pieces made alike.
+            val mult = maxOf(1, st.makeCount) * maxOf(1, st.alike)
+            val need = (if (mult > 1) list.map { (k, v) -> k to v * mult } else list) +
+                hw.map { (k, v) -> k.replaceFirstChar { it.uppercase() } to v * mult }
             out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines, need, o?.check?.takeIf { it.isNotBlank() })
             if (!st.subassembly) done += st.partIds
         }

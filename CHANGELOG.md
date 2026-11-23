@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.37.0 - pieces made alike
+
+- Making several identical plinths in one file? The guide now builds one and says "make 4 alike", with parts and hardware counted for all of them, instead of repeating every step.
+- Tall open-bottomed plinths have their tops screwed down from above, since brackets inside would be out of reach.
+
 ## v2.36.0 - folding screen design
 
 - New studio design: a folding screen. Pick the number of panels, their width and height, and whether there's a middle rail. The guide makes the panels alike and hinges them together.

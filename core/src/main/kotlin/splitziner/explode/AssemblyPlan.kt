@@ -31,6 +31,8 @@ data class BuildStep(
     /** In a set of separate pieces drawn in one file, which piece this step builds (1-based) and how many there are; 0 for one piece. */
     val piece: Int = 0,
     val pieces: Int = 0,
+    /** How many identical pieces this step is done on (a set of four plinths alike): their parts are in the first only. */
+    val alike: Int = 1,
 )
 
 class PlanResult(val parts: List<Part>, val steps: List<BuildStep>)
@@ -330,11 +332,16 @@ object AssemblyPlan {
         if (order != null) return planInner(all, maxSteps, order)
         // Separate pieces in one file (nesting plinths, a pair of nightstands): each built on its own, one after another.
         splitziner.parts.Pieces.find(all.filter { !it.excluded })?.let { ps ->
+            // Identical pieces (four plinths alike) are built once, "make 4 alike": the same parts in the same places.
+            fun sig(piece: List<Part>): List<List<Long>> { val b0 = piece.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+                return piece.map { p -> val b = p.mesh.bounds; listOf(b.min.x - b0.min.x, b.min.y - b0.min.y, b.min.z - b0.min.z, b.extents.x, b.extents.y, b.extents.z, kotlin.math.abs(p.mesh.volume) / 1000.0).map { Math.round(it) } }
+                    .sortedWith { a, b -> a.zip(b).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 } ?: 0 } }
+            val groups = ps.indices.groupBy { sig(ps[it]) }.values.toList()
             val steps = ArrayList<BuildStep>(); val planned = HashMap<String, Part>()
-            for ((i, piece) in ps.withIndex()) {
-                val r = plan(piece, maxSteps)
+            for ((i, g) in groups.withIndex()) {
+                val r = plan(ps[g[0]], maxSteps)
                 val off = steps.size
-                steps += r.steps.map { it.copy(step = it.step + off, continues = it.continues?.let { c -> c + off }, piece = i + 1, pieces = ps.size) }
+                steps += r.steps.map { it.copy(step = it.step + off, continues = it.continues?.let { c -> c + off }, piece = i + 1, pieces = groups.size, alike = g.size) }
                 for (p in r.parts) planned[p.id] = p.copy(step = p.step?.let { it + off })
             }
             return PlanResult(all.map { planned[it.id] ?: it }, steps)

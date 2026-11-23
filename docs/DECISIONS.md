@@ -826,3 +826,8 @@ Departures from the build spec, newest first.
 ## v2.36
 - New studio design: a folding screen, by the number of panels (2 to 8), panel width, height, stile and rail width, frame and sheet thickness, and an optional middle rail. Each panel is a pocket-screwed frame with a thin sheet glued over its whole back; panels stand 3 mm apart for the hinges. Usual material: poplar.
 - A screen panel's bench step says to make the frame first, face down, then glue the sheet on its back, rather than laying the sheet down and building the frame on it (which would hide the pocket holes before they were screwed).
+
+## v2.37
+- Identical pieces in a set (four plinths alike: the same parts in the same places, to the millimetre) are built once: their first step says "make 4 alike", and each step's parts and hardware are counted for all of them. The other copies are not drawn or stepped through again; the cut list and hardware totals still count every one.
+- A closed pedestal too deep to reach into from below, with no cleats under its top and no door, has its top screwed down through its face into the walls' top edges (countersunk, filled), as the stave columns' are, rather than corner brackets nobody could fix. In a set, each piece is judged on its own for this.
+- Such a top's line gives the screws for each joint group, not the whole step's on every line.

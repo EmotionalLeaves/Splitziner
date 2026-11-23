@@ -151,6 +151,12 @@ object Fastening {
         val staveIds = runCatching { splitziner.parts.Staves.find(live) }.getOrDefault(emptyList()).map { it.id }.toSet()
         val ballastIn = runCatching { splitziner.check.DesignCheck.ballastShelf(live) != null }.getOrDefault(false)
         val ballast = ballastIn || runCatching { splitziner.check.DesignCheck.closedPedestal(live) }.getOrDefault(false)
+        // In a set of separate pieces, each plinth is judged on its own.
+        val pieceOf = runCatching { splitziner.parts.Pieces.find(live) }.getOrNull()?.flatMap { pc -> pc.map { it.id to pc } }?.toMap() ?: emptyMap()
+        val pieceJudged = HashMap<List<Part>, Pair<Boolean, Boolean>>()
+        fun judged(p: Part): Pair<Boolean, Boolean> { val pc = pieceOf[p.id] ?: return ballastIn to ballast
+            return pieceJudged.getOrPut(pc) { val bi = runCatching { splitziner.check.DesignCheck.ballastShelf(pc) != null }.getOrDefault(false)
+                bi to (bi || runCatching { splitziner.check.DesignCheck.closedPedestal(pc) }.getOrDefault(false)) } }
         val rel = DesignCheck.relations(live)
         val stepOf = HashMap<String, Int>()
         // A part's step is the step it is joined in: its bench step if it has one, else its main step.
@@ -551,11 +557,15 @@ object Fastening {
             // and the ballast goes in first. The top is screwed down through its face, a few screws that can come out.
             // A many-sided plinth's top is screwed the same way, down into its staves' top edges.
             val onStaves = "Top" in setOf(thr.name, into.name) && (thr.id in staveIds || into.id in staveIds)
-            if (k == 2 && (setOf(thr.name, into.name) == setOf("Top", "Cleat") || onStaves) && ballast) {
+            // So is a closed pedestal's top sitting on its walls' top edges with no cleats under it (and no door to reach in by): brackets would be out of reach.
+            val (ballastHere0, ballastHere) = judged(thr)
+            val onWalls = "Top" in setOf(thr.name, into.name) && ballastHere && setOf(thr, into).first { it.name != "Top" || it === into && thr.name == "Top" }.let { w ->
+                w.name != "Top" && w.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } } && live.none { (it.name == "Cleat" || it.name == "Door") && (pieceOf[it.id] ?: live) === (pieceOf[thr.id] ?: live) }
+            if (k == 2 && (setOf(thr.name, into.name) == setOf("Top", "Cleat") || onStaves || onWalls) && ballastHere) {
                 val top = if (thr.name == "Top") thr else into; val cl = if (top === thr) into else thr
                 val tt = top.mesh.bounds.extents.z; val ct = cl.mesh.bounds.extents.z
                 val sz = pick(tt + minOf(1.5 * tt, ct - 3.0), fmt, false)?.let { gauged(it, tt, fmt, ct) } ?: ""
-                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, if (ballastIn) "balltop" else "pedtop", false, if (onStaves) "edges" else "")
+                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, if (ballastHere0) "balltop" else "pedtop", false, if (onStaves || onWalls) "edges" else "")
                 if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + count
                 continue
             }
@@ -1229,7 +1239,7 @@ object Fastening {
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
             else if (j.kind == "balltop") "Load the ballast onto the low shelf first (sandbags or bricks). Then screw ${key.first} down through its face into ${key.second} with ${sized(js.filter { it.kind == "balltop" }.sumOf { it.count }, j.size)} screws, countersunk: a few, so the top can come off again to empty the ballast when the plinth moves. Fill the heads only if it never will."
-            else if (j.kind == "pedtop") "Screw ${key.first} down through its face into ${if (j.at == "edges") "the top edges of " else ""}${key.second} with ${sized(js.filter { it.kind == "pedtop" }.sumOf { it.count }, j.size)} screws, countersunk (${if (j.at == "edges") "the inside is too deep to reach from below" else "the cleats are too far inside to reach from below"}); set the heads just below the surface and fill them before painting."
+            else if (j.kind == "pedtop") "Screw ${key.first} down through its face into ${if (j.at == "edges") "the top edges of " else ""}${key.second} with ${sized(if (j.at == "edges") n else js.filter { it.kind == "pedtop" }.sumOf { it.count }, j.size)} screws, countersunk (${if (j.at == "edges") "the inside is too deep to reach from below" else "the cleats are too far inside to reach from below"}); set the heads just below the surface and fill them before painting."
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "pocketin") "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes along ${if (key.second.contains(" and ")) "their" else "its"} edge, on the inside, so nothing shows outside$times. Glue the joint too."
