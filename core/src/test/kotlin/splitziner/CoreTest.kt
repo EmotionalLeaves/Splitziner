@@ -2333,3 +2333,23 @@ class FramePanelTest {
         assertTrue(f.all.any { it.kind == "pocketin" })
     }
 }
+
+class TaperTest {
+    /** A square leg [s] wide, [h] tall, tapered on its +x and +y faces from [start] below the top to [foot] square. */
+    private fun leg(s: Double, h: Double, foot: Double, start: Double): splitziner.mesh.Mesh {
+        val rings = listOf(0.0 to foot, (h - start) to s, h to s)
+        val v = ArrayList<Double>()
+        for ((z, w) in rings) for ((x, y) in listOf(0.0 to 0.0, w to 0.0, w to w, 0.0 to w)) { v += x; v += y; v += z }
+        val t = arrayListOf(0, 2, 1, 0, 3, 2, 8, 9, 10, 8, 10, 11)
+        for (ring in 0..1) for (i in 0..3) { val j = (i + 1) % 4; val a = 4 * ring; val b = 4 * (ring + 1); t += listOf(a + i, a + j, b + j, a + i, b + j, b + i) }
+        return splitziner.mesh.Mesh(v.toDoubleArray(), t.toIntArray())
+    }
+
+    @Test fun aTaperedLegIsABoardWithItsTaperNamed() {
+        val d = splitziner.parts.PartDescriber.describe(leg(38.1, 590.55, 19.05, 127.0), LengthFormat("in", "fraction"))
+        assertEquals("BOARD 1-1/2 X 1-1/2 X 23-1/4, TAPERED ON TWO ADJACENT FACES TO 3/4 X 3/4, STARTING 5 FROM THE TOP", d.desc)
+        // A plain stick is not tapered.
+        val plain = splitziner.parts.PartDescriber.describe(Fixtures.box(Vec3(0.0, 0.0, 0.0), Vec3(38.1, 38.1, 590.0)), LengthFormat("in", "fraction"))
+        assertFalse(plain.desc.contains("TAPERED"))
+    }
+}

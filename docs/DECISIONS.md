@@ -500,3 +500,7 @@ Departures from the build spec, newest first.
 ## v1.49
 - Bed slats spanning more than 40 in (1016 mm) side to side with nothing under the middle get a specific check: a centre rail running head to foot under them, with at least one leg to the floor, as full-size and larger beds need and most mattress warranties ask. No thicker-slat fix is offered for this.
 - When guessing which way a piece faces finds nothing to go by (no doors, drawers, back or kick board), a piece standing up (not lying flat) that is drawn more than 1.2 times as deep as it is wide is turned a quarter so its long side faces the front, as a chest, table or bench is usually drawn. Not for beds (slats, side rails, headboard, guard rails), which run head to foot away from the viewer.
+
+## v1.50
+- A tapered leg is found from its cross-sections: rectangles that stay the same from one end for a way, then shrink in straight lines to the other end. It is a board, "TAPERED ON <faces> TO <foot size>, STARTING <distance> FROM THE TOP", with a detail drawing, the steps to make it (joinery first while square, then a taper jig on the table saw or the band saw and a plane), and its own tool need ("tapered legs": table saw, band saw or CNC; slowly with a hand saw, jigsaw or circular saw).
+- A raised panel likewise needs "raised panels": a router (table), table saw or CNC.

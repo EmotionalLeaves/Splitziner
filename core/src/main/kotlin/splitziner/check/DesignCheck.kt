@@ -95,6 +95,9 @@ object DesignCheck {
         if (nearestStock(p.t, fmt).size != 1) work += Work.THICKNESS
         // A stick with its ends sawn at an angle is a saw-setting job, not a shape to mark out and cut.
         if (p.desc.contains("ENDS CUT AT") || p.desc.contains("EDGE BEVELLED")) { work += Work.ANGLE_CUT; return ItemWork(p.item ?: 0, work, holes, 0) }
+        // A tapered leg or a raised panel is a saw or router setting too, with its own tools.
+        if (p.desc.contains("TAPERED ON")) { work += Work.TAPER; return ItemWork(p.item ?: 0, work, holes, 0) }
+        if (p.desc.contains(", RAISED (")) { work += Work.RAISE; return ItemWork(p.item ?: 0, work, holes, 0) }
         // Laid flat: length along X, thickness along Y, width along Z. Looking along Y shows the outline to cut.
         val m = PartDrawings.squaredUp(p.mesh)
         val e = m.extents

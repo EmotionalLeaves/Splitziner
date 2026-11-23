@@ -116,6 +116,67 @@ object PartDescriber {
         return tongue to (insetA + insetB) / 2
     }
 
+    /** A taper: the foot's two sizes, where it starts (from the big end), and on how many faces. */
+    class Taper(val footT: Double, val footW: Double, val from: Double, val faces: Int, val adjacent: Boolean, val bigEndHigh: Boolean)
+
+    /**
+     * A stick whose square section stays the same from one end for a way, then shrinks evenly to the other end
+     * (a tapered leg). Read from rectangular cross-sections along its length; null for anything else.
+     */
+    fun tapered(m: Mesh, obb: splitziner.mesh.OrientedBox): Taper? {
+        val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val li = e.indexOf(e.max()); val ln = e[li]
+        val rest = e.filterIndexed { i, _ -> i != li }.sorted()
+        if (ln < 4 * rest[1] || rest[0] < 12.0) return null
+        val axis = obb.axes[li]
+        class S(val f: Double, val x0: Double, val x1: Double, val y0: Double, val y1: Double)
+        val fs = (0..20).map { 0.01 + 0.98 * it / 20.0 }
+        val secs = fs.map { f ->
+            val loops = Slicer.sectionLoops(m, obb.center + axis * ((f - 0.5) * ln), axis)
+            if (loops.size != 1) return null
+            val lp = loops[0]
+            val x0 = lp.minOf { it.x }; val x1 = lp.maxOf { it.x }; val y0 = lp.minOf { it.y }; val y1 = lp.maxOf { it.y }
+            // A rectangle: it fills its own box.
+            if (abs(Slicer.loopArea(lp)) < 0.98 * (x1 - x0) * (y1 - y0)) return null
+            S(f, x0, x1, y0, y1)
+        }
+        val big = secs.maxByOrNull { (it.x1 - it.x0) * (it.y1 - it.y0) }!!
+        val bigLow = (secs.first().x1 - secs.first().x0) * (secs.first().y1 - secs.first().y0) >= (secs.last().x1 - secs.last().x0) * (secs.last().y1 - secs.last().y0)
+        val ordered = if (bigLow) secs else secs.reversed()   // from the big end
+        val foot = ordered.last()
+        val shrink = (big.x1 - big.x0) - (foot.x1 - foot.x0) + (big.y1 - big.y0) - (foot.y1 - foot.y0)
+        if (shrink < 3.0) return null
+        // Square from the big end to where the taper starts, then straight lines to the foot.
+        fun same(a: S, b: S) = abs(a.x0 - b.x0) < 0.3 && abs(a.x1 - b.x1) < 0.3 && abs(a.y0 - b.y0) < 0.3 && abs(a.y1 - b.y1) < 0.3
+        val k0 = ordered.indexOfLast { same(it, ordered[0]) }
+        if (k0 < 1 || k0 >= ordered.size - 3) return null
+        val tail = ordered.drop(k0 + 1)
+        // Evenly: each side moves linearly with distance.
+        for (sel in listOf<(S) -> Double>({ it.x0 }, { it.x1 }, { it.y0 }, { it.y1 })) {
+            val a = tail.first(); val b = tail.last()
+            for (q in tail) { val t = (q.f - a.f) / (b.f - a.f); if (abs(sel(q) - (sel(a) + t * (sel(b) - sel(a)))) > 0.5) return null }
+        }
+        // Where it starts: extrapolate the moving sides back to the full size.
+        val a = tail.first(); val b = tail.last()
+        val moved = listOf(abs(a.x0 - b.x0), abs(a.x1 - b.x1), abs(a.y0 - b.y0), abs(a.y1 - b.y1))
+        val faces = moved.count { it > 0.3 }
+        val i = moved.indexOf(moved.max())
+        val sel = listOf<(S) -> Double>({ it.x0 }, { it.x1 }, { it.y0 }, { it.y1 })[i]
+        val slope = (sel(b) - sel(a)) / (b.f - a.f)
+        val fStart = a.f - (sel(a) - sel(ordered[0])) / slope
+        val from = abs(if (bigLow) fStart else 1 - fStart) * ln
+        val footSize = listOf(foot.x1 - foot.x0, foot.y1 - foot.y0).sorted()
+        // Extrapolated to the very end, not the last section a hair from it.
+        val endScale = (1.0 - (if (bigLow) a.f else 1 - a.f)) / (abs(b.f - a.f))
+        val fx = (a.x1 - a.x0) + ((b.x1 - b.x0) - (a.x1 - a.x0)) * endScale
+        val fy = (a.y1 - a.y0) + ((b.y1 - b.y0) - (a.y1 - a.y0)) * endScale
+        val fsz = listOf(fx, fy).sorted()
+        val adjacent = faces == 2 && ((moved[0] > 0.3 || moved[1] > 0.3) && (moved[2] > 0.3 || moved[3] > 0.3))
+        // Which end is thick, as the part stands in the model.
+        val bigZ = (obb.center + axis * ((if (bigLow) -0.5 else 0.5) * ln)).z; val smallZ = (obb.center + axis * ((if (bigLow) 0.5 else -0.5) * ln)).z
+        return Taper(fsz[0].takeIf { it > 0 } ?: footSize[0], fsz[1].takeIf { it > 0 } ?: footSize[1], from, faces, adjacent, bigZ > smallZ + 1.0)
+    }
+
     fun angledEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
         val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
         val order = e.indices.sortedBy { e[it] }
@@ -182,6 +243,11 @@ object PartDescriber {
                 return PartDescription(PartKind.SHAPED, t, w, l, 0.0, "SHAPED, ENVELOPE ${d(t)} X ${d(w)} X ${d(l)}")
         }
 
+        // A leg tapered on some of its faces (a Shaker table's): a square stick with the taper named.
+        tapered(m, obb)?.let { tp ->
+            val faces = when (tp.faces) { 1 -> "ONE FACE"; 2 -> if (tp.adjacent) "TWO ADJACENT FACES" else "TWO OPPOSITE FACES"; 3 -> "THREE FACES"; else -> "ALL FOUR FACES" }
+            return PartDescription(PartKind.BOARD, t, w, l, fill, "BOARD ${d(t)} X ${d(w)} X ${d(l)}, TAPERED ON $faces TO ${d(tp.footT)} X ${d(tp.footW)}, STARTING ${d(tp.from)} FROM THE ${if (tp.bigEndHigh) "TOP" else "THICK END"}")
+        }
         var dia: Double? = null
         // A cylinder fills pi/4 (0.785) of its box.
         if (abs(t - w) < 0.05 * w && fill > 0.72 && fill < 0.84) dia = (t + w) / 2

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.50.0 - tapered legs
+
+- **Tapered legs.** A leg that tapers on some of its faces used to be listed as a solid block to glue up from layers. It is now a plain board in the cut list, with the taper described: which faces, the foot size and where the taper starts. It gets its own drawing and the steps to make it: cut the joinery while the leg is still square, then use a taper jig on the table saw, or the band saw, and finish with a plane.
+- Tapered legs and raised panels now appear in the tools check, so the app can say if your tools can't make them.
+
 ## v1.49.0 - bed centre support, long side front
 
 - **Wide beds:** when a bed's slats span more than 40 in with nothing under the middle, the check now asks for a centre rail with a leg to the floor, as full-size and larger beds need. Before, it only suggested thicker slats.

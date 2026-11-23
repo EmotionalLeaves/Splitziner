@@ -27,4 +27,6 @@ enum class Work(val label: String, val with: Set<Tool>, val slowly: Set<Tool> = 
     EDGE_SHAPE("rounded or bevelled edges", setOf(Tool.ROUTER, Tool.CNC), setOf(Tool.SANDER)),
     THICKNESS("bringing material to a thickness shops do not stock", setOf(Tool.PLANER)),
     CARVE("a solid shape that is not a flat board", setOf(Tool.CNC, Tool.PRINTER), setOf(Tool.BAND_SAW)),
+    TAPER("tapered legs", setOf(Tool.TABLE_SAW, Tool.BAND_SAW, Tool.CNC), setOf(Tool.HAND_SAW, Tool.JIGSAW, Tool.CIRCULAR_SAW)),
+    RAISE("raised panels", setOf(Tool.ROUTER, Tool.TABLE_SAW, Tool.CNC)),
 }

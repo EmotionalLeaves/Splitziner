@@ -50,7 +50,7 @@ object PartDrawings {
             if (row.kind != splitziner.parts.PartKind.BOARD && row.kind != splitziner.parts.PartKind.PANEL) return@filter false
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
-            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED") && !d.desc.contains("RAISED")
+            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED") && !d.desc.contains("RAISED") && !d.desc.contains("TAPERED")
         }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
     }
 
@@ -203,6 +203,10 @@ object PartDrawings {
     }
 
     private fun bevelNotes(row: CutListRow): List<String> {
+        Regex("""TAPERED ON (.+?) TO ([^,]+), STARTING ([^ ]+) FROM THE (TOP|THICK END)""").find(row.description)?.let { m ->
+            return listOf("TAPERED ON ${m.groupValues[1]} (SEE THE SIDE VIEWS): FULL SIZE FOR ${m.groupValues[3]} FROM THE ${m.groupValues[4]}, THEN STRAIGHT DOWN TO ${m.groupValues[2]} AT THE OTHER END. " +
+                "ON A LEG THE TAPERS GO ON THE INSIDE FACES, SO IT LOOKS STRAIGHT FROM OUTSIDE. CUT THE JOINERY (MORTISES, POCKET HOLES) WHILE THE LEG IS STILL SQUARE.")
+        }
         Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)?.let { m ->
             return listOf("RAISED PANEL: FLAT BACK; FRONT BEVELLED ${m.groupValues[2]} WIDE ALL ROUND DOWN TO AN EDGE ${m.groupValues[1]} THICK, WHICH FITS THE FRAME'S GROOVES (SEE THE EDGE VIEWS). " +
                 "CUT THE END-GRAIN EDGES FIRST. LEAVE ABOUT 1/16 IN (2 MM) SPARE IN EACH GROOVE ACROSS THE GRAIN SO A SOLID-WOOD PANEL CAN SWELL.")

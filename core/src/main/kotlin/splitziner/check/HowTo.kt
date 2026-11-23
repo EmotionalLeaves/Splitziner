@@ -68,6 +68,9 @@ object HowTo {
             val sizes = w.holeDiameters.distinct().sorted().joinToString(", ") { d(it) }
             out += "Drill the holes${if (sizes.isNotEmpty()) " ($sizes $u)" else ""} with a ${pick(Work.HOLES)}, with a scrap board behind to stop the back splintering."
         }
+        val taper = Regex("""TAPERED ON (.+?) TO ([^,]+), STARTING ([^ ]+) FROM THE (TOP|THICK END)""").find(row.description)
+        if (taper != null) out += "Cut any joinery while it is still square. Then mark the taper on ${taper.groupValues[1].lowercase()}: full size for ${taper.groupValues[3]} $u from the ${taper.groupValues[4].lowercase()}, " +
+            "down to ${taper.groupValues[2].lowercase()} $u at the other end. Saw it with a taper jig on the table saw (or on the band saw just outside the line), one face at a time, then plane to the line."
         val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
         if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +
             "Use a panel-raising bit in a router table, or the table saw with the blade tilted and the panel stood on edge against a tall fence. Cut the end-grain edges first, so the long-grain cuts clean up any tear-out, and test the fit in an offcut of the groove."
