@@ -278,6 +278,39 @@ object PartDescriber {
         return missing.size to first
     }
 
+    /**
+     * A flat part whose outline is its rectangle with one or more corners rounded to one radius: how many, and the
+     * radius. Every point of the outline is on the rectangle's edges or on a rounded corner's arc. Null otherwise.
+     */
+    fun roundedCorners(m: Mesh): Pair<Int, Double>? {
+        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
+        val g = pr.outline
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
+        val c = g.coordinates.dropLast(1)
+        if (c.size < 12) return null
+        val x0 = c.minOf { it.x }; val x1 = c.maxOf { it.x }; val y0 = c.minOf { it.y }; val y1 = c.maxOf { it.y }
+        val tol = 0.5
+        val corners = listOf(x0 to y0, x1 to y0, x1 to y1, x0 to y1)
+        val missing = corners.filter { (cx, cy) -> c.none { kotlin.math.abs(it.x - cx) < tol && kotlin.math.abs(it.y - cy) < tol } }
+        if (missing.isEmpty()) return null
+        // Each rounded corner takes r squared times (1 - pi/4) off the rectangle.
+        val deficit = (x1 - x0) * (y1 - y0) - g.area
+        val r0 = Math.sqrt(deficit / missing.size / (1 - Math.PI / 4))
+        // A circle or a slot is not a rectangle with rounded corners.
+        if (r0 < 5.0 || r0 > 0.4 * minOf(x1 - x0, y1 - y0)) return null
+        // The radius itself: where the straight edges stop short of a rounded corner.
+        val r = missing.flatMap { (cx, cy) -> listOf(
+            c.filter { kotlin.math.abs(it.y - cy) < tol }.minOfOrNull { kotlin.math.abs(it.x - cx) },
+            c.filter { kotlin.math.abs(it.x - cx) < tol }.minOfOrNull { kotlin.math.abs(it.y - cy) }) }.filterNotNull().average()
+        if (r.isNaN() || kotlin.math.abs(r - r0) > 0.15 * r0) return null
+        val centres = missing.map { (cx, cy) -> (if (cx == x0) x0 + r else x1 - r) to (if (cy == y0) y0 + r else y1 - r) }
+        val arcTol = maxOf(1.0, 0.04 * r)
+        val ok = c.all { p ->
+            val onEdge = kotlin.math.abs(p.x - x0) < tol || kotlin.math.abs(p.x - x1) < tol || kotlin.math.abs(p.y - y0) < tol || kotlin.math.abs(p.y - y1) < tol
+            onEdge || centres.any { (cx, cy) -> kotlin.math.abs(Math.hypot(p.x - cx, p.y - cy) - r) < arcTol } }
+        return if (ok) missing.size to r else null
+    }
+
     /** A flat part whose outline is a triangle with one square corner. */
     fun rightTriangle(m: Mesh): Boolean {
         val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return false
@@ -361,6 +394,11 @@ object PartDescriber {
         if (rightTriangle(m)) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A RIGHT TRIANGLE")
+        }
+        // Corners rounded to one radius (a table top's): named with the radius.
+        roundedCorners(m)?.let { (n, r) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ${if (n == 1) "ONE CORNER" else "$n CORNERS"} ROUNDED TO ${d(r)} RADIUS")
         }
         // Corners sawn off straight (a shelf with its front corners clipped): named with the cut's size.
         clippedCorners(m)?.let { (n, ab) ->

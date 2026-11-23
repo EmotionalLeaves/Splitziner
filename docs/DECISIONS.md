@@ -761,3 +761,6 @@ Departures from the build spec, newest first.
 
 ## v2.21
 - A flat part that is its rectangle with one or more corners sawn off straight, all the same size, is "N CORNERS CUT OFF a (X b)": a detail drawing shows which, and the making step marks the legs from each corner and saws the line. No full-size pages.
+
+## v2.22
+- A flat part that is its rectangle with one or more corners rounded to one radius (up to 40% of its narrower side, so a round top is still a circle) is "N CORNERS ROUNDED TO r RADIUS", r taken from where the straight edges stop: a detail drawing, and a making step (draw the curve with a compass or a tin that size, jigsaw outside the line, sand to it). No full-size pages.

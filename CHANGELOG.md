@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.22.0 - rounded corners
+
+- Tops and shelves with rounded corners are now described with their radius ("4 corners rounded to 2 in radius"), with a simple way to mark and cut them.
+
 ## v2.21.0 - clipped corners
 
 - Shelves and tops with their corners cut off are now described that way ("2 corners cut off 2 in"), with a simple mark-and-saw step.

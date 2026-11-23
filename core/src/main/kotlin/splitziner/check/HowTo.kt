@@ -84,6 +84,9 @@ object HowTo {
             val legs = if (cm.groupValues[3].isEmpty()) "${cm.groupValues[2]} $u along both edges" else "${cm.groupValues[2]} $u along one edge and ${cm.groupValues[3]} $u along the other"
             out += "Mark ${if (cm.groupValues[1] == "ONE CORNER") "the corner to cut off" else "each corner to cut off (see the drawing for which)"}: $legs from the corner. Join the marks and saw the line, then sand the edge smooth."
         }
+        Regex("""(ONE CORNER|\d+ CORNERS) ROUNDED TO ([^ ,]+) RADIUS""").find(row.description)?.let { rm ->
+            out += "Round ${if (rm.groupValues[1] == "ONE CORNER") "the corner" else "the corners (see the drawing for which)"} to ${rm.groupValues[2]} $u radius: set a compass to it (or find a tin or jar that size), draw the curve touching both edges, cut just outside the line with a jigsaw and sand to it."
+        }
         if (row.description.contains("A RIGHT TRIANGLE")) out += "Draw a line corner to corner across the blank and saw along it: each blank makes two triangles${if (row.qty > 1) ", so cut ${(row.qty + 1) / 2} blank${if ((row.qty + 1) / 2 == 1) "" else "s"} for ${row.qty}" else ""}."
         val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
         if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +

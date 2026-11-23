@@ -110,7 +110,7 @@ object DesignCheck {
         if (p.desc.contains("TAPERED ON")) { work += Work.TAPER; return ItemWork(p.item ?: 0, work, holes, 0) }
         if (p.desc.contains(", RAISED (")) { work += Work.RAISE; return ItemWork(p.item ?: 0, work, holes, 0) }
         // A sloped edge is one straight saw cut, marked from end to end.
-        if (p.desc.contains("ONE EDGE SLOPED") || p.desc.contains("A RIGHT TRIANGLE") || p.desc.contains(" CUT OFF ")) return ItemWork(p.item ?: 0, work, holes, 0)
+        if (p.desc.contains("ONE EDGE SLOPED") || p.desc.contains("A RIGHT TRIANGLE") || p.desc.contains(" CUT OFF ") || p.desc.contains(" ROUNDED TO ")) return ItemWork(p.item ?: 0, work, holes, 0)
         // Laid flat: length along X, thickness along Y, width along Z. Looking along Y shows the outline to cut.
         val m = PartDrawings.squaredUp(p.mesh)
         val e = m.extents

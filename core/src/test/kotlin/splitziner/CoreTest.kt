@@ -2614,6 +2614,10 @@ class ShapeWordsTest {
         assertTrue(splitziner.parts.PartDescriber.describe(clipped, fmt).desc.endsWith("2 CORNERS CUT OFF 50"), splitziner.parts.PartDescriber.describe(clipped, fmt).desc)
         val sloped = flat(0.0 to 0.0, 350.0 to 0.0, 350.0 to 300.0, 0.0 to 150.0)
         assertTrue(splitziner.parts.PartDescriber.describe(sloped, fmt).desc.endsWith("ONE EDGE SLOPED FROM 300 TO 150"), splitziner.parts.PartDescriber.describe(sloped, fmt).desc)
+        // A top 800 x 500 with its four corners rounded to 50.
+        val arc = { cx: Double, cy: Double, a0: Double -> (0..8).map { k -> val a = Math.toRadians(a0 + 90.0 * k / 8); cx + 50 * Math.cos(a) to cy + 50 * Math.sin(a) } }
+        val round = flat(*(arc(750.0, 50.0, -90.0) + arc(750.0, 450.0, 0.0) + arc(50.0, 450.0, 90.0) + arc(50.0, 50.0, 180.0)).toTypedArray())
+        assertTrue(splitziner.parts.PartDescriber.describe(round, fmt).desc.endsWith("4 CORNERS ROUNDED TO 50 RADIUS"), splitziner.parts.PartDescriber.describe(round, fmt).desc)
         val tri = flat(0.0 to 0.0, 300.0 to 0.0, 0.0 to 300.0)
         assertTrue(splitziner.parts.PartDescriber.describe(tri, fmt).desc.endsWith("A RIGHT TRIANGLE"))
     }
