@@ -517,10 +517,16 @@ object Roles {
             }
             // With brackets or pegs on it, the back board is what hangs on the wall, and what lies on the brackets a shelf.
             val brackets = live.filter { out[it.id] == "Bracket" }
-            if (brackets.isNotEmpty() || live.any { out[it.id] == "Peg" && backB.any { b -> touches(it, b) } }) {
-                for (bb in backB) if (out[bb.id] !in setOf("French cleat", "Wall cleat", "Hanging rail")) out[bb.id] = "Back board"
-                for (p in live) if (p !in backB && brackets.any { br -> kotlin.math.abs(p.mesh.bounds.min.z - br.mesh.bounds.max.z) < 0.5 && touches(p, br) } &&
-                    p.mesh.bounds.extents.z < minOf(p.mesh.bounds.extents.x, p.mesh.bounds.extents.y)) out[p.id] = "Shelf"
+            for (bb in backB) if (out[bb.id] !in setOf("French cleat", "Wall cleat", "Hanging rail")) out[bb.id] = "Back board"
+            // Lying flat against the back board or on the brackets: a shelf. An upright strip along a shelf's front
+            // edge, standing above it, is its lip (a picture ledge's).
+            val shelves = live.filter { p -> p !in backB && out[p.id] !in setOf("Peg", "Rod", "Bracket") && p.kind != PartKind.ROD && p.mesh.bounds.extents.z < 0.5 * minOf(p.mesh.bounds.extents.x, p.mesh.bounds.extents.y) &&
+                (brackets.any { br -> kotlin.math.abs(p.mesh.bounds.min.z - br.mesh.bounds.max.z) < 0.5 && touches(p, br) } || backB.any { touches(p, it) }) }
+            for (sh in shelves) out[sh.id] = "Shelf"
+            for (p in live) {
+                val b = p.mesh.bounds
+                if (p in backB || p in shelves || b.extents.y > minOf(b.extents.x, b.extents.z)) continue
+                if (shelves.any { sh -> touches(p, sh) && b.max.y <= sh.mesh.bounds.min.y + 0.5 && b.max.z > sh.mesh.bounds.max.z + 3.0 }) out[p.id] = "Lip"
             }
         }
         return out

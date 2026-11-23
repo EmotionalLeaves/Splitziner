@@ -536,3 +536,7 @@ Departures from the build spec, newest first.
 
 ## v1.57
 - The holes for pegs are drawn on the board's detail drawing (front view, with the usual hole callout and ordinate dimensions), mapped through the same squaring-up as the board itself.
+
+## v1.58
+- A piece that touches the floor only along a strip at its back (no deeper than 40 mm or a quarter of its depth) is a wall piece: "Hang it on the wall" instead of "It would tip over".
+- On a wall piece, the full-width back board is always the back board; flat boards against it or on brackets are shelves; an upright strip along a shelf's front edge standing above it is a lip (a picture ledge's).

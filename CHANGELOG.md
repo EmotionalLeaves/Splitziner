@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.58.0 - picture ledges
+
+- **Picture ledges and wall shelves.** A ledge that hangs on the wall is no longer flagged as tipping over; it gets the "Hang it on the wall" note instead. Its parts are named back board, shelf and lip.
+
 ## v1.57.0 - peg holes drawn
 
 - **Peg holes on the drawing.** A board with pegs glued into it now shows the holes on its detail drawing, with their size, depth and positions measured from the end, ready to mark out.

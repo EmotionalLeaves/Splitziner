@@ -369,7 +369,10 @@ object DesignCheck {
                 }
                 val size = Math.hypot(hi.maxOf { it.x } - lo.minOf { it.x }, hi.maxOf { it.y } - lo.minOf { it.y })
                 // Made to hang (a back board carrying pegs or a shelf on brackets): it is not meant to stand at all.
-                val hangs = live.any { it.name == "Back board" } || live.any { it.name == "Wall cleat" || it.name == "Hanging rail" }
+                // Or it touches the floor only along a strip at its back (a picture ledge's back board): a wall piece.
+                val yMin = lo.minOf { it.y }; val yMax = hi.maxOf { it.y }; val depth = yMax - yMin
+                val strip = feet.isNotEmpty() && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * depth)
+                val hangs = live.any { it.name == "Back board" } || live.any { it.name == "Wall cleat" || it.name == "Hanging rail" } || strip
                 if (margin < 0 && hangs) { val bb = live.firstOrNull { it.name == "Back board" }
                     out += Finding(Severity.CHECK, "Hang it on the wall", "It is made to hang, not to stand. Screw ${bb?.let { "the back board (item ${it.item})" } ?: "it"} to the wall into the studs, " +
                         "two #10 x 3 in (5 x 75 mm) screws at each stud, or into masonry with plugs made for it. Plasterboard anchors alone are only for light loads: coats and bags pull hard.", listOfNotNull(bb?.id)) }
