@@ -431,3 +431,6 @@ Departures from the build spec, newest first.
 - In a bed (slats), a board (40 mm thick or less, over 300 mm tall) standing above the bed's rails between two legs or posts is the headboard; when there are two, the lower one is the footboard.
 - Facing the front: a back counts only at the back of the carcass (within 1 in of its rear face); a modesty panel no longer counts, being set in from the back.
 - Known weak case, left for now: a platform bed whose legs all stand apart (corner, middle and centre-beam legs, no leg frames) gets a poor order (centre beam and slats before the side rails). Making lone legs wait for their rail did not fix it.
+
+## v1.34
+- A bed with one deck of slats (no seat back) is built as a builder does: the frame round the outside on its legs first, then what runs inside it (a centre beam on its legs, the ledgers), then all the slats, then the headboard and guard rails. This fixes the platform bed noted in v1.33. Bunk beds (two decks, built deck by deck from the bottom) and benches with backs keep the general order.

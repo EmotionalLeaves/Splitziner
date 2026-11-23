@@ -2067,3 +2067,28 @@ class TurnGuessTest {
         assertTrue(turned.report.warnings.any { it.contains("turned to face you") })
     }
 }
+
+class PlatformBedTest {
+    @Test fun frameThenCentreBeamThenSlatsThenHeadboard() {
+        val L = 2032.0; val W = 1524.0 + 2 * 38.1; val t2 = 38.1; val w10 = 235.0; val leg = 88.9; val zr = 152.4; val Hh = 1219.2
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = arrayListOf(b(0.0, 0.0, zr, t2, L, w10), b(W - t2, 0.0, zr, t2, L, w10), b(t2, 0.0, zr, W - 2 * t2, t2, w10), b(t2, L - t2, zr, W - 2 * t2, t2, w10))
+        for (x in listOf(t2, W - t2 - leg)) { ms += b(x, t2, 0.0, leg, leg, Hh); ms += b(x, L - t2 - leg, 0.0, leg, leg, zr + w10); ms += b(x, L / 2 - leg / 2, 0.0, leg, leg, zr + w10 - t2) }
+        val lz = zr + w10 - 38.1 - 19.05; val top = lz + 38.1
+        ms += b(W / 2 - t2 / 2, t2, top - 140.0, t2, L - 2 * t2, 140.0)
+        for (y in listOf(L / 3, 2 * L / 3)) ms += b(W / 2 - leg / 2, y, 0.0, leg, leg, top - 140.0)
+        ms += b(t2 + leg, t2 + leg, lz, 38.1, L - 2 * t2 - 2 * leg, 38.1); ms += b(W - t2 - leg - 38.1, t2 + leg, lz, 38.1, L - 2 * t2 - 2 * leg, 38.1)
+        val n = 14; val sw = 88.9; val gap = (L - 2 * t2 - 2 * leg - n * sw) / (n - 1)
+        for (i in 0 until n) ms += b(t2 + leg, t2 + leg + i * (sw + gap), lz + 38.1, W - 2 * t2 - 2 * leg, sw, 19.05)
+        ms += b(t2 + leg, t2 + (leg - 19.05) / 2, zr + w10 + 50.8, W - 2 * t2 - 2 * leg, 19.05, Hh - zr - w10 - 101.6)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "pb.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(1, a.parts.count { it.name == "Headboard" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        fun stepOf(name: String) = pl.parts.filter { it.name == name }.maxOf { it.step!! }
+        assertTrue(stepOf("Side rail") < stepOf("Centre rail"), "${stepOf("Side rail")} ${stepOf("Centre rail")}")
+        assertTrue(stepOf("Centre rail") < pl.parts.filter { it.name == "Slat" }.minOf { it.step!! })
+        assertTrue(stepOf("Slat") < stepOf("Headboard"))
+        // All the slats in one step.
+        assertEquals(1, pl.parts.filter { it.name == "Slat" }.map { it.step }.distinct().size)
+    }
+}

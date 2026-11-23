@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.34.0 - Platform beds
+
+- Platform beds: the frame goes up first, then the centre beam and ledgers, then all the slats in one step, then the headboard.
+
 ## v1.33.0 - Headboards
 
 - Beds: a headboard (and a footboard) between the posts is now called that.

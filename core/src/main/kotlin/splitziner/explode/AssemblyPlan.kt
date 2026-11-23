@@ -988,7 +988,14 @@ object AssemblyPlan {
             fun restsOnBuilt(g: List<Int>) = g.all { i -> lo[i].z <= allLo.z + tol || below(i).all { it in placed || it in g } }
             // Hung parts wait for the box to be finished, and applied drawer fronts for their drawers.
             // A face frame goes on the finished case, before the doors and drawers that hang in it.
-            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 3; g.any { parts[it].id in hungIds } -> 2; g.any { parts[it].id == "faceframe" } -> 1; else -> 0 }
+            // A bed (or a slatted bench) goes up as a builder does: the frame round the outside on its legs, then what
+            // runs inside it (a centre beam on its legs, the ledgers), then the slats, then the headboard and guard rails.
+            // One deck only: a bunk bed is built deck by deck from the bottom, and a bench's seat goes on before its back.
+            val slatZ = parts.indices.filter { parts[it].name == "Slat" }.map { lo[it].z }
+            val slatted = slatZ.isNotEmpty() && slatZ.max() - slatZ.min() < 50.0 && parts.none { it.name == "Back slat" || it.name == "Back support" }
+            fun bedRank(i: Int) = if (!slatted) 0 else when (parts[i].name) {
+                "Centre rail", "Centre leg", "Cleat" -> 1; "Slat" -> 2; "Headboard", "Footboard", "Guard rail" -> 3; else -> 0 }
+            fun rank(g: List<Int>) = when { g.any { parts[it].id in hungFirst } -> 30; g.any { parts[it].id in hungIds } -> 20; g.any { parts[it].id == "faceframe" } -> 10; else -> g.maxOf { bedRank(it) } }
             while (pool.isNotEmpty()) {
                 val low = pool.minOf { rank(it) }
                 // Bottom up where there is a choice: a bunk bed's lower deck before the upper one closes it in.
