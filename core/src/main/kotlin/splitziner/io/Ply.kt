@@ -39,7 +39,7 @@ object PlyReader {
         val xi = verts.props.indexOfFirst { it.name == "x" }; val yi = verts.props.indexOfFirst { it.name == "y" }; val zi = verts.props.indexOfFirst { it.name == "z" }
         if (xi < 0 || yi < 0 || zi < 0) throw StlException("The PLY file's vertices have no positions")
         val pos = DoubleArray(3 * verts.count)
-        val soup = ArrayList<Float>()
+        val soup = FloatBuf()
         var skipped = 0
         fun faceOut(idx: IntArray) {
             if (idx.size < 3) return
@@ -92,4 +92,18 @@ object PlyReader {
         if (soup.isEmpty()) throw StlException(if (elements.none { it.name == "face" }) "The PLY file is a point cloud with no faces; mesh it first in the scanning app" else "The PLY file contains no triangles")
         return soup.toFloatArray()
     }
+}
+
+/** A growing array of floats without boxing each one: a scan can hold millions. */
+internal class FloatBuf {
+    private var a = FloatArray(1 shl 16); var size = 0; private set
+    operator fun plusAssign(v: Float) {
+        if (size == a.size) {
+            if (size.toLong() >= 9L * StlReader.MAX_TRIANGLES) throw StlException("This file has more triangles than the app can work with (limit ${StlReader.MAX_TRIANGLES / 1_000_000} million)")
+            a = a.copyOf(minOf(a.size.toLong() * 2, 9L * StlReader.MAX_TRIANGLES + 9).toInt())
+        }
+        a[size++] = v
+    }
+    fun isEmpty() = size == 0
+    fun toFloatArray(): FloatArray = a.copyOf(size)
 }

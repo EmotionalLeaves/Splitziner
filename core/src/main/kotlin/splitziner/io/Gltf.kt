@@ -70,7 +70,7 @@ object GltfReader {
             }
             return out
         }
-        val soup = ArrayList<Float>(); val groups = ArrayList<Int>()
+        val soup = FloatBuf(); var groups = IntArray(1 shl 14); var nGroups = 0
         var group = 0
         fun emit(ni: Int, parent: DoubleArray, depth: Int) {
             if (depth > 32) { warnings += "Nodes nested too deeply were skipped"; return }
@@ -83,7 +83,7 @@ object GltfReader {
                     val attrs = prim["attributes"] as? Map<*, *> ?: continue
                     val pos = floats((attrs["POSITION"] as? Number)?.toInt() ?: continue, 3)
                     val nv = pos.size / 3
-                    val idx = (prim["indices"] as? Number)?.toInt()?.let { floats(it, 1).map { d -> d.toInt() } } ?: (0 until nv).toList()
+                    val idx = (prim["indices"] as? Number)?.toInt()?.let { floats(it, 1).let { d -> IntArray(d.size) { i -> d[i].toInt() } } } ?: IntArray(nv) { it }
                     for (t in 0 until idx.size / 3) {
                         val tri = (0..2).map { idx[3 * t + it] }
                         if (tri.any { it < 0 || it >= nv }) continue
@@ -93,7 +93,8 @@ object GltfReader {
                             // Metres to millimetres; Y up to Z up (a quarter turn about X, keeping it right-handed).
                             soup += (wx * 1000).toFloat(); soup += (-wz * 1000).toFloat(); soup += (wy * 1000).toFloat()
                         }
-                        groups += group
+                        if (nGroups == groups.size) groups = groups.copyOf(groups.size * 2)
+                        groups[nGroups++] = group
                     }
                     group++
                 }
@@ -107,7 +108,7 @@ object GltfReader {
         for (t in top) (t as? Number)?.toInt()?.let { emit(it, IDENTITY, 0) }
         if (soup.isEmpty()) throw StlException("The glTF file contains no triangles")
         warnings += "Sizes converted to millimetres from glTF's metres"
-        return Result(soup.toFloatArray(), if (group > 1) groups.toIntArray() else null)
+        return Result(soup.toFloatArray(), if (group > 1) groups.copyOf(nGroups) else null)
     }
 
     private val IDENTITY = doubleArrayOf(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)

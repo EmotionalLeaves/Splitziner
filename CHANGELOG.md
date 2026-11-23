@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.47.0 - scan memory
+
+- Large scans in glTF or PLY use much less memory when opening.
+
 ## v2.46.0 - scan units
 
 - Scans saved in metres now open at the right size, instead of being read as tiny inch models.

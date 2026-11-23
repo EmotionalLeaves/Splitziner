@@ -869,3 +869,6 @@ Departures from the build spec, newest first.
 
 ## v2.46
 - Unit guessing: read in a unit other than millimetres, a model under 25 mm (an inch) is unlikely, so that reading loses 0.5 points. A scan exported in metres (0.31 long) now opens as a 310 mm work, not a 7.9 mm one in inches; a small millimetre file (a 20 mm knob) is unaffected. Every test model's units are unchanged.
+
+## v2.47
+- The glTF and PLY readers keep triangles in plain growing arrays rather than lists of boxed numbers (a phone scan can hold millions of triangles: boxed, that is several times the memory), and stop with the usual message past the app's triangle limit.
