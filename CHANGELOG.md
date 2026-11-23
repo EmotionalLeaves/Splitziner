@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.29.0 - suggested materials
+
+- Studio designs now start with their usual material picked (birch plywood for plinths, poplar for frames, pine for stretchers…), so you see weights straight away. You can change it in the same place.
+
 ## v2.28.0 - crate foam
 
 - Crates now list the foam to buy for lining them. Fixed: a crate's top board was being fixed with corner brackets like a furniture top; it is now screwed like the rest of the frame.

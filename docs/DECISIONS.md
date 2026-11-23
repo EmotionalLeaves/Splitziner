@@ -785,3 +785,6 @@ Departures from the build spec, newest first.
 ## v2.28
 - A crate's foam lining is on the "To order" list: sheet 2 in (50 mm) thick, enough to cover its inside with a tenth over for cutting.
 - A crate's top frame board is screwed down like the rest of its frame, not fixed with corner brackets as a furniture top would be: screw heads do not matter on packing.
+
+## v2.29
+- Studio designs start with their usual material picked in the new-design dialog (birch plywood for plinths, cases and the taboret; plywood for crates; poplar for frames, shadow boxes, the easel and the ledge; pine for stretchers), so weights show from the start. "Not set" or another material can be chosen as before.

@@ -2047,7 +2047,8 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
     var error by remember { mutableStateOf<String?>(null) }
     // Optional: the material for every part, so weights and the list of material are filled in from the start.
-    var material by remember { mutableStateOf<String?>(null) }
+    // Starts at what the design is usually made from, if it has a usual material.
+    var material by remember(key) { mutableStateOf<String?>(key?.let { splitziner.edit.Templates.suggestedMaterial(it) }) }
     // Said under the picture while typing, when the sizes leave some part no room.
     var sizesWrong by remember { mutableStateOf<String?>(null) }
     // A small picture of the design at the sizes typed so far, redrawn a moment after typing stops.

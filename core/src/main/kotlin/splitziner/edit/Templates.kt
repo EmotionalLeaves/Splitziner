@@ -105,6 +105,18 @@ object Templates {
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
     private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
 
+    /**
+     * The material a design is usually made from, offered first in the new-design dialog (each part can be changed):
+     * plywood for cases and plinths that are painted, poplar for frames and easels, pine for stretcher bars.
+     */
+    fun suggestedMaterial(key: String): String? = when (key) {
+        "plinth", "wallplinth", "flatfile", "taboret", "browser", "rack" -> "Birch plywood"
+        "crate" -> "Plywood"
+        "frame", "shadowbox", "easel", "ledge" -> "Poplar"
+        "stretcher" -> "Pine"
+        else -> null
+    }
+
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
         "Art and studio" to STUDIO.mapNotNull { k -> ALL.firstOrNull { it.key == k } },
