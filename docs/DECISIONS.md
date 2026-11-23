@@ -514,3 +514,7 @@ Departures from the build spec, newest first.
 - Contact between two simple parts (64 triangles or fewer) is also looked for all along the edges of their faces, every ~10 mm, half a millimetre in: a board can meet a sloping face along a line only (a ledge across leaning legs). Before, such parts were reported as floating.
 - Leaning parts meeting edge to edge (a picnic table's legs at their tops) get no edge joint: their boxes say nothing about one.
 - Easel / A-frame: with three or more leaning legs, one touching the rest only in its top fifth is a back leg. It is hinged on last with a pair of butt hinges (2 in / 50 mm) to the block or rail at the top (not to a leg when there is one), plus a light chain or cord to the front legs so they cannot spread under load. A wide board (3 in / 50 mm or more) across the front of two leaning legs, between a quarter and six tenths of the height, is the ledge.
+
+## v1.53
+- Doors and their panels, stiles and rails, drawer fronts (five-piece too), sliding doors, lids, headboards and footboards have their grain along their length by default in the cutting plan: a door cut with the grain across looks wrong. The item's grain tick still overrides it either way; a project saved before keeps what it stored.
+- This can cost more stock: on the Shaker test cabinets the 1/4 in panels moved from a half sheet to a full one. The user can untick grain to save it.

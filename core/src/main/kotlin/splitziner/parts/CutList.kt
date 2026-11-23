@@ -311,7 +311,10 @@ object PartDescriber {
 
 /** Per-item fields the user fills in; keyed by [CutList.itemKey]. */
 /** [grain]: the grain must run along the part's length, so the cutting plan never turns it on the sheet. */
-data class ItemOverride(val material: String = "", val materialSpec: String = "", val partNo: String = "", val grain: Boolean = false)
+data class ItemOverride(val material: String = "", val materialSpec: String = "", val partNo: String = "", val grain: Boolean? = null)
+
+/** Parts whose grain runs along their length unless the user unticks it: what is looked at face on. */
+val SHOW_GRAIN = setOf("Door", "Door panel", "Door stile", "Door rail", "Drawer front", "Sliding door", "Lid", "Headboard", "Footboard")
 
 object CutList {
     private val KIND_ORDER = mapOf(PartKind.PANEL to 0, PartKind.BOARD to 1, PartKind.SHAPED to 2, PartKind.ROD to 3)
@@ -349,7 +352,9 @@ object CutList {
                 item = item, qty = g.members.size, partNo = o.partNo, description = g.d.desc,
                 material = o.material, materialSpec = o.materialSpec,
                 stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind,
-                t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id }, grain = o.grain,
+                // Unless the user says otherwise, the faces people look at have their grain running the long way: a
+                // door, its panel and stiles, a drawer front (a plywood door with the grain across looks wrong).
+                t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id }, grain = o.grain ?: g.members.all { it.name in SHOW_GRAIN || it.name.startsWith("Drawer front") || it.name.startsWith("Door") },
                 name = g.members.filter { it.name != it.id }.map { it.name }.distinct().sorted().let { if (it.size <= 3) it.joinToString(" / ") else "" },
             )
         }

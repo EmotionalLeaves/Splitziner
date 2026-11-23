@@ -140,7 +140,7 @@ class ProjectStore(context: Context) {
         o.put("excluded", JSONArray(meta.excluded.toList()))
         o.put("partNames", JSONObject(meta.partNames))
         val items = JSONObject()
-        for ((k, v) in meta.items) items.put(k, JSONObject().put("material", v.material).put("materialSpec", v.materialSpec).put("partNo", v.partNo).put("grain", v.grain))
+        for ((k, v) in meta.items) items.put(k, JSONObject().put("material", v.material).put("materialSpec", v.materialSpec).put("partNo", v.partNo).apply { v.grain?.let { put("grain", it) } })
         o.put("items", items)
         o.put("title", meta.title).put("drawingNo", meta.drawingNo).put("rev", meta.rev).put("organisation", meta.organisation)
         o.put("designer", meta.designer).put("drawn", meta.drawn).put("checked", meta.checked).put("approved", meta.approved)
@@ -169,7 +169,7 @@ class ProjectStore(context: Context) {
         val names = o.optJSONObject("partNames")?.let { n -> n.keys().asSequence().associateWith { n.getString(it) } } ?: emptyMap()
         val items = o.optJSONObject("items")?.let { n ->
             n.keys().asSequence().associateWith { k ->
-                val v = n.getJSONObject(k); ItemOverride(v.optString("material"), v.optString("materialSpec"), v.optString("partNo"), v.optBoolean("grain", false))
+                val v = n.getJSONObject(k); ItemOverride(v.optString("material"), v.optString("materialSpec"), v.optString("partNo"), if (v.has("grain")) v.optBoolean("grain") else null)
             }
         } ?: emptyMap()
         return ProjectMeta(

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.53.0 - grain on show faces
+
+- **Grain runs the right way on doors and drawer fronts.** In the cutting plan, doors, door panels, stiles and rails, drawer fronts, lids, headboards and footboards now keep their grain running along their length by default, the way a cabinetmaker would cut them. Sometimes this uses a little more sheet. You can untick "grain" on any item in the cut list to let the plan turn it.
+
 ## v1.52.0 - easels
 
 - **Easels and A-frames.** On an easel, the back leg is now hinged on last with a pair of butt hinges, with a chain or cord to the front legs so they can't spread. The board the canvas stands on is named the ledge.
