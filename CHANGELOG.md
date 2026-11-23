@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.43.0 - Bevel drawings
+
+- Bevelled strips (French cleats) get their own detail drawing, with the angle noted.
+
 ## v1.42.0 - French cleats
 
 - French cleats: a strip with one edge bevelled is listed as such in the cut list, with how to rip it. A cabinet hung on a French cleat gets a last step that screws the wall half to the studs and hooks the cabinet on.

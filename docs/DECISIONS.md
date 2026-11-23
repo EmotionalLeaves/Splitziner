@@ -462,3 +462,6 @@ Departures from the build spec, newest first.
 ## v1.42
 - A board whose cross-section is the same all along, a rectangle with one long edge sloped right across its thickness, is "ONE EDGE BEVELLED AT n°" in the cut list (not "notched"), with how to rip it with the blade tilted, and how to make a French cleat pair from one board.
 - Such strips at the back of a piece are a French cleat: the one fixed to the piece is the "French cleat", the one behind everything else the "Wall cleat". The wall cleat is not fixed to the piece; the last step screws it to the wall into the studs (the hanging screws on the shopping list) and hooks the piece over it.
+
+## v1.43
+- A board with a bevelled edge gets its own detail drawing (its end view shows the slope) with a note giving the angle and how to rip it, instead of being listed as a plain board; it gets no full-size template.
