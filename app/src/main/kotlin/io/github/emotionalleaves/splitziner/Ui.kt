@@ -345,6 +345,12 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                         projectMenu = false
                         shareBuildPack(context, open, vm, scope)
                     })
+                    // A crate or a plinth sized for this model, as a work to ship or show: a new design of its own.
+                    for ((k, label) in listOf("crate" to "Make a crate for this", "plinth" to "Make a plinth for this")) DropdownMenuItem(text = { Text(label) }, onClick = {
+                        projectMenu = false
+                        val b = open.analysis.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { x, y -> x.union(y) }
+                        if (b != null) vm.newDesign(k, splitziner.edit.Templates.fitTo(k, b.extents.x, b.extents.y, b.extents.z, vm.inchLocale), splitziner.edit.Templates.suggestedMaterial(k))
+                    })
                     DropdownMenuItem(text = { Text("Units") }, onClick = { projectMenu = false; showUnits = true })
                     DropdownMenuItem(text = { Text("Which way is up") }, onClick = { projectMenu = false; showUp = true })
                 }
@@ -1212,6 +1218,7 @@ private val HELP = listOf(
     "Build pack" to "The project menu (\u22ee, top right) has Share build pack: one zip with the drawings and the build guide as PDFs, the cutting plan, the cut list as a spreadsheet file (CSV) and the shopping list. Send it to a print shop, to whoever is helping you build, or to yourself.",
     "Doors, drawers and shelf pins" to "On the 3D tab, More > Add a shelf, divider, door or drawer fills an opening. Doors get concealed hinges (2, 3 or 4 by height) and their drawings show where the cups go; drawers get a box sized for ball-bearing slides; adjustable shelves rest on 4 pins in rows of holes on the 32 mm system. The guide hangs all of them last, once the box is finished, and their hardware is on the shopping list.",
     "Backing up" to "Open the project menu (\u22ee, top right), then Share project. It makes one file with the model and everything you set and changed. Open that file with Import (or Open with) on any phone with the app to get the project back.",
+    "A crate or plinth for a work" to "With a model of a work open (a sculpture you have made, say), the project menu (\u22ee) has Make a crate for this and Make a plinth for this. Each starts a new design sized from the model: the crate's inside takes the work with 2 in (50 mm) of foam all round; the plinth's top leaves 4 in (100 mm) round it and its height brings the work's middle near eye level (57 in, 1.45 m), kept between 18 and 42 in. Change any size in the new project as usual.",
     "File types" to "STL, OBJ, 3MF and glTF (.glb, or a .gltf with everything inside it) all open. Each object in a 3MF or glTF file becomes its own part. glTF and 3MF record their units, so sizes come out right; glTF is also turned Z-up. A compressed glTF (Draco) or one that keeps its geometry in a separate .bin file cannot be read: export it again as a single .glb, or as STL.",
     "Units" to "STL files don't record units. The app guesses from the model's size and how round its numbers are, and says when it guessed. If the overall size looks wrong, open the project menu (\u22ee, top right), then Units.",
     "Round things" to "STL stores curves as flat facets, so holes and rods measure slightly off. Take critical diameters from your original design.",

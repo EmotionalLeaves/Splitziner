@@ -118,6 +118,30 @@ object Templates {
     }
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
+    /** Foam all round a work in its crate (mm, 2 in), as the crate's sizes by the work assume. */
+    private const val CRATE_FOAM = 50.8
+
+    /** Room round a work on its plinth's top (mm, 4 in each side). */
+    private const val PLINTH_MARGIN = 101.6
+
+    /** Where a work's middle sits above the floor on its plinth (mm): about eye level, 57 in, as galleries hang work. */
+    private const val EYE_LEVEL = 1450.0
+
+    /**
+     * Sizes for a design made to go with a work of size [x] x [y] x [z] mm (width, depth, height): a crate whose inside
+     * takes it with foam all round, or a plinth whose top has room round it and whose height brings its middle near eye
+     * level (kept between 18 and 42 in). Rounded up to a 1/4 in or 5 mm. Empty for other designs.
+     */
+    fun fitTo(key: String, x: Double, y: Double, z: Double, inch: Boolean): Map<String, Double> {
+        fun up(v: Double) = if (inch) Math.ceil(v / 6.35) * 6.35 else Math.ceil(v / 5.0) * 5.0
+        return when (key) {
+            // The crate's face is its width and height, the work standing in it; its depth the work's depth.
+            "crate" -> mapOf("w" to up(maxOf(x, y) + 2 * CRATE_FOAM), "h" to up(z + 2 * CRATE_FOAM), "d" to up(minOf(x, y) + 2 * CRATE_FOAM))
+            "plinth" -> mapOf("w" to up(maxOf(300.0, x + 2 * PLINTH_MARGIN)), "d" to up(maxOf(300.0, y + 2 * PLINTH_MARGIN)), "h" to up((EYE_LEVEL - z / 2).coerceIn(457.2, 1066.8)))
+            else -> emptyMap()
+        }
+    }
+
     /** The studio designs by what they are for, for headings in the list: showing work, making it, storing and moving it. */
     fun studioSections(): List<Pair<String, List<Template>>> = listOf(
         "Showing work" to listOf("plinth", "polyplinth", "wallplinth", "screen", "frame", "shadowbox", "ledge"),

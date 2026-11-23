@@ -2856,3 +2856,15 @@ class GltfTest {
         assertEquals(50.0, all.extents.y, 0.5)
     }
 }
+
+class FitToWorkTest {
+    @Test fun aCrateAndAPlinthSizedForAWork() {
+        // A sculpture 300 wide, 200 deep, 500 tall (mm).
+        val c = splitziner.edit.Templates.fitTo("crate", 300.0, 200.0, 500.0, false)
+        assertEquals(405.0, c.getValue("w"), 0.01); assertEquals(605.0, c.getValue("h"), 0.01); assertEquals(305.0, c.getValue("d"), 0.01)
+        val p = splitziner.edit.Templates.fitTo("plinth", 300.0, 200.0, 500.0, false)
+        assertEquals(505.0, p.getValue("w"), 0.01); assertEquals(405.0, p.getValue("d"), 0.01); assertEquals(1070.0, p.getValue("h"), 0.01)
+        // Both build at those sizes.
+        for (k in listOf("crate", "plinth")) { val t = splitziner.edit.Templates.byKey(k); assertTrue(t.build(splitziner.edit.Templates.defaults(t, false) + splitziner.edit.Templates.fitTo(k, 300.0, 200.0, 500.0, false)).isNotEmpty()) }
+    }
+}
