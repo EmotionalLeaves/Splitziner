@@ -491,3 +491,8 @@ Departures from the build spec, newest first.
 - For frame-and-panel detection and for the groove sizes, a raised panel is measured by its tongue, not its full thickness; a panel up to 32 mm (1-1/4 in) thick may be raised.
 - The drawing note says to leave about 1/16 in (2 mm) spare in each groove across the grain for a solid-wood panel, the usual allowance; the app does not size it into the cut list.
 - A long description in a drawing's list of material is lettered smaller (down to 60%) to keep the list inside the border; a long item heading in the guide is set smaller, then broken after a comma.
+
+## v1.48
+- Square posts round a panel (a bed's headboard) are stiles for finding the frame, but stay posts or legs: named so, joined as posts (bed rail fasteners for the side rails), never pocket-screwed from inside like a board stile. A strip over 32 mm (1-1/4 in) thick counts as a post.
+- In a bed, a panelled frame on posts is made on the bench as the headboard (the taller) or the footboard; the main build sets out the headboard and footboard.
+- When one of two like parts is flush with an edge and the other set in from the opposite one (a base cabinet's front and back stretchers), the guide says which is which.

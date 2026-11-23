@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.48.0 - panelled bed ends
+
+- **Panelled headboards and footboards.** In a bed whose ends have a panel between the posts, the guide now says "make the headboard" and "make the footboard". The posts stay legs and the side rails hang on bed rail fasteners. Before, the posts were treated as thin door stiles.
+- Front and back stretchers that differ: the guide now says "set one flush with the front edge, and the other 1/4 in from the back edge", instead of only the second.
+
 ## v1.47.0 - raised panels
 
 - **Raised-panel doors.** A panel with bevelled edges, the classic raised panel, is now recognised. The cut list names it with its edge thickness and bevel width. It gets its own drawing and the steps to raise it with a router table or a tilted saw blade. The grooves in the frame are sized to its thin edge.

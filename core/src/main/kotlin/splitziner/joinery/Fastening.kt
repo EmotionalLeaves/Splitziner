@@ -177,7 +177,10 @@ object Fastening {
         val doorGroup = HashMap<String, Int>()
         val frameOf = HashMap<String, Int>()
         val appliedFrames = HashSet<Int>()
-        runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, g -> for (id in g.stiles + g.rails) frameOf[id] = k }
+        // Board strips only: a post round a panel is joined like any post.
+        runCatching { splitziner.check.FramePanels.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, g ->
+            val pk = live.first { it.id == g.panel }.mesh.bounds.extents.let { e -> (0..2).minByOrNull { e[it] }!! }
+            for (id in g.stiles + g.rails) if (!splitziner.check.FramePanels.isPost(live.first { it.id == id }, pk)) frameOf[id] = k }
         runCatching { splitziner.check.FramePanels.doors(live) }.getOrDefault(emptyList()).forEachIndexed { k, g -> for (id in g.ids) doorGroup[id] = k }
         val drawerOf = HashMap<String, Int>()
         val drawers = runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList())

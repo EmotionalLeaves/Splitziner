@@ -43,6 +43,12 @@ object FramePanels {
     /** A groove this deep at most (mm): 5/8 in. */
     private const val MAX_GROOVE = 16.0
 
+    /** Thicker than this (mm) a stile is a post or leg (a bed's headboard posts), not a board. */
+    const val MAX_BOARD = 32.0
+
+    /** Whether strip [p] of a frame is a post or leg rather than a board stile. */
+    fun isPost(p: Part, k: Int) = p.mesh.bounds.extents[k] > MAX_BOARD
+
     /** The groups that hang as doors. */
     fun doors(parts: List<Part>): List<Group> {
         val groups = find(parts); if (groups.isEmpty()) return groups
@@ -66,7 +72,7 @@ object FramePanels {
                     sb.min[k] < eLo - 0.5 && sb.max[k] > eHi + 0.5 &&
                     (0..2).filter { it != k }.any { a -> val ov = minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]); ov <= MAX_GROOVE && ov < pe[a] - 1.0 } &&
                     // A strip lies flat in the panel's plane (a case's side, on edge to it, is not one), and is long for its width.
-                    (0..2).minByOrNull { se[it] } == k &&
+                    se[k] <= (0..2).minOf { se[it] } + 0.5 &&
                     (0..2).filter { it != k }.sorted().let { (a, b) -> minOf(se[a], se[b]) < MAX_STRIP_RATIO * maxOf(se[a], se[b]) } } }
             if (strips.size >= 4) ones += One(p, strips)
         }

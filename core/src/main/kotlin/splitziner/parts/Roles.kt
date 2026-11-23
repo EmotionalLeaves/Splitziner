@@ -31,7 +31,9 @@ object Roles {
         for (g in framed) {
             val door = g.ids.any { it in framedDoors }
             for (id in g.panels) out[id] = if (door) "Door panel" else "Panel"
-            for (id in g.stiles) out[id] = if (door) "Door stile" else "Stile"
+            // Posts round a panel (a headboard's) stay posts or legs: the later passes name them.
+            val pk = live.first { it.id == g.panel }.mesh.bounds.extents.let { e -> (0..2).minByOrNull { e[it] }!! }
+            for (id in g.stiles) if (!splitziner.check.FramePanels.isPost(live.first { it.id == id }, pk)) out[id] = if (door) "Door stile" else "Stile"
             // A strip between the rails, running the way the stiles do, is a muntin.
             val sAxis = live.first { it.id == g.stiles[0] }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] }!! }
             for (id in g.rails) out[id] = if (live.first { it.id == id }.mesh.bounds.extents.let { e -> (0..2).maxByOrNull { e[it] } } == sAxis) "Muntin" else if (door) "Door rail" else "Rail"

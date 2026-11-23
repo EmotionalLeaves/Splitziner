@@ -36,3 +36,29 @@ def raised_cabinet():
     return p
 
 write(os.path.join(out, "raised_cabinet.stl"), raised_cabinet()); print("raised_cabinet", len(raised_cabinet()))
+
+def panel_bed():
+    """A queen bed: posts with a frame-and-panel headboard and footboard (panel in grooves in the posts and rails), side rails, cleats, slats."""
+    W, L = 1524.0 + 2 * 89, 2032.0 + 2 * 89
+    P = 88.9; g = 12.7; pt = 12.7
+    p = []
+    hh, fh = 1219.2, 609.6
+    for y0, h in ((0.0, fh), (L - P, hh)):
+        p += [box(0, y0, 0, P, P, h), box(W - P, y0, 0, P, P, h)]
+        yr = y0 + (P - T) / 2
+        rb = 254.0; rh = 139.7 if h > 1000 else 101.6
+        p += [box(P, yr, rb, W - 2 * P, T, rh), box(P, yr, h - 101.6 - 50.8, W - 2 * P, T, 101.6)]
+        z0 = rb + rh; z1 = h - 101.6 - 50.8
+        p += [box(P - g, yr + (T - pt) / 2, z0 - g, W - 2 * P + 2 * g, pt, z1 - z0 + 2 * g)]
+    # side rails between the posts, cleats and slats
+    sr = 177.8
+    for x0 in (P - T - 0.0, W - P):
+        pass
+    p += [box((P - T) / 2, P, 254.0, T * 1.0, L - 2 * P, sr), box(W - (P + T) / 2, P, 254.0, T, L - 2 * P, sr)]
+    p += [box((P + T) / 2, P, 254.0, 38.1, L - 2 * P, 38.1), box(W - (P + T) / 2 - 38.1, P, 254.0, 38.1, L - 2 * P, 38.1)]
+    n = 14; sw = 88.9; span = L - 2 * P; gap = (span - n * sw) / (n - 1)
+    for i in range(n):
+        p += [box((P + T) / 2, P + i * (sw + gap), 254.0 + 38.1, W - P - T, sw, T)]
+    return p
+
+write(os.path.join(out, "panel_bed.stl"), panel_bed()); print("panel_bed", len(panel_bed()))

@@ -2292,6 +2292,26 @@ class FramePanelTest {
         assertTrue(report.findings.none { it.title.contains("occupy the same space") }, report.findings.map { it.title }.toString())
     }
 
+    @Test fun panelledBedEndsAreHeadboardAndFootboardOnTheirPosts() {
+        val P = 88.9; val g = 12.7; val pt = 12.7; val W = 1524.0 + 2 * P; val L = 2032.0 + 2 * P
+        val ms = arrayListOf<splitziner.mesh.Mesh>()
+        for ((y0, h) in listOf(0.0 to 609.6, (L - P) to 1219.2)) {
+            ms += listOf(b(0.0, y0, 0.0, P, P, h), b(W - P, y0, 0.0, P, P, h))
+            val yr = y0 + (P - T) / 2; val rh = if (h > 1000) 139.7 else 101.6
+            ms += listOf(b(P, yr, 254.0, W - 2 * P, T, rh), b(P, yr, h - 152.4, W - 2 * P, T, 101.6))
+            val z0 = 254.0 + rh; val z1 = h - 152.4
+            ms += b(P - g, yr + (T - pt) / 2, z0 - g, W - 2 * P + 2 * g, pt, z1 - z0 + 2 * g)
+        }
+        ms += listOf(b((P - T) / 2, P, 254.0, T, L - 2 * P, 177.8), b(W - (P + T) / 2, P, 254.0, T, L - 2 * P, 177.8),
+            b((P + T) / 2, P, 254.0, 38.1, L - 2 * P, 38.1), b(W - (P + T) / 2 - 38.1, P, 254.0, 38.1, L - 2 * P, 38.1))
+        for (i in 0 until 14) ms += b((P + T) / 2, P + i * 145.0, 292.1, W - P - T, 88.9, T)
+        val (a, f, steps) = guide(ms)
+        assertEquals(4, a.parts.count { it.name == "Leg" || it.name == "Post" }, a.parts.map { it.name }.toString())
+        assertTrue(steps.any { it.title.contains("make the headboard") } && steps.any { it.title.contains("make the footboard") }, steps.map { it.title }.toString())
+        assertTrue(f.all.any { it.kind == "bedrail" })
+        assertTrue(f.all.none { it.kind == "pocketin" })
+    }
+
     @Test fun panelledChestIsScrewedFromInsideAndHasALid() {
         val W = 914.4; val D = 457.2; val H = 482.6; val sw = 63.5; val g = 9.525; val pt = 6.35
         val ms = arrayListOf<splitziner.mesh.Mesh>()
