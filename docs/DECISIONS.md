@@ -697,3 +697,6 @@ Departures from the build spec, newest first.
 
 ## v2.1
 - A cradled panel lists D-rings and picture wire too, with a note to put the rings inside the cradle's sides about a third of the way down.
+
+## v2.2
+- A flat frame of mitred bars in one layer (with any braces) gets a note, hedged "if it is a stretcher", of the canvas to cut: the outside size plus, on every side, its depth and 2 in (50 mm) to wrap round the back and grip while stretching. A frame with back strips (a picture frame) does not get it.

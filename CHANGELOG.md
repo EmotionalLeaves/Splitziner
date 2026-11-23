@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.2.0 - canvas size
+
+- **Canvas size for stretchers.** A stretcher now tells you how big to cut the canvas, with enough to wrap round the back and grip while stretching.
+
 ## v2.1.0 - cradle hanging
 
 - Cradled panels now list their hanging hardware too, with where to put the D-rings.

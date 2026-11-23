@@ -364,6 +364,17 @@ object DesignCheck {
             else out += Finding(Severity.CHECK, "Too shallow for foam",
                 "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u: too little to line with ${d(foam)}$u of foam all round. Make it deeper, or plan another way to hold the work still.", listOf(lid.id))
         }
+        // A flat frame of four mitred bars in one layer (and any braces): if it is a canvas stretcher, the canvas to cut.
+        run {
+            if (live.size < 4 || live.any { it.name !in setOf("Rail", "Brace") }) return@run
+            val o = live.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            if (live.any { kotlin.math.abs(it.mesh.bounds.min.z - o.min.z) > 0.5 || kotlin.math.abs(it.mesh.bounds.max.z - o.max.z) > 0.5 }) return@run
+            if (rows.count { it.description.contains("MITRE") } < 2) return@run
+            val wrap = if (fmt.isInch) 50.8 else 50.0
+            val u = if (fmt.isInch) " in" else " mm"
+            out += Finding(Severity.NOTE, "Canvas to cut, if it is a stretcher",
+                "To stretch a canvas over it, cut the canvas ${d(o.extents.x + 2 * (o.extents.z + wrap))} x ${d(o.extents.y + 2 * (o.extents.z + wrap))}$u: the outside size, plus its depth and ${d(wrap)}$u more on every side to wrap round the back and grip while stretching.", live.map { it.id })
+        }
         // A cradled panel hangs by its cradle.
         if (live.count { it.name == "Cradle" } >= 4 && live.any { it.name == "Panel face" })
             out += Finding(Severity.NOTE, "Hanging (not in the model)", "Screw two D-rings to the inside of the cradle's sides, about a third of the way down, and string picture wire between them.", live.filter { it.name == "Cradle" }.map { it.id })
