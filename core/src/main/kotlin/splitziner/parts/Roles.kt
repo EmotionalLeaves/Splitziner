@@ -72,6 +72,14 @@ object Roles {
                 }
             }
         }
+        // A plinth: three or more boards on edge on the floor, joined in a ring, low, with the case standing on them.
+        run {
+            fun near(a: Part, o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 1.0 && a.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 1.0 }
+            val cand = live.filter { p -> p.id !in out && p.mesh.bounds.let { b -> val e = b.extents
+                b.min.z <= all.min.z + 1.0 && e.z < 0.25 * h && minOf(e.x, e.y) < e.z && maxOf(e.x, e.y) > 3 * e.z &&
+                    live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && near(p, o) && o.mesh.bounds.extents.z > e.z } } }
+            if (cand.size >= 3 && cand.all { c -> cand.count { o -> o !== c && near(c, o) } >= if (cand.size >= 4) 2 else 1 }) for (c in cand) out[c.id] = "Plinth"
+        }
         // A ladder: two slim bars standing side by side, a hand's span or more apart, with three or more level bars
         // (rungs) spanning between them up their height. Its sides are not legs, nor its rungs rails or cleats.
         run {
@@ -290,6 +298,9 @@ object Roles {
                         if (t <= 10.0) "Back panel" else "Back"
                     b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 -> "Kick board"
                     b.min.y <= all.min.y + 1.0 -> "Front"
+                    // Flush with the front of everything standing up, though a lid or top overhangs it: the front.
+                    e.z > 0.3 * h && b.min.y <= live.filter { o -> o.mesh.bounds.extents.let { oe -> oe.z > minOf(oe.x, oe.y) } }.minOf { it.mesh.bounds.min.y } + 1.0 &&
+                        b.min.z <= all.min.z + 0.25 * h -> "Front"
                     // Standing in the back half, hung from the underside of a top and clear of the floor:
                     // the panel that stiffens a desk and screens the legs, which furniture makers call a modesty panel.
                     (b.min.y + b.max.y) / 2 > all.min.y + 0.5 * all.extents.y &&
@@ -361,6 +372,14 @@ object Roles {
                 between >= 2 -> "Stretcher"
                 else -> "Rail"
             }
+        }
+        // A top over a closed box (front, back and both sides under it, no doors or drawers): the only way in is
+        // through it, so it is a lid, hinged at the back.
+        live.filter { out[it.id] == "Top" }.singleOrNull()?.let { top ->
+            val tb = top.mesh.bounds
+            val under = live.filter { o -> o !== top && kotlin.math.abs(o.mesh.bounds.max.z - tb.min.z) < 1.0 }.map { out[it.id] }
+            val closed = under.count { it == "Side" } >= 2 && "Front" in under && (under.contains("Back") || under.contains("Back panel"))
+            if (closed && live.none { out[it.id] in setOf("Door", "Drawer front", "Sliding door") } && live.none { it.mesh.bounds.min.z >= tb.max.z - 0.5 && it !== top }) out[top.id] = "Lid"
         }
         // Above a seat, the rails between the back legs carry the back: back rails.
         live.firstOrNull { out[it.id] == "Seat" }?.let { seat ->

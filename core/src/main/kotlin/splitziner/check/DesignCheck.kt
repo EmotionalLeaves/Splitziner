@@ -354,6 +354,9 @@ object DesignCheck {
                 else if (margin < 0.04 * size) out += Finding(Severity.CHECK, "It stands, but close to tipping", "The balance point is only ${d(margin)} $u inside the edge of its footprint ($basis). A push or a load on the overhang could tip it.")
             } else if (hull.size < 3) out += Finding(Severity.CHECK, "It rests on a line or a point", "The parts that reach the floor do not make an area to stand on.")
         }
+        // A lid that can fall shut traps fingers, and in a toy box can trap a child.
+        if (live.any { it.name == "Lid" }) out += Finding(Severity.CHECK, "Hold the lid open",
+            "A lid that can drop shut traps fingers, and a child leaning into a toy box can be caught under it. Fit a lid support that holds the lid open at any angle (not a plain chain or a stay that only locks fully open), and in a toy box leave a gap or air holes so a child shut inside can breathe.")
         // Tall, shallow furniture can be pulled over (by a child climbing it, or a drawer pulled out): anchor it.
         if (live.isNotEmpty()) run {
             val all = live.map { it.mesh.bounds }

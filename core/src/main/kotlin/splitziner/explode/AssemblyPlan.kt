@@ -108,6 +108,9 @@ object AssemblyPlan {
         }
         // A case standing on another's top (a desk's hutch, a dresser's mirror stand) is built whole, then set on.
         upperUnit(live)?.let { ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "upper" }
+        // A plinth is screwed together as a frame on the bench, then the case is built on it (or set on it).
+        val plinth = live.filter { it.name == "Plinth" }
+        if (plinth.size >= 3) for (p in plinth) out[p.id] = "plinth"
         // A ladder is glued and screwed up flat on the bench (sides and rungs), then fixed to the bed whole.
         val ladder = live.filter { it.name == "Ladder side" || it.name == "Rung" }
         if (ladder.count { it.name == "Ladder side" } >= 2 && ladder.count { it.name == "Rung" } >= 3) for (p in ladder) out[p.id] = "ladder"

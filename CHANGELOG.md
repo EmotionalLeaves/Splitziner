@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.26.0 - Chests and lids
+
+- Blanket chests and toy boxes:
+  - The plinth is recognised and made first, and the case is built on it.
+  - The lid hangs on a piano hinge, with a lid support that holds it open at any angle, both on the shopping list.
+  - The check reminds you why the support matters, especially in a toy box.
+
 ## v1.25.0 - Drawers on wooden runners
 
 - Tables with a drawer on wooden runners: the runners, kickers and drawer rails are recognised, the runners and kickers go on the side frames on the bench, and the drawer just slides in on waxed runners, with no metal slides on the shopping list.

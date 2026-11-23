@@ -1995,3 +1995,25 @@ class EndTableTest {
         assertTrue(a.parts.filter { it.name == "Runner" || it.name == "Kicker" }.all { r -> pl.steps.any { st -> st.subassembly && r.id in st.partIds } || pl.parts.first { it.id == r.id }.step == pl.parts.filter { it.name == "Leg" }.minOf { it.step ?: 0 } }, bench.toString())
     }
 }
+
+class ChestTest {
+    @Test fun chestStandsOnAPlinthAndItsLidIsHingedAndHeldOpen() {
+        val T = 19.05; val W = 914.4; val D = 457.2; val H = 482.6; val pl = 76.2; val s = 12.7
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = listOf(b(0.0, 0.0, pl, W, T, H - pl), b(0.0, D - T, pl, W, T, H - pl), b(0.0, T, pl, T, D - 2 * T, H - pl), b(W - T, T, pl, T, D - 2 * T, H - pl),
+            b(T, T, pl, W - 2 * T, D - 2 * T, T), b(s, s, 0.0, W - 2 * s, T, pl), b(s, D - s - T, 0.0, W - 2 * s, T, pl),
+            b(s, s + T, 0.0, T, D - 2 * s - 2 * T, pl), b(W - s - T, s + T, 0.0, T, D - 2 * s - 2 * T, pl), b(-T, -T, H, W + 2 * T, D + T, T))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "chest.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(4, names.count { it == "Plinth" }, names.toString())
+        assertEquals(1, names.count { it == "Lid" }, names.toString())
+        assertEquals(1, names.count { it == "Front" }, names.toString())
+        val pl0 = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl0.parts, pl0.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.hardware.any { it.contains("piano hinge") } && f.hardware.any { it.contains("lid support") }, f.hardware.toString())
+        assertTrue(f.all.none { it.kind == "brackets" }, f.all.map { it.kind }.toString())
+        // The case is screwed to its bottom, though the bottom rests on the plinth.
+        assertTrue(f.all.any { setOf(it.through.name, it.into.name) == setOf("Front", "Bottom") }, f.all.map { "${it.through.name}-${it.into.name}" }.toString())
+        assertTrue(splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, LengthFormat("in", "fraction"), null).findings.any { it.title == "Hold the lid open" })
+    }
+}

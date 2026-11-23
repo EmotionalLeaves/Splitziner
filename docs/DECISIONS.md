@@ -390,3 +390,9 @@ Departures from the build spec, newest first.
 - A drawer on two runners gets no slides: it slides in on them, waxed, with the kickers stopping it tipping. It still gets a handle.
 - Runners and kickers go on the bench with the side frame whose apron they are screwed to. Their ends butting the rails are not glued.
 - A drawer box with two ends and a front glued on: both ends are "drawer box end".
+
+## v1.26
+- Three or more boards on edge on the floor, joined in a ring, low (under a quarter of the height), with the case standing on them, are a plinth. It is made on the bench and the case built on it; the case is screwed down to it through its bottom, and the case panels' bottom edges resting on it are not fixed again.
+- A case's bottom resting on supports at both ends is still screwed to the case's sides, front and back (the rule that a board resting on supports is not also fixed through its neighbours is for shelves).
+- An upright panel flush with the front of everything standing up is the front, though a lid or top overhangs it.
+- A top over a closed box (front, back, both sides under it, no doors or drawers, nothing above) is a lid. It hangs on a piano hinge 2 in (50 mm) shorter than the back, with a lid support that holds it open at any angle; the check says why (fingers, and a child in a toy box), and to leave air holes in a toy box. No brackets fix it down.
