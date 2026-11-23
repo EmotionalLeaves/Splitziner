@@ -221,6 +221,8 @@ object GuideSteps {
         val dfrontBench = steps.filter { st -> st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { keyOf[it]?.startsWith("dfront") == true } }.map { it.step }.toSet()
         // Cleats screwed to a panel flat on the bench (a plinth's front and back): "make 2 cleated panels".
         // A painting panel's cradle, screwed up on the bench before it is glued to the face: "make the cradle".
+        // A shadow box's box of four sides, made before the face frame goes on it: "make the box".
+        val sboxBench = steps.filter { st -> st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { keyOf[it]?.startsWith("sbox") == true } }.map { it.step }.toSet()
         val cradleBench = steps.filter { st -> st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { keyOf[it]?.startsWith("cradle") == true } }.map { it.step }.toSet()
         val cpanelBench = steps.filter { st -> st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { keyOf[it]?.startsWith("cpanel") == true } }.map { it.step }.toSet()
         val fpanelBench = steps.filter { st -> st.subassembly && st.partIds.isNotEmpty() && st.partIds.all { keyOf[it]?.startsWith("fpanel") == true } }.map { it.step }.toSet()
@@ -237,14 +239,14 @@ object GuideSteps {
         val slattedBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it]?.startsWith("slatted") == true } }.map { it.step }.toSet()
         val cabinetWord = drawn.any { keyOf[it.id]?.startsWith("module") == true && it.name in setOf("Bottom", "Side", "Divider") }
         // Other sub-assemblies are lettered, as in a maker's manual: "make sub-assembly A", later "sub-assembly A".
-        val special = moduleBench + faceBench + frameBench + upperBench + tenonRail.keys + ladderBench + slattedBench + plinthBench + doorBench + fpanelBench + dfrontBench + cpanelBench + cradleBench
+        val special = moduleBench + faceBench + frameBench + upperBench + tenonRail.keys + ladderBench + slattedBench + plinthBench + doorBench + fpanelBench + dfrontBench + cpanelBench + cradleBench + sboxBench
         val letterOf = HashMap<Int, String>()
         for (st in steps) if (st.subassembly && st.continues == null && st.step !in special && !st.partIds.all { keyOf[it]?.startsWith("drawer") == true }) {
             val seq = steps.filter { it.step == st.step || it.continues == st.step }.map { it.step }
             val letter = if (letterOf.size < 26) ('A' + letterOf.values.distinct().size).toString() else "${letterOf.values.distinct().size + 1}"
             for (s0 in seq) letterOf[s0] = letter
         }
-        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in doorBench) (if (n > 1) "doors" else "door") else if (bench in bedEnds) (if (n > 1) bedEnds.getValue(bench) + "s" else bedEnds.getValue(bench)) else if (bench in fpanelBench) (if (n > 1) "panelled frames" else "panelled frame") else if (bench in cpanelBench) (if (n > 1) "cleated panels" else "cleated panel") else if (bench in cradleBench) (if (n > 1) "cradles" else "cradle") else if (bench in dfrontBench) (if (n > 1) "drawer fronts" else "drawer front") else if (bench in plinthBench) (if (n > 1) "plinths" else "plinth") else if (bench in slattedBench) (if (n > 1) "slatted panels" else "slatted panel") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
+        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in doorBench) (if (n > 1) "doors" else "door") else if (bench in bedEnds) (if (n > 1) bedEnds.getValue(bench) + "s" else bedEnds.getValue(bench)) else if (bench in fpanelBench) (if (n > 1) "panelled frames" else "panelled frame") else if (bench in cpanelBench) (if (n > 1) "cleated panels" else "cleated panel") else if (bench in cradleBench) (if (n > 1) "cradles" else "cradle") else if (bench in sboxBench) (if (n > 1) "boxes" else "box") else if (bench in dfrontBench) (if (n > 1) "drawer fronts" else "drawer front") else if (bench in plinthBench) (if (n > 1) "plinths" else "plinth") else if (bench in slattedBench) (if (n > 1) "slatted panels" else "slatted panel") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -533,6 +535,7 @@ object GuideSteps {
                     else if (st.step in fpanelBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} panelled frames from" else "make the panelled frame from"} $names"
                     else if (st.step in cpanelBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} cleated panels from" else "make the cleated panel from"} $names"
                     else if (st.step in cradleBench) "Step ${st.step}: make the cradle from $names"
+                    else if (st.step in sboxBench) "Step ${st.step}: make the box from $names"
                     else if (st.step in moduleBench || st.step in upperBench) {
                         val seq = seqOf(st); val k = seq.indexOfFirst { it.step == st.step } + 1
                         "Step ${st.step}: build ${if (st.makeCount > 1) "${st.makeCount} ${unitWord(st.step, 2)}" else "the ${unitWord(st.step, 1)}"}" + (if (seq.size > 1) " ($k of ${seq.size}): $names" else " from $names")
@@ -601,7 +604,7 @@ object GuideSteps {
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "glass" -> continue
-                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "faceglue", "cratepack" -> continue; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
+                    "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "faceglue", "cratepack", "facebox", "backscrew" -> continue; "stop" -> "${j.size} brads"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }
                 hw[key] = (hw[key] ?: 0) + (if (j.kind == "slides" || j.kind == "sliding" || j.kind == "foldhinge") 1 else j.count)

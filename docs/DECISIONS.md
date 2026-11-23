@@ -680,3 +680,7 @@ Departures from the build spec, newest first.
 
 ## v1.96
 - A picture frame's glass note also gives the rabbet's depth (the back strips' thickness), which the glass, mat, art and backing must fit in together.
+
+## v1.97
+- A "Shadow box" template, drawn face down: a box of four sides, a mitred face frame glued on its front with a lip over the opening, four 1/4 in square glass stops inside 1/8 in back from the lip (room for 1/8 in glass), and a back panel. Default 12 x 16 x 3 in inside.
+- Recognised by its layers: four flat face bars on the bench, four sides standing on them up to a thin back, and four thin strips between. The box is made first; the face frame is glued on (nothing through the face); the glass and stops go in next, the stops pinned without glue so the glass can be changed; the back is screwed on last without glue, the work mounted on it first. A note gives the glass size (the box's inside less 1/16 in, 2 mm).

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.97.0 - shadow box
+
+- **New design: Shadow box.** A deep frame for objects and 3D work. You make the box, glue the face frame on, set the glass in behind the lip with removable stops, and screw on the back with your work mounted on it. The guide gives the glass size.
+
 ## v1.96.0 - rabbet depth
 
 - The picture frame note now gives the rabbet's depth too, so you can check that the glass, mat, art and backing will fit.

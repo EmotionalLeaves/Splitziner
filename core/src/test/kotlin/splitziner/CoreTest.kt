@@ -2558,3 +2558,19 @@ class CradleTest {
         assertTrue(f.all.filter { it.through.name == "Panel face" || it.into.name == "Panel face" }.all { it.kind == "faceglue" }, f.all.map { it.kind }.toString())
     }
 }
+
+class ShadowBoxTest {
+    @Test fun aShadowBoxIsBoxedThenGlazedThenBacked() {
+        val t = splitziner.edit.Templates.byKey("shadowbox")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "s.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        for ((n, c) in listOf("Face bar" to 4, "Box side" to 4, "Glass stop" to 4, "Back" to 1)) assertEquals(c, a.parts.count { it.name == n }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val last = pl.steps.size
+        assertEquals(last, pl.parts.first { it.name == "Back" }.step)
+        assertTrue(pl.parts.filter { it.name == "Glass stop" }.all { it.step == last - 1 })
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        // Nothing is screwed through the face bars.
+        assertTrue(f.all.filter { it.through.name == "Face bar" && it.into.name == "Box side" || it.into.name == "Face bar" && it.through.name == "Box side" }.all { it.kind == "facebox" })
+    }
+}

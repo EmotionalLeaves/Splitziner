@@ -75,7 +75,7 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "flatfile", "taboret", "crate", "ledge")
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
@@ -444,6 +444,36 @@ object Templates {
             // wall's half behind it, bevelled the other way, as the cleat cabinet has them.
             out += quadX(listOf(d - t to h - t - ch, d to h - t - ch, d to h - t - t, d - t to h - t), t, w - t)
             out += quadX(listOf(d to h - 2 * t - ch, d + t to h - 2 * t - ch + t, d + t to h - 2 * t, d to h - 2 * t), t, w - t)
+            out
+        },
+        Template("shadowbox", "Shadow box", "A deep frame for objects and 3D work, drawn face down as it is made: a box of four sides, a mitred face frame glued on its front with a lip over the opening, thin stops inside holding the glass against the lip, and a back panel screwed on so the work can go in.", listOf(
+            Field("iw", "Inside width", 305.0, 12.0), Field("ih", "Inside height", 406.0, 16.0), Field("depth", "Inside depth", 76.0, 3.0),
+            Field("t", "Side thickness", 19.0, 0.75), Field("bar", "Face bar width", 38.0, 1.5), Field("lip", "Lip over the opening", 6.0, 0.25),
+            Field("ft", "Face bar thickness", 19.0, 0.75), Field("back", "Back thickness", 6.0, 0.25),
+        )) { v ->
+            val iw = v.getValue("iw"); val ih = v.getValue("ih"); val dep = v.getValue("depth"); val t = v.getValue("t")
+            val b = v.getValue("bar"); val lip = v.getValue("lip"); val bk = v.getValue("back"); val ft = v.getValue("ft")
+            // Room for 1/8 in (3 mm) glass behind the lip; 1/4 in (6.35 mm) square stops behind it.
+            val glass = 3.0; val stop = 6.35
+            // The box's outside; the face bars cover its front edges and reach [lip] in over the opening.
+            val ow = iw + 2 * t; val oh = ih + 2 * t
+            if (b < t + lip + 3.0) throw SizesDoNotFit()
+            val fx = (b - t - lip); val fw = ow + 2 * fx; val fh = oh + 2 * fx
+            fun at(q: List<Pair<Double, Double>>) = q.map { (x, y) -> x - fx to y - fx }
+            val out = arrayListOf(
+                quadZ(at(listOf(0.0 to 0.0, fw to 0.0, fw - b to b, b to b)), 0.0, ft),
+                quadZ(at(listOf(b to fh - b, fw - b to fh - b, fw to fh, 0.0 to fh)), 0.0, ft),
+                quadZ(at(listOf(0.0 to 0.0, b to b, b to fh - b, 0.0 to fh)), 0.0, ft),
+                quadZ(at(listOf(fw to 0.0, fw to fh, fw - b to fh - b, fw - b to b)), 0.0, ft))
+            // The box on the face frame's back: long sides full length, short ones between them.
+            val z0 = ft; val z1 = ft + dep
+            out += box(0.0, 0.0, z0, ow, t, dep); out += box(0.0, oh - t, z0, ow, t, dep)
+            out += box(0.0, t, z0, t, ih, dep); out += box(ow - t, t, z0, t, ih, dep)
+            // Stops: thin strips inside the box, the glass's thickness back from the face frame.
+            val sz = z0 + glass
+            out += box(t, t, sz, iw, stop, stop); out += box(t, oh - t - stop, sz, iw, stop, stop)
+            out += box(t, t + stop, sz, stop, ih - 2 * stop, stop); out += box(ow - t - stop, t + stop, sz, stop, ih - 2 * stop, stop)
+            out += box(0.0, 0.0, z1, ow, oh, bk)
             out
         },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(

@@ -606,6 +606,23 @@ object Roles {
             val twin = live.any { o -> o !== lid && o.mesh.bounds.let { b -> b.extents.y <= minOf(b.extents.x, b.extents.z) && kotlin.math.abs(b.extents.x - lb.extents.x) < 1.0 && kotlin.math.abs(b.extents.z - lb.extents.z) < 1.0 && b.min.y > lb.max.y } }
             if (twin) out[lid.id] = "Crate lid"
         }
+        // A shadow box drawn face down: a ring of four flat mitred face bars on the bench, a box of four sides standing
+        // on it, thin stops inside the box against the face bars' lip, and a back panel over the box.
+        run {
+            val bottom = live.filter { kotlin.math.abs(it.mesh.bounds.min.z - all.min.z) < 0.5 }
+            if (bottom.size != 4 || bottom.any { p -> p.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } }) return@run
+            val fz = bottom.maxOf { it.mesh.bounds.max.z }
+            val top = live.filter { kotlin.math.abs(it.mesh.bounds.max.z - all.max.z) < 0.5 }.singleOrNull() ?: return@run
+            if (top.mesh.bounds.extents.let { e -> e.z > 13.0 || e.z > minOf(e.x, e.y) }) return@run
+            val mid = live - bottom.toSet() - top
+            val sides = mid.filter { kotlin.math.abs(it.mesh.bounds.min.z - fz) < 0.5 && kotlin.math.abs(it.mesh.bounds.max.z - top.mesh.bounds.min.z) < 0.5 }
+            val stops = mid - sides.toSet()
+            if (sides.size != 4 || stops.size != 4 || stops.any { p -> p.mesh.bounds.extents.let { e -> minOf(e.x, e.y, e.z) > 13.0 } }) return@run
+            for (p in bottom) out[p.id] = "Face bar"
+            for (p in sides) out[p.id] = "Box side"
+            for (p in stops) out[p.id] = "Glass stop"
+            out[top.id] = "Back"
+        }
         // A small piece with no other name (a spacer, a glue block): a block, so the guide can call it something.
         for (p in live) if (out[p.id] == null && p.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) <= BLOCK_MAX }) out[p.id] = "Block"
         // A flat frame lying on the bench (a canvas stretcher, a picture frame), every member the same thickness in one

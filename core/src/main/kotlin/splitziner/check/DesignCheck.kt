@@ -364,6 +364,17 @@ object DesignCheck {
             else out += Finding(Severity.CHECK, "Too shallow for foam",
                 "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u: too little to line with ${d(foam)}$u of foam all round. Make it deeper, or plan another way to hold the work still.", listOf(lid.id))
         }
+        // A shadow box's glass is not in the model: the size that drops in behind the lip.
+        run {
+            val sides = live.filter { it.name == "Box side" }
+            if (sides.size != 4 || live.none { it.name == "Glass stop" }) return@run
+            val ob = sides.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+            val st = sides.minOf { p -> p.mesh.bounds.extents.let { minOf(it.x, it.y) } }
+            val gap = if (fmt.isInch) 1.5875 else 2.0
+            val u = if (fmt.isInch) " in" else " mm"
+            out += Finding(Severity.NOTE, "Glass and hanging (not in the model)",
+                "Get glass or acrylic about ${if (fmt.isInch) "1/8 in" else "3 mm"} thick cut to ${d(ob.extents.x - 2 * st - gap)} x ${d(ob.extents.y - 2 * st - gap)}$u (the box's inside, less ${d(gap)}$u for play), and two D-rings with picture wire to hang it.", sides.map { it.id })
+        }
         // A picture frame's glass, backing and fixings are not in the model: what to get, and the size the rabbet takes.
         run {
             val strips = live.filter { it.name == "Back strip" }

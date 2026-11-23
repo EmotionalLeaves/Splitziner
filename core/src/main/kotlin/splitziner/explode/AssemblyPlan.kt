@@ -100,6 +100,8 @@ object AssemblyPlan {
                 o.mesh.bounds.min.z <= rb.max.z && o.mesh.bounds.max.z >= rb.min.z && o.mesh.bounds.min.y < rb.max.y && o.mesh.bounds.max.y > rb.min.y } ?: continue
             out[r.id] = out.getValue(apron.id)
         }
+        // A shadow box's box (its four sides) is put together first, then glued onto the face frame.
+        live.filter { it.name == "Box side" && out[it.id] == it.id }.takeIf { it.size == 4 }?.forEach { out[it.id] = "sbox1" }
         // A painting panel's cradle (its strips and braces) is put together first, then glued onto the face.
         live.filter { (it.name == "Cradle" || it.name == "Brace") && out[it.id] == it.id }.takeIf { cs -> cs.count { it.name == "Cradle" } >= 4 && live.any { it.name == "Panel face" } }
             ?.forEach { out[it.id] = "cradle1" }
@@ -320,10 +322,15 @@ object AssemblyPlan {
         val casters = all.filter { it.name == "Caster" && !it.excluded }
         // A crate's lid, with the battens on it, is screwed on last, once the work is packed in.
         val lid = if (all.any { it.name == "Crate lid" && !it.excluded }) all.filter { (it.name == "Crate lid" || it.name == "Batten") && !it.excluded } else emptyList()
-        val late = casters + lid
+        // A shadow box: the glass and its stops go in once the box is on the face frame, the back last of all.
+        val stops = all.filter { it.name == "Glass stop" && !it.excluded }
+        val sbBack = if (stops.isNotEmpty()) all.filter { it.name == "Back" && !it.excluded } else emptyList()
+        val late = casters + lid + stops + sbBack
         if (late.isEmpty() || late.size == all.count { !it.excluded }) return foldLone(planInner(all, maxSteps, order))
         var r = foldLone(planInner(all - late.toSet(), maxSteps, null))
         if (lid.isNotEmpty()) r = lastStep(r, lid, Vec3(0.0, -1.0, 0.0))
+        if (stops.isNotEmpty()) r = lastStep(r, stops, Vec3(0.0, 0.0, 1.0))
+        if (sbBack.isNotEmpty()) r = lastStep(r, sbBack, Vec3(0.0, 0.0, 1.0))
         if (casters.isNotEmpty()) r = lastStep(r, casters, Vec3(0.0, 0.0, -1.0))
         val planned = r.parts.associateBy { it.id }
         return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
