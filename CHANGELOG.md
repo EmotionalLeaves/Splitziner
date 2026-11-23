@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.18.0 - Cribs and spindles
+
+- Cribs and railings: upright slats between two rails are now spindles. Each side is made flat on the bench as a slatted panel, and the guide gives the gap and a spacer block instead of a list of positions.
+- Any flat frame (a crib end, a face frame) is made in one bench step, whatever its number of parts.
+
 ## v1.17.0 - Islands and corbels
 
 - Kitchen islands: the brackets under a seating overhang are called corbels, the solid back is the back, and the top strips are stretchers.

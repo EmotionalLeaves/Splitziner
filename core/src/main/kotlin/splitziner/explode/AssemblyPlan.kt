@@ -71,6 +71,24 @@ object AssemblyPlan {
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        // Spindles go with the two rails they stand between: into a leg frame when the rails are in one, else the
+        // rails and spindles are a slatted panel of their own, made flat on the bench.
+        run {
+            val sp = live.filter { it.name == "Spindle" && '.' !in it.id }
+            fun over(a: Part, o: Part) = o.mesh.bounds.min.x < a.mesh.bounds.max.x - 0.5 && o.mesh.bounds.max.x > a.mesh.bounds.min.x + 0.5 &&
+                o.mesh.bounds.min.y < a.mesh.bounds.max.y - 0.5 && o.mesh.bounds.max.y > a.mesh.bounds.min.y + 0.5
+            val byRails = sp.groupBy { p -> val b = p.mesh.bounds
+                live.firstOrNull { o -> o.name != "Spindle" && kotlin.math.abs(o.mesh.bounds.max.z - b.min.z) < 1.0 && over(p, o) } to
+                    live.firstOrNull { o -> o.name != "Spindle" && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && over(p, o) } }
+            var k = 0
+            for ((rails, ps) in byRails) {
+                val (lo, hi) = rails; if (lo == null || hi == null) continue
+                val kl = out[lo.id]; val kh = out[hi.id]
+                if (kl != null && kl == kh && kl.startsWith("frame")) { for (q in ps) out[q.id] = kl; continue }
+                if (kl != lo.id.substringBefore('.') || kh != hi.id.substringBefore('.')) continue
+                k++; for (q in ps + lo + hi) out[q.id] = "slatted$k"
+            }
+        }
         // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
         modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
         // A tenon goes with the rail whose end it is on: glued in (or cut on it) before the rail is fitted.
@@ -264,7 +282,9 @@ object AssemblyPlan {
             }
             val first = kind.first()
             // A ladder lies flat in one plane, its rungs all alike: one picture shows it whatever its length.
-            if (first.size > BIG_SUB && !first.all { it.name == "Ladder side" || it.name == "Rung" }) {
+            // So does any unit lying in one plane (a crib's slatted end, a face frame): its parts are all in view.
+            val flatUnit = (0..2).any { k -> first.maxOf { it.mesh.bounds.max[k] } - first.minOf { it.mesh.bounds.min[k] } <= 1.05 * first.maxOf { p -> p.mesh.bounds.extents.let { e -> minOf(e.x, e.y, e.z) } } + 0.5 }
+            if (first.size > BIG_SUB && !flatUnit && !first.all { it.name == "Ladder side" || it.name == "Rung" }) {
                 // A whole cabinet is too much for one picture: it is built in a few bench steps, as on its own.
                 // Its back panel goes on last, once the case is together, as in the main build.
                 val backs = first.filter { it.name == "Back panel" }.takeIf { first.size - it.size >= 3 }.orEmpty()

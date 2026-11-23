@@ -1898,3 +1898,29 @@ class IslandTest {
         assertTrue(first.partIds.all { id -> a.parts.first { it.id == id }.name == "Side" }, first.partIds.map { id -> a.parts.first { it.id == id }.name }.toString())
     }
 }
+
+class CribTest {
+    @Test fun spindlesAreMadeIntoSlattedPanelsAndSpacedWithABlock() {
+        val L = 1384.3; val Wd = 755.65; val H = 914.4; val post = 50.8; val rt = 19.05; val rh = 63.5
+        val zb = 254.0; val zt = H - 25.4 - rh; val sw = 44.45; val gap = 57.15
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (x in listOf(0.0, Wd - post)) for (y in listOf(0.0, L - post)) ms += b(x, y, 0.0, post, post, H)
+        fun side(x0: Double, y0: Double, y1: Double, alongY: Boolean) {
+            val span = y1 - y0
+            ms += if (alongY) listOf(b(x0, y0, zb, rt, span, rh), b(x0, y0, zt, rt, span, rh)) else listOf(b(y0, x0, zb, span, rt, rh), b(y0, x0, zt, span, rt, rh))
+            val n = ((span - gap) / (sw + gap)).toInt(); val used = n * sw + (n + 1) * gap; val start = y0 + (span - used) / 2 + gap
+            for (i in 0 until n) { val s = start + i * (sw + gap); ms += if (alongY) b(x0, s, zb + rh, rt, sw, zt - zb - rh) else b(s, x0, zb + rh, sw, rt, zt - zb - rh) }
+        }
+        side((post - rt) / 2, post, L - post, true); side(Wd - post + (post - rt) / 2, post, L - post, true)
+        side((post - rt) / 2, post, Wd - post, false); side(L - post + (post - rt) / 2, post, Wd - post, false)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "crib.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(34, a.parts.count { it.name == "Spindle" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fmt = LengthFormat("in", "fraction"))
+        assertTrue(g.any { it.title.contains("make 2 slatted panels from") }, g.map { it.title }.toString())
+        assertTrue(g.any { s -> s.text.any { it.startsWith("Space the spindles (item") && it.contains("2-1/4 in apart") } }, g.flatMap { it.text }.toString())
+        // Two bench steps: the end frames (legs, rails, spindles) and the slatted sides, each in one picture.
+        assertEquals(2, pl.steps.count { it.subassembly })
+    }
+}

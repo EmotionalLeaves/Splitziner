@@ -353,3 +353,9 @@ Departures from the build spec, newest first.
 - A flat strip across the top of a case is a stretcher when two sides end level with it; a divider ending under it no longer stops that.
 - The main build of a case starts from a side, never from its back or kick board, however big: the back goes on a case already standing.
 - "×N" tags in step pictures count parts of one item and one name: the same board used as kick board and stretcher is two things in the picture, not "×2".
+
+## v1.18
+- Upright narrow parts standing between the same two level rails, three or more of one length, are spindles (a crib's slats, a railing's balusters).
+- Spindles go with their rails: into a leg frame when the rails are in one, else the two rails and their spindles are a "slatted panel" made on the bench.
+- Any sub-assembly lying in one plane (its thinnest overall size no more than its thickest part's thickness) is made in one bench step however many parts it has: the whole of it is in view in one picture.
+- Bench steps with spindles give the gap and a spacer block, with the end gaps when both ends match, instead of each spindle's place along the rail.

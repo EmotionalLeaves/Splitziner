@@ -177,16 +177,18 @@ object GuideSteps {
         val upperBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it] == "upper" } }.map { it.step }.toSet()
         // Sides and rungs made up flat on the bench: a ladder.
         val ladderBench = steps.filter { st -> st.subassembly && st.partIds.any { byId[it]?.name == "Rung" } }.map { it.step }.toSet()
+        // Two rails with spindles between them, made flat: a slatted panel (a crib's side). With legs it is a frame.
+        val slattedBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it]?.startsWith("slatted") == true } }.map { it.step }.toSet()
         val cabinetWord = drawn.any { keyOf[it.id]?.startsWith("module") == true && it.name in setOf("Bottom", "Side", "Divider") }
         // Other sub-assemblies are lettered, as in a maker's manual: "make sub-assembly A", later "sub-assembly A".
-        val special = moduleBench + faceBench + frameBench + upperBench + tenonRail.keys + ladderBench
+        val special = moduleBench + faceBench + frameBench + upperBench + tenonRail.keys + ladderBench + slattedBench
         val letterOf = HashMap<Int, String>()
         for (st in steps) if (st.subassembly && st.continues == null && st.step !in special && !st.partIds.all { keyOf[it]?.startsWith("drawer") == true }) {
             val seq = steps.filter { it.step == st.step || it.continues == st.step }.map { it.step }
             val letter = if (letterOf.size < 26) ('A' + letterOf.values.distinct().size).toString() else "${letterOf.values.distinct().size + 1}"
             for (s0 in seq) letterOf[s0] = letter
         }
-        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
+        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in slattedBench) (if (n > 1) "slatted panels" else "slatted panel") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -344,7 +346,24 @@ object GuideSteps {
             // How the step is held together, when the joining method is known; otherwise the general reminder.
             val how = if (fasten == null) emptyList() else splitziner.joinery.Fastening.lines(fasten, st.step, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
             if (st.subassembly) {
-                if (fmt != null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) })
+                // Spindles between two rails: the gap, with a spacer block, rather than each one's place along the rail.
+                val spind = cur.filter { it.name == "Spindle" }
+                val sItem = spind.map { it.item }.distinct().singleOrNull()
+                val sGap = if (fmt != null && sItem != null && spind.size >= 3) evenGap(spind, cur) else null
+                if (fmt != null && sGap != null) {
+                    val u = if (fmt.isInch) " in" else " mm"
+                    val b = spind.map { it.mesh.bounds }
+                    val ax = (0..1).maxByOrNull { k -> b.maxOf { it.center[k] } - b.minOf { it.center[k] } }!!
+                    val rail = cur.filter { it.name != "Spindle" && spind.any { s -> kotlin.math.abs(it.mesh.bounds.max.z - s.mesh.bounds.min.z) < 1.0 } }
+                    val ends = if (rail.isEmpty()) null else (b.minOf { it.min[ax] } - rail.minOf { it.mesh.bounds.min[ax] }) to (rail.maxOf { it.mesh.bounds.max[ax] } - b.maxOf { it.max[ax] })
+                    val endText = when {
+                        ends == null || kotlin.math.abs(ends.first - ends.second) > 1.5 -> ""
+                        kotlin.math.abs(ends.first - sGap) <= 1.5 -> ", with the same gap at each end of the rail"
+                        else -> ", the first and last ${fmt.format(ends.first)}$u from the ends of the rail"
+                    }
+                    lines += "Space the spindles (item $sItem) ${fmt.format(sGap)}$u apart, evenly$endText; a spacer block cut to ${fmt.format(sGap)}$u keeps every gap the same."
+                }
+                if (fmt != null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, skipItems = if (sGap != null) setOf(sItem) else emptySet())
                 lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
                 lines += how
                 val seq = seqOf(st)
@@ -369,6 +388,7 @@ object GuideSteps {
                     val isDrawer = st.partIds.all { keyOf[it]?.startsWith("drawer") == true }
                     if (isDrawer) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} drawer boxes from" else "make the drawer box from"} $names"
                     else if (st.step in faceBench) "Step ${st.step}: make the face frame from $names"
+                    else if (st.step in slattedBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} slatted panels from" else "make the slatted panel from"} $names"
                     else if (st.step in ladderBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} ladders from" else "make the ladder from"} $names"
                     else if (st.step in moduleBench || st.step in upperBench) {
                         val seq = seqOf(st); val k = seq.indexOfFirst { it.step == st.step } + 1

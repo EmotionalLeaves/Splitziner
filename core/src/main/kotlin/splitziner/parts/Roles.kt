@@ -64,6 +64,25 @@ object Roles {
                 for (r in rungs) out[r.id] = "Rung"
             }
         }
+        // Upright slats between two level rails, three or more alike (a crib's sides, a railing's balusters): spindles.
+        run {
+            fun over(a: Part, o: Part) = o.mesh.bounds.min.x < a.mesh.bounds.max.x - 0.5 && o.mesh.bounds.max.x > a.mesh.bounds.min.x + 0.5 &&
+                o.mesh.bounds.min.y < a.mesh.bounds.max.y - 0.5 && o.mesh.bounds.max.y > a.mesh.bounds.min.y + 0.5
+            fun level(o: Part) = o.mesh.bounds.extents.let { oe -> oe.z < maxOf(oe.x, oe.y) / 3 }
+            val byRails = HashMap<Pair<String, String>, MutableList<Part>>()
+            for (p in live) {
+                if (p.id in out) continue
+                val b = p.mesh.bounds; val e = b.extents; val d = listOf(e.x, e.y, e.z).sorted()
+                if (e.z < d[2] - 0.01 || e.z < 3 * d[1] || d[1] >= NARROW || b.min.z <= all.min.z + 1.0) continue
+                val below = live.firstOrNull { o -> o !== p && level(o) && kotlin.math.abs(o.mesh.bounds.max.z - b.min.z) < 1.0 && over(p, o) } ?: continue
+                val above = live.firstOrNull { o -> o !== p && level(o) && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && over(p, o) } ?: continue
+                byRails.getOrPut(below.id to above.id) { ArrayList() } += p
+            }
+            for ((_, ps) in byRails) if (ps.size >= 3) {
+                val e0 = ps[0].mesh.bounds.extents
+                if (ps.all { q -> q.mesh.bounds.extents.let { kotlin.math.abs(it.z - e0.z) < 1.0 } }) for (q in ps) out[q.id] = "Spindle"
+            }
+        }
         // Legs first: square posts standing on the floor, at least twice as tall as they are thick (a bed's legs are
         // short). Rails are then known by the legs they join.
         val legs = HashSet<String>()
