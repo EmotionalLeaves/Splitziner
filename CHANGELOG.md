@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.25.0 - Drawers on wooden runners
+
+- Tables with a drawer on wooden runners: the runners, kickers and drawer rails are recognised, the runners and kickers go on the side frames on the bench, and the drawer just slides in on waxed runners, with no metal slides on the shopping list.
+
 ## v1.24.0 - Ladder rungs
 
 - Ladders: the guide gives the height of the lowest rung and the step between rungs, marked on both sides at once, instead of a list of heights.

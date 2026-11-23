@@ -384,3 +384,9 @@ Departures from the build spec, newest first.
 
 ## v1.24
 - A ladder's evenly pitched rungs are given as where the lowest sits and the rise between them, marked on both sides clamped together, with a spacer block for the gap, instead of each rung's height up from the bottom and down from the top.
+
+## v1.25
+- A drawer can run on wood: strips its sides rest on are runners, strips just above its sides (within 8 mm) kickers, and, only when there are runners, the strips across the front just above and below its front are drawer rails.
+- A drawer on two runners gets no slides: it slides in on them, waxed, with the kickers stopping it tipping. It still gets a handle.
+- Runners and kickers go on the bench with the side frame whose apron they are screwed to. Their ends butting the rails are not glued.
+- A drawer box with two ends and a front glued on: both ends are "drawer box end".

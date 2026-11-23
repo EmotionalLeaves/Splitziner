@@ -34,6 +34,8 @@ enum class JoinMethod(val label: String, val needs: Set<Tool>) {
 class Joint(val through: Part, val into: Part, val count: Int, val size: String, val kind: String, val glueOnly: Boolean, val at: String = "", val ref: Part? = null)
 
 /** [byStep] tells each step's joints (one copy of a sub-assembly made several times); [all] is every joint in the piece. */
+private val RUNNER_NAMES = setOf("Runner", "Kicker")
+
 class FastenPlan(val method: JoinMethod, val byStep: Map<Int, List<Joint>>, val hardware: List<String>, val all: List<Joint> = byStep.values.flatten())
 
 /**
@@ -565,9 +567,18 @@ object Fastening {
             val step = if (sameUnit) maxOf(stepOf[p.id] ?: 0, stepOf[g.id] ?: 0) else maxOf(mainOf(p), mainOf(g))
             joints.getOrPut(step) { ArrayList() } += Joint(g, p, 0, "", "housed", true)
         }
-        // Drawers hang on a pair of slides each, fitted in the step the drawer goes in.
+        // Drawers hang on a pair of slides each, fitted in the step the drawer goes in; one whose sides ride on wooden
+        // runners just slides in on them.
         for (dr in runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList())) {
             val ps = live.filter { it.id in dr.ids }
+            val onRunners = live.filter { it.name == "Runner" }.count { r -> ps.any { q -> q.name == "Drawer side" && kotlin.math.abs(q.mesh.bounds.min.z - r.mesh.bounds.max.z) < 2.0 &&
+                minOf(q.mesh.bounds.max.x, r.mesh.bounds.max.x) > maxOf(q.mesh.bounds.min.x, r.mesh.bounds.min.x) } } >= 2
+            if (onRunners) {
+                val box = ps.filter { it.id in dr.boxIds }.maxByOrNull { kotlin.math.abs(it.mesh.volume) } ?: ps.first()
+                joints.getOrPut(ps.maxOf { mainOf(it) }) { ArrayList() }.add(0, Joint(box, box, 1, "", "runners", false))
+                totals[HANDLE] = (totals[HANDLE] ?: 0) + 1
+                continue
+            }
             val len = splitziner.check.Drawers.slideLength(splitziner.check.Drawers.depthOf(live, dr), fmt.isInch) ?: continue
             val step = ps.maxOf { mainOf(it) }
             val box = ps.filter { it.id in dr.boxIds }.maxByOrNull { kotlin.math.abs(it.mesh.volume) } ?: ps.maxByOrNull { kotlin.math.abs(it.mesh.volume) }!!
@@ -637,6 +648,8 @@ object Fastening {
             if (rail != null) totals[if (fmt.isInch) "#10 x 3 in screws to hang it (into studs)" else "5 x 75 mm screws to hang it (into studs)"] = 2 * maxOf(2, ceil(rail.mesh.bounds.extents.x / 406.4).toInt())
             else if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
         }
+        // A runner or kicker is held by the screws into its apron; where its ends butt the rails, nothing is glued.
+        for (js in joints.values) js.removeAll { j -> j.glueOnly && j.kind.isEmpty() && (j.through.name in RUNNER_NAMES || j.into.name in RUNNER_NAMES) }
         val every = joints.values.flatten()
         // Identical sub-assemblies are made more than once in one bench step. Every copy's joints are already in
         // the totals; the step itself tells how to make one, so it keeps only the first copy's joints.
@@ -860,6 +873,7 @@ object Fastening {
             }
             else if (j.kind == "pins") (if (g.size > 1) "For each ${key.first}, push ${count(n / g.size)} shelf pins into the holes at the height you want, level side to side, and lay it on them."
                 else "Push ${count(n)} shelf pins into the holes at the height you want, level side to side, and lay ${key.first} on them.")
+            else if (j.kind == "runners") "It runs on its runners, not slides: rub candle or paste wax on them and on the bottom edges of its sides so it runs smoothly; plane a side a shaving at a time if it sticks. The kickers over its sides stop it tipping down as it opens. Fit its handle or knob in the middle of the front."
             else if (j.kind == "slides") {
                 val handle = j.into === j.through
                 // Where the cabinet halves go: a level line down from the top of each side, front end set back as the box is.
@@ -938,7 +952,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "applied" -> "screwed on from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

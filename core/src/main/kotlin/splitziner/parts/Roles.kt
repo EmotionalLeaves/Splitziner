@@ -40,6 +40,8 @@ object Roles {
                     e.x <= t + 0.01 -> "Drawer side"
                     // With a separate front fixed on, the box's own front and back are alike: its ends.
                     e.y <= t + 0.01 && dr.boxIds.size != dr.ids.size -> "Drawer box end"
+                    // A front glued on a box with two ends of its own: the box's front end is an end too.
+                    e.y <= t + 0.01 && box.count { q -> q.mesh.bounds.extents.let { qe -> qe.y <= minOf(qe.x, qe.z) } } >= 3 && p.mesh.bounds.min.y > frontY + 0.5 -> "Drawer box end"
                     e.y <= t + 0.01 && p.mesh.bounds.min.y <= frontY + 0.5 -> "Drawer front"
                     e.y <= t + 0.01 -> "Drawer back"
                     else -> "Drawer part"
@@ -48,6 +50,28 @@ object Roles {
         }
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
         val h = all.extents.z
+        // A drawer that runs on wood rather than slides: the strips its sides ride on are runners, the ones just over
+        // its sides (stopping it tipping as it comes out) kickers, and the strips across the front above and below
+        // its front drawer rails.
+        run {
+            val boxSides = live.filter { out[it.id] == "Drawer side" }
+            val fronts = live.filter { out[it.id] == "Drawer front" }
+            fun overXY(a: Part, o: Part) = minOf(a.mesh.bounds.max.x, o.mesh.bounds.max.x) - maxOf(a.mesh.bounds.min.x, o.mesh.bounds.min.x) > 1.0 &&
+                minOf(a.mesh.bounds.max.y, o.mesh.bounds.max.y) - maxOf(a.mesh.bounds.min.y, o.mesh.bounds.min.y) > 0.3 * a.mesh.bounds.extents.y
+            for (pass in 0..1) for (p in live) {
+                if (p.id in out || boxSides.isEmpty()) continue
+                val b = p.mesh.bounds; val e = b.extents; val d = listOf(e.x, e.y, e.z).sorted()
+                if (d[1] >= NARROW || e.z > d[1] + 0.01) continue
+                // Runners and kickers first; the rails across the front only once runners show the drawer runs on wood.
+                if (pass == 0) when {
+                    e.y >= e.x && boxSides.any { sd -> kotlin.math.abs(sd.mesh.bounds.min.z - b.max.z) < 2.0 && overXY(sd, p) } -> out[p.id] = "Runner"
+                    e.y >= e.x && boxSides.any { sd -> b.min.z - sd.mesh.bounds.max.z in -0.5..8.0 && overXY(sd, p) } -> out[p.id] = "Kicker"
+                } else when {
+                    e.x > e.y && live.any { out[it.id] == "Runner" } && fronts.any { f -> val fb = f.mesh.bounds; minOf(fb.max.x, b.max.x) - maxOf(fb.min.x, b.min.x) > 0.5 * fb.extents.x &&
+                        b.min.y <= fb.max.y + 25.0 && (fb.min.z - b.max.z in -0.5..8.0 || b.min.z - fb.max.z in -0.5..8.0) } -> out[p.id] = "Drawer rail"
+                }
+            }
+        }
         // A ladder: two slim bars standing side by side, a hand's span or more apart, with three or more level bars
         // (rungs) spanning between them up their height. Its sides are not legs, nor its rungs rails or cleats.
         run {

@@ -1963,3 +1963,35 @@ class WallCabinetTest {
         assertTrue(f.hardware.none { it.contains("anti-tip") }, f.hardware.toString())
     }
 }
+
+class EndTableTest {
+    @Test fun drawerOnWoodenRunnersNeedsNoSlides() {
+        val W = 508.0; val D = 457.2; val H = 660.4; val leg = 38.1; val at = 19.05
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (x in listOf(0.0, W - leg)) for (y in listOf(0.0, D - leg)) ms += b(x, y, 0.0, leg, leg, H - 19.05)
+        val az = H - 19.05 - 139.7; val ah = 139.7
+        for (x in listOf(leg - at, W - leg)) ms += b(x, leg, az, at, D - 2 * leg, ah)
+        ms += b(leg, D - leg, az, W - 2 * leg, at, ah)
+        ms += b(leg, 0.0, az, W - 2 * leg, 38.1, 19.05); ms += b(leg, 0.0, az + ah - 19.05, W - 2 * leg, 38.1, 19.05)
+        for (x in listOf(leg, W - leg - 19.05)) { ms += b(x, 38.1, az, 19.05, D - leg - 38.1, 19.05); ms += b(x, 38.1, az + ah - 19.05, 19.05, D - leg - 38.1, 19.05) }
+        // Drawer: sides ride on the runners; a front glued on its box.
+        val x0 = leg + 1.6; val x1 = W - leg - 1.6; val z0 = az + 19.05; val bh = ah - 2 * 19.05 - 3.2; val y0 = 19.05; val dd = 381.0; val t = 12.7
+        ms += b(x0, y0, z0, t, dd, bh); ms += b(x1 - t, y0, z0, t, dd, bh); ms += b(x0 + t, y0, z0, x1 - x0 - 2 * t, t, bh); ms += b(x0 + t, y0 + dd - t, z0, x1 - x0 - 2 * t, t, bh)
+        ms += b(x0 + t, y0 + t, z0, x1 - x0 - 2 * t, dd - 2 * t, 6.35)
+        ms += b(x0, 0.0, z0, x1 - x0, 19.05, ah - 2 * 19.05 - 1.6)
+        ms += b(-25.4, -25.4, H - 19.05, W + 50.8, D + 50.8, 19.05)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "et.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(2, names.count { it == "Runner" }, names.toString())
+        assertEquals(2, names.count { it == "Kicker" }, names.toString())
+        assertEquals(2, names.count { it == "Drawer rail" }, names.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.hardware.none { it.contains("slides") }, f.hardware.toString())
+        assertTrue(f.all.any { it.kind == "runners" })
+        // Runners and kickers go on the side frames on the bench.
+        val bench = pl.steps.filter { it.subassembly }.flatMap { it.partIds }.toSet()
+        assertTrue(a.parts.filter { it.name == "Runner" || it.name == "Kicker" }.all { r -> pl.steps.any { st -> st.subassembly && r.id in st.partIds } || pl.parts.first { it.id == r.id }.step == pl.parts.filter { it.name == "Leg" }.minOf { it.step ?: 0 } }, bench.toString())
+    }
+}

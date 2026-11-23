@@ -71,6 +71,13 @@ object AssemblyPlan {
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
+        // A drawer's runners and kickers are screwed to the inside of the side aprons: on the bench, with their frame.
+        for (r in live.filter { (it.name == "Runner" || it.name == "Kicker") && '.' !in it.id }) {
+            val rb = r.mesh.bounds
+            val apron = live.firstOrNull { o -> o !== r && out[o.id]?.startsWith("frame") == true && (kotlin.math.abs(o.mesh.bounds.max.x - rb.min.x) < 1.0 || kotlin.math.abs(o.mesh.bounds.min.x - rb.max.x) < 1.0) &&
+                o.mesh.bounds.min.z <= rb.max.z && o.mesh.bounds.max.z >= rb.min.z && o.mesh.bounds.min.y < rb.max.y && o.mesh.bounds.max.y > rb.min.y } ?: continue
+            out[r.id] = out.getValue(apron.id)
+        }
         // Spindles go with the two rails they stand between: into a leg frame when the rails are in one, else the
         // rails and spindles are a slatted panel of their own, made flat on the bench.
         run {
