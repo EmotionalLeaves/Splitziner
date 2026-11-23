@@ -638,3 +638,7 @@ Departures from the build spec, newest first.
 
 ## v1.84
 - A "Flat file" template: a low carcass on a plinth set back 2 in (50 mm) at the front, wide shallow drawers on slides (each slot at least 40 mm), fronts over the sides, the bottom one down over the bottom's edge and the top one up over the top's. Default 40 x 28 x 18 in, 5 drawers, a 3 in plinth. Listed with the studio designs.
+
+## v1.85
+- The plinth template can carry a clear acrylic cover (a vitrine): five sheets, the outside flush with the plinth, 12 in tall and 3/16 in thick by default.
+- Any model with a clear cover on top (five sheets 1/4 in or thinner, at least 2 in across, four walls standing on the piece's top and a lid on them, inside its outline) has the cover named "Acrylic cover" and left out of the wood lists and drawings, before the rest is named, so the plinth under it is read as without it. A note gives the size to order (outside size and thickness), made up by a plastics fabricator, glued, with polished edges; it rests on the top and lifts off. The user's own exclusion choice does not bring it back in this version.

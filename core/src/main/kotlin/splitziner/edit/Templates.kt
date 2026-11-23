@@ -265,12 +265,22 @@ object Templates {
         Template("plinth", "Display plinth", "A gallery pedestal: four sides butted round a top set in flush, cleats under the top, and a low shelf on cleats to hold ballast so it cannot tip. Open at the bottom.", listOf(
             Field("w", "Width", 400.0, 16.0), Field("d", "Depth", 400.0, 16.0), Field("h", "Height", 1050.0, 42.0), Field("t", "Board thickness", 18.0, 0.75),
             Field("cleat", "Cleat size", 19.0, 0.75), Field("shelf", "Ballast shelf height", 100.0, 4.0),
+            Field("cover", "A clear acrylic cover on top (a vitrine)", 0.0, 0.0, count = true, toggle = true),
+            Field("coverh", "Cover height", 305.0, 12.0), Field("ct", "Cover thickness", 4.5, 0.1875),
         )) { v ->
             val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val c = v.getValue("cleat"); val sh = v.getValue("shelf")
-            listOf(box(0.0, 0.0, 0.0, w, t, h), box(0.0, d - t, 0.0, w, t, h), box(0.0, t, 0.0, t, d - 2 * t, h), box(w - t, t, 0.0, t, d - 2 * t, h),
+            val out = arrayListOf(box(0.0, 0.0, 0.0, w, t, h), box(0.0, d - t, 0.0, w, t, h), box(0.0, t, 0.0, t, d - 2 * t, h), box(w - t, t, 0.0, t, d - 2 * t, h),
                 box(t, t, h - t, w - 2 * t, d - 2 * t, t),
                 box(t, t, h - t - c, w - 2 * t, c, c), box(t, d - t - c, h - t - c, w - 2 * t, c, c),
                 box(t, t, sh, w - 2 * t, c, c), box(t, d - t - c, sh, w - 2 * t, c, c), box(t, t, sh + c, w - 2 * t, d - 2 * t, t))
+            // The cover: five sheets of acrylic, its outside flush with the plinth, the front and back running full width.
+            if ((v["cover"] ?: 0.0) >= 0.5) {
+                val ch = v.getValue("coverh"); val ct = v.getValue("ct")
+                out += box(0.0, 0.0, h, w, ct, ch - ct); out += box(0.0, d - ct, h, w, ct, ch - ct)
+                out += box(0.0, ct, h, ct, d - 2 * ct, ch - ct); out += box(w - ct, ct, h, ct, d - 2 * ct, ch - ct)
+                out += box(0.0, 0.0, h + ch - ct, w, d, ct)
+            }
+            out
         },
         Template("easel", "Easel", "A studio A-frame easel: two front legs leaning in and back, joined by a block at the top, a ledge for the canvas and a brace, and a back leg hinged to the block so it folds.", listOf(
             Field("h", "Height", 1830.0, 72.0), Field("spread", "Front legs apart at the floor", 660.0, 26.0), Field("lean", "Lean back of the front legs", 380.0, 15.0),

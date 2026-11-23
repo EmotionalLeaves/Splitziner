@@ -2527,3 +2527,17 @@ class PictureFrameTest {
         assertTrue(pl.parts.filter { it.name != "Back strip" }.all { (it.step ?: 0) < strip })
     }
 }
+
+class CoverTest {
+    @Test fun aPlinthsAcrylicCoverIsLeftOutOfTheWoodListsAndSaidOnce() {
+        val t = splitziner.edit.Templates.byKey("plinth")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true) + mapOf("cover" to 1.0)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "p.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction"))
+        assertEquals(5, a.parts.count { it.name == "Acrylic cover" && it.excluded }, a.parts.map { it.name to it.excluded }.toString())
+        assertTrue(a.cutList.rows.none { it.t < 6.5 }, a.cutList.rows.map { it.description }.toString())
+        assertTrue(a.report.warnings.any { it.contains("plastics fabricator") && it.contains("16 x 16 x 12 in") }, a.report.warnings.toString())
+        // The plinth itself is named as without the cover: no door, a top, not a shelf.
+        assertTrue(a.parts.none { it.name == "Door" })
+        assertEquals(1, a.parts.count { it.name == "Top" })
+    }
+}

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.85.0 - acrylic cover
+
+- **Plinths with a clear cover.** The plinth design can now have an acrylic cover (a vitrine) on top. Any model with a clear cover like that keeps the cover out of the wood lists, with a note giving the exact size to order from a plastics fabricator.
+
 ## v1.84.0 - flat file template
 
 - **New design: Flat file.** A low cabinet of wide, shallow drawers for storing drawings and prints flat, on a set-back plinth. Choose the size and the number of drawers.

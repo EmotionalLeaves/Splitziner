@@ -381,8 +381,20 @@ object Pipeline {
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
         val named = lighter.map { p -> p.copy(name = options.partNames[p.id] ?: p.name, excluded = p.id in options.excludedPartIds) }
         val edited = if (options.edits.isEmpty()) null else timed("edits") { splitziner.edit.Editor.apply(named, options.edits) }
+        // A clear cover on top (a plinth's vitrine) is made by a plastics shop: named, kept out of the wood lists and
+        // drawings (and out of naming the rest), and said once with the size to order.
+        val beforeCover = edited?.parts ?: named
+        val coverIds = runCatching { splitziner.check.Covers.find(beforeCover) }.getOrDefault(emptyList()).toSet()
+        if (coverIds.isNotEmpty()) {
+            val cs = beforeCover.filter { it.id in coverIds }
+            val bx = cs.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+            val th = cs.minOf { p -> p.mesh.bounds.extents.let { minOf(it.x, it.y, it.z) } }
+            val u = if (fmt.isInch) " in" else " mm"
+            report = report.copy(warnings = report.warnings + ("The clear cover on top is left out of the wood lists and drawings: have it made up by a plastics fabricator in ${fmt.format(th)}$u acrylic, " +
+                "${fmt.format(bx.extents.x)} x ${fmt.format(bx.extents.y)} x ${fmt.format(bx.extents.z)}$u outside, glued, with polished edges. It rests on the top and lifts off."))
+        }
         // Parts with no name of their own get one from what they look like they are.
-        val toCut = (edited?.parts ?: named).let { ps ->
+        val toCut = beforeCover.map { p -> if (p.id in coverIds) p.copy(name = if (p.id in options.partNames) p.name else "Acrylic cover", excluded = true) else p }.let { ps ->
             val roles = timed("roles") { runCatching { splitziner.parts.Roles.names(ps) }.getOrDefault(emptyMap()) }
             // A board split from a drawn part carries that part's id as its name ("P04" on "P04.2"): no name of its own either.
             fun unnamed(p: Part) = (p.name == p.id || p.name == p.id.substringBefore('.')) && p.id !in options.partNames && p.id.substringBefore('.') !in options.partNames
