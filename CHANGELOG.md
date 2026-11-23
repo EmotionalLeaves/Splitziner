@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.36.0 - Frames are not ladders
+
+- Fixed: a frame of boards (a desk's O-shaped leg, once split into its pieces) was mistaken for a ladder.
+
 ## v1.35.0 - L-shaped kitchens
 
 - L-shaped kitchens: both runs of cabinets are recognised and built as whole cabinets.

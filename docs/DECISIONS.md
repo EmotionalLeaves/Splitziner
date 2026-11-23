@@ -438,3 +438,6 @@ Departures from the build spec, newest first.
 ## v1.35
 - An L-shaped kitchen's second run, turned at right angles, is found as cabinets too (a second search for repeats among the parts the first run did not take), so both runs are built as cabinets on the bench and set out.
 - A run of repeated cabinets starts at its first repeating part, not at whatever else stands further along that way (the other run, a corner cabinet); before, the first run's cabinets were cut short.
+
+## v1.36
+- A ladder's sides run on past its end rungs (at least 50 mm, top and bottom). Bars flush with the ends of two uprights make a frame, not a ladder: the real desk sample's O-shaped legs, once split into their boards, were being called a ladder.

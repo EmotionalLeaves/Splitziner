@@ -98,6 +98,9 @@ object Roles {
                 if (rungs.size < 3) continue
                 val zs = rungs.map { it.mesh.bounds.center.z }.sorted()
                 if (zs.max() - zs.min() < 0.4 * minOf(ab.extents.z, cb.extents.z)) continue
+                // The sides run on past the end rungs, top and bottom: rails flush with the ends make a frame (a desk's
+                // O-shaped leg, split into its boards), not a ladder.
+                if (rungs.minOf { it.mesh.bounds.min.z } < minOf(ab.min.z, cb.min.z) + 50.0 || rungs.maxOf { it.mesh.bounds.max.z } > maxOf(ab.max.z, cb.max.z) - 50.0) continue
                 // Rungs a step apart, evenly: a chair's back rails (one under the seat, two up the back) are not.
                 val pitch = zs.zipWithNext { x, y -> y - x }
                 if (pitch.any { it !in RUNG_PITCH } || pitch.max() > 1.5 * pitch.min()) continue

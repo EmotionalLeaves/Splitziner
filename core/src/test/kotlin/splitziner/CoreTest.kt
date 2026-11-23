@@ -2092,3 +2092,15 @@ class PlatformBedTest {
         assertEquals(1, pl.parts.filter { it.name == "Slat" }.map { it.step }.distinct().size)
     }
 }
+
+class NotALadderTest {
+    @Test fun aFrameWithRailsFlushAtItsEndsIsNotALadder() {
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        // A desk's O-shaped leg drawn as boards: two uprights 25 x 75 x 735, rails at the bottom, middle and top between them.
+        val ms = listOf(b(0.0, 0.0, 0.0, 25.0, 75.0, 735.0), b(0.0, 600.0, 0.0, 25.0, 75.0, 735.0),
+            b(0.0, 75.0, 0.0, 25.0, 525.0, 75.0), b(0.0, 75.0, 330.0, 25.0, 525.0, 75.0), b(0.0, 75.0, 660.0, 25.0, 525.0, 75.0),
+            b(-300.0, -50.0, 735.0, 1500.0, 775.0, 25.0))
+        val names = splitziner.parts.Roles.names(ms.mapIndexed { i, m -> Part("P$i", "P$i", m) })
+        assertTrue(names.values.none { it == "Rung" || it == "Ladder side" }, names.toString())
+    }
+}
