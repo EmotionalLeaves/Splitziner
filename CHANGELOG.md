@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.41.0 - Guard rail height
+
+- Bunk and loft beds: the check tells you the thickest mattress the guard rails allow, since they must stand 5 in above the mattress.
+
 ## v1.40.0 - Spindle gaps
 
 - Cribs and railings: the check warns when the gaps between spindles are wider than is safe for a crib (2-3/8 in) or a stair railing (4 in).

@@ -47,6 +47,12 @@ object DesignCheck {
     /** A cut-back that would take away more than this share of a part is a redesign, not a trim, and is not offered. */
     private const val MAX_CUT_BACK = 0.25
 
+    /** How far a top bunk's guard rails must stand above the mattress (mm): 5 in, the US bunk bed rule. */
+    private const val GUARD_ABOVE_MATTRESS = 127.0
+
+    /** A mattress thinner than this (mm, 6 in) is unusual: guard rails that only allow it are too low in practice. */
+    private const val MIN_MATTRESS = 152.4
+
     /** Widest gap between a crib's slats (mm): 2-3/8 in, the US crib standard's limit. */
     private const val CRIB_GAP = 60.3
 
@@ -375,6 +381,18 @@ object DesignCheck {
             if (widest > CRIB_GAP) out += Finding(Severity.CHECK, "Spindles ${d(widest)} $u apart",
                 "The widest gap between the spindles is ${d(widest)} $u. If this is a crib, the gaps must be no more than ${d(CRIB_GAP)} $u (2-3/8 in, 6 cm, the US crib rule) so a baby's head cannot pass through." +
                     (if (widest > RAIL_GAP) " On a stair or balcony railing, the usual building-code limit is 4 in (10 cm)." else ""))
+        }
+        // A top bunk's guard rails must stand well above the mattress, so a sleeper cannot roll over them.
+        run {
+            val guards = live.filter { it.name == "Guard rail" }; if (guards.isEmpty()) return@run
+            val top = guards.maxOf { it.mesh.bounds.max.z }
+            val deck = live.filter { it.name == "Slat" && it.mesh.bounds.max.z < top }.maxOfOrNull { it.mesh.bounds.max.z } ?: return@run
+            val above = top - deck
+            val room = above - GUARD_ABOVE_MATTRESS
+            out += Finding(Severity.CHECK, "Mattress for the top bunk: ${if (room > 0) "no thicker than ${d(room)} $u" else "the guard rails are too low"}",
+                "The guard rails stand ${d(above)} $u above the slats. US bunk bed rules ask for the top of the guard rails to be at least 5 in (127 mm) above the top of the mattress, so a sleeper cannot roll over them" +
+                    (if (room > 0) ": use a mattress no thicker than ${d(room)} $u." else ". Raise the guard rails." ) +
+                    (if (room in 0.0..MIN_MATTRESS) " That is thinner than most mattresses: raise the guard rails." else ""))
         }
         // A lid that can fall shut traps fingers, and in a toy box can trap a child.
         if (live.any { it.name == "Lid" }) out += Finding(Severity.CHECK, "Hold the lid open",

@@ -1837,6 +1837,9 @@ class BunkBedTest {
         // Cleats are screwed from inside, through the cleat, so no heads show on the side rails.
         assertTrue(f.all.filter { setOf(it.through.name, it.into.name) == setOf("Cleat", "Side rail") }.all { it.through.name == "Cleat" })
         assertTrue(f.all.count { it.kind == "bedrail" && (it.through.name == "Guard rail" || it.into.name == "Guard rail") } >= 2)
+        // Guard rails 11-1/4 in above the slats allow a mattress of 6-1/4 in at most.
+        val check = splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, LengthFormat("in", "fraction"), null).findings
+        assertTrue(check.any { it.title == "Mattress for the top bunk: no thicker than 6-1/4 in" }, check.map { it.title }.toString())
     }
 }
 

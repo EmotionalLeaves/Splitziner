@@ -455,3 +455,6 @@ Departures from the build spec, newest first.
 
 ## v1.40
 - With spindles, the check gives the widest clear gap between them when it is over 2-3/8 in (60.3 mm): the US crib standard's limit for slat spacing (16 CFR 1219/1220), so a baby's head cannot pass. Over 4 in (101.6 mm) it adds the usual residential building-code limit for stair and balcony railings (the 4 in sphere rule). A CHECK, not a PROBLEM: the app cannot tell a crib from a bench back.
+
+## v1.41
+- A top bunk's guard rails are checked against the US bunk bed rule that their top stand at least 5 in (127 mm) above the top of the mattress: the check gives the thickest mattress the rails allow (their height above the slats less 5 in), and says to raise the rails when that is under 6 in (152 mm), thinner than most mattresses, or nothing at all.
