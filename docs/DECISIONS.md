@@ -739,3 +739,6 @@ Departures from the build spec, newest first.
 
 ## v2.14
 - Any tall closed pedestal (a top over four walls standing on the floor, over 24 in tall, so its underside is out of reach from the open bottom) has its top screwed down through its face into its cleats, countersunk and filled, rather than up through the cleats from inside. With a ballast shelf, as before, the ballast goes in first and the screws stay removable.
+
+## v2.15
+- A flat piece drawn standing, as it will hang (a picture frame, a stretcher, a cradled panel), is laid down when the app guesses which way is up: thinner one way than 15% of either other way, and no more than 6 in, it gets that thin side up, as it is made on the bench. A Y-up export of a picture frame is now read lying flat too. A standing shadow box (deeper than 15% of its size) is still read standing; drawn lying it is recognised.

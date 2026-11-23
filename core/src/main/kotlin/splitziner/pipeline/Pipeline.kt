@@ -90,6 +90,14 @@ object Pipeline {
     fun guessUp(parts: List<Part>): String {
         val live = parts.filter { !it.excluded }
         if (live.size < 3) return "z"
+        // A flat piece (a picture frame, a stretcher, a panel) drawn standing as it will hang is laid down, as it is
+        // made: thin one way, it has its thin side up whatever its parts would say standing.
+        run {
+            val e = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.extents
+            val thin = (0..2).minByOrNull { e[it] }!!
+            val others = (0..2).filter { it != thin }.minOf { e[it] }
+            if (thin != 2 && e[thin] <= FLAT_RATIO * others && e[thin] <= FLAT_MAX) return if (thin == 1) "y" else "x"
+        }
         fun turned(up: String): List<Part> { if (up == "z" || up == "z>0") return live; val r = upRotation(up)
             return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
                 val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
@@ -305,6 +313,12 @@ object Pipeline {
 
     /** Share of the upright face area that must agree on one direction before the model is turned to it. */
     private const val SQUARE_AGREE = 0.6
+
+    /** A model this much thinner one way than either other way (and no thicker than [FLAT_MAX]) is a flat piece. */
+    private const val FLAT_RATIO = 0.15
+
+    /** A flat piece is no thicker than this (mm, 6 in): a deep shadow box still, a shallow cabinet not. */
+    private const val FLAT_MAX = 152.4
 
     /** Points by which another up axis must beat the file's own Z before the app turns the model. */
     private const val MARGIN = 3

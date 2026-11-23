@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.15.0 - flat pieces laid down
+
+- **Frames drawn hanging on a wall.** A picture frame, stretcher or cradled panel modelled standing upright, as it will hang, is now laid down flat the way you build it, so its parts and steps come out right.
+
 ## v2.14.0 - pedestal top reach
 
 - Tall closed pedestals without a ballast shelf also get their top screwed down from above, since the inside of the top is out of reach from below.
