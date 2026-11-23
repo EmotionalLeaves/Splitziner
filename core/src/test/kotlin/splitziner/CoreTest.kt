@@ -1872,3 +1872,29 @@ class LoftBedTest {
         assertTrue(g.any { p -> p.title.contains("make the ladder from") }, g.map { it.title }.toString())
     }
 }
+
+class IslandTest {
+    @Test fun islandHasABackStretchersAndCorbelsAndStartsFromASide() {
+        val T = 19.05; val W = 1219.2; val D = 609.6; val H = 876.3; val kick = 101.6; val ct = 31.75
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        // A triangle in the y-z plane, 1-1/2 in thick along x: a corbel under the overhang, against the back.
+        fun corbel(x: Double): splitziner.mesh.Mesh {
+            val yz = listOf(D to H - ct, D + 254.0 to H - ct, D to H - ct - 254.0)
+            val v = ArrayList<Double>(); for (xx in listOf(x, x + 38.1)) for ((y, z) in yz) { v += xx; v += y; v += z }
+            val tri = intArrayOf(0, 2, 1, 3, 4, 5, 0, 1, 4, 0, 4, 3, 1, 2, 5, 1, 5, 4, 2, 0, 3, 2, 3, 5)
+            return splitziner.mesh.Mesh(v.toDoubleArray(), tri)
+        }
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, T, D, H - ct), b(W - T, 0.0, 0.0, T, D, H - ct), b(T, 0.0, kick, W - 2 * T, D - T, T), b(T, 76.2, 0.0, W - 2 * T, T, kick),
+            b(T, D - T, 0.0, W - 2 * T, T, H - ct), b(T, 0.0, H - ct - T, W - 2 * T, 101.6, T), b(T, D - T - 101.6, H - ct - T, W - 2 * T, 101.6, T),
+            b(609.6, 0.0, kick + T, T, D - T, H - ct - 2 * T - kick), b(609.6 + T, 50.8, kick + T + 330.0, W - 2 * T - 609.6, D - T - 50.8, T),
+            b(-25.4, -25.4, H - ct, W + 50.8, D + 330.2, ct), corbel(152.4), corbel(W - 190.5))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "island.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(1, names.count { it == "Back" }, names.toString())
+        assertEquals(2, names.count { it == "Stretcher" }, names.toString())
+        assertEquals(2, names.count { it == "Corbel" }, names.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val first = pl.steps.first { !it.subassembly }
+        assertTrue(first.partIds.all { id -> a.parts.first { it.id == id }.name == "Side" }, first.partIds.map { id -> a.parts.first { it.id == id }.name }.toString())
+    }
+}

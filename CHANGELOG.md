@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.17.0 - Islands and corbels
+
+- Kitchen islands: the brackets under a seating overhang are called corbels, the solid back is the back, and the top strips are stretchers.
+- A case's build now starts from a side, not from its back.
+- Step pictures no longer put "×2" beside two parts that only share a size.
+
 ## v1.16.0 - Ladders
 
 - Loft and bunk beds with a ladder: the ladder is recognised (sides and rungs), made flat on the bench in one step, and fitted last, from the side.

@@ -112,6 +112,16 @@ object Roles {
             val b = p.mesh.bounds; val e = b.extents
             val dims = listOf(e.x, e.y, e.z).sorted()
             val t = dims[0]
+            // A flat triangle standing upright under a board, in the corner between it and an upright face it is
+            // fixed to: a corbel (a bracket holding up an overhang).
+            run {
+                val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
+                val thinAx = (0..2).minByOrNull { e[it] }!!
+                if (thinAx != 2 && fill in 0.4..0.6 && e.z > 2 * t && live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && touches(p, o) }) {
+                    out[p.id] = "Corbel"; return@run
+                }
+            }
+            if (out[p.id] == "Corbel") continue
             // A strip fixed face-on along a bigger board, most of its length (a ledger under slats or a shelf): a cleat.
             if (dims[1] < NARROW) {
                 val thinAx = (0..2).minByOrNull { e[it] }!!; val longAx = (0..2).maxByOrNull { e[it] }!!
@@ -167,7 +177,8 @@ object Roles {
                 // Lying flat across the top of a case between its sides (a base cabinet's front and back strips
                 // under the worktop): stretchers.
                 val sides = live.filter { o -> o !== p && touches(p, o) && o.mesh.bounds.extents.let { oe -> oe.x <= minOf(oe.y, oe.z) && oe.z > 0.3 * h } }
-                val stretcher = e.z <= t + 0.01 && sides.size >= 2 && sides.all { o -> kotlin.math.abs(o.mesh.bounds.max.z - b.max.z) < 1.0 }
+                // A divider ending under it does not count against it: two sides level with it are enough.
+                val stretcher = e.z <= t + 0.01 && sides.count { o -> kotlin.math.abs(o.mesh.bounds.max.z - b.max.z) < 1.0 } >= 2
                 out[p.id] = if (kick) "Kick board" else if (e.z >= dims[2] - 0.01) "Upright" else if (stretcher) "Stretcher" else "Rail"
                 continue
             }
@@ -208,6 +219,11 @@ object Roles {
                     // At the back but narrow against the whole piece (an L desk's return end): a side, not a back.
                     b.max.y >= all.max.y - 1.0 && t > 10.0 && e.x < 0.5 * all.extents.x && e.z > 0.5 * h -> "Side"
                     b.max.y >= all.max.y - 1.0 -> if (t <= 10.0) "Back panel" else "Back"
+                    // Flush with the back edges of the sides it stands between, from near the floor most of the way up,
+                    // though a top or brackets reach further back (an island's seating overhang): the back.
+                    e.z > 0.5 * h && b.min.z <= all.min.z + 0.25 * h && live.filter { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.x <= minOf(oe.y, oe.z) && oe.z > 0.5 * h } &&
+                        (0..2).all { k -> o.mesh.bounds.min[k] <= b.max[k] + 1.0 && b.min[k] <= o.mesh.bounds.max[k] + 1.0 } }.let { ss -> ss.size >= 2 && ss.all { o -> o.mesh.bounds.max.y <= b.max.y + 1.0 } } ->
+                        if (t <= 10.0) "Back panel" else "Back"
                     b.max.z <= all.min.z + 0.2 * h && b.min.z <= all.min.z + 1.0 -> "Kick board"
                     b.min.y <= all.min.y + 1.0 -> "Front"
                     // Standing in the back half, hung from the underside of a top and clear of the floor:

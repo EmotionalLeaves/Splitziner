@@ -303,9 +303,10 @@ object ExplodedView {
             if (opt.arrows && seenArrow.add(key) && (p.item == null || seenArrow.add(way))) arrow(dl, geo, box, Vec2(-(o dot geo.view.x), -(o dot geo.view.up)), s, ox, oy)
             val units = opt.unitCounts[p.id]
             val same = if (units != null) geo.parts.indices.filter { geo.parts[it].id in opt.unitCounts && keyOf(geo.parts[it]) == key && partBoxes[it] != null }
-                else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts }
+                // One item doing two jobs (the same board as kick board and as stretcher) is two things in the picture.
+                else geo.parts.indices.filter { keyOf(geo.parts[it]) == key && geo.parts[it].item == p.item && geo.parts[it].name == p.name && partBoxes[it] != null && geo.parts[it].id !in opt.unitCounts }
             val n = units ?: same.size
-            if (opt.qtyTags && n > 1 && same.isNotEmpty() && seenQty.add(if (units != null) "unit/$key" else "$key/${p.item}")) {
+            if (opt.qtyTags && n > 1 && same.isNotEmpty() && seenQty.add(if (units != null) "unit/$key" else "$key/${p.item}/${p.name}")) {
                 val gx0 = same.minOf { partBoxes[it]!!.x0 }; val gx1 = same.maxOf { partBoxes[it]!!.x1 }
                 val gy0 = same.minOf { partBoxes[it]!!.y0 }; val gy1 = same.maxOf { partBoxes[it]!!.y1 }
                 val txt = "×$n"; val h = 4.5; val tw = StrokeFont.width(txt, h)

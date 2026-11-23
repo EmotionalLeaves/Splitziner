@@ -679,7 +679,10 @@ object AssemblyPlan {
         // Equal candidates (a pedestal desk's three uprights) go by how much they touch: the build starts where
         // the most is joined, not from an end panel that waits alone until the top goes on.
         fun contacts(i: Int) = (0 until n).count { j -> j != i && (0..2).all { lo[i][it] <= hi[j][it] + tol && lo[j][it] <= hi[i][it] + tol } }
-        val base = flatBase ?: onFloor.maxWithOrNull(compareBy<Int> { Math.round(foot(it) * (hi[it].z - lo[it].z) / 1e4) }.thenBy { contacts(it) }) ?: 0
+        // A case is started from a side, as a cabinetmaker does, not from its back however big: the back goes on a case
+        // already standing (and a solid back is screwed through into the sides' edges).
+        val starters = onFloor.filter { parts[it].name != "Back" && parts[it].name != "Back panel" && parts[it].name != "Kick board" }.ifEmpty { onFloor }
+        val base = flatBase ?: starters.maxWithOrNull(compareBy<Int> { Math.round(foot(it) * (hi[it].z - lo[it].z) / 1e4) }.thenBy { contacts(it) }) ?: 0
 
         // Shadow of every part along each axis, shrunk a little so parts that only touch do not count as overlapping.
         // Worked out only for parts some test needs; with hundreds of parts most pairs never get that far.

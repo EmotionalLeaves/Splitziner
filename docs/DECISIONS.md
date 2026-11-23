@@ -346,3 +346,10 @@ Departures from the build spec, newest first.
 - A strip lying along the face of a leg with a board resting on it (a desk top under a loft bed) is a cleat.
 - A rail standing on edge above a bed's side rail, in the same plane and carrying no slats, is a guard rail even when it stops short of a leg (at a ladder opening). One hooked on at one end only reads "one pair where it meets it".
 - Two parts of equal thickness screwed face to face: through the one on the inner side, towards the middle of the piece (replaces the "far face on the outside" test of v1.15, which a ladder outside the rail defeated).
+
+## v1.17
+- A flat triangle (fills 40-60% of its box) standing upright with a board resting on it is a corbel: the bracket under an island's seating overhang.
+- An upright panel from near the floor most of the way up, flush with the back edges of the sides it stands between, is the back, even when a top or corbels reach further back than it.
+- A flat strip across the top of a case is a stretcher when two sides end level with it; a divider ending under it no longer stops that.
+- The main build of a case starts from a side, never from its back or kick board, however big: the back goes on a case already standing.
+- "×N" tags in step pictures count parts of one item and one name: the same board used as kick board and stretcher is two things in the picture, not "×2".
