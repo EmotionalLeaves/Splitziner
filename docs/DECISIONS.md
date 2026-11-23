@@ -812,3 +812,8 @@ Departures from the build spec, newest first.
 - A tall stave column is a closed pedestal: its top is screwed down through its face into the staves' top edges and filled, not bracketed from inside out of reach.
 - A flat part whose outline is a regular polygon of 5 to 12 sides is "A REGULAR HEXAGON (OCTAGON, …), SIDES s": a detail drawing and a making step (a circle through the corners, a hexagon's side equal to its radius), no full-size pages.
 - Build mode shows which piece a step belongs to in a set of separate pieces.
+
+## v2.34
+- New studio design: a six- or eight-sided plinth (any number of sides from 5 to 12), by the number of sides, the size across its corners, its height and board thickness. Sides bevelled at 180°/n and glued up round in one go, a top of the same shape screwed down into their edges. Usual material: birch plywood.
+- In a stave column the top's step says it comes in from above (it was the base of the rest of the plan before the staves were taken out).
+- A stave's making steps no longer add an empty "cut both ends at … off square" line.

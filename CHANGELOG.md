@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.34.0 - polygon plinth design
+
+- New studio design: a six or eight-sided plinth (5 to 12 sides). Pick the number of sides, the size across the corners and the height; the guide covers ripping the bevels, gluing the sides up round in one go and fixing the top.
+
 ## v2.33.0 - many-sided plinths
 
 - Six- and eight-sided plinths: the sides are listed with their bevel angle and narrow face, glued up in one go (taped flat and rolled into the column), and the top is named as a regular hexagon or octagon, with how to mark it out with a compass.

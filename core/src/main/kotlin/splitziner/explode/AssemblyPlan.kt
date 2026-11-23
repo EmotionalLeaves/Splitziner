@@ -360,9 +360,15 @@ object AssemblyPlan {
         if (staves.isNotEmpty() && late.isEmpty() && staves.size < live0.size) {
             val r0 = pairSingles(foldLone(planInner(all - staves.toSet(), maxSteps, null)))
             val first = BuildStep(1, staves.map { it.id }, listOf(Vec3(0.0, 0.0, 1.0)), staves.mapNotNull { it.item }.distinct().sorted())
-            val shifted = r0.steps.map { it.copy(step = it.step + 1, continues = it.continues?.let { c -> c + 1 }) }
+            // What was the base of the rest (the top, put down first) now goes on the column: it comes in from above.
+            val base0 = r0.steps.firstOrNull { !it.subassembly }
+            val baseIds = base0?.let { b -> (b.placed.ifEmpty { if (b.directions.isEmpty()) b.partIds else emptyList() }).toSet() } ?: emptySet()
+            val shifted = r0.steps.map { st -> st.copy(step = st.step + 1, continues = st.continues?.let { c -> c + 1 },
+                directions = if (st === base0 && baseIds.isNotEmpty()) (st.directions + Vec3(0.0, 0.0, 1.0)).distinct() else st.directions, placed = if (st === base0) emptyList() else st.placed) }
             val ids = staves.map { it.id }.toSet()
-            val parts = r0.parts.filter { it.id !in ids }.map { it.copy(step = it.step?.let { s -> s + 1 }) } + staves.map { it.copy(step = 1, explode = null) }
+            val pull = maxOf(50.0, staves.maxOf { it.mesh.bounds.extents.z } * 0.3)
+            val parts = r0.parts.filter { it.id !in ids }.map { p -> p.copy(step = p.step?.let { s -> s + 1 }, explode = if (p.id in baseIds) Vec3(0.0, 0.0, pull) else p.explode) } +
+                staves.map { it.copy(step = 1, explode = null) }
             val planned = parts.associateBy { it.id }
             return PlanResult(all.map { planned[it.id] ?: it }, listOf(first) + shifted)
         }

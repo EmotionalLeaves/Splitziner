@@ -103,14 +103,14 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "polyplinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
 
     /**
      * The material a design is usually made from, offered first in the new-design dialog (each part can be changed):
      * plywood for cases and plinths that are painted, poplar for frames and easels, pine for stretcher bars.
      */
     fun suggestedMaterial(key: String): String? = when (key) {
-        "plinth", "wallplinth", "flatfile", "taboret", "browser", "rack" -> "Birch plywood"
+        "plinth", "polyplinth", "wallplinth", "flatfile", "taboret", "browser", "rack" -> "Birch plywood"
         "crate" -> "Plywood"
         "frame", "shadowbox", "easel", "ledge" -> "Poplar"
         "stretcher" -> "Pine"
@@ -332,6 +332,20 @@ object Templates {
                 out += box(0.0, 0.0, h + ch - ct, w, d, ct)
             }
             out
+        },
+        Template("polyplinth", "Six or eight-sided plinth", "A many-sided gallery pedestal: its sides ripped with both long edges bevelled, glued up round in one go (taped flat and rolled into the column), and a top cut to the same shape screwed down on them. Open at the bottom.", listOf(
+            Field("n", "Number of sides", 6.0, 6.0, count = true), Field("across", "Across the corners", 610.0, 24.0), Field("h", "Height", 915.0, 36.0), Field("t", "Board thickness", 18.0, 0.75),
+        )) { v ->
+            val n = Math.round(v.getValue("n")).toInt(); val r = v.getValue("across") / 2; val h = v.getValue("h"); val t = v.getValue("t")
+            if (n !in 5..12 || r < 4 * t || h < 4 * t) throw SizesDoNotFit()
+            // Corners on a circle round (r, r); each side's inside corners pulled in by its thickness, square to its face.
+            val ri = r - t / kotlin.math.cos(Math.PI / n)
+            fun at(rad: Double, k: Int) = (r + rad * kotlin.math.cos(2 * Math.PI * k / n)) to (r + rad * kotlin.math.sin(2 * Math.PI * k / n))
+            val sides = (0 until n).map { k -> quadZ(listOf(at(r, k), at(r, k + 1), at(ri, k + 1), at(ri, k)), 0.0, h - t) }
+            val gf = org.locationtech.jts.geom.GeometryFactory()
+            val ring = (0..n).map { k -> at(r, k % n).let { (x, y) -> org.locationtech.jts.geom.Coordinate(x, y) } }.toTypedArray()
+            val top = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("top", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)), gf.createPolygon(ring), h - t, h))
+            sides + top
         },
         Template("easel", "Easel", "A studio A-frame easel: two front legs leaning in and back, joined by a block at the top, a ledge for the canvas and a brace, and a back leg hinged to the block so it folds.", listOf(
             Field("h", "Height", 1830.0, 72.0), Field("spread", "Front legs apart at the floor", 660.0, 26.0), Field("lean", "Lean back of the front legs", 380.0, 15.0),
