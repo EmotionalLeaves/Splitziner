@@ -32,6 +32,12 @@ object Templates {
         // Gallery plinths: the usual footprints and heights (a sculpture plinth about hip to chest high).
         if (t.key == "plinth") return if (inch) listOf(Triple(12, 12, 42), Triple(16, 16, 42), Triple(18, 18, 36), Triple(24, 24, 30)).map { (w, d, h) -> Preset("$w x $d x $h in", mapOf("w" to w * 25.4, "d" to d * 25.4, "h" to h * 25.4)) }
             else listOf(Triple(30, 30, 105), Triple(40, 40, 105), Triple(45, 45, 90), Triple(60, 60, 75)).map { (w, d, h) -> Preset("$w x $d x $h cm", mapOf("w" to w * 10.0, "d" to d * 10.0, "h" to h * 10.0)) }
+        // A crate by the work it is for: the inside is the work's size plus 2 in (50 mm) of foam all round.
+        if (t.key == "crate") return if (inch) INCH_SIZES.map { (a, b) -> Preset("for $a x $b in", mapOf("w" to (b + 4) * 25.4, "h" to (a + 4) * 25.4)) }
+            else CM_SIZES.map { (a, b) -> Preset("for $a x $b cm", mapOf("w" to b * 10.0 + 100.0, "h" to a * 10.0 + 100.0)) }
+        // A picture ledge by its length, as they are sold.
+        if (t.key == "ledge") return if (inch) listOf(24, 36, 48, 60, 72).map { n -> Preset("$n in long", mapOf("w" to n * 25.4)) }
+            else listOf(60, 90, 120, 150, 180).map { n -> Preset("$n cm long", mapOf("w" to n * 10.0)) }
         val keys = when (t.key) { "stretcher", "cradle" -> "w" to "h"; "frame" -> "aw" to "ah"; "shadowbox" -> "iw" to "ih"; else -> return emptyList() }
         return if (inch) INCH_SIZES.map { (a, b) -> Preset("$a x $b in", mapOf(keys.first to a * 25.4, keys.second to b * 25.4)) }
         else CM_SIZES.map { (a, b) -> Preset("$a x $b cm", mapOf(keys.first to a * 10.0, keys.second to b * 10.0)) }

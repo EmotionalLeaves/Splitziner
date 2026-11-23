@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.23.0 - ledge and crate sizes
+
+- More one-tap sizes: picture ledges by length, and art crates by the size of the work going in (the foam allowance is added for you).
+
 ## v2.22.0 - rounded corners
 
 - Tops and shelves with rounded corners are now described with their radius ("4 corners rounded to 2 in radius"), with a simple way to mark and cut them.

@@ -764,3 +764,6 @@ Departures from the build spec, newest first.
 
 ## v2.22
 - A flat part that is its rectangle with one or more corners rounded to one radius (up to 40% of its narrower side, so a round top is still a circle) is "N CORNERS ROUNDED TO r RADIUS", r taken from where the straight edges stop: a detail drawing, and a making step (draw the curve with a compass or a tin that size, jigsaw outside the line, sand to it). No full-size pages.
+
+## v2.23
+- More one-tap sizes: the picture ledge by length (24 to 72 in, 60 to 180 cm), and the art crate by the work it is for (the standard canvas sizes, its inside the work's size plus 2 in or 50 mm of foam all round, the long side across).
