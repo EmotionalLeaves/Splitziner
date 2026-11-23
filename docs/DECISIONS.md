@@ -656,3 +656,6 @@ Departures from the build spec, newest first.
 
 ## v1.89
 - Things to order elsewhere are also listed on the build guide's cover, under the hardware, as "To order: …".
+
+## v1.90
+- A "Wall plinth" template: a shelf-box that hangs on the wall to show a small work, open at the back, hung on a French cleat (the piece's half under the top at the back, the wall's half behind it, both 3 in by default). Default 16 x 12 x 10 in. The top is fixed with corner brackets from underneath, so no screws show on the display surface.

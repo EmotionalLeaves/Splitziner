@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.90.0 - wall plinth
+
+- **New design: Wall plinth.** A box that hangs on the wall to show a small work, hung on a French cleat. The guide covers putting the wall cleat up level and into the studs.
+
 ## v1.89.0 - orders on guide cover
 
 - The build guide's cover page now lists anything to order from elsewhere (an acrylic cover) under the hardware.

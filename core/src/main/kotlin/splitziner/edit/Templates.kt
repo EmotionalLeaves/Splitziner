@@ -47,6 +47,14 @@ object Templates {
         return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
     }
 
+    /** A four-cornered outline seen from the side (y, z pairs, in order round it) running from [x0] to [x1]: a bevelled strip. */
+    private fun quadX(q: List<Pair<Double, Double>>, x0: Double, x1: Double): Mesh {
+        if (x1 - x0 < 1.0) throw SizesDoNotFit()
+        val pts = q.map { Vec3(x0, it.first, it.second) } + q.map { Vec3(x1, it.first, it.second) }
+        val v = DoubleArray(24) { pts[it / 3].let { p -> if (it % 3 == 0) p.x else if (it % 3 == 1) p.y else p.z } }
+        return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
+    }
+
     /** An upright round part (a caster, drawn as its overall size) on the floor at ([cx], [cy]). */
     private fun cylZ(cx: Double, cy: Double, z0: Double, r: Double, h: Double, n: Int = 24): Mesh {
         if (r < 1.0 || h < 1.0) throw SizesDoNotFit()
@@ -67,7 +75,7 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "easel", "stretcher", "cradle", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
@@ -422,6 +430,20 @@ object Templates {
                 val at = sw + k * (long - 2 * sw) / (n + 1) - sw / 2
                 out += if (h >= w) box(sw, at, pt, w - 2 * sw, sw, dp) else box(at, sw, pt, sw, h - 2 * sw, dp)
             }
+            out
+        },
+        Template("wallplinth", "Wall plinth", "A shelf-box that hangs on the wall to show a small work: a top, front, sides and bottom, open at the back, hung on a French cleat (a bevelled strip inside it hooking over one screwed to the wall).", listOf(
+            Field("w", "Width", 406.0, 16.0), Field("d", "Depth from the wall", 305.0, 12.0), Field("h", "Height", 254.0, 10.0),
+            Field("t", "Board thickness", 18.0, 0.75), Field("ch", "Cleat height", 76.0, 3.0),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val ch = v.getValue("ch")
+            if (h < ch + 2 * t + 10.0 || d < 3 * t) throw SizesDoNotFit()
+            val out = arrayListOf(box(0.0, 0.0, h - t, w, d, t), box(0.0, 0.0, 0.0, w, t, h - t),
+                box(0.0, t, 0.0, t, d - t, h - t), box(w - t, t, 0.0, t, d - t, h - t), box(t, t, 0.0, w - 2 * t, d - t, t))
+            // The piece's half of the cleat, under the top at the back, its top bevelled down toward the wall; the
+            // wall's half behind it, bevelled the other way, as the cleat cabinet has them.
+            out += quadX(listOf(d - t to h - t - ch, d to h - t - ch, d to h - t - t, d - t to h - t), t, w - t)
+            out += quadX(listOf(d to h - 2 * t - ch, d + t to h - 2 * t - ch + t, d + t to h - 2 * t, d to h - 2 * t), t, w - t)
             out
         },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
