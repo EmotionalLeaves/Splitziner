@@ -69,6 +69,9 @@ object DesignCheck {
     /** Overlaps shallower than this are modelling noise, not a clash (mm). */
     private const val CLASH_MIN = 1.5
 
+    /** Bed slats spanning more than this (mm) between supports want a centre rail: 40 in, past a twin's width. */
+    private const val BED_CENTRE = 1016.0
+
     /** A shelf-like part longer than this many times its thickness may sag: a rule of thumb, not a calculation. */
     private const val SAG_RATIO = 40.0
 
@@ -452,6 +455,15 @@ object DesignCheck {
             if (held.isNotEmpty()) span = 2 * (held[0].first - a0)
             for ((from, to) in held) { span = maxOf(span, from - reach); reach = maxOf(reach, to) }
             span = maxOf(span, 2 * (a1 - reach))
+            // A bed's slats over a span this wide want a centre rail on legs, not thicker slats: the usual practice
+            // for a full or larger bed, and what mattress makers' warranties ask for.
+            if (p.name == "Slat" && span > BED_CENTRE && live.any { it.name == "Side rail" || it.name == "Cleat" }) {
+                sagging += p.item
+                out += Finding(Severity.CHECK, "The slats need a centre support", "The slats run about ${d(span)} $u from side to side with nothing under the middle. A bed this wide (full size or larger) " +
+                    "needs a centre rail running head to foot under the slats, with at least one leg down to the floor; most mattress warranties ask for one. It halves the slats' span.",
+                    live.filter { it.item == p.item }.map { it.id })
+                continue
+            }
             if (span > SAG_RATIO * p.t) {
                 sagging += p.item
                 // The thinnest stock board that brings the span within the rule, offered as a one-tap change.

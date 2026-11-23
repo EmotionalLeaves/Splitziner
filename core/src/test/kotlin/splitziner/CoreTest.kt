@@ -2310,6 +2310,8 @@ class FramePanelTest {
         assertTrue(steps.any { it.title.contains("make the headboard") } && steps.any { it.title.contains("make the footboard") }, steps.map { it.title }.toString())
         assertTrue(f.all.any { it.kind == "bedrail" })
         assertTrue(f.all.none { it.kind == "pocketin" })
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null, housed = a.housed)
+        assertTrue(report.findings.any { it.title == "The slats need a centre support" }, report.findings.map { it.title }.toString())
     }
 
     @Test fun panelledChestIsScrewedFromInsideAndHasALid() {

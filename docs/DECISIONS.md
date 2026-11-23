@@ -496,3 +496,7 @@ Departures from the build spec, newest first.
 - Square posts round a panel (a bed's headboard) are stiles for finding the frame, but stay posts or legs: named so, joined as posts (bed rail fasteners for the side rails), never pocket-screwed from inside like a board stile. A strip over 32 mm (1-1/4 in) thick counts as a post.
 - In a bed, a panelled frame on posts is made on the bench as the headboard (the taller) or the footboard; the main build sets out the headboard and footboard.
 - When one of two like parts is flush with an edge and the other set in from the opposite one (a base cabinet's front and back stretchers), the guide says which is which.
+
+## v1.49
+- Bed slats spanning more than 40 in (1016 mm) side to side with nothing under the middle get a specific check: a centre rail running head to foot under them, with at least one leg to the floor, as full-size and larger beds need and most mattress warranties ask. No thicker-slat fix is offered for this.
+- When guessing which way a piece faces finds nothing to go by (no doors, drawers, back or kick board), a piece standing up (not lying flat) that is drawn more than 1.2 times as deep as it is wide is turned a quarter so its long side faces the front, as a chest, table or bench is usually drawn. Not for beds (slats, side rails, headboard, guard rails), which run head to foot away from the viewer.

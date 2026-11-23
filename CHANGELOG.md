@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.49.0 - bed centre support, long side front
+
+- **Wide beds:** when a bed's slats span more than 40 in with nothing under the middle, the check now asks for a centre rail with a leg to the floor, as full-size and larger beds need. Before, it only suggested thicker slats.
+- **Which way it faces:** a table, bench or chest drawn end-on, with no doors or drawers to show its front, is now turned so its long side faces you.
+
 ## v1.48.0 - panelled bed ends
 
 - **Panelled headboards and footboards.** In a bed whose ends have a panel between the posts, the guide now says "make the headboard" and "make the footboard". The posts stay legs and the side rails hang on bed rail fasteners. Before, the posts were treated as thin door stiles.

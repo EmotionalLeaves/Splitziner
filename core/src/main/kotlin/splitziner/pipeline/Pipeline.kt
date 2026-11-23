@@ -148,10 +148,23 @@ object Pipeline {
             }, p.mesh.triangles)) } }
         val scores = (0..3).associateWith { frontScore(turned(it)) }
         val best = scores.maxByOrNull { it.value }!!
-        // Two ways equally good (the piece looks the same from front and back): leave it as it is.
-        if (scores.values.count { it == best.value } > 1) return 0
+        // Two ways equally good (the piece looks the same from front and back): leave it as it is. With nothing to go
+        // by either way, a chest, table or bench faces the way its long side does: a quarter turn when drawn end-on.
+        // Not a bed, which runs head to foot away from the viewer.
+        if (scores.values.count { it == best.value } > 1) {
+            val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+            // A flat piece (a frame lying on its back) has no front to speak of.
+            if (scores.getValue(0) != scores.getValue(1) || all.extents.y <= LONG_SIDE * all.extents.x || all.extents.z < 0.25 * maxOf(all.extents.x, all.extents.y)) return 0
+            val names = runCatching { splitziner.parts.Roles.names(live) }.getOrDefault(emptyMap()).values
+            return if (names.none { it in BED_ROLES }) 1 else 0
+        }
         return if (best.key != 0 && best.value >= scores.getValue(0) + MARGIN) best.key else 0
     }
+
+    private val BED_ROLES = setOf("Slat", "Side rail", "Headboard", "Footboard", "Guard rail", "Ladder side")
+
+    /** A piece this much longer front to back than side to side, with nothing else to go by, is drawn end-on. */
+    private const val LONG_SIDE = 1.2
 
     /** How much the piece looks as if it faces -Y: drawer fronts and doors at the front, a kick board and face frame there, a back behind. */
     private fun frontScore(ps: List<Part>): Int {
