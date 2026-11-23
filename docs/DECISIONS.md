@@ -666,3 +666,6 @@ Departures from the build spec, newest first.
 ## v1.92
 - A cradled panel drawn face up (the cradle under the face) is recognised as well as one drawn face down.
 - The main build's lone first step folds into the next also when what it puts down is one made sub-assembly ("start with the cradle from step 1 and the panel face").
+
+## v1.93
+- A part no other rule names and with no side over 3 in (76 mm) is a "Block" (a spacer, a glue block), so the guide and lists call it something instead of a bare item number.

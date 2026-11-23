@@ -6,6 +6,9 @@ package splitziner.parts
  * and a name from the file or from the maker always wins.
  */
 object Roles {
+    /** A part with no role and no side longer than this (mm, 3 in) is a block. */
+    private const val BLOCK_MAX = 76.2
+
     /** A cradled panel's face is no thicker than this (mm, 1/2 in): a painting surface, not a table top. */
     private const val CRADLE_FACE = 13.0
 
@@ -593,6 +596,8 @@ object Roles {
             val alike = round.groupBy { Math.round(it.mesh.bounds.extents.x) to Math.round(it.mesh.bounds.extents.z) }.values.filter { it.size >= 3 }
             for (g in alike) for (p in g) out[p.id] = "Caster"
         }
+        // A small piece with no other name (a spacer, a glue block): a block, so the guide can call it something.
+        for (p in live) if (out[p.id] == null && p.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) <= BLOCK_MAX }) out[p.id] = "Block"
         // A flat frame lying on the bench (a canvas stretcher, a picture frame), every member the same thickness in one
         // layer: a straight member inside it, touching none of its outer edges, is a brace.
         run {

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.93.0 - block role
+
+- Small unnamed pieces (spacers, glue blocks) are now called "block" in the guide and lists instead of just an item number.
+
 ## v1.92.0 - face-up cradle
 
 - Cradled panels drawn face up are now recognised too, and the build starts with the cradle and the face together.
