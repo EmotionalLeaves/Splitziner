@@ -262,7 +262,11 @@ object CutPlanner {
         val downsized = HashMap<Int, String>()
         // Right triangles are sawn two from one blank: the plan holds half as many blanks (rounded up).
         val paired = HashMap<Int, Int>()
-        val rows = rows0.map { r -> if (r.description.contains("A RIGHT TRIANGLE") && r.qty > 1) r.copy(qty = (r.qty + 1) / 2).also { paired[r.item] = it.qty } else r }.map { r ->
+        // Sloped sides nest head to tail, two in a blank as wide as their two end widths together.
+        val rows = rows0.flatMap { r ->
+            if (r.description.contains("A RIGHT TRIANGLE") && r.qty > 1) listOf(r.copy(qty = (r.qty + 1) / 2).also { paired[r.item] = it.qty })
+            else if (r.pairW != null && r.qty > 1 && r.pairW < 2 * r.w - 1.0) listOf(r.copy(qty = r.qty / 2, w = r.pairW).also { paired[r.item] = it.qty }) + (if (r.qty % 2 == 1) listOf(r.copy(qty = 1)) else emptyList())
+            else listOf(r) }.map { r ->
             // A thick stick of no standard size (a 2-1/2 in square leg) comes from the next lumber up, planed or ripped down.
             if (stock.lumber && r.kind == PartKind.BOARD && r.t > SHEET_MAX_IN + 0.5 && Lumber.fit(r.t, r.w) == null) {
                 Lumber.SIZES.filter { it.t >= r.t - 0.8 && it.w >= r.w - 0.8 }.minByOrNull { it.t * it.w }?.let { sz ->
@@ -400,7 +404,7 @@ object CutPlanner {
 
     /** What each glued-up panel is made of, for the plan, the shopping list and the guide. */
     fun layerNotes(r: CutPlanResult, fmt: LengthFormat): List<String> = r.paired.entries.sortedBy { it.key }.map { (item, n) ->
-        "Item $item: each of its $n piece${if (n == 1) "" else "s"} on the plan is a blank for two triangles, sawn corner to corner."
+        "Item $item: ${if (n == 1) "its piece" else "each of its $n pieces"} on the plan is a blank for two, sawn along the slope or corner to corner."
     } + r.downsized.entries.sortedBy { it.key }.map { (item, name) ->
         "Item $item is no standard lumber size: cut it from $name and plane or rip it down to the cut list's size."
     } + r.edgeGlued.entries.sortedBy { it.key }.map { (item, n) ->

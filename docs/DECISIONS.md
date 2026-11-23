@@ -755,3 +755,6 @@ Departures from the build spec, newest first.
 
 ## v2.19
 - The cutting plan holds half as many blanks (rounded up) for right triangles, and notes that each blank makes two, sawn corner to corner.
+
+## v2.20
+- Sloped sides cut in pairs: two nest head to tail in a blank as wide as their two end widths together, so the plan holds one such blank for each two (and a plain blank for an odd one), only when that is narrower than two separate blanks. The making steps cut the pair's blank and saw it along the slope.

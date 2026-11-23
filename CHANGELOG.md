@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.20.0 - nested sloped sides
+
+- Sloped sides (like the print browser's) are now cut two from one blank, nested head to tail, which saves wood and a cut.
+
 ## v2.19.0 - paired triangles
 
 - The cutting plan now cuts two triangles from each blank, so corner shelves and brackets use half the material.

@@ -39,7 +39,9 @@ object HowTo {
             else -> {
                 val big = Work.SHEET_CUT in w.work
                 val tool = pick(if (big) Work.SHEET_CUT else Work.STRAIGHT_CUT)
-                out += "Cut a blank ${d(row.w)} x ${d(row.l)} $u from ${d(row.t)} $u stock with a $tool" +
+                // Sloped sides cut in nested pairs: the blank is the pair's.
+                val pairBlank = row.pairW != null && row.qty > 1 && row.description.contains("SLOPED")
+                out += "Cut ${if (pairBlank) "${if (row.qty / 2 == 1) "a blank" else "${row.qty / 2} blanks"} ${d(row.pairW!!)}" else "a blank ${d(row.w)}"} x ${d(row.l)} $u from ${d(row.t)} $u stock with a $tool" +
                     (if (big && tool.contains("circular")) ", clamping a straight board as a fence" else "") + (if (row.grain) ", with the grain along the ${d(row.l)} $u length" else "") + "."
             }
         }
@@ -75,7 +77,9 @@ object HowTo {
         if (taper != null) out += "Cut any joinery while it is still square. Then mark the taper on ${taper.groupValues[1].lowercase()}: full size for ${taper.groupValues[3]} $u from the ${taper.groupValues[4].lowercase()}, " +
             "down to ${taper.groupValues[2].lowercase()} $u at the other end. Saw it with a taper jig on the table saw (or on the band saw just outside the line), one face at a time, then plane to the line."
         val slope = Regex("""ONE EDGE SLOPED FROM ([^ ]+) TO ([^ ,]+)""").find(row.description)
-        if (slope != null) out += "Mark the slope, measuring both from the same long edge: ${slope.groupValues[1]} $u at one end (the full width) and ${slope.groupValues[2]} $u at the other. Join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line)."
+        val pw = row.pairW
+        if (slope != null && pw != null && row.qty > 1) out += "Two nest head to tail in each blank: mark ${slope.groupValues[1]} $u along one end and ${slope.groupValues[2]} $u along the other, both from the same long edge, join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line). Each half is one${if (row.qty % 2 == 1) "; cut the odd one from a blank ${d(row.w)} x ${d(row.l)} $u the same way" else ""}."
+        else if (slope != null) out += "Mark the slope, measuring both from the same long edge: ${slope.groupValues[1]} $u at one end (the full width) and ${slope.groupValues[2]} $u at the other. Join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line)."
         if (row.description.contains("A RIGHT TRIANGLE")) out += "Draw a line corner to corner across the blank and saw along it: each blank makes two triangles${if (row.qty > 1) ", so cut ${(row.qty + 1) / 2} blank${if ((row.qty + 1) / 2 == 1) "" else "s"} for ${row.qty}" else ""}."
         val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
         if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +
@@ -97,7 +101,7 @@ object HowTo {
                 else "Cut a ${m.groupValues[1].lowercase()} for item ${m.groupValues[2]}$places: ${m.groupValues[3].lowercase()} $u deep, ${m.groupValues[4].lowercase()} $u wide, ${m.groupValues[5].lowercase()} $u long, $where, with a ${grooveTool()}."
         }
         out += extra
-        if (row.qty > 1) out += "Make ${row.qty} the same; cutting them together, or setting a stop, keeps them identical."
+        if (row.qty > 1 && !(row.pairW != null && row.description.contains("SLOPED"))) out += "Make ${row.qty} the same; cutting them together, or setting a stop, keeps them identical."
         out += "Label it ${row.item} on a face that will not show."
         return out
     }

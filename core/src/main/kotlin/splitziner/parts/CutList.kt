@@ -9,7 +9,9 @@ import kotlin.math.PI
 import kotlin.math.abs
 
 /** Stock-style description of one part. Sizes in millimetres. */
-class PartDescription(val kind: PartKind, val t: Double, val w: Double, val l: Double, val fill: Double, val desc: String)
+class PartDescription(val kind: PartKind, val t: Double, val w: Double, val l: Double, val fill: Double, val desc: String,
+    /** Two of these nest head to tail in a blank this wide (a sloped side's two widths added): null when they do not. */
+    val pairW: Double? = null)
 
 data class CutListRow(
     val item: Int,
@@ -27,6 +29,8 @@ data class CutListRow(
     val grain: Boolean = false,
     /** What the parts are called ("Side", "Bottom / Top"), when they have names of their own; else empty. */
     val name: String = "",
+    /** Two nest head to tail in a blank this wide by [l]; null when they do not. */
+    val pairW: Double? = null,
 )
 
 /** Total length to buy of one stock cross-section, before saw kerf and waste. */
@@ -330,7 +334,7 @@ object PartDescriber {
         }
         slopedEdge(m)?.let { (lo, hi) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
-            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE SLOPED FROM ${d(hi)} TO ${d(lo)}")
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE SLOPED FROM ${d(hi)} TO ${d(lo)}", pairW = lo + hi)
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
@@ -396,7 +400,7 @@ object CutList {
                 // Casters are bought, not made: said so, with the height the model gives them.
                 item = item, qty = g.members.size, partNo = o.partNo, description = if (g.members.all { it.name == "Caster" }) "${d(g.d.l)} ${if (fmt.isInch) "IN" else "MM"} TALL OVERALL (BUY)" else g.d.desc,
                 material = o.material, materialSpec = o.materialSpec,
-                stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind,
+                stock = "${d(g.d.t)} x ${d(g.d.w)} x ${d(g.d.l)}", kind = g.d.kind, pairW = g.d.pairW,
                 // Unless the user says otherwise, the faces people look at have their grain running the long way: a
                 // door, its panel and stiles, a drawer front (a plywood door with the grain across looks wrong).
                 t = g.d.t, w = g.d.w, l = g.d.l, memberIds = g.members.map { it.id }, grain = o.grain ?: g.members.all { it.name in SHOW_GRAIN || it.name.startsWith("Drawer front") || it.name.startsWith("Door") },
