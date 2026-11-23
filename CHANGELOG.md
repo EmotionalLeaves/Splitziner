@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.0 - Frames together
+
+- Benches and tables built from end frames now always start by setting out both frames together, whichever way round the model was drawn.
+
 ## v1.29.0 - Consistent fixing
 
 - Two alike strips screwed up into a top are now described the same way, in one line.

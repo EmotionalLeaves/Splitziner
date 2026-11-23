@@ -563,9 +563,19 @@ object AssemblyPlan {
         return out to renumber
     }
 
-    private fun mergeFloating0(steps: List<BuildStep>, units: List<Part>, moved: MutableMap<String, Int>): Pair<List<BuildStep>, Map<Int, Int>> {
+    private fun mergeFloating0(steps0: List<BuildStep>, units: List<Part>, moved: MutableMap<String, Int>): Pair<List<BuildStep>, Map<Int, Int>> {
         val boundsOf = units.associate { it.id to it.mesh.bounds }
         val floor = units.minOfOrNull { it.mesh.bounds.min.z } ?: 0.0
+        // A build that starts from one leg frame sets out its twins standing on the floor with it, whenever the order
+        // found would only bring them in later (after an apron fixed to the first frame alone).
+        var steps = steps0
+        if (steps.isNotEmpty() && !steps[0].subassembly && steps[0].partIds.all { it.startsWith("frame") }) {
+            val twins = steps.drop(1).flatMap { it.partIds }.filter { id -> id.startsWith("frame") && (boundsOf[id]?.min?.z ?: Double.MAX_VALUE) <= floor + 1.0 }
+            if (twins.isNotEmpty()) {
+                for (id in twins) moved[id] = 1
+                steps = listOf(steps[0].copy(partIds = steps[0].partIds + twins)) + steps.drop(1).map { st -> st.copy(partIds = st.partIds - twins.toSet()) }.filter { it.partIds.isNotEmpty() }
+            }
+        }
         fun touch(a: String, b: String): Boolean { val x = boundsOf[a] ?: return false; val y = boundsOf[b] ?: return false; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
         val out = ArrayList<BuildStep>(); val renumber = HashMap<Int, Int>()
         val built = HashSet<String>(); var carry: BuildStep? = null

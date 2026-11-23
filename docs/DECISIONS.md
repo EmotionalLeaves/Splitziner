@@ -409,3 +409,7 @@ Departures from the build spec, newest first.
 
 ## v1.29
 - A square strip under a board (a kicker under a table top) is screwed up from underneath like any flat strip: which of its equal sides counted as thinnest was down to rounding, so two alike kickers were told two different ways.
+
+## v1.30
+- A build that starts from one leg frame sets out its twin frames standing on the floor in the same step ("set out the 2 frames"), even when the order found would only bring them in after an apron fixed to the first frame alone. Found by building a mirror image of the garden bench: the same bench drawn the other way round got a worse order.
+- scripts/mirror-stl.py makes the mirror image of a model, to check that a piece and its mirror get the same guide with left and right swapped. Remaining differences are conventions (which leg is laid down first on the bench) and the order of a few steps in the bunk bed and garden bench.
