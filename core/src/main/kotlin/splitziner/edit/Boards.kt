@@ -22,7 +22,7 @@ object Boards {
     private const val MAX_LINES = 22
 
     /** More boards than this is not a part made of boards but something carved. */
-    const val MAX_BOARDS = 12
+    const val MAX_BOARDS = 30
 
     /** The boards must account for the part's volume this closely. */
     private const val VOLUME_MATCH = 0.12

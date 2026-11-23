@@ -553,3 +553,8 @@ Departures from the build spec, newest first.
 - Way up: each way up is judged as it would stand once turned to face the viewer, without adding its front score itself (a picnic table on its side, its top boards reading as a face frame, beat the table on its legs). Standing on three or more small feet (each meeting the floor over under 3% of the footprint) earns 4 points.
 - A wall piece's strip of floor contact may be along any side, since it may not face the viewer yet.
 - Which way it faces: a back board at the back counts 3 points; stairs that climb away (lowest tread in front) 3; an easel's back leg standing behind its front legs 4. A panelled frame's stiles no longer count as a face frame at the front; a five-piece drawer front's panel counts as a face. Easels are left out of the long-side rule.
+
+## v1.62
+- A shape drawn as one solid may be taken apart into up to 30 boards (was 12): a real TV unit exported from OpenSCAD as one body needed 17. The volume check still rejects anything the boards would not match.
+- The boards a box was taken apart into are each their own part in the build; the layers of a glue-up, and the members of a flat frame, still stay one unit made on the bench.
+- Tested on real OpenSCAD exports of a living room (TV unit, shelving, tables) from a public repository, scaled to full size.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.62.0 - bigger one-solid models
+
+- **Furniture drawn as one solid.** Programs like Tinkercad and OpenSCAD often export a whole piece fused into one body. The "make it from boards" fix now handles bigger pieces, up to 30 boards (it was 12): a TV unit needed 17. The boards then go together one by one in the guide, instead of as one big sub-assembly.
+
 ## v1.61.0 - facing fixes
 
 - **Facing the right way.** Models drawn turned sideways now come in facing you in more cases: wall racks and ledges (by their back board), step stools (the steps climb away from you), easels (the back leg goes behind) and cabinets with Shaker doors. A picnic table lying on its side is no longer stood that way.

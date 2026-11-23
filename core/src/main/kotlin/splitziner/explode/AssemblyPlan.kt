@@ -69,7 +69,15 @@ object AssemblyPlan {
     fun unitKeys(parts: List<Part>): Map<String, String> {
         val live = parts.filter { !it.excluded }
         val out = HashMap<String, String>()
-        for (p in live) out[p.id] = p.id.substringBefore('.')
+        // Pieces split from one drawn part stay one unit when they are its layers, glued up face to face (alike in
+        // their two larger sizes); boards a box was taken apart into are each their own.
+        val byParent = live.filter { '.' in it.id }.groupBy { it.id.substringBefore('.') }
+        // So do the members of a flat frame taken apart (all in one plane, through its whole thickness).
+        val layered = byParent.filterValues { ps -> ps.map { p -> p.mesh.bounds.extents.let { e -> listOf(e.x, e.y, e.z).sorted() } }.let { ds ->
+            ds.all { d -> kotlin.math.abs(d[1] - ds[0][1]) < 1.0 && kotlin.math.abs(d[2] - ds[0][2]) < 1.0 } } ||
+            ps.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }.let { u -> val k = (0..2).minByOrNull { u.extents[it] }!!
+                ps.all { p -> kotlin.math.abs(p.mesh.bounds.min[k] - u.min[k]) < 1.0 && kotlin.math.abs(p.mesh.bounds.max[k] - u.max[k]) < 1.0 } } }.keys
+        for (p in live) out[p.id] = p.id.substringBefore('.').takeIf { '.' !in p.id || it in layered } ?: p.id
         // An applied front is not part of its drawer's unit: it goes on after the drawer hangs, so its gaps can be set.
         runCatching { splitziner.check.Drawers.find(live) }.getOrDefault(emptyList()).forEachIndexed { k, d -> for (id in d.boxIds) out[id] = "drawer${k + 1}" }
         (legFrames(live).ifEmpty { trestleEnds(live) }).forEachIndexed { k, ids -> for (id in ids) out[id] = "frame${k + 1}" }
