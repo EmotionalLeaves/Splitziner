@@ -612,3 +612,6 @@ Departures from the build spec, newest first.
 ## v1.77
 - A flat frame's braces (all parts one layer, a stretcher's) are fitted in a step of their own after the frame is glued up, and placed ("Centre the brace on the width of the rail"). An easel's brace is not affected.
 - A part is "held on both sides" (so needs no placing words) only by neighbours that do not run into it end-on along that axis: short braces butting a cross brace do not place it, it places them.
+
+## v1.78
+- A part bigger than a sheet gets concrete ways out: longer sheets (1220 x 3048 mm, 4 x 10 ft) when only the length is over and it would fit one, with where to set the sheet size; a thin back in two pieces meeting behind a divider or shelf; a thick panel glued up from solid boards.

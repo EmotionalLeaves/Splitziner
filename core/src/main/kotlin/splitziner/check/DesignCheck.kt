@@ -44,6 +44,12 @@ class CheckReport(val findings: List<Finding>, val work: List<ItemWork>, val too
  * shapes alone. It knows nothing of wood species, glue, screws or loads, and says so where that matters.
  */
 object DesignCheck {
+    /** A long sheet as some suppliers sell it (mm, 10 ft). */
+    private const val LONG_SHEET = 3048.0
+
+    /** Up to this thick (mm, 1/4 in) a back is a thin panel nailed on. */
+    private const val THIN_BACK = 6.5
+
     /** A cut-back that would take away more than this share of a part is a redesign, not a trim, and is not offered. */
     private const val MAX_CUT_BACK = 0.25
 
@@ -229,7 +235,13 @@ object DesignCheck {
             if (!isBoard && !fitsSheet) out += Finding(Severity.PROBLEM, "Item ${p.item} is bigger than a sheet",
                 "It needs ${d(p.w)} x ${d(p.l)}; your sheets are ${d(stock.sheetW)} x ${d(stock.sheetL)}. It must be made from two pieces joined, or the design made smaller." +
                     // A long, deep, thick top over a run of cabinets is what worktops are sold as.
-                    (if (p.name == "Top" && p.t >= 25.0) " Worktops (laminate, solid wood or butcher block) are sold in long lengths about 25 in (600 mm) deep: buy one and cut it to length." else ""), live.filter { it.item == p.item }.map { it.id })
+                    (if (p.name == "Top" && p.t >= 25.0) " Worktops (laminate, solid wood or butcher block) are sold in long lengths about 25 in (600 mm) deep: buy one and cut it to length." else "") +
+                    // Only too long, and by no more than a long sheet: some suppliers sell 4 x 10 ft (1220 x 3050 mm).
+                    (if (minOf(p.w, p.l) <= stock.sheetW + 0.5 && maxOf(p.w, p.l) <= LONG_SHEET + 0.5 && stock.sheetL < LONG_SHEET - 1.0) " Some suppliers sell longer sheets, ${d(stock.sheetW)} x ${d(LONG_SHEET)}; if yours does, set that size under Cutting plan, Stock." else "") +
+                    // A thin back is joined behind something it is nailed to on both sides of the seam.
+                    (if (p.t <= THIN_BACK && p.name.contains("Back")) " A back can be two pieces meeting behind a divider or shelf, so both edges are nailed to it." else "") +
+                    // Thick enough for solid wood: edge-glued boards make a panel of any length.
+                    (if (p.t >= 18.0 && p.name != "Top") " Or make it from solid boards glued edge to edge, which can be as long as your boards." else ""), live.filter { it.item == p.item }.map { it.id })
             if (isBoard && p.l > stock.boardLengths.last() + 0.5) out += Finding(Severity.PROBLEM, "Item ${p.item} is longer than your boards",
                 "It is ${d(p.l)} long; boards come in lengths up to ${d(stock.boardLengths.last())}.", live.filter { it.item == p.item }.map { it.id })
         }

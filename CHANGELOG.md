@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.78.0 - oversize sheet advice
+
+- **Better advice for parts bigger than a sheet.** Instead of only "join two pieces", the check now says when a 4 x 10 ft sheet would do (and where to set that size), how to split a back panel behind a divider, and that thick panels can be glued up from solid boards.
+
 ## v1.77.0 - stretcher braces last
 
 - **Stretchers go together in the right order.** Glue up the mitred frame first, then fit the braces, with a line saying where each brace goes (centred).
