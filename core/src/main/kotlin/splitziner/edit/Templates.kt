@@ -97,7 +97,7 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
@@ -497,6 +497,18 @@ object Templates {
             out += box(t, t + stop, sz, stop, ih - 2 * stop, stop); out += box(ow - t - stop, t + stop, sz, stop, ih - 2 * stop, stop)
             out += box(0.0, 0.0, z1, ow, oh, bk)
             out
+        },
+        Template("browser", "Print browser", "A bin for flipping through prints at a fair or in the studio: an open box, low at the front and high at the back, its sides sloping between, prints standing on edge inside.", listOf(
+            Field("w", "Inside width", 559.0, 22.0), Field("d", "Depth", 356.0, 14.0), Field("fh", "Front height", 152.0, 6.0), Field("bh", "Back height", 305.0, 12.0),
+            Field("t", "Board thickness", 18.0, 0.75),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val fh = v.getValue("fh"); val bh = v.getValue("bh"); val t = v.getValue("t")
+            if (bh <= fh + 10.0 || d < 4 * t || fh < 2 * t) throw SizesDoNotFit()
+            val W = w + 2 * t
+            // The sides run front to back over the bottom's ends, their tops sloping from the front's height to the back's.
+            val side = listOf(0.0 to 0.0, d to 0.0, d to bh, 0.0 to fh)
+            listOf(box(t, t, 0.0, w, d - 2 * t, t), box(t, 0.0, 0.0, w, t, fh), box(t, d - t, 0.0, w, t, bh),
+                quadX(side, 0.0, t), quadX(side, W - t, W))
         },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
             Field("w", "Outside width", 610.0, 24.0), Field("h", "Outside height", 762.0, 30.0),

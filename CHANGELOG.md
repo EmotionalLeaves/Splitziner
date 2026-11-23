@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.17.0 - print browser
+
+- **New design: Print browser.** A bin for flipping through prints at a fair or in the studio, low at the front and high at the back.
+- Boards with one edge cut on a slope are now described that way, with a simple "mark and saw the line" step, instead of four pages of full-size template.
+
 ## v2.16.0 - standing shadow box
 
 - Shadow boxes modelled standing up, as they hang, are now laid face down the way you build them too.

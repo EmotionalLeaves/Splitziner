@@ -109,6 +109,8 @@ object DesignCheck {
         // A tapered leg or a raised panel is a saw or router setting too, with its own tools.
         if (p.desc.contains("TAPERED ON")) { work += Work.TAPER; return ItemWork(p.item ?: 0, work, holes, 0) }
         if (p.desc.contains(", RAISED (")) { work += Work.RAISE; return ItemWork(p.item ?: 0, work, holes, 0) }
+        // A sloped edge is one straight saw cut, marked from end to end.
+        if (p.desc.contains("ONE EDGE SLOPED")) return ItemWork(p.item ?: 0, work, holes, 0)
         // Laid flat: length along X, thickness along Y, width along Z. Looking along Y shows the outline to cut.
         val m = PartDrawings.squaredUp(p.mesh)
         val e = m.extents

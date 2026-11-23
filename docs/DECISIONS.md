@@ -745,3 +745,7 @@ Departures from the build spec, newest first.
 
 ## v2.16
 - The names a studio piece's parts get only when it lies the way it is made (face bar, box side, glass stop, back strip, panel face, cradle) count as strong evidence when guessing which way is up, so a shadow box drawn standing, as it hangs, is laid face down too.
+
+## v2.17
+- A "Print browser" template: an open bin for flipping through prints at a fair, low at the front and high at the back, its sides sloping between. Default 22 in inside, 14 in deep, 6 in at the front and 12 in at the back.
+- A flat part whose outline is a right trapezoid (a rectangle with one edge sawn on a slope from end to end) is "ONE EDGE SLOPED FROM a TO b": it gets a detail drawing and a making step (mark both ends from the same long edge, saw the straight line), not full-size template pages.

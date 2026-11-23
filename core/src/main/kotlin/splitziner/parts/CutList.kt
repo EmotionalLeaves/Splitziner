@@ -222,6 +222,28 @@ object PartDescriber {
         return (0..1).any { k -> lean[0][k] * lean[1][k] < 0 && abs(lean[0][k]) > 1e-6 }
     }
 
+    /**
+     * A flat part whose outline is a right trapezoid: a rectangle with one edge sawn on a slope from one end to the
+     * other. Returns the two widths at the ends (short, long), or null.
+     */
+    fun slopedEdge(m: Mesh): Pair<Double, Double>? {
+        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return null
+        val g = pr.outline
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
+        val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
+        if (c.size != 4) return null
+        fun v(i: Int, j: Int) = (c[j % 4].x - c[i % 4].x) to (c[j % 4].y - c[i % 4].y)
+        fun len(a: Pair<Double, Double>) = Math.hypot(a.first, a.second)
+        // The angle at each corner: square or not.
+        val square = (0..3).map { i -> val a = v(i, i + 3); val b = v(i, i + 1); kotlin.math.abs(a.first * b.first + a.second * b.second) < 0.01 * len(a) * len(b) }
+        if (square.count { it } != 2) return null
+        // The two square corners are neighbours: the edge between them is the square end, its neighbours the long sides.
+        val k = (0..3).firstOrNull { square[it] && square[(it + 1) % 4] } ?: return null
+        val a = len(v(k + 3, k)); val b = len(v(k + 1, k + 2))
+        if (kotlin.math.abs(a - b) < 3.0) return null
+        return minOf(a, b) to maxOf(a, b)
+    }
+
     fun describe(m: Mesh, fmt: LengthFormat): PartDescription {
         val ext = m.extents
         val obb = OrientedBounds.of(m)
@@ -287,6 +309,12 @@ object PartDescriber {
         // A raised panel: named with its edge (the tongue that goes in the grooves) and its bevel, not "shaped".
         raisedPanel(m, obb)?.let { (tongue, bevel) ->
             return PartDescription(PartKind.PANEL, t, w, l, fill, "PANEL ${d(t)} X ${d(w)} X ${d(l)}, RAISED (EDGE ${d(tongue)} THK, BEVEL ${d(bevel)} WIDE)")
+        }
+        // A board with one edge sawn on a slope (a print bin's side): four corners, two of them square, the sloped
+        // edge between the long and the short end. Marked and sawn along a straight line, not traced from a template.
+        slopedEdge(m)?.let { (lo, hi) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE SLOPED FROM ${d(hi)} TO ${d(lo)}")
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
