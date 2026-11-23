@@ -258,7 +258,7 @@ object AssemblyPlan {
         // Rails on edge only: a board lying flat across two legs (a slat) is not part of a frame.
         fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
         // A crosspiece named a cleat that joins two splayed legs (a picnic table's top cleat and seat support) is a rail here.
-        val rails = live.filter { (it.name == "Apron" || it.name.endsWith("ail") || (it.name == "Cleat" && legs.count { l -> touch(it, l) } == 2)) && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
+        val rails = live.filter { (it.name == "Apron" || it.name.endsWith("ail") || it.name == "End board" || it.name == "Side board" || (it.name == "Cleat" && legs.count { l -> touch(it, l) } == 2)) && !flat(it) }.map { r -> r to legs.filter { touch(r, it) } }.filter { it.second.size == 2 && longAxis(it.first) != 2 }
         val legIds = legs.map { it.id }.toSet()
         // Rails one way whose leg pairs cover every leg once: an apron and a stretcher between the same two legs
         // are one pair, so a frame can have both.

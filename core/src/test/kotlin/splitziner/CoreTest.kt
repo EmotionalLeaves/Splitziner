@@ -2396,3 +2396,17 @@ class EaselTest {
         assertTrue(report.findings.none { it.title.contains("touch nothing") || it.title.contains("touches nothing") }, report.findings.map { it.title }.toString())
     }
 }
+
+class PlanterTest {
+    @Test fun stackedWallBoardsAreScrewedToTheLegsNotGlued() {
+        val bytes = javaClass.getResourceAsStream("/complex/planter.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "planter.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Side board" }, a.parts.map { it.name }.toString())
+        assertEquals(4, a.parts.count { it.name == "End board" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.none { it.kind == "edge" }, f.all.filter { it.kind == "edge" }.map { "${it.through.name}/${it.into.name}" }.toString())
+        assertTrue(f.all.filter { it.through.name == "Cleat" || it.into.name == "Cleat" }.filter { it.through.name.endsWith("board") }.isEmpty())
+        assertTrue(f.all.none { it.kind == "brackets" })
+    }
+}

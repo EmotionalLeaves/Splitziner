@@ -518,3 +518,9 @@ Departures from the build spec, newest first.
 ## v1.53
 - Doors and their panels, stiles and rails, drawer fronts (five-piece too), sliding doors, lids, headboards and footboards have their grain along their length by default in the cutting plan: a door cut with the grain across looks wrong. The item's grain tick still overrides it either way; a project saved before keeps what it stored.
 - This can cost more stock: on the Shaker test cabinets the 1/4 in panels moved from a half sheet to a full one. The user can untick grain to save it.
+
+## v1.54
+- Boards on edge stacked into a wall, each across the same legs (a planter's sides): side boards along the long way, end boards across. They are joined to the legs, never edge-glued to each other; the legs and end boards make the end frames.
+- A top piece 4 in (101.6 mm) wide or less (a cap rail) is screwed down, not held with brackets: it barely moves.
+- A cleat beside the board it carries is screwed through from the cleat's side, so the heads stay inside.
+- When one of two like parts is flush with an edge, that is said even when it rests on the other.

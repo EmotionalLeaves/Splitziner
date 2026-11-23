@@ -66,14 +66,18 @@ object GuideSteps {
             // Resting on something (slats on their cleats, a shelf on its supports): that sets its height.
             val supported = pool.any { o -> o !== s && kotlin.math.abs(b(o).max.z - b(s).min.z) < 0.5 && touch(o, s) }
             for (k in (0..2).filter { it != contact }) {
+                // One of two copies flush with an edge: said, so the other's offset is not read as both's (a board
+                // resting on the other is still flush with the top).
+                run {
+                    val lo0 = b(s).min[k] - b(host).min[k]; val hi0 = b(host).max[k] - b(s).max[k]
+                    if (b(s).extents[k] < b(host).extents[k] - 1.0 && (lo0 < 1.0) != (hi0 < 1.0) && (k != len || k == 2) && cur.count { it.item == s.item } == 2) {
+                        val edge = when (k) { 2 -> if (lo0 < 1.0) "bottom edge" else "top edge"; 1 -> if (lo0 < 1.0) "front edge" else "back edge"; else -> if (lo0 < 1.0) "left edge" else "right edge" }
+                        flush["${label(s)}|$k|${label(host)}"] = edge
+                    }
+                }
                 if (k == 2 && supported) continue
                 if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
-                // One of two copies flush with an edge: said, so the other's offset is not read as both's.
-                if ((lo < 1.0) != (hi < 1.0) && k != len && cur.count { it.item == s.item } == 2) {
-                    val edge = when (k) { 2 -> if (lo < 1.0) "bottom edge" else "top edge"; 1 -> if (lo < 1.0) "front edge" else "back edge"; else -> if (lo < 1.0) "left edge" else "right edge" }
-                    flush["${label(s)}|$k|${label(host)}"] = edge
-                }
                 if (lo < 1.0 || hi < 1.0) continue
                 // Held on both sides along this axis by other parts: they place it.
                 val others = pool.filter { it !== s && it !== host && touch(it, s) }

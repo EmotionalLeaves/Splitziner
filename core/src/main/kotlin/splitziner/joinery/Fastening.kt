@@ -39,6 +39,9 @@ private val RUNNER_NAMES = setOf("Runner", "Kicker")
 /** What holds a lid up: a stay or a torsion hinge rated for its weight, that stops it anywhere it is let go. */
 const val LID_SUPPORT = "lid support that holds the lid open at any angle"
 
+/** A top piece this narrow or narrower (mm) is screwed down, not held with brackets: 4 in. */
+const val CAP_WIDTH = 101.6
+
 /** What stops a folding back leg (an easel's) sliding out: a light chain or cord between it and the front legs. */
 const val FOLD_STOP = "light chain or cord, about 24 in (600 mm)"
 
@@ -305,7 +308,10 @@ object Fastening {
             val mid = (envLo[k] + envHi[k]) / 2
             fun inner(n: Int): Boolean { val o = if (n == i) j else i; val cn = (lo[n][k] + hi[n][k]) / 2; val co = (lo[o][k] + hi[o][k]) / 2
                 return (cn - co) * (mid - co) > 0 }
-            val aFirst = if (kotlin.math.abs(ea - eb) < 0.5) !(inner(j) && !inner(i)) else ea <= eb
+            // A cleat beside the board it carries (a planter's bottom cleats along its sides) is screwed through from
+            // its own side, so the heads stay inside, out of sight.
+            val cleatSide = k != 2 && ((a.name == "Cleat") != (b.name == "Cleat"))
+            val aFirst = if (cleatSide) a.name == "Cleat" else if (kotlin.math.abs(ea - eb) < 0.5) !(inner(j) && !inner(i)) else ea <= eb
             val (thr, into, tThrough, depth) = if (aFirst) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
             thr as Part; into as Part; tThrough as Double; depth as Double
             // Parts of one sub-assembly are joined on the bench. Anything else is joined in the main build, when the
@@ -322,6 +328,9 @@ object Fastening {
                 // say nothing about an edge joint. Joined through what crosses them, not to each other.
                 fun leans(p: Part) = kotlin.math.abs(p.mesh.volume) < 0.85 * p.mesh.bounds.extents.let { it.x * it.y * it.z }
                 if (leans(a) || leans(b)) continue
+                // Boards stacked on edge in a wall (a planter's, a fence's), each screwed to the same post: held by it,
+                // not glued to each other.
+                if (k == 2 && thinAxis(i) != 2 && rel.touching[i].any { c -> c in rel.touching[j] && (hi[c][thinAxis(i)] - lo[c][thinAxis(i)]) > 1.5 * (hi[i][thinAxis(i)] - lo[i][thinAxis(i)]) }) continue
                 // Two wide panels meeting edge to edge (an L desk's two tops, a worktop round a corner) are pulled
                 // together from underneath with worktop connector bolts; glue alone would not hold a butt joint that long.
                 fun width(n: Int) = (0..2).map { ax -> hi[n][ax] - lo[n][ax] }.sorted()[1]
@@ -472,7 +481,9 @@ object Fastening {
                 }
             }
             // Slats (a bench seat's, a bed's) are screwed down into what they rest on, never bracketed from below.
-            val topDown = k == 2 && thr.name != "Slat" && thr.name != "Tread" && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
+            // A narrow cap (a planter's top rail, 4 in wide or less) is simply screwed down: it barely moves with the seasons.
+            val narrowCap = (0..2).map { ax -> rel.hi[ti0][ax] - rel.lo[ti0][ax] }.sorted()[1] <= CAP_WIDTH
+            val topDown = k == 2 && thr.name != "Slat" && thr.name != "Tread" && !narrowCap && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
             // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
             // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.
             if (topDown && (0..2).minOf { ax -> rel.hi[idx.getValue(into.id)][ax] - rel.lo[idx.getValue(into.id)][ax] } < 9.0) continue

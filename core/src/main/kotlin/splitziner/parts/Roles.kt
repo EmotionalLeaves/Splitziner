@@ -477,6 +477,20 @@ object Roles {
                 if (front.count { touches(p, it) } >= 2 && b.extents.x > 3 * b.extents.z && b.extents.z >= 50.0 && b.min.z in 0.25 * h..0.6 * h) out[p.id] = "Ledge"
             }
         }
+        // Boards stacked on edge into a wall (a planter's, a crate's sides), each screwed across the same legs:
+        // side boards along the long way, end boards across.
+        run {
+            val posts = live.filter { out[it.id] in setOf("Leg", "Post") }
+            if (posts.size < 4) return@run
+            val wall = live.filter { p -> out[p.id] in setOf(null, "Rail", "Side rail", "End rail", "Cleat", "Apron", "Stretcher") && p.mesh.bounds.extents.let { e ->
+                val th = if (e.x < e.y) 0 else 1
+                e[th] < e.z && e.z < e[1 - th] && posts.count { touches(p, it) } >= 2 } }
+            val stacked = wall.filter { p -> val th = if (p.mesh.bounds.extents.x < p.mesh.bounds.extents.y) 0 else 1
+                wall.any { o -> o !== p && touches(p, o) && kotlin.math.abs(o.mesh.bounds.min[th] - p.mesh.bounds.min[th]) < 0.5 &&
+                    (kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 0.5 || kotlin.math.abs(o.mesh.bounds.max.z - p.mesh.bounds.min.z) < 0.5) } }
+            val longAx = if (all.extents.x >= all.extents.y) 0 else 1
+            for (p in stacked) out[p.id] = if (p.mesh.bounds.extents[longAx] >= p.mesh.bounds.extents[1 - longAx]) "Side board" else "End board"
+        }
         return out
     }
 }

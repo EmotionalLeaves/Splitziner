@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.54.0 - planters
+
+- **Planters and boarded walls.** Boards stacked on edge into a wall, like the sides of a planter or crate, are now side boards and end boards. They are screwed to the legs; before, the guide told you to edge-glue them to each other. The ends are built as frames first.
+- **Cap rails** are screwed straight down instead of fixed with brackets from below.
+- **Cleats** are screwed on from their own side, so the screw heads stay inside, for example along a bed's side rails.
+- **"Set one flush with the top, the other 5-1/2 in down"** now also covers a board stacked on top of another.
+
 ## v1.53.0 - grain on show faces
 
 - **Grain runs the right way on doors and drawer fronts.** In the cutting plan, doors, door panels, stiles and rails, drawer fronts, lids, headboards and footboards now keep their grain running along their length by default, the way a cabinetmaker would cut them. Sometimes this uses a little more sheet. You can untick "grain" on any item in the cut list to let the plan turn it.
