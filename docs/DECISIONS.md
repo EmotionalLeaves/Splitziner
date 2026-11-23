@@ -817,3 +817,8 @@ Departures from the build spec, newest first.
 - New studio design: a six- or eight-sided plinth (any number of sides from 5 to 12), by the number of sides, the size across its corners, its height and board thickness. Sides bevelled at 180°/n and glued up round in one go, a top of the same shape screwed down into their edges. Usual material: birch plywood.
 - In a stave column the top's step says it comes in from above (it was the base of the rest of the plan before the staves were taken out).
 - A stave's making steps no longer add an empty "cut both ends at … off square" line.
+
+## v2.35
+- A folding screen: two or more tall flat panels (900 mm or taller) standing in a row in one plane, a hinge's gap apart (0.5 to 6.5 mm). Each panel's long members are stiles, the cross members rails (joined with pocket screws, as a face frame is), a thin sheet the panel. The panels are made alike on the bench ("make 3 screen panels") and hinged together: 2 in (50 mm) butt hinges, three at each joint on panels over 4 ft, two below, alternate faces for a zig-zag (or double-action screen hinges).
+- A screen is not checked for tipping or strapped to a wall as drawn: a note says it stands folded in a zig-zag, and that a small block screwed to the floor inside each angle keeps it put on a busy floor. Its panels are not "parts joined to nothing".
+- Which way up: a screen standing as drawn stays standing; one lying flat is stood up.

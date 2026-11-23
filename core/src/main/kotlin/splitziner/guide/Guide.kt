@@ -207,6 +207,9 @@ object GuideSteps {
         // How many units from each bench step are already in place, so the next is "the other".
         val placedUnits = HashMap<Int, Int>()
         fun otherOf(bench: Int) = if ((steps.firstOrNull { it.step == bench }?.makeCount ?: 2) - (placedUnits[bench] ?: 0) == 1) "the other" else "another"
+        // A folding screen's panels, each made on the bench and hinged to the next.
+        val screen = runCatching { splitziner.parts.Screens.leaves(drawn) }.getOrNull() != null
+        val screenBench = if (screen) steps.filter { it.subassembly }.map { it.step }.toSet() else emptySet()
         val faceBench = steps.filter { st -> st.subassembly && st.partIds.any { byId[it]?.name == "Stile" } && st.partIds.none { keyOf[it]?.startsWith("fpanel") == true || keyOf[it]?.startsWith("door") == true } }.map { it.step }.toSet()
         // Repeated cabinets in a row: each built whole, called a cabinet when it is one (sides and a bottom).
         val moduleBench = steps.filter { st -> st.subassembly && st.partIds.any { keyOf[it]?.startsWith("module") == true } }.map { it.step }.toSet()
@@ -246,7 +249,7 @@ object GuideSteps {
             val letter = if (letterOf.size < 26) ('A' + letterOf.values.distinct().size).toString() else "${letterOf.values.distinct().size + 1}"
             for (s0 in seq) letterOf[s0] = letter
         }
-        fun unitWord(bench: Int, n: Int) = if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in doorBench) (if (n > 1) "doors" else "door") else if (bench in bedEnds) (if (n > 1) bedEnds.getValue(bench) + "s" else bedEnds.getValue(bench)) else if (bench in fpanelBench) (if (n > 1) "panelled frames" else "panelled frame") else if (bench in cpanelBench) (if (n > 1) "cleated panels" else "cleated panel") else if (bench in cradleBench) (if (n > 1) "cradles" else "cradle") else if (bench in sboxBench) (if (n > 1) "boxes" else "box") else if (bench in dfrontBench) (if (n > 1) "drawer fronts" else "drawer front") else if (bench in plinthBench) (if (n > 1) "plinths" else "plinth") else if (bench in slattedBench) (if (n > 1) "slatted panels" else "slatted panel") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
+        fun unitWord(bench: Int, n: Int) = if (bench in screenBench) (if (n > 1) "screen panels" else "screen panel") else if (bench in letterOf) (if (n > 1) "sub-assemblies ${letterOf[bench]}" else "sub-assembly ${letterOf[bench]}") else if (bench in tenonRail) tenonRail.getValue(bench).let { if (n > 1) it + "s" else it } else if (bench in upperBench) (if (n > 1) "hutches" else "hutch") else if (bench in ladderBench) (if (n > 1) "ladders" else "ladder") else if (bench in doorBench) (if (n > 1) "doors" else "door") else if (bench in bedEnds) (if (n > 1) bedEnds.getValue(bench) + "s" else bedEnds.getValue(bench)) else if (bench in fpanelBench) (if (n > 1) "panelled frames" else "panelled frame") else if (bench in cpanelBench) (if (n > 1) "cleated panels" else "cleated panel") else if (bench in cradleBench) (if (n > 1) "cradles" else "cradle") else if (bench in sboxBench) (if (n > 1) "boxes" else "box") else if (bench in dfrontBench) (if (n > 1) "drawer fronts" else "drawer front") else if (bench in plinthBench) (if (n > 1) "plinths" else "plinth") else if (bench in slattedBench) (if (n > 1) "slatted panels" else "slatted panel") else if (bench in moduleBench) (if (cabinetWord) (if (n > 1) "cabinets" else "cabinet") else (if (n > 1) "units" else "unit")) else if (bench in faceBench) (if (n > 1) "face frames" else "face frame") else if (bench in trestleBench) (if (n > 1) "trestle ends" else "trestle end") else if (bench in frameBench) (if (n > 1) "frames" else "frame") else (if (n > 1) "sub-assemblies" else "sub-assembly")
         for (st in steps) {
             val cur = st.partIds.mapNotNull { byId[it] }
             // In a main step, each made sub-assembly counts as one thing to fit.
@@ -302,7 +305,8 @@ object GuideSteps {
                 // A five-piece drawer front is told by the line that screws it on.
                 if (bench in dfrontBench && !put) continue
                 val door = bench in doorBench
-                lines += if (door) "Hang ${if (us.size > 1) "$all doors" else "the door"} from step $bench."
+                lines += if (bench in screenBench) "Lay $all ${unitWord(bench, us.size)} from step $bench face down side by side, in order, their edges together."
+                    else if (door) "Hang ${if (us.size > 1) "$all doors" else "the door"} from step $bench."
                     else if (drawer) "Slide ${if (us.size > 1) "$all drawers" else "the drawer"} from step $bench in$where."
                     else "${if (put) "Place" else "Fit"} $all ${unitWord(bench, us.size)} from step $bench$where."
             }
@@ -399,7 +403,8 @@ object GuideSteps {
             }
             // Pieces set out apart (two end frames, a desk's two sides) stand alone until the next step ties them, so the
             // step says how far apart they go, read off the model: outside to outside, and any piece between them.
-            if (base && cur.size > 1) {
+            // A screen's panels are laid face down side by side to be hinged: the hinge line says how.
+            if (base && cur.size > 1 && !screen) {
                 fun near(a: Part, b: Part) = (0..2).all { k -> a.mesh.bounds.min[k] <= b.mesh.bounds.max[k] + 0.5 && b.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 0.5 }
                 val comps = ArrayList<List<Part>>(); val left = cur.toMutableList()
                 while (left.isNotEmpty()) {
@@ -578,6 +583,7 @@ object GuideSteps {
                     val names = if (its.size == 1) "item ${its[0]}" else "items ${its.dropLast(1).joinToString(", ")} and ${its.last()}"
                     val isDrawer = st.partIds.all { keyOf[it]?.startsWith("drawer") == true }
                     if (isDrawer) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} drawer boxes from" else "make the drawer box from"} $names"
+                    else if (st.step in screenBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} screen panels from" else "make the screen panel from"} $names"
                     else if (st.step in faceBench) "Step ${st.step}: make the face frame from $names"
                     else if (st.step in slattedBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} slatted panels from" else "make the slatted panel from"} $names"
                     else if (st.step in plinthBench) "Step ${st.step}: ${if (st.makeCount > 1) "make ${st.makeCount} plinths from" else "make the plinth from"} $names"
@@ -638,7 +644,8 @@ object GuideSteps {
                     // Only made sub-assemblies to set out: "Step 3: set out the 3 frames".
                     val unitsOnly = base && loose.isEmpty() && unitCount.isNotEmpty() && unitCount.values.sumOf { it.size } > 1
                     val nUnits = unitCount.values.sumOf { it.size }
-                    if (unitsOnly && unitCount.keys.all { it in bedEnds } && unitCount.keys.map { bedEnds[it] }.toSet() == setOf("headboard", "footboard")) "Step ${st.step}: set out the headboard and footboard"
+                    if (unitsOnly && unitCount.keys.all { it in screenBench }) "Step ${st.step}: hinge the $nUnits screen panels together"
+                    else if (unitsOnly && unitCount.keys.all { it in bedEnds } && unitCount.keys.map { bedEnds[it] }.toSet() == setOf("headboard", "footboard")) "Step ${st.step}: set out the headboard and footboard"
                     else if (unitsOnly) "Step ${st.step}: set out the $nUnits ${if (unitCount.keys.all { it in trestleBench }) "trestle ends" else if (unitCount.keys.all { it in frameBench }) "frames" else if (unitCount.keys.all { it in moduleBench }) unitWord(unitCount.keys.first(), 2) else if (unitCount.keys.size == 1 && (unitCount.keys.first() in letterOf || unitCount.keys.first() in cpanelBench)) unitWord(unitCount.keys.first(), 2) else "sub-assemblies"}"
                     else if (bits.isEmpty()) (if (base) "Step ${st.step}: start here" else "Step ${st.step}")
                     // Many kinds of part: the first few, and how many more.
@@ -657,7 +664,7 @@ object GuideSteps {
             for (j in fasten?.byStep?.get(st.step).orEmpty()) {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
-                    "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
+                    "brackets", "corner" -> "corner brackets"; "screenhinge" -> "${j.size} butt hinges"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
                     "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "rodhole", "glass" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "faceglue", "cratepack", "facebox" -> continue; "stop" -> "${j.size} brads"; "backscrew" -> "${j.size} screws"; "balltop", "pedtop" -> "${j.size} screws"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"

@@ -2719,3 +2719,23 @@ class ManySidedPlinthTest {
         assertTrue(a.cutList.rows.any { it.description.contains("A REGULAR OCTAGON") })
     }
 }
+
+class FoldingScreenTest {
+    @Test fun threePanelsAreMadeAlikeAndHingedTogether() {
+        val bytes = javaClass.getResourceAsStream("/complex/folding_screen.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "folding_screen.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(3, splitziner.parts.Screens.leaves(a.parts.filter { !it.excluded })?.size)
+        assertEquals(6, a.parts.count { it.name == "Stile" }, a.parts.map { it.name }.toString())
+        assertEquals(3, a.parts.count { it.name == "Panel" })
+        assertEquals("z", Pipeline.guessUp(a.parts))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        // Two joints between three panels, three hinges each on a panel this tall; no wall strap.
+        assertEquals(2, f.all.count { it.kind == "screenhinge" })
+        assertTrue(f.hardware.any { it.contains("6 × 2 in butt hinges") }, f.hardware.toString())
+        assertTrue(f.hardware.none { it.contains("anti-tip") }, f.hardware.toString())
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "A folding screen of 3 panels" }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.none { it.severity == splitziner.check.Severity.PROBLEM || it.title == "Fix it to the wall" || it.title.contains("tipping") }, report.findings.map { it.title }.toString())
+    }
+}

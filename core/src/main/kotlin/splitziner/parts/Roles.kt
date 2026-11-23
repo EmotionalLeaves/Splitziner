@@ -41,6 +41,20 @@ object Roles {
         if (live.size < 2) return emptyMap()
         // Separate pieces in one file are each named on their own: one's sides are not another's dividers.
         Pieces.find(live)?.let { ps -> return ps.fold(HashMap<String, String>()) { m, p -> m.putAll(names(p)); m } }
+        // A folding screen's panels: each a frame of stiles and rails, with a sheet in it.
+        Screens.leaves(live)?.let { ls ->
+            val m = HashMap<String, String>()
+            for (leaf in ls) {
+                val lb = leaf.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+                for (p in leaf) { val e = p.mesh.bounds.extents; val d = listOf(e.x, e.y, e.z).sorted()
+                    m[p.id] = when {
+                        d[0] < 13.0 && d[1] > 100.0 -> "Panel"
+                        e.z >= 0.8 * lb.extents.z -> "Stile"
+                        else -> "Rail"
+                    } }
+            }
+            return m
+        }
         val out = HashMap<String, String>()
         // The staves of a many-sided column are its sides.
         for (p in runCatching { Staves.find(live) }.getOrDefault(emptyList())) out[p.id] = "Side"

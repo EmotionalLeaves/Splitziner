@@ -100,13 +100,18 @@ object Pipeline {
             // nearly its whole depth.
             val across = 1 - thin
             val shelves = live.any { p -> val b = p.mesh.bounds.extents; b.z <= minOf(b.x, b.y) && b[across] >= 0.8 * e[across] && b[thin] >= 0.9 * e[thin] }
-            if (thin != 2 && thin < 2 && !shelves && e[thin] <= FLAT_RATIO * others && e[thin] <= FLAT_MAX) return if (thin == 1) "y" else "x"
+            // Nor a folding screen standing as it is used: its panels a hinge's gap apart in a row.
+            val screen = runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() != null
+            if (thin != 2 && thin < 2 && !shelves && !screen && e[thin] <= FLAT_RATIO * others && e[thin] <= FLAT_MAX) return if (thin == 1) "y" else "x"
         }
         fun turned(up: String): List<Part> { if (up == "z" || up == "z>0") return live; val r = upRotation(up)
             return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
                 val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
                 r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
             }, p.mesh.triangles)) } }
+        // A folding screen lying down stands up: whichever way shows its panels standing in a row.
+        if (runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() != null) return "z"
+        listOf("y", "-y").firstOrNull { u -> runCatching { splitziner.parts.Screens.leaves(turned(u)) }.getOrNull() != null }?.let { return it }
         fun score(ps: List<Part>): Int {
             // The strips of a frame round a panel are stiles and rails whichever way up it lies: they tell nothing.
             // Nor do pegs sunk in a board, standing up like posts when the board lies flat.

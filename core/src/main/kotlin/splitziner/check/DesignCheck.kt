@@ -519,10 +519,14 @@ object DesignCheck {
             // Groups of parts joined to each other but to nothing else.
             val groups = rel.groups
             val pieces = runCatching { splitziner.parts.Pieces.find(live) }.getOrNull()
+            // A folding screen's panels stand a hinge's gap apart on purpose.
+            val leaves = runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull()
+            if (leaves != null) out += Finding(Severity.NOTE, "A folding screen of ${leaves.size} panels",
+                "The panels stand a hinge's gap apart: each is built on its own and they are hinged together. A folding screen stands because its panels are at an angle to each other: open it to a zig-zag, each joint at about a right angle. Opened out flat it falls over; on a busy gallery floor, a small block screwed to the floor inside each angle keeps it put.")
             // Separate pieces drawn together on purpose (nesting plinths, a pair of nightstands) are a set, not a slip.
             if (pieces != null) out += Finding(Severity.NOTE, "${pieces.size} separate pieces",
                 "The file holds ${pieces.size} pieces that stand apart (${pieces.joinToString("; ") { pc -> items(pc).replaceFirstChar { it.lowercase() } }}). The guide builds each in turn; the cut list, cutting plan and shopping list cover them all together.")
-            val islands = if (pieces != null) emptyList() else groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
+            val islands = if (pieces != null || leaves != null) emptyList() else groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
             for (g in islands) out += Finding(Severity.PROBLEM, "${g.size} parts are joined to each other but not to the rest",
                 "${items(g.map { live[it] })} touch each other and nothing else, so as drawn they are a separate object.", g.map { live[it].id })
         }
@@ -555,7 +559,9 @@ object DesignCheck {
                 val yMin = lo.minOf { it.y }; val yMax = hi.maxOf { it.y }; val depth = yMax - yMin
                 val strip = feet.isNotEmpty() && depth <= splitziner.parts.Roles.WALL_DEPTH && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * depth)
                 val hangs = live.any { it.name == "Back board" } || live.any { it.name == "Wall cleat" || it.name == "Hanging rail" } || strip
-                if (margin < 0 && hangs) { val bb = live.firstOrNull { it.name == "Back board" }
+                // A folding screen is stood folded, not flat as drawn: the screen note says so.
+                if (runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() != null) Unit
+                else if (margin < 0 && hangs) { val bb = live.firstOrNull { it.name == "Back board" }
                     out += Finding(Severity.CHECK, "Hang it on the wall", "It is made to hang, not to stand. Screw ${bb?.let { "the back board (item ${it.item})" } ?: "it"} to the wall into the studs, " +
                         "two ${if (fmt.isInch) "#10 x 3 in" else "5 x 75 mm"} screws at each stud, or into masonry with plugs made for it. Plasterboard anchors alone are only for light loads: coats and bags pull hard.", listOfNotNull(bb?.id)) }
                 else if (margin < 0) out += Finding(Severity.PROBLEM, "It would tip over", "The balance point is ${d(-margin)} $u outside the area its feet cover ($basis). It needs a wider base, a counterweight, or fixing to a wall.")
@@ -603,7 +609,7 @@ object DesignCheck {
             else if (h > 760.0 && h > 2.0 * dd && ballastShelf(live) != null) out += Finding(Severity.CHECK, "Weigh it down",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep, and stands free. Load the ${ballastShelf(live)!!.let { b -> if (b.name == "Bottom") "bottom" else "low shelf" }} inside (item ${ballastShelf(live)!!.item}) with sandbags or bricks before anything goes on top, so it cannot be tipped; if it stands against a wall, an anti-tip strap into a stud does as well.")
             // A crate (battens across a lid) is packing, not furniture: it is not stood in a room.
-            else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" }) out += Finding(Severity.CHECK, "Fix it to the wall",
+            else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" } && runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull() == null) out += Finding(Severity.CHECK, "Fix it to the wall",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +
                     // Nothing that pulls out: it may stand away from any wall (a display plinth), so weight is the other answer.
                     (if (live.none { it.name in setOf("Door", "Drawer front", "Sliding door") || it.name.startsWith("Drawer") || it.name.startsWith("Door") })

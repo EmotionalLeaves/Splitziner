@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.35.0 - folding screens
+
+- Folding screens (display walls): the panels are made alike, then hinged together with the right number of hinges, set on alternate faces so it folds in a zig-zag. You get advice on standing it folded instead of an anti-tip strap.
+
 ## v2.34.0 - polygon plinth design
 
 - New studio design: a six or eight-sided plinth (5 to 12 sides). Pick the number of sides, the size across the corners and the height; the guide covers ripping the bevels, gluing the sides up round in one go and fixing the top.
