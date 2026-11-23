@@ -82,7 +82,9 @@ object GuideSteps {
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
                 if (lo < 1.0 || hi < 1.0) continue
                 // Held on both sides along this axis by other parts: they place it.
-                val others = pool.filter { it !== s && it !== host && touch(it, s) }
+                // Not parts running along this axis into it end-on (a stretcher's short braces butting its cross brace):
+                // it places them.
+                val others = pool.filter { it !== s && it !== host && touch(it, s) && (0..2).maxByOrNull { a -> b(it).extents[a] } != k }
                 if (others.any { o -> b(o).max[k] <= b(s).min[k] + 0.5 } && others.any { o -> b(o).min[k] >= b(s).max[k] - 0.5 }) continue
                 val near = minOf(lo, hi)
                 val many = cur.count { it.item == s.item } > 1

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.77.0 - stretcher braces last
+
+- **Stretchers go together in the right order.** Glue up the mitred frame first, then fit the braces, with a line saying where each brace goes (centred).
+- A few more placing lines in other designs, where a part used to be wrongly treated as already held in place.
+
 ## v1.76.0 - canvas stretcher
 
 - **New design: Canvas stretcher.** A mitred frame to stretch a canvas on, with a brace across the middle once a side is over 30 in, and a cross of braces when both sides are. Set the outside size, bar width and depth. The corners are fixed (a strainer), with no expansion keys.

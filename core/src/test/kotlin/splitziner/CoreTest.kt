@@ -2473,3 +2473,20 @@ class GlassTest {
         assertTrue(report.findings.none { it.title.contains("not a thickness shops stock") || it.title.contains("occupy the same space") }, report.findings.map { it.title }.toString())
     }
 }
+
+class StretcherTest {
+    @Test fun aBracedStretcherIsGluedUpThenBraced() {
+        val t = splitziner.edit.Templates.byKey("stretcher")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, false) + mapOf("w" to 914.0, "h" to 1219.0))
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(ms, bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "s.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(3, a.parts.count { it.name == "Brace" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        // The four mitred bars first, all the braces after.
+        val braceSteps = pl.parts.filter { it.name == "Brace" }.map { it.step }.toSet()
+        assertTrue(pl.parts.filter { it.name != "Brace" }.all { (it.step ?: 0) < braceSteps.filterNotNull().min() }, pl.parts.map { it.name to it.step }.toString())
+        // The screws into the 3/4 in bars are #8, not #10.
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.filter { it.kind == "screws" }.none { it.size.startsWith("#10") }, f.all.map { it.size }.toString())
+    }
+}

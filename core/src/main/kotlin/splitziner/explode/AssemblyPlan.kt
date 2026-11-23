@@ -679,7 +679,9 @@ object AssemblyPlan {
             // Flat pieces laid out apart (a picture frame's long sides) and the flat pieces that join them (its short
             // sides) are one glue-up on the bench: laid out together and closed in one go.
             fun flat(id: String) = boundsOf[id]?.extents?.let { it.z <= minOf(it.x, it.y) } == true
-            if (base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { flat(it) } && st.partIds.all { flat(it) } &&
+            // Braces fit inside the closed frame afterwards: their own step, placed against it.
+            val nameOf = units.associate { it.id to it.name }
+            if (base != null && !base.subassembly && out.count { !it.subassembly } == 1 && base.partIds.all { flat(it) } && st.partIds.all { flat(it) && nameOf[it] != "Brace" } &&
                 !st.subassembly && boundsOf.values.maxOf { it.max.z } - floor < 100.0 && boundsOf.values.all { it.min.z <= floor + 1.0 }) {
                 out[out.size - 1] = base.copy(partIds = base.partIds + st.partIds, directions = (base.directions + st.directions).distinct(), items = (base.items + st.items).distinct().sorted())
                 built += st.partIds; renumber[st.step] = out.size; continue
@@ -944,7 +946,8 @@ object AssemblyPlan {
         // Doors, drawers and adjustable shelves go in once the box is finished: taken off first, so they go on last.
         val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
         val hungIds = hungGiven ?: (runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()) +
-            parts.filter { it.name == "Back leg" }.map { it.id }).toSet()
+            // A flat frame's braces go in once the frame is glued up (a stretcher's), not an easel's brace.
+            parts.filter { it.name == "Back leg" || (it.name == "Brace" && parts.all { o -> kotlin.math.abs(o.mesh.bounds.min.z - it.mesh.bounds.min.z) < 0.5 && kotlin.math.abs(o.mesh.bounds.max.z - it.mesh.bounds.max.z) < 0.5 }) }.map { it.id }).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         // Each drawer comes out whole; a door or a shelf on its own.
         val idIndex = (0 until n).associateBy { parts[it].id }

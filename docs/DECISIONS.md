@@ -608,3 +608,7 @@ Departures from the build spec, newest first.
 - A "Canvas stretcher" template, drawn lying face down as it is made: four bars mitred at the corners, a brace across the middle once a side passes 30 in (the usual stretcher-maker advice), a cross of braces when both do. Fixed corners (a strainer): expansion keys are not modelled, and the blurb says so.
 - In a flat frame of one layer, a straight member inside it touching none of its outer edges is a brace.
 - A screw's gauge is also capped by the part it bites into, by the same thickness rule: a #10 into a 3/4 in part splits it, so it becomes a #8.
+
+## v1.77
+- A flat frame's braces (all parts one layer, a stretcher's) are fitted in a step of their own after the frame is glued up, and placed ("Centre the brace on the width of the rail"). An easel's brace is not affected.
+- A part is "held on both sides" (so needs no placing words) only by neighbours that do not run into it end-on along that axis: short braces butting a cross brace do not place it, it places them.
