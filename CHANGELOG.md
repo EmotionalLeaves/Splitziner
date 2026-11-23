@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.31.0 - Facing the front
+
+- A model drawn facing sideways or backwards is now turned to face you on import, so the Front view, the drawings and the guide's "from the front" are right. Which way is up (project menu) has Turn left and Turn right buttons if it needs fixing.
+- Telling which way is up is more reliable: a chair is no longer stood on its head, and a cabinet facing sideways is no longer laid on its back.
+
 ## v1.30.0 - Frames together
 
 - Benches and tables built from end frames now always start by setting out both frames together, whichever way round the model was drawn.

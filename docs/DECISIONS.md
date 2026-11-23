@@ -413,3 +413,12 @@ Departures from the build spec, newest first.
 ## v1.30
 - A build that starts from one leg frame sets out its twin frames standing on the floor in the same step ("set out the 2 frames"), even when the order found would only bring them in after an apron fixed to the first frame alone. Found by building a mirror image of the garden bench: the same bench drawn the other way round got a worse order.
 - scripts/mirror-stl.py makes the mirror image of a model, to check that a piece and its mirror get the same guide with left and right swapped. Remaining differences are conventions (which leg is laid down first on the bench) and the order of a few steps in the bunk bed and garden bench.
+
+## v1.31
+- A piece that stands the right way up but faces sideways or backwards (drawers, doors or kick board on a side) is turned to face the front on import, a quarter turn at a time, and its notes say so. Turns are kept with the way up in the project ("y>1": Y up, then one quarter turn).
+- What faces the front: drawer fronts and doors within 1 in (25 mm) of the front of the carcass (not of an overhanging worktop) with nothing in front of them (so a drawer box's end behind a back panel is not one), a kick board, stiles, sliding doors and drawer rails there, and a back behind. A turn is made only when one way beats the others clearly (by 3 points) and no other way ties with it.
+- Which way is up now judges each axis also at its best facing, but only the part of the score that depends on facing: a cabinet stood up but facing sideways no longer loses to lying on its back.
+- Which way is up also takes into account whether the piece would stand: if its balance point falls outside what touches the floor (a chair on its head), that way loses 8 points.
+- More roles count towards a way up (plinth, lid, runners, kickers, drawer rails, hanging rail, corbels, rungs and ladder sides, back rails, guard rails), up to 24 parts; aprons count four at most (a desk on its head turns every drawer side into one). Spindles and seats do not count: a cabinet on its back is full of upright strips between level boards.
+- Checked on every test model: 0 wrong turns or tips on 68 models standing as drawn (and their mirror images); 32 of 34 models saved with Y up stood up (a picture frame and a mitred box are flat, with no clear up); of 34 models turned a quarter and a half turn, the 24 with drawers, doors or a kick board turned back correctly and the rest were left alone.
+- Which way is up (project menu) has Turn left and Turn right buttons.

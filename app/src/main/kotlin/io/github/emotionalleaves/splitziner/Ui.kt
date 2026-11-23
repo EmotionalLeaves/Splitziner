@@ -273,11 +273,19 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         text = {
             Column {
                 Text("STL files do not say which way is up. The app takes the file's Z axis as up; many programs (Blender, and Fusion and others with their default setting) save with Y up, so the model arrives lying on its back. Pick what makes it stand the right way. Floor, build order and drawings all follow this.", style = MaterialTheme.typography.bodySmall)
+                // "y>1": Y up, then turned a quarter so the front faces you. The way up keeps any turn already made.
+                val upAxis = open.meta.up.substringBefore('>'); val turns = open.meta.up.substringAfter('>', "0").toIntOrNull() ?: 0
+                fun withTurn(axis: String, n: Int) = if (n.mod(4) == 0) axis else "$axis>${n.mod(4)}"
                 for ((key, label) in listOf("z" to "Z up (as the file is)", "y" to "Y up (common from Blender, Fusion)", "x" to "X up", "-z" to "Upside down", "-y" to "Y down", "-x" to "X down")) {
-                    Row(Modifier.fillMaxWidth().clickable { showUp = false; if (key != open.meta.up) vm.update { it.copy(up = key, upGuessed = false) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = open.meta.up == key, onClick = null)
+                    Row(Modifier.fillMaxWidth().clickable { showUp = false; if (key != upAxis) vm.update { it.copy(up = withTurn(key, turns), upGuessed = false) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = upAxis == key, onClick = null)
                         Text(label, modifier = Modifier.padding(start = 8.dp))
                     }
+                }
+                Text("Front: the side you see in the Front view, where drawers and doors open.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { vm.update { it.copy(up = withTurn(upAxis, turns + 1), upGuessed = false) } }) { Text("Turn left") }
+                    OutlinedButton(onClick = { vm.update { it.copy(up = withTurn(upAxis, turns - 1), upGuessed = false) } }) { Text("Turn right") }
                 }
                 if (open.meta.edits.isNotEmpty()) Text("Your changes to parts were made the old way up; moves will now go in the new directions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
@@ -1190,7 +1198,7 @@ private fun HelpDialog(onDismiss: () -> Unit, onCopyReport: () -> Unit) {
 
 private val HELP = listOf(
     "Sizes and counts" to "Part sizes, the cut list and the drawing's dimensions are measured straight from your model. For flat-sided parts like boards and panels they are exact.",
-    "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up, unless the model plainly looks as if it is lying on its back (common from programs that save with Y up): then it stands it up itself, and the project's notes say so. If it still arrives the wrong way, open the project menu (\u22ee, top right), then Which way is up, and pick the axis that should point up.",
+    "Which way is up" to "STL files do not record which way is up. The app takes the file's Z axis as up, unless the model plainly looks as if it is lying on its back (common from programs that save with Y up): then it stands it up itself, and the project's notes say so. It also turns a piece whose drawers, doors or kick board face sideways so they face you: the front is what the Front view shows, and what the guide means by from the front. If it still arrives the wrong way, open the project menu (\u22ee, top right), then Which way is up: pick the axis that should point up, and turn it left or right until the front faces you.",
     "Changes" to "On the 3D tab, More > Changes lists every change made to the model, oldest first: yours and the ones Fix what can be fixed made. Take back any one of them and the rest are replayed without it; Undo takes back the last.",
     "Overall size" to "On the 3D tab, More > Overall size makes the whole piece wider, deeper or taller (or smaller). The app finds a place across the middle where only plain lengths of board are cut across; those parts get longer or shorter and everything beyond moves with them, so board thicknesses and joints stay as they were. Shrinking is limited to the clear stretch it found.",
     "Grooves (housings)" to "Where a smaller part runs part way into a bigger one, no deeper than half its thickness, the app can keep it as drawn: a groove is cut in the bigger part to take it. Fix what can be fixed does this by itself; the Check tab offers it as \"Keep it: groove item ...\". The grooved part then gets a detail sheet giving the groove's size, and the guide says to glue the part into it.",

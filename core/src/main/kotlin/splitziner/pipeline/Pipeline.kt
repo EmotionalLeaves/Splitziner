@@ -59,7 +59,18 @@ fun interface Progress { fun report(fraction: Double, label: String) }
 
 object Pipeline {
     /** Row-major 3x3 rotation taking the file's [up] axis to +Z, keeping handedness (no mirroring). */
-    fun upRotation(up: String): DoubleArray = when (up) {
+    fun upRotation(up: String): DoubleArray {
+        // "y>1": stood up with Y up, then turned a quarter about the vertical [n] times, so its front faces the viewer.
+        val base = baseRotation(up.substringBefore('>'))
+        val n = (up.substringAfter('>', "0").toIntOrNull() ?: 0).mod(4)
+        if (n == 0) return base
+        val c = intArrayOf(1, 0, -1, 0)[n].toDouble(); val sn = intArrayOf(0, 1, 0, -1)[n].toDouble()
+        val t = doubleArrayOf(c, -sn, 0.0, sn, c, 0.0, 0.0, 0.0, 1.0)
+        return DoubleArray(9) { k -> val i = k / 3; val j = k % 3; (0..2).sumOf { m -> t[3 * i + m] * base[3 * m + j] } }
+    }
+
+    /** The up axis on its own: the file's [up] axis taken to +Z, keeping handedness. */
+    private fun baseRotation(up: String): DoubleArray = when (up) {
         "y" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0)      // file Y becomes Z, file Z becomes -Y (back)
         "-y" -> doubleArrayOf(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0)
         "x" -> doubleArrayOf(0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0)
@@ -76,7 +87,7 @@ object Pipeline {
     fun guessUp(parts: List<Part>): String {
         val live = parts.filter { !it.excluded }
         if (live.size < 3) return "z"
-        fun turned(up: String): List<Part> { if (up == "z") return live; val r = upRotation(up)
+        fun turned(up: String): List<Part> { if (up == "z" || up == "z>0") return live; val r = upRotation(up)
             return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
                 val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
                 r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
@@ -97,17 +108,91 @@ object Pipeline {
             // Counted by parts, not kinds: a bed's 24 slats and 4 legs outweigh a stray "foot" or two that a bed
             // lying on its side throws up.
             val kinds = names.toSet()
-            return 3 * drawers + 2 * doors + 2 * minOf(12, names.count { it in STRONG_ROLES }) + minOf(6, names.count { it in WEAK_ROLES }) +
-                (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) 2 else 0)
+            // Stood this way, would it stand? Its balance point must fall inside what touches the floor: a chair on its
+            // head rests on the tops of its back legs alone, a line, and falls over.
+            val feet = ArrayList<splitziner.math.Vec2>()
+            for (p in ps) if (p.mesh.bounds.min.z <= floor + 2.0) for (v in 0 until p.mesh.vertexCount) if (p.mesh.vertices[3 * v + 2] <= floor + 2.0) feet += splitziner.math.Vec2(p.mesh.vertices[3 * v], p.mesh.vertices[3 * v + 1])
+            val hull = splitziner.mesh.OrientedBounds.convexHull(feet)
+            var vm = 0.0; var cx = 0.0; var cy = 0.0
+            for (p in ps) { val v = kotlin.math.abs(p.mesh.volume); val c = p.mesh.bounds.center; vm += v; cx += v * c.x; cy += v * c.y }
+            val stands = hull.size >= 3 && vm > 0 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
+                (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) >= -1.0 } || hull.size >= 3 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
+                (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) <= 1.0 }
+            return (if (stands) 0 else -FALLS) + 3 * drawers + 2 * doors + 2 * minOf(STRONG_CAP, names.count { it in STRONG_ROLES && it != "Apron" } + minOf(4, names.count { it == "Apron" })) + minOf(6, names.count { it in WEAK_ROLES }) +
+                (if ("Top" in kinds) 1 else 0) + (if ("Bottom" in kinds) 1 else 0) - minOf(3, names.count { it == "Panel" }) - (if (frac > 0.85) FLAT_ON_FLOOR else 0)
         }
-        val scores = listOf("z", "y", "-y").associateWith { score(turned(it)) }
+        // Each way up is judged as it is, plus whatever facing another way would add to the part that depends on facing:
+        // a cabinet stood up but facing sideways still has its kick board, just not at the front, and must not lose to
+        // lying on its back. (Big models: as it faces.)
+        val turns = if (live.size > 150) listOf(0) else (0..3).toList()
+        val scores = listOf("z", "y", "-y").associateWith { u -> val ps0 = turned(u)
+            val f0 = frontScore(ps0)
+            score(ps0) + maxOf(0, turns.drop(1).maxOfOrNull { n -> frontScore(turned("$u>$n")) - f0 } ?: 0) }
         // Y up is the common export; its upside-down twin has to beat it clearly as well.
         val other = if (scores.getValue("-y") >= scores.getValue("y") + MARGIN) "-y" else "y"
         return if (scores.getValue(other) >= scores.getValue("z") + MARGIN) other else "z"
     }
 
-    private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat")
+    /**
+     * How many quarter turns about the vertical bring the model's front to face the viewer (the app's front is -Y):
+     * drawers and doors that open towards it, a kick board and a face frame at the front, a back at the back.
+     * 0 unless another turn is clearly better (by [MARGIN] points). [parts] stand the right way up already.
+     */
+    fun guessTurn(parts: List<Part>): Int {
+        val live = parts.filter { !it.excluded }
+        if (live.size < 3) return 0
+        fun turned(n: Int): List<Part> { if (n == 0) return live; val r = upRotation("z>$n")
+            return live.map { p -> p.copy(name = p.id, mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
+                val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
+                r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
+            }, p.mesh.triangles)) } }
+        val scores = (0..3).associateWith { frontScore(turned(it)) }
+        val best = scores.maxByOrNull { it.value }!!
+        // Two ways equally good (the piece looks the same from front and back): leave it as it is.
+        if (scores.values.count { it == best.value } > 1) return 0
+        return if (best.key != 0 && best.value >= scores.getValue(0) + MARGIN) best.key else 0
+    }
+
+    /** How much the piece looks as if it faces -Y: drawer fronts and doors at the front, a kick board and face frame there, a back behind. */
+    private fun frontScore(ps: List<Part>): Int {
+        if (ps.isEmpty()) return 0
+        val byId = ps.associateBy { it.id }
+        val names = runCatching { splitziner.parts.Roles.names(ps) }.getOrDefault(emptyMap())
+        // Drawers and doors are found whichever way the piece faces: what counts is that their fronts are at the front.
+        // The front of the carcass, not of a worktop or top overhanging it.
+        val front = ps.filter { it.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } }.minOfOrNull { it.mesh.bounds.min.y } ?: ps.minOf { it.mesh.bounds.min.y }
+        fun atFront(id: String) = (byId[id]?.mesh?.bounds?.min?.y ?: Double.MAX_VALUE) <= front + FRONT_DEPTH
+        // And nothing in front of it: a drawer box's end behind a back panel (the piece facing backwards) is not a face.
+        fun open(id: String): Boolean { val b = byId[id]?.mesh?.bounds ?: return false
+            return ps.none { o -> o.id != id && o.mesh.bounds.max.y <= b.min.y + 0.5 &&
+                (minOf(o.mesh.bounds.max.x, b.max.x) - maxOf(o.mesh.bounds.min.x, b.min.x)) * (minOf(o.mesh.bounds.max.z, b.max.z) - maxOf(o.mesh.bounds.min.z, b.min.z)) > 0.5 * b.extents.x * b.extents.z &&
+                o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.z > b.min.z && o.mesh.bounds.min.z < b.max.z } }
+        val faces = names.count { (id, n) -> (n == "Drawer front" || n == "Door") && atFront(id) && open(id) }
+        return 3 * minOf(8, faces) + 2 * minOf(6, names.count { (id, n) -> n in FRONT_ROLES && atFront(id) }) + minOf(3, names.values.count { it in BACK_ROLES })
+    }
+
+    /** A drawer front or door this close to the frontmost face of the piece (mm) faces the front: an inch, room for a face frame in front of an inset door, not for a cabinet side in front of a drawer box. */
+    private const val FRONT_DEPTH = 25.0
+
+    /** Roles found only at the front, and only at the back, of a piece standing the right way round. */
+    private val FRONT_ROLES = setOf("Kick board", "Stile", "Sliding door", "Drawer rail")   // not face frame rails alone: any flat strips at the front look like them
+    private val BACK_ROLES = setOf("Back panel", "Back", "Modesty panel", "Hanging rail")
+
+    // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
+    private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",
+        "Plinth", "Lid", "Runner", "Kicker", "Drawer rail", "Hanging rail", "Corbel", "Rung", "Ladder side", "Back rail", "Guard rail")
     private val WEAK_ROLES = setOf("Post", "Stretcher", "Back panel", "Modesty panel", "Cleat", "Side rail", "End rail")
+
+    /** Parts in telling roles counted at most (two points each): a loft bed's 12 slats, 4 legs, ladder and guard rails all count. */
+    private const val STRONG_CAP = 24
+
+    /** Points off a way up in which a whole face rests on the floor (on its back, or on its top). Small: a box on its bottom does too. */
+    private const val FLAT_ON_FLOOR = 2
+
+    // Aprons count four at most: a table has four, and a desk on its head turns every drawer side into one.
+
+    /** Points off a way up in which the piece would fall over. */
+    private const val FALLS = 8
 
     /** Points by which another up axis must beat the file's own Z before the app turns the model. */
     private const val MARGIN = 3
@@ -140,7 +225,7 @@ object Pipeline {
             timed("split") { BodySplitter.split(raw, options.fileUnits, options.displayUnits) }
         }
         // Turned so the chosen axis points up. A rotation by quarter turns: sizes and right angles are kept exactly.
-        val turned = if (options.up == "z") split.parts else {
+        val turned = if (options.up == "z" || options.up == "z>0") split.parts else {
             val r = upRotation(options.up)
             split.parts.map { p -> p.copy(mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
                 val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
@@ -171,7 +256,8 @@ object Pipeline {
             out
         }
         progress.report(0.8, "Building the cut list")
-        if (options.upGuessed && options.up != "z") report = report.copy(warnings = report.warnings + "The model looked as if it was lying on its back (saved with ${options.up.uppercase()} up, as many programs do), so it has been stood up. If that is wrong, open the project menu (\u22ee, top right), then Which way is up.")
+        if (options.upGuessed && options.up.substringBefore('>') != "z") report = report.copy(warnings = report.warnings + "The model looked as if it was lying on its back (saved with ${options.up.substringBefore('>').uppercase()} up, as many programs do), so it has been stood up. If that is wrong, open the project menu (\u22ee, top right), then Which way is up.")
+        if (options.upGuessed && options.up.contains('>')) report = report.copy(warnings = report.warnings + "The model's front looked as if it faced sideways (its drawers, doors or kick board were on a side), so it has been turned to face you. If that is wrong, open the project menu (\u22ee, top right), then Which way is up, and turn it.")
         val fmt = LengthFormat(units = split.report.units.designUnits, inchStyle = options.inchStyle)
         val named = lighter.map { p -> p.copy(name = options.partNames[p.id] ?: p.name, excluded = p.id in options.excludedPartIds) }
         val edited = if (options.edits.isEmpty()) null else timed("edits") { splitziner.edit.Editor.apply(named, options.edits) }

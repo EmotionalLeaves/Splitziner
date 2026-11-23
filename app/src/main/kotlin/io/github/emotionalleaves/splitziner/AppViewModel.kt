@@ -592,6 +592,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     analysis = withContext(Dispatchers.Default) { Pipeline.analyze(store.source(meta.id), meta.options(), { _, _ -> }, meta.fileName) }
                     Diagnostics.log("import: turned to $up up")
                 }
+                // Standing, but facing sideways (its drawers and doors on a side): turned to face the front, noted the same way.
+                val turn = withContext(Dispatchers.Default) { runCatching { Pipeline.guessTurn(analysis.parts) }.getOrDefault(0) }
+                if (turn != 0) {
+                    meta = meta.copy(up = "${meta.up}>$turn", upGuessed = true).also { store.save(it) }
+                    _state.update { it.copy(busyLabel = "Turning it to face you", busyFraction = 0.6f) }
+                    analysis = withContext(Dispatchers.Default) { Pipeline.analyze(store.source(meta.id), meta.options(), { _, _ -> }, meta.fileName) }
+                    Diagnostics.log("import: turned $turn quarter(s) to face the front")
+                }
             }
             val r = analysis.report
             Diagnostics.log("analysis: ${r.faces} tris, ${r.method}, ${r.bodies} bodies, ${r.parts} parts, units ${r.units.fileUnits}/${r.units.designUnits} margin ${r.units.margin}, ${analysis.timingsMs}")

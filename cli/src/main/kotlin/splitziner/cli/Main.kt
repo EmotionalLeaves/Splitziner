@@ -44,8 +44,11 @@ fun main(args: Array<String>) {
         }
         val f = File(file ?: error("no input file"))
         val z0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style))
-        if (up == "auto") up = Pipeline.guessUp(z0.parts).also { println("up        guessed $it") }
-        val a0 = if (up == "z") z0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up))
+        val auto = up == "auto"
+        if (auto) up = Pipeline.guessUp(z0.parts).also { println("up        guessed $it") }
+        var a0 = if (up == "z") z0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up))
+        // auto also turns it to face the front, as the app does on import.
+        if (auto) Pipeline.guessTurn(a0.parts).takeIf { it != 0 }?.let { t -> up = "$up>$t"; println("turn      guessed $t"); a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up)) }
         // --only P01,P05: keep just those parts, to look at one corner of a model.
         var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
         // MATERIAL=Oak sets every item's material, as the app's new-design chips do.

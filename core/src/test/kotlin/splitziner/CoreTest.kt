@@ -2045,3 +2045,24 @@ class PicnicTest {
         assertTrue(frames.all { it.size == 4 }, frames.toString())
     }
 }
+
+class TurnGuessTest {
+    @Test fun aCabinetFacingSidewaysIsTurnedToFaceTheFront() {
+        val t = splitziner.edit.Templates.byKey("drawers")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+        fun stl(meshes: List<splitziner.mesh.Mesh>): ByteArray { val bos = ByteArrayOutputStream(); StlWriter.writeParts(meshes, bos); return bos.toByteArray() }
+        // Its front turned to face +X: (x, y) becomes (-y, x).
+        val side = ms.map { m -> splitziner.mesh.Mesh(DoubleArray(m.vertices.size) { i -> val v = 3 * (i / 3); when (i % 3) { 0 -> -m.vertices[v + 1]; 1 -> m.vertices[v]; else -> m.vertices[v + 2] } }, m.triangles) }
+        val facing = Pipeline.analyze(stl(ms), "d.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val sideways = Pipeline.analyze(stl(side), "d.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(0, Pipeline.guessTurn(facing.parts))
+        // Still the right way up, though it faces sideways.
+        assertEquals("z", Pipeline.guessUp(sideways.parts))
+        val n = Pipeline.guessTurn(sideways.parts)
+        assertEquals(3, n)
+        val turned = Pipeline.analyze(stl(side), "d.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", up = "z>$n", upGuessed = true))
+        assertEquals(facing.overallSize, turned.overallSize)
+        assertEquals(facing.parts.map { it.name }.sorted(), turned.parts.map { it.name }.sorted())
+        assertTrue(turned.report.warnings.any { it.contains("turned to face you") })
+    }
+}
