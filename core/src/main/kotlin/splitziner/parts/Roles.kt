@@ -9,8 +9,14 @@ object Roles {
     /** A board narrower than this (mm) is a strip (rail, upright), never a shelf, side or top. */
     private const val NARROW = 150.0
 
+    /** Height of a seat's upper face off the floor (mm): a stool's or a chair's, 15 to 20-1/2 in. */
+    private val SEAT_HEIGHT = 380.0..520.0
+
     /** A ladder's sides and rungs are slimmer than this (mm) across: a 2x3 at most. */
     private const val LADDER_BAR = 90.0
+
+    /** Rise from one rung to the next (mm): a climbable step, 6 to 18 in. */
+    private val RUNG_PITCH = 150.0..460.0
 
     /** Clear space between a ladder's sides (mm): room for a foot, short of a bench's width. */
     private val LADDER_GAP = 250.0..650.0
@@ -58,8 +64,11 @@ object Roles {
                 val rungs = live.filter { r -> r.id !in out && r !== a && r !== c && near(r, a) && near(r, c) && r.mesh.bounds.extents.let { e ->
                     (0..2).maxByOrNull { e[it] } == along && listOf(e.x, e.y, e.z).sorted()[1] < LADDER_BAR } }
                 if (rungs.size < 3) continue
-                val zs = rungs.map { it.mesh.bounds.center.z }
+                val zs = rungs.map { it.mesh.bounds.center.z }.sorted()
                 if (zs.max() - zs.min() < 0.4 * minOf(ab.extents.z, cb.extents.z)) continue
+                // Rungs a step apart, evenly: a chair's back rails (one under the seat, two up the back) are not.
+                val pitch = zs.zipWithNext { x, y -> y - x }
+                if (pitch.any { it !in RUNG_PITCH } || pitch.max() > 1.5 * pitch.min()) continue
                 out[a.id] = "Ladder side"; out[c.id] = "Ladder side"
                 for (r in rungs) out[r.id] = "Rung"
             }
@@ -220,6 +229,9 @@ object Roles {
                         live.count { o -> o !== p && kotlin.math.abs(o.mesh.bounds.max.z - b.min.z) < 1.0 && o.mesh.bounds.min.z <= all.min.z + 1.0 && touches(o) } >= 2
                     when {
                         // Nothing over most of it and high up: a top (a desk's top, though a small shelf rides above it).
+                        // At sitting height with a back rising well above it from its back edge: a seat (a chair's, a settle's).
+                        !coveredAbove && b.max.z - all.min.z in SEAT_HEIGHT && all.max.z > b.max.z + 250.0 &&
+                            live.any { o -> o !== p && o.mesh.bounds.max.z > b.max.z + 250.0 && o.mesh.bounds.min.z < b.max.z + 100.0 && o.mesh.bounds.min.y >= b.max.y - 60.0 } -> "Seat"
                         !coveredAbove && b.min.z > all.min.z + 0.5 * h -> "Top"
                         !coveredAbove && spans -> "Top"
                         !coveredBelow && b.min.z < all.min.z + 0.25 * h && betweenPanels -> "Bottom"
@@ -316,6 +328,10 @@ object Roles {
                 between >= 2 -> "Stretcher"
                 else -> "Rail"
             }
+        }
+        // Above a seat, the rails between the back legs carry the back: back rails.
+        live.firstOrNull { out[it.id] == "Seat" }?.let { seat ->
+            for (p in live) if (out[p.id] in setOf("Side rail", "End rail", "Rail", "Apron") && p.mesh.bounds.min.z >= seat.mesh.bounds.max.z - 0.5) out[p.id] = "Back rail"
         }
         // A bed's side or end rail carrying no slats, with one on the same side below it that does: a guard rail
         // round a top bunk.

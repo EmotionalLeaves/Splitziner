@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.20.0 - Chairs
+
+- Chairs: the seat is called the seat, and the rails up the back are back rails with the splats between them. A chair's back is no longer mistaken for a ladder.
+
 ## v1.19.0 - Clearer bench steps
 
 - Bench steps read in the order you build: lay down one rail, stand the spindles on it, put the other rail on top (and for frames: one leg, the rails, then the other leg).

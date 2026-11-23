@@ -1924,3 +1924,26 @@ class CribTest {
         assertEquals(2, pl.steps.count { it.subassembly })
     }
 }
+
+class ChairTest {
+    @Test fun chairHasASeatAndBackRailsNotALadder() {
+        val W = 457.2; val D = 457.2; val Hs = 457.2; val Hb = 914.4; val leg = 38.1; val t = 19.05
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (x in listOf(0.0, W - leg)) { ms += b(x, 0.0, 0.0, leg, leg, Hs - t); ms += b(x, D - leg, 0.0, leg, leg, Hb) }
+        val az = Hs - t - 76.2; val off = (leg - t) / 2
+        ms += b(leg, off, az, W - 2 * leg, t, 76.2); ms += b(leg, D - leg + off, az, W - 2 * leg, t, 76.2)
+        for (x in listOf(0.0, W - leg)) { ms += b(x + off, leg, az, t, D - 2 * leg, 76.2); ms += b(x + off, leg, 152.4, t, D - 2 * leg, 38.1) }
+        ms += b(0.0, 0.0, Hs - t, W, D - leg, t)
+        val rl = Hs + 76.2; val rt = Hb - 88.9
+        ms += b(leg, D - leg + off, rl, W - 2 * leg, t, 50.8); ms += b(leg, D - leg + off, rt, W - 2 * leg, t, 76.2)
+        val sw = 50.8; val g = (W - 2 * leg - 3 * sw) / 4
+        for (i in 0 until 3) ms += b(leg + g + i * (sw + g), D - leg + (leg - 12.7) / 2, rl + 50.8, sw, 12.7, rt - rl - 50.8)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "chair.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(1, names.count { it == "Seat" }, names.toString())
+        assertEquals(2, names.count { it == "Back rail" }, names.toString())
+        assertEquals(3, names.count { it == "Spindle" }, names.toString())
+        assertTrue(names.none { it == "Rung" || it == "Ladder side" }, names.toString())
+    }
+}

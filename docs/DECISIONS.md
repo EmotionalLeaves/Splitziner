@@ -364,3 +364,7 @@ Departures from the build spec, newest first.
 - On the bench, spindles are drawn lifted straight up off their bottom rail, with the top rail above them, so a slatted panel reads as it goes together.
 - When some parts of one item are laid down and the rest joined on (a slatted panel's two rails, a frame's two legs), the text says so: "Lay down item 2", then "Join ... item 2 from above" after the parts that go between them, as the picture shows.
 - "×N" tags count only parts going in the same way; a quantity tag that has no clear room beside its group tries further out, then the least-covered spot.
+
+## v1.20
+- A flat board 380-520 mm off the floor (15 to 20-1/2 in), with a part rising more than 250 mm above it from its back edge, is a seat. Rails above a seat are back rails.
+- A ladder's rungs must be a climbable step apart (150-460 mm) and evenly so (the largest rise no more than 1.5 times the smallest): a chair's back, with one rail under the seat and two up the back, is not a ladder.
