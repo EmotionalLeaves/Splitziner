@@ -6,6 +6,9 @@ package splitziner.parts
  * and a name from the file or from the maker always wins.
  */
 object Roles {
+    /** A wall shelf, rack or ledge is at most this deep (mm): 14 in. */
+    const val WALL_DEPTH = 355.6
+
     /** A board narrower than this (mm) is a strip (rail, upright), never a shelf, side or top. */
     private const val NARROW = 150.0
 
@@ -508,7 +511,8 @@ object Roles {
         run {
             val backB = live.filter { p -> p.mesh.bounds.let { b -> b.max.y >= all.max.y - 0.5 && b.extents.y < minOf(b.extents.x, b.extents.z) && b.extents.x >= 0.8 * all.extents.x } }
             // Hung, not standing: only the back board reaches down to the lowest point.
-            if (backB.isEmpty() || live.any { it.mesh.bounds.min.z <= all.min.z + 0.5 && it !in backB }) return@run
+            // And shallow, as wall shelves and racks are (a chest lying on its back, its lid down the back, is not).
+            if (backB.isEmpty() || all.extents.y > WALL_DEPTH || live.any { it.mesh.bounds.min.z <= all.min.z + 0.5 && it !in backB }) return@run
             for (p in live) {
                 val b = p.mesh.bounds
                 if (p in backB || out[p.id] in setOf("Peg", "Rod")) continue

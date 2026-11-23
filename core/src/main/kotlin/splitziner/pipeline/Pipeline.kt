@@ -93,7 +93,11 @@ object Pipeline {
                 r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
             }, p.mesh.triangles)) } }
         fun score(ps: List<Part>): Int {
-            val names = runCatching { splitziner.parts.Roles.names(ps).values }.getOrDefault(emptyList())
+            // The strips of a frame round a panel are stiles and rails whichever way up it lies: they tell nothing.
+            // Nor do pegs sunk in a board, standing up like posts when the board lies flat.
+            val framed = runCatching { splitziner.check.FramePanels.find(ps).flatMap { it.ids } }.getOrDefault(emptyList()).toSet() +
+                runCatching { splitziner.check.Pegs.ids(ps) }.getOrDefault(emptySet())
+            val names = runCatching { splitziner.parts.Roles.names(ps).filterKeys { it !in framed }.values }.getOrDefault(emptyList())
             val drawers = runCatching { splitziner.check.Drawers.find(ps).size }.getOrDefault(0)
             val doors = runCatching { splitziner.check.Doors.find(ps).size }.getOrDefault(0)
             // Lying on its back, a whole panel rests on the floor; standing, only edges and feet do.
@@ -115,7 +119,11 @@ object Pipeline {
             val hull = splitziner.mesh.OrientedBounds.convexHull(feet)
             var vm = 0.0; var cx = 0.0; var cy = 0.0
             for (p in ps) { val v = kotlin.math.abs(p.mesh.volume); val c = p.mesh.bounds.center; vm += v; cx += v * c.x; cy += v * c.y }
-            val stands = hull.size >= 3 && vm > 0 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
+            // Made to hang: it meets the floor only along a strip at the back, under a full-width back board.
+            val yMax = all.max.y
+            val hangs = feet.isNotEmpty() && all.extents.y <= splitziner.parts.Roles.WALL_DEPTH && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * all.extents.y) &&
+                ps.any { p -> p.mesh.bounds.min.z <= floor + 2.0 && p.mesh.bounds.extents.let { e -> e.x >= 0.8 * all.extents.x && e.y < minOf(e.x, e.z) } }
+            val stands = hangs || hull.size >= 3 && vm > 0 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) >= -1.0 } || hull.size >= 3 && hull.indices.all { k -> val p0 = hull[k]; val q = hull[(k + 1) % hull.size]
                 (q.x - p0.x) * (cy / vm - p0.y) - (q.y - p0.y) * (cx / vm - p0.x) <= 1.0 }
             return (if (stands) 0 else -FALLS) + 3 * drawers + 2 * doors + 2 * minOf(STRONG_CAP, names.count { it in STRONG_ROLES && it != "Apron" } + minOf(4, names.count { it == "Apron" })) + minOf(6, names.count { it in WEAK_ROLES }) +
@@ -125,9 +133,15 @@ object Pipeline {
         // a cabinet stood up but facing sideways still has its kick board, just not at the front, and must not lose to
         // lying on its back. (Big models: as it faces.)
         val turns = if (live.size > 150) listOf(0) else (0..3).toList()
+        // Judged facing the way its front says (a face frame is only found at the front), plus what that turn adds.
         val scores = listOf("z", "y", "-y").associateWith { u -> val ps0 = turned(u)
             val f0 = frontScore(ps0)
-            score(ps0) + maxOf(0, turns.drop(1).maxOfOrNull { n -> frontScore(turned("$u>$n")) - f0 } ?: 0) }
+            // Every way up gets the front it would have once turned to face the viewer, so one already facing is not
+            // beaten by its upside-down twin for needing a turn.
+            val fronts = turns.associateWith { n -> if (n == 0) f0 else frontScore(turned("$u>$n")) }
+            val best = fronts.maxByOrNull { it.value }!!.key
+            maxOf(score(ps0), if (best == 0) score(ps0) else score(turned("$u>$best"))) + fronts.getValue(best) }
+        if (System.getenv("DBGUP") != null) { System.err.println("DBGUP $scores"); for (u in listOf("y", "-y")) for (n in turns) { val ps0 = turned("$u>$n"); System.err.println("DBGUP $u>$n score=${score(ps0)} front=${frontScore(ps0)} " + runCatching { splitziner.parts.Roles.names(ps0).values.groupingBy { it }.eachCount() }.getOrDefault(emptyMap())) } }
         // Y up is the common export; its upside-down twin has to beat it clearly as well.
         val other = if (scores.getValue("-y") >= scores.getValue("y") + MARGIN) "-y" else "y"
         return if (scores.getValue(other) >= scores.getValue("z") + MARGIN) other else "z"
@@ -195,7 +209,7 @@ object Pipeline {
 
     // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
     private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",
-        "Plinth", "Lid", "Runner", "Kicker", "Drawer rail", "Hanging rail", "Corbel", "Rung", "Ladder side", "Back rail", "Guard rail")
+        "Plinth", "Lid", "Runner", "Kicker", "Drawer rail", "Hanging rail", "Corbel", "Rung", "Ladder side", "Back rail", "Guard rail", "Bracket", "Lip", "Back board")
     private val WEAK_ROLES = setOf("Post", "Stretcher", "Back panel", "Modesty panel", "Cleat", "Side rail", "End rail")
 
     /** Parts in telling roles counted at most (two points each): a loft bed's 12 slats, 4 legs, ladder and guard rails all count. */

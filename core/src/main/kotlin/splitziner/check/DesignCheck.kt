@@ -371,7 +371,7 @@ object DesignCheck {
                 // Made to hang (a back board carrying pegs or a shelf on brackets): it is not meant to stand at all.
                 // Or it touches the floor only along a strip at its back (a picture ledge's back board): a wall piece.
                 val yMin = lo.minOf { it.y }; val yMax = hi.maxOf { it.y }; val depth = yMax - yMin
-                val strip = feet.isNotEmpty() && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * depth)
+                val strip = feet.isNotEmpty() && depth <= splitziner.parts.Roles.WALL_DEPTH && feet.maxOf { it.y } >= yMax - 1.0 && feet.maxOf { it.y } - feet.minOf { it.y } <= maxOf(40.0, 0.25 * depth)
                 val hangs = live.any { it.name == "Back board" } || live.any { it.name == "Wall cleat" || it.name == "Hanging rail" } || strip
                 if (margin < 0 && hangs) { val bb = live.firstOrNull { it.name == "Back board" }
                     out += Finding(Severity.CHECK, "Hang it on the wall", "It is made to hang, not to stand. Screw ${bb?.let { "the back board (item ${it.item})" } ?: "it"} to the wall into the studs, " +

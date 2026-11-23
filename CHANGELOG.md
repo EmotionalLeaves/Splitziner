@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.60.0 - up guess fixes
+
+- **The right way up, more often.** Cabinets with Shaker doors exported from a Y-up program (as Blender and many others do) were stood upside down; they now come in upright. Coat racks and picture ledges are stood up on their back board instead of being laid flat.
+
 ## v1.59.0 - units in new notes
 
 - Metric projects no longer show inch sizes in the newer notes (the easel's chain, the wall screws, the raised-panel groove allowance), and inch projects no longer show millimetres.

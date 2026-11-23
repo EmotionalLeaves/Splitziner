@@ -543,3 +543,8 @@ Departures from the build spec, newest first.
 
 ## v1.59
 - The newer hardware and notes follow the project's units instead of giving both: the easel's chain or cord ("about 24 in long" / "about 600 mm long"), the wall screws (#10 x 3 in / 5 x 75 mm), and the raised panel's spare room in the groove (1/16 in / 2 mm).
+
+## v1.60
+- Which way is up: every way up is now credited with the front it would have once turned to face the viewer, and judged facing that way; before, one already facing the viewer could lose to its upside-down twin that needed a turn (Shaker cabinets exported Y-up came out upside down).
+- The strips of a frame round a panel, and pegs, are left out of the roles that vote for a way up: they come out the same whichever way the piece lies.
+- A piece no deeper than 14 in (355.6 mm) that meets the floor only along a strip at its back, under a full-width back board, is made to hang: it does not count as falling over when the way up is guessed, and its back board, brackets and lip count for that way up. The same depth limit keeps a chest lying on its back from being taken for a wall rack.

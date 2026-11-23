@@ -2428,3 +2428,17 @@ class CoatRackTest {
         assertEquals(1, pl.steps.count { st -> st.partIds.any { id -> pl.parts.first { it.id == id }.name == "Peg" } })
     }
 }
+
+class UpGuessFrameTest {
+    private fun up(name: String): String {
+        val bytes = javaClass.getResourceAsStream("/complex/$name")!!.readBytes()
+        val a = Pipeline.analyze(bytes, name, splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        return Pipeline.guessUp(a.parts)
+    }
+
+    /** A Y-up export of a base cabinet with Shaker doors and drawer front stands the right way up, not on its head. */
+    @Test fun aShakerCabinetExportedYUpStandsUp() = assertEquals("y", up("shaker_base_yup.stl"))
+
+    /** A coat rack, made to hang, is stood up on its back board's edge, not laid on its back. */
+    @Test fun aWallRackExportedYUpStandsUp() = assertEquals("y", up("coat_rack_yup.stl"))
+}
