@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.30.0 - dowels and drying racks
+
+- Dowels and thin rods (a drying rack's dividers, a towel bar) are now glued into drilled holes, with the cut length adjusted for the holes, instead of hanging in closet rod sockets.
+- A rack with rows of dividers standing on its base is built in a sensible order: the box, then all the dividers in one step (told as rows and spacing), then the top rails, marked from the base so everything stands straight.
+
 ## v2.29.0 - suggested materials
 
 - Studio designs now start with their usual material picked (birch plywood for plinths, poplar for frames, pine for stretchers…), so you see weights straight away. You can change it in the same place.

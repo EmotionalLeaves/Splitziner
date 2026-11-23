@@ -433,8 +433,42 @@ object GuideSteps {
                     } else lines += "Stand them in place, spaced to the overall sizes on the drawing and square to each other; a helper, clamps or a prop holds them up until the next step ties them together."
                 }
             }
+            // Spindles standing in rows on a base board (a drying rack's dividers): the rows, the pitch and where the first
+            // stands, rather than each one's place; and the rails that come down on them marked with the base.
+            var rowsTold = false
+            if (fmt != null && !st.subassembly) {
+                val spind = cur.filter { it.name == "Spindle" }
+                val sItem = spind.map { it.item }.distinct().singleOrNull()
+                val baseB = if (spind.size >= 3 && sItem != null) drawn.firstOrNull { o -> o.id in done && o.name != "Spindle" && spind.all { s -> kotlin.math.abs(o.mesh.bounds.max.z - s.mesh.bounds.min.z) < 1.0 &&
+                    s.mesh.bounds.center.x in o.mesh.bounds.min.x..o.mesh.bounds.max.x && s.mesh.bounds.center.y in o.mesh.bounds.min.y..o.mesh.bounds.max.y } } else null
+                if (baseB != null) {
+                    val ob = baseB.mesh.bounds
+                    val ax = if (ob.extents.x >= ob.extents.y) 0 else 1; val cross = 1 - ax
+                    val rows = spind.groupBy { kotlin.math.round(it.mesh.bounds.center[cross] / 2.0) }.values.sortedBy { r -> r[0].mesh.bounds.center[cross] }
+                    val cs = rows.map { r -> r.map { it.mesh.bounds.center[ax] }.sorted() }
+                    val pitches = cs.flatMap { c -> c.zipWithNext { a, b -> b - a } }
+                    val even = pitches.isNotEmpty() && pitches.maxOrNull()!! - pitches.minOrNull()!! <= 1.5 && cs.all { kotlin.math.abs(it.first() - cs[0].first()) < 1.0 }
+                    if (even && rows.size <= 3) {
+                        val u = if (fmt.isInch) " in" else " mm"
+                        val bName = "item ${baseB.item ?: "-"}" + named(listOf(baseB))
+                        val endWord = if (ax == 0) "left end" else "front edge"
+                        val edgeWord = { c: Double -> val f = c - ob.min[cross]; val b = ob.max[cross] - c
+                            if (cross == 1) (if (f <= b) "${fmt.format(f)}$u from the front edge" else "${fmt.format(b)}$u from the back edge")
+                            else (if (f <= b) "${fmt.format(f)}$u from the left end" else "${fmt.format(b)}$u from the right end") }
+                        val rowText = rows.map { r -> edgeWord(r.map { it.mesh.bounds.center[cross] }.average()) }
+                        lines += (if (rows.size == 1) "Stand ${spind.size}× item $sItem in a row, centred ${rowText[0]}"
+                            else "Stand item $sItem in ${rows.size} rows of ${rows.map { it.size }.distinct().joinToString(" and ")}, centred ${rowText.joinToString(" and ")}") +
+                            ": centres ${fmt.format(pitches.average())}$u apart, the first ${fmt.format(cs[0].first() - ob.min[ax])}$u from the $endWord of $bName."
+                        val tops = drawn.filter { o -> o.name != "Spindle" && spind.any { s -> kotlin.math.abs(o.mesh.bounds.min.z - s.mesh.bounds.max.z) < 1.0 &&
+                            s.mesh.bounds.center.x in o.mesh.bounds.min.x..o.mesh.bounds.max.x && s.mesh.bounds.center.y in o.mesh.bounds.min.y..o.mesh.bounds.max.y } }
+                        val tItems = tops.mapNotNull { it.item }.distinct()
+                        if (tItems.isNotEmpty()) lines += "Mark the holes in item${if (tItems.size > 1) "s" else ""} ${tItems.joinToString(" and ")} from $bName before drilling either: lay ${if (tops.size > 1) "each" else "it"} on $bName where it will sit above it and square the marks across, so every spindle stands straight."
+                        rowsTold = true
+                    }
+                }
+            }
             // Where loose parts sit on what is built, when nothing else in the step says (a toe-kick set back, a modesty panel set in).
-            if (fmt != null && !st.subassembly && !base) {
+            if (fmt != null && !st.subassembly && !base && !rowsTold) {
                 val built = drawn.filter { it.id in done || it.id in placedHere }
                 // Only where it reads as an instruction: a busy step of a sculpted model, with parts set every which way, would
                 // list offsets the picture already shows better.
@@ -603,7 +637,7 @@ object GuideSteps {
                 if (j.glueOnly || j.count <= 0) continue
                 val key = when (j.kind) {
                     "brackets", "corner" -> "corner brackets"; "runners" -> splitziner.joinery.Fastening.HANDLE; "foldhinge" -> "pair of ${j.size} butt hinges"; "lid" -> j.size; "wallcleat" -> continue; "slides" -> "pair of ${j.size} drawer slides"; "hinges" -> if (j.size == "inset hinges") "inset face-frame hinges" else "concealed hinges"; "pins" -> "shelf pins"; "applied" -> "${j.size} screws"
-                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "glass" -> continue
+                    "laminate", "front", "mitre" -> "${j.size} brads"; "pocketin" -> "${j.size} pocket screws"; "dowels" -> j.size; "thin", "edge", "housed", "panel", "peghole", "rodhole", "glass" -> continue
                     "up", "cabinets", "counterbored", "under" -> "${j.size} screws"; "rod" -> "closet rod sockets"; "caster" -> "casters"; "faceglue", "cratepack", "facebox" -> continue; "stop" -> "${j.size} brads"; "backscrew" -> "${j.size} screws"; "balltop", "pedtop" -> "${j.size} screws"; "bedrail" -> "pairs of bed rail fasteners"; "edgebolt" -> "worktop connector bolts"; "sliding" -> "double sliding-door track set"
                     else -> "${j.size} ${j.kind}"
                 }

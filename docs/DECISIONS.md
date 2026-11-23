@@ -788,3 +788,8 @@ Departures from the build spec, newest first.
 
 ## v2.29
 - Studio designs start with their usual material picked in the new-design dialog (birch plywood for plinths, cases and the taboret; plywood for crates; poplar for frames, shadow boxes, the easel and the ledge; pine for stretchers), so weights show from the start. "Not set" or another material can be chosen as before.
+
+## v2.30
+- A rod that stands upright, or a level one thinner than 1 in (a dowel divider, a towel bar), is glued into a hole drilled half the board's thickness deep at each end, not hung in closet rod sockets; those stay for a level rod 1 in thick or more. The model draws the rod butting, so the guide gives the rod's cut length with the holes added, where it first goes in.
+- Spindles standing on a wide base board (a drying rack's dividers) are not a slatted panel made flat: the case goes together first, then all the spindles in one step, told as rows (how many, centres apart, where the first stands), then the rails that come down on their tops, with their holes marked from the base. Rails resting on rods are still screwed to the sides.
+- A build's first step of one part alone (the bottom) takes the next step with it when that is two or three parts (its sides).

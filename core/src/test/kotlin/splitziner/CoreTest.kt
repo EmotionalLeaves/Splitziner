@@ -2634,3 +2634,23 @@ class ShapeWordsTest {
         assertTrue(splitziner.parts.PartDescriber.describe(tri, fmt).desc.endsWith("A RIGHT TRIANGLE"))
     }
 }
+
+class DryingRackTest {
+    @Test fun dividersStandInDrilledHolesAndTheRailsGoOnLast() {
+        val bytes = javaClass.getResourceAsStream("/complex/drying_rack.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "drying_rack.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(22, a.parts.count { it.name == "Spindle" }, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        // The case (bottom and sides), then every divider in one step, then the rails on their tops.
+        assertEquals(3, pl.steps.size, pl.steps.map { it.partIds }.toString())
+        assertTrue(pl.steps[1].partIds.all { id -> pl.parts.first { it.id == id }.name == "Spindle" })
+        val fmt = LengthFormat("in", "fraction")
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, fmt)
+        assertTrue(f.all.none { it.kind == "rod" }, "no closet rod sockets for dowels")
+        assertEquals(44, f.all.count { it.kind == "rodhole" })
+        // The rails are screwed to the sides, not left resting on the dowels.
+        assertTrue(f.all.any { it.kind == "screws" && setOf(it.through.name, it.into.name) == setOf("Side", "Stretcher") }, f.all.map { "${it.through.name}-${it.into.name} ${it.kind}" }.toString())
+        val lines = splitziner.joinery.Fastening.lines(f, 2, { p -> "item ${p.item}" })
+        assertTrue(lines.any { it.contains("Cut item 4 to 29-1/4 in") }, lines.toString())
+    }
+}

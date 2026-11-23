@@ -69,6 +69,10 @@ object AssemblyPlan {
     /** Members split from one drawn part stay one unit as a flat frame only when it is this thin (mm): a bookcase taken apart is not one. */
     private const val FLAT_FRAME = 100.0
 
+    /** A slatted panel's rails are no wider than this (a crib's are 2 to 3 in); spindles on anything wider, a base
+     * board, are fitted in place on it rather than made up flat as a panel. */
+    private const val SLAT_RAIL_MAX = 101.6
+
     fun unitKeys(parts: List<Part>): Map<String, String> {
         val live = parts.filter { !it.excluded }
         val out = HashMap<String, String>()
@@ -133,6 +137,8 @@ object AssemblyPlan {
             var k = 0
             for ((rails, ps) in byRails) {
                 val (lo, hi) = rails; if (lo == null || hi == null) continue
+                // A slatted panel's rails are rails: spindles standing on a wide board (a rack's base) go in place.
+                if (listOf(lo, hi).any { r -> r.mesh.bounds.extents.let { minOf(it.x, it.y) } > SLAT_RAIL_MAX }) continue
                 val kl = out[lo.id]; val kh = out[hi.id]
                 if (kl != null && kl == kh && kl.startsWith("frame")) { for (q in ps) out[q.id] = kl; continue }
                 if (kl != lo.id.substringBefore('.') || kh != hi.id.substringBefore('.')) continue
@@ -325,9 +331,19 @@ object AssemblyPlan {
         // A shadow box: the glass and its stops go in once the box is on the face frame, the back last of all.
         val stops = all.filter { it.name == "Glass stop" && !it.excluded }
         val sbBack = if (stops.isNotEmpty()) all.filter { it.name == "Back" && !it.excluded } else emptyList()
-        val late = casters + lid + stops + sbBack
+        // Spindles standing on a base board (a drying rack's dividers): the case first, then the spindles glued into
+        // the base, then the rails dropped onto their tops.
+        val live0 = all.filter { !it.excluded }
+        fun over(a: Part, o: Part) = o.mesh.bounds.min.x < a.mesh.bounds.max.x - 0.5 && o.mesh.bounds.max.x > a.mesh.bounds.min.x + 0.5 &&
+            o.mesh.bounds.min.y < a.mesh.bounds.max.y - 0.5 && o.mesh.bounds.max.y > a.mesh.bounds.min.y + 0.5
+        val standing = live0.filter { p -> p.name == "Spindle" && live0.any { o -> o.name != "Spindle" && kotlin.math.abs(o.mesh.bounds.max.z - p.mesh.bounds.min.z) < 1.0 && over(p, o) &&
+            o.mesh.bounds.extents.let { minOf(it.x, it.y) } > SLAT_RAIL_MAX } }
+        val onTop = live0.filter { o -> o.name != "Spindle" && standing.any { p -> kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 1.0 && over(p, o) } }
+        val rackLate = if (standing.size >= 3 && onTop.isNotEmpty() && onTop.all { o -> o.mesh.bounds.extents.let { minOf(it.x, it.y) } <= SLAT_RAIL_MAX }) standing + onTop else emptyList()
+        val late = casters + lid + stops + sbBack + rackLate
         if (late.isEmpty() || late.size == all.count { !it.excluded }) return pairSingles(foldLone(planInner(all, maxSteps, order)))
         var r = pairSingles(foldLone(planInner(all - late.toSet(), maxSteps, null)))
+        if (rackLate.isNotEmpty()) { r = lastStep(r, rackLate.filter { it.name == "Spindle" }, Vec3(0.0, 0.0, 1.0)); r = lastStep(r, rackLate.filter { it.name != "Spindle" }, Vec3(0.0, 0.0, 1.0)) }
         if (lid.isNotEmpty()) r = lastStep(r, lid, Vec3(0.0, -1.0, 0.0))
         if (stops.isNotEmpty()) r = lastStep(r, stops, Vec3(0.0, 0.0, 1.0))
         if (sbBack.isNotEmpty()) r = lastStep(r, sbBack, Vec3(0.0, 0.0, 1.0))
@@ -376,7 +392,9 @@ object AssemblyPlan {
     private fun foldLone(r: PlanResult): PlanResult {
         val st = r.steps
         val m = st.indexOfFirst { !it.subassembly }
-        if (m <= 0 || m + 1 >= st.size) return r
+        if (m < 0 || m + 1 >= st.size) return r
+        // A first step of one part alone (the bottom) takes the next only when that is a pair or so (its two sides).
+        if (m == 0 && st[1].partIds.size > 3) return r
         val a = st[m]; val b = st[m + 1]
         // One part, or one made sub-assembly (its parts all of one unit).
         val keys = runCatching { unitKeys(r.parts) }.getOrDefault(emptyMap())
@@ -719,8 +737,8 @@ object AssemblyPlan {
                 (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) &&
                 // Drawers and their fronts go in all together, a chest's worth: hanging them is the same job each time.
                 last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" || nameOf[it] == "Door" }) MAX_DRAWERS
-                    // A bed's or bench's slats go down in one go, spaced with one block: laying them is one job.
-                    else if ((last.partIds + st.partIds).all { nameOf[it] == "Slat" }) MAX_SLATS else MAX_GROUP)
+                    // A bed's or bench's slats (or a rack's spindles) go down in one go, spaced with one block: laying them is one job.
+                    else if ((last.partIds + st.partIds).all { nameOf[it] == "Slat" || nameOf[it] == "Spindle" }) MAX_SLATS else MAX_GROUP)
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }
