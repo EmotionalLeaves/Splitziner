@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.73.0 - square-up outline check
+
+- **Tables with diamond-set legs stay square.** A table whose legs are turned 45° under a square or oval top was being turned 45° as a whole. Now the app checks the outline of the whole piece before squaring a model up.
+- Taking a one-piece model apart into boards copes better with small holes through a board.
+
 ## v1.72.0 - plinth cleats
 
 - **Plinths build in a workable order.** The small strips inside a plinth are now called cleats, and they are screwed to the front and back while those lie flat on the bench, before the box is closed. Before, the guide had you reach 3 ft down inside a closed box to screw them in.

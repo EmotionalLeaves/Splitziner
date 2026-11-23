@@ -593,3 +593,7 @@ Departures from the build spec, newest first.
 - A square-ish strip along the inside face of a standing panel with a board resting on it is a cleat (a plinth's shelf and top cleats). Rails on edge (hanging rails, stretchers) are left alone.
 - Cleats like that, on one panel, are screwed on with the panel flat on the bench before the case is closed: once the case is round them there is no room to drive the screws.
 - The command-line tool writes UTF-8, so ×, ° and ⌀ show in its debug output.
+
+## v1.73
+- Squaring up a model drawn at an angle now also checks the outline: if turning it would make its plan's bounding box more than 3% bigger, it is already square (an oval table on legs set diamond-wise) and is left as drawn.
+- Taking a solid apart into boards judges each cell by five points, not one, so a small hole through the middle of a cell (a bolt hole in a shelf) does not empty it.

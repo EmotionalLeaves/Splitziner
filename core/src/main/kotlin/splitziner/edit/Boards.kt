@@ -161,8 +161,11 @@ object Boards {
         val nx = g[0].size - 1; val ny = g[1].size - 1; val nz = g[2].size - 1
         if (nx < 1 || ny < 1 || nz < 1) return null to "it has no flat faces to work from"
         val bvh = Bvh(m)
+        // A cell is material when most of five points in it are: a small hole through its middle (a bolt hole in a
+        // shelf) does not empty the whole cell.
         val inside = Array(nx) { i -> Array(ny) { j -> BooleanArray(nz) { k ->
-            DesignCheck.inside(bvh, Vec3((g[0][i] + g[0][i + 1]) / 2, (g[1][j] + g[1][j + 1]) / 2, (g[2][k] + g[2][k + 1]) / 2))
+            fun at(fx: Double, fy: Double, fz: Double) = DesignCheck.inside(bvh, Vec3(g[0][i] + fx * (g[0][i + 1] - g[0][i]), g[1][j] + fy * (g[1][j + 1] - g[1][j]), g[2][k] + fz * (g[2][k + 1] - g[2][k])))
+            listOf(at(0.5, 0.5, 0.5), at(0.25, 0.25, 0.25), at(0.75, 0.75, 0.25), at(0.25, 0.75, 0.75), at(0.75, 0.25, 0.75)).count { it } >= 3
         } } }
         val pieces = ArrayList<Piece>()
         val used = Array(nx) { Array(ny) { BooleanArray(nz) } }

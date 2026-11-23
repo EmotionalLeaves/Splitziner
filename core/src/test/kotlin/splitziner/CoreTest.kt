@@ -2122,6 +2122,19 @@ class SquareUpTest {
         assertEquals(square.parts.map { it.name }.sorted(), angled.parts.map { it.name }.sorted())
         assertEquals(square.overallSize, angled.overallSize)
     }
+
+    @Test fun diamondSetLegsUnderASquareTopAreNotTurned() {
+        // A table 1500 x 800 with legs 60 square set at 45 degrees: the legs' faces all point the diagonal way, but
+        // the top's outline is square to the axes, so the model is not turned.
+        val top = Fixtures.box(Vec3(0.0, 0.0, 700.0), Vec3(1500.0, 800.0, 730.0))
+        val legs = listOf(100.0 to 100.0, 1400.0 to 100.0, 100.0 to 700.0, 1400.0 to 700.0).map { (x, y) ->
+            val m = Fixtures.rotatedZ(Fixtures.box(Vec3(-30.0, -30.0, 0.0), Vec3(30.0, 30.0, 700.0)), 45.0)
+            splitziner.mesh.Mesh(DoubleArray(m.vertices.size) { i -> m.vertices[i] + when (i % 3) { 0 -> x; 1 -> y; else -> 0.0 } }, m.triangles)
+        }
+        // Tall legs, thin top: by face area the legs win.
+        val parts = (listOf(top) + legs).mapIndexed { i, m -> Part("P$i", "P$i", m) }
+        assertNull(Pipeline.squareUpAngle(parts))
+    }
 }
 
 class FitDirectionsTest {

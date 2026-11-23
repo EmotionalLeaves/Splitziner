@@ -280,8 +280,22 @@ object Pipeline {
                 val ang = 4 * kotlin.math.atan2(ny, nx); sx += a[f] * kotlin.math.cos(ang); sy += a[f] * kotlin.math.sin(ang); total += a[f] } }
         if (total <= 0.0 || kotlin.math.hypot(sx, sy) < SQUARE_AGREE * total) return null
         val deg = Math.toDegrees(kotlin.math.atan2(sy, sx)) / 4
-        return if (kotlin.math.abs(deg) < SQUARE_TOL) null else deg
+        if (kotlin.math.abs(deg) < SQUARE_TOL) return null
+        // The outline must agree: a model whose walls face that way but whose plan is already square to the axes (an
+        // oval table on diamond-set legs) is not turned. Turning it would only make its footprint bigger.
+        fun footprint(a: Double): Double {
+            val c = kotlin.math.cos(Math.toRadians(-a)); val sn = kotlin.math.sin(Math.toRadians(-a))
+            var x0 = Double.MAX_VALUE; var x1 = -Double.MAX_VALUE; var y0 = Double.MAX_VALUE; var y1 = -Double.MAX_VALUE
+            for (p in parts) { val v = p.mesh.vertices; var i = 0
+                while (i < v.size) { val x = c * v[i] - sn * v[i + 1]; val y = sn * v[i] + c * v[i + 1]
+                    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; i += 3 } }
+            return (x1 - x0) * (y1 - y0)
+        }
+        return if (footprint(deg) > FOOTPRINT_GROW * footprint(0.0)) null else deg
     }
+
+    /** Squaring up may not make the plan's bounding box more than this much bigger: the outline shows it is square already. */
+    private const val FOOTPRINT_GROW = 1.03
 
     /** Below this (degrees) a model counts as square: drawing noise, not a turn. */
     private const val SQUARE_TOL = 0.3
