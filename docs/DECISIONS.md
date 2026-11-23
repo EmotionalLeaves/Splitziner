@@ -558,3 +558,6 @@ Departures from the build spec, newest first.
 - A shape drawn as one solid may be taken apart into up to 30 boards (was 12): a real TV unit exported from OpenSCAD as one body needed 17. The volume check still rejects anything the boards would not match.
 - The boards a box was taken apart into are each their own part in the build; the layers of a glue-up, and the members of a flat frame, still stay one unit made on the bench.
 - Tested on real OpenSCAD exports of a living room (TV unit, shelving, tables) from a public repository, scaled to full size.
+
+## v1.63
+- Members split from one drawn part stay one bench unit as a flat frame only when the frame is 100 mm (4 in) thick or less: a whole bookcase taken apart (all its boards the full depth) is built board by board.

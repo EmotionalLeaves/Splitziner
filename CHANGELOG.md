@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.63.0 - split bookcases
+
+- A bookcase exported as one solid and taken apart into boards is now built board by board, instead of as one big "sub-assembly A".
+
 ## v1.62.0 - bigger one-solid models
 
 - **Furniture drawn as one solid.** Programs like Tinkercad and OpenSCAD often export a whole piece fused into one body. The "make it from boards" fix now handles bigger pieces, up to 30 boards (it was 12): a TV unit needed 17. The boards then go together one by one in the guide, instead of as one big sub-assembly.
