@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.36.0 - folding screen design
+
+- New studio design: a folding screen. Pick the number of panels, their width and height, and whether there's a middle rail. The guide makes the panels alike and hinges them together.
+
 ## v2.35.0 - folding screens
 
 - Folding screens (display walls): the panels are made alike, then hinged together with the right number of hinges, set on alternate faces so it folds in a zig-zag. You get advice on standing it folded instead of an anti-tip strap.

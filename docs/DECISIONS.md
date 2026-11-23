@@ -822,3 +822,7 @@ Departures from the build spec, newest first.
 - A folding screen: two or more tall flat panels (900 mm or taller) standing in a row in one plane, a hinge's gap apart (0.5 to 6.5 mm). Each panel's long members are stiles, the cross members rails (joined with pocket screws, as a face frame is), a thin sheet the panel. The panels are made alike on the bench ("make 3 screen panels") and hinged together: 2 in (50 mm) butt hinges, three at each joint on panels over 4 ft, two below, alternate faces for a zig-zag (or double-action screen hinges).
 - A screen is not checked for tipping or strapped to a wall as drawn: a note says it stands folded in a zig-zag, and that a small block screwed to the floor inside each angle keeps it put on a busy floor. Its panels are not "parts joined to nothing".
 - Which way up: a screen standing as drawn stays standing; one lying flat is stood up.
+
+## v2.36
+- New studio design: a folding screen, by the number of panels (2 to 8), panel width, height, stile and rail width, frame and sheet thickness, and an optional middle rail. Each panel is a pocket-screwed frame with a thin sheet glued over its whole back; panels stand 3 mm apart for the hinges. Usual material: poplar.
+- A screen panel's bench step says to make the frame first, face down, then glue the sheet on its back, rather than laying the sheet down and building the frame on it (which would hide the pocket holes before they were screwed).

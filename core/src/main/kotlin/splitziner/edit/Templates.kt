@@ -103,7 +103,7 @@ object Templates {
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "polyplinth", "wallplinth", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "polyplinth", "wallplinth", "screen", "easel", "stretcher", "cradle", "frame", "shadowbox", "rack", "browser", "flatfile", "taboret", "crate", "ledge")
 
     /**
      * The material a design is usually made from, offered first in the new-design dialog (each part can be changed):
@@ -112,7 +112,7 @@ object Templates {
     fun suggestedMaterial(key: String): String? = when (key) {
         "plinth", "polyplinth", "wallplinth", "flatfile", "taboret", "browser", "rack" -> "Birch plywood"
         "crate" -> "Plywood"
-        "frame", "shadowbox", "easel", "ledge" -> "Poplar"
+        "frame", "shadowbox", "easel", "ledge", "screen" -> "Poplar"
         "stretcher" -> "Pine"
         else -> null
     }
@@ -346,6 +346,25 @@ object Templates {
             val ring = (0..n).map { k -> at(r, k % n).let { (x, y) -> org.locationtech.jts.geom.Coordinate(x, y) } }.toTypedArray()
             val top = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("top", Vec3(0.0, 0.0, 1.0), Vec3(1.0, 0.0, 0.0)), gf.createPolygon(ring), h - t, h))
             sides + top
+        },
+        Template("screen", "Folding screen", "A display wall that folds: panels of a frame (stiles and rails, pocket-screwed) with a thin sheet on the back, made alike and hinged together on alternate faces so it stands in a zig-zag.", listOf(
+            Field("n", "Number of panels", 3.0, 3.0, count = true), Field("w", "Panel width", 510.0, 20.0), Field("h", "Height", 1680.0, 66.0),
+            Field("sw", "Stile and rail width", 64.0, 2.5), Field("t", "Frame thickness", 19.0, 0.75), Field("sk", "Sheet thickness", 6.0, 0.25),
+            Field("mid", "A rail across the middle", 1.0, 1.0, count = true, toggle = true),
+        )) { v ->
+            val n = Math.round(v.getValue("n")).toInt(); val w = v.getValue("w"); val h = v.getValue("h"); val sw = v.getValue("sw"); val t = v.getValue("t"); val sk = v.getValue("sk")
+            if (n !in 2..8 || w < 3 * sw || h < 6 * sw || h < 900.0) throw SizesDoNotFit()
+            // A hinge's gap between panels (3 mm), each panel standing in the same plane.
+            val out = ArrayList<Mesh>()
+            for (i in 0 until n) {
+                val x0 = i * (w + 3.0)
+                out += box(x0, 0.0, 0.0, sw, t, h); out += box(x0 + w - sw, 0.0, 0.0, sw, t, h)
+                out += box(x0 + sw, 0.0, 0.0, w - 2 * sw, t, sw); out += box(x0 + sw, 0.0, h - sw, w - 2 * sw, t, sw)
+                if ((v["mid"] ?: 1.0) >= 0.5) out += box(x0 + sw, 0.0, h / 2 - sw / 2, w - 2 * sw, t, sw)
+                // The sheet covers the frame's whole back, glued and pinned to every member.
+                out += box(x0, t, 0.0, w, sk, h)
+            }
+            out
         },
         Template("easel", "Easel", "A studio A-frame easel: two front legs leaning in and back, joined by a block at the top, a ledge for the canvas and a brace, and a back leg hinged to the block so it folds.", listOf(
             Field("h", "Height", 1830.0, 72.0), Field("spread", "Front legs apart at the floor", 660.0, 26.0), Field("lean", "Lean back of the front legs", 380.0, 15.0),

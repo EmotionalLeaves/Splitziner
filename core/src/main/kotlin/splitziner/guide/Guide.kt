@@ -549,7 +549,14 @@ object GuideSteps {
                         else "slide ${if (panels.size == 1) "each ${panels[0]}" else panels.joinToString(" and ")} into the grooves as the pieces go together"
                     lines += "Lay one ${nm(doorGroup.stiles[0])} flat, its groove facing in. Fit $endText$midText, $panelText, then put on the other ${nm(doorGroup.stiles[1])} and close the joints."
                 }
-                if (fmt != null && doorGroup == null) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, skipItems = listOfNotNull(if (sGap != null) sItem else null, if (rGap != null) rItem else null).toSet())
+                // A screen panel: the frame first, face down, joined; then the sheet glued on its back.
+                if (st.step in screenBench) {
+                    lines.removeAll { it.startsWith("Lay down ") || it.startsWith("Join ") }
+                    val nm = { ps: List<Part> -> ps.mapNotNull { it.item }.distinct().joinToString(" and ") { i -> "item $i" + named(cur.filter { it.item == i }) } }
+                    val frameParts = cur.filter { it.name == "Stile" || it.name == "Rail" }; val sheet = cur.filter { it.name == "Panel" }
+                    lines += "Lay ${nm(frameParts.filter { it.name == "Stile" })} and ${nm(frameParts.filter { it.name == "Rail" })} face down on a flat bench, the rails between the stiles${if (frameParts.count { it.name == "Rail" } > 2) " (the middle one centred on the height)" else ""}, and join the frame first; then glue ${nm(sheet)} on its back, edges flush."
+                }
+                if (fmt != null && doorGroup == null && st.step !in screenBench) lines += placing(cur, fmt, { p -> "item ${p.item ?: "-"}" + named(listOf(p)) }, skipItems = listOfNotNull(if (sGap != null) sItem else null, if (rGap != null) rItem else null).toSet())
                 // A panel with strips screwed to its face has no corners to square.
                 if (st.step in cpanelBench) { if (how.isEmpty()) lines += "Clamp them in place, then fasten." }
                 else lines += if (how.isEmpty()) "Check it is flat and square (equal diagonals), then fasten." else "Check it is flat and square (equal diagonals)."
