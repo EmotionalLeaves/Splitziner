@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.29.0 - Consistent fixing
+
+- Two alike strips screwed up into a top are now described the same way, in one line.
+
 ## v1.28.0 - Big runs
 
 - Big kitchens: all the doors (up to 24) are hung in one step instead of being split oddly across two.

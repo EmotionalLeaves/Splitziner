@@ -406,3 +406,6 @@ Departures from the build spec, newest first.
 ## v1.28
 - Up to 24 drawers, drawer fronts or doors are hung in one step (was 12): an eight-cabinet kitchen run's sixteen doors were split 10 and 6.
 - The command-line tool takes --up y|-y|x|z|auto; auto stands the model up as the app does on import. With it, every Y-up test model gives the same parts list and step titles as its Z-up original (flat objects such as a picture frame aside, which have no clear up).
+
+## v1.29
+- A square strip under a board (a kicker under a table top) is screwed up from underneath like any flat strip: which of its equal sides counted as thinnest was down to rounding, so two alike kickers were told two different ways.

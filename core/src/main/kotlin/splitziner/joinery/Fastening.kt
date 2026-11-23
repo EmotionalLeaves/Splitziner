@@ -559,7 +559,7 @@ object Fastening {
             if (faceToFace && !glueOnly && method != JoinMethod.DOWELS) { kind = "brads"; size = pick(tThrough + minOf(tThrough, depth - 3.0), fmt, true) ?: size }
             // Screwed up through a board into what stands on it (a hutch's sides on a desk top): driven from underneath.
             if (kind == "screws" && k == 2 && !faceToFace && rel.lo[idx.getValue(into.id)].z >= rel.hi[idx.getValue(thr.id)].z - 0.5 &&
-                (0..2).minByOrNull { ax -> rel.hi[idx.getValue(thr.id)][ax] - rel.lo[idx.getValue(thr.id)][ax] } == 2) kind = "under"
+                idx.getValue(thr.id).let { ti -> rel.hi[ti].z - rel.lo[ti].z <= (0..2).minOf { ax -> rel.hi[ti][ax] - rel.lo[ti][ax] } + 0.5 }) kind = "under"   // thinnest up and down, square strips included
             joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, size, if (faceToFace) "laminate" else kind, glueOnly)
             if (faceToFace && !glueOnly) { val key = "$size brads"; totals[key] = (totals[key] ?: 0) + count; continue }
             if (!glueOnly) { val key = if (kind == "dowels") size else if (kind == "under") "$size screws" else "$size $kind"; totals[key] = (totals[key] ?: 0) + count }
