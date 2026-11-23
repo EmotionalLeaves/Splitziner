@@ -50,7 +50,7 @@ object PartDrawings {
             if (row.kind != splitziner.parts.PartKind.BOARD && row.kind != splitziner.parts.PartKind.PANEL) return@filter false
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
-            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED")
+            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED") && !d.desc.contains("RAISED")
         }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
     }
 
@@ -203,6 +203,10 @@ object PartDrawings {
     }
 
     private fun bevelNotes(row: CutListRow): List<String> {
+        Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)?.let { m ->
+            return listOf("RAISED PANEL: FLAT BACK; FRONT BEVELLED ${m.groupValues[2]} WIDE ALL ROUND DOWN TO AN EDGE ${m.groupValues[1]} THICK, WHICH FITS THE FRAME'S GROOVES (SEE THE EDGE VIEWS). " +
+                "CUT THE END-GRAIN EDGES FIRST. LEAVE ABOUT 1/16 IN (2 MM) SPARE IN EACH GROOVE ACROSS THE GRAIN SO A SOLID-WOOD PANEL CAN SWELL.")
+        }
         val deg = Regex("""ONE EDGE BEVELLED AT (\S+)""").find(row.description)?.groupValues?.get(1) ?: return emptyList()
         return listOf("ONE LONG EDGE BEVELLED AT $deg OFF SQUARE, RIGHT ACROSS THE THICKNESS (SEE THE END VIEW). RIP IT WITH THE BLADE TILTED; THE WIDTH IS MEASURED ON THE WIDE FACE.")
     }
@@ -330,7 +334,11 @@ object PartDrawings {
         class G(val text: String, val at: Double?, val from: String, val extra: String = "")
         val gs = housed.filter { it.second == p.id }.mapNotNull { (pid, _) ->
             val q = byId[pid] ?: return@mapNotNull null
-            val a = p.mesh.bounds; val b = q.mesh.bounds
+            // A raised panel sits in the groove by its thin edge, not its whole thickness.
+            val a = p.mesh.bounds; val b = q.mesh.bounds.let { qb -> val qk = (0..2).minByOrNull { qb.extents[it] }!!
+                splitziner.check.FramePanels.edgeRange(q, qk)?.takeIf { (lo, hi) -> hi - lo < qb.extents[qk] - 0.5 }?.let { (lo, hi) ->
+                    fun with(v: Vec3, x: Double) = Vec3(if (qk == 0) x else v.x, if (qk == 1) x else v.y, if (qk == 2) x else v.z)
+                    splitziner.math.Aabb(with(qb.min, lo), with(qb.max, hi)) } ?: qb }
             val e = doubleArrayOf(minOf(a.max.x, b.max.x) - maxOf(a.min.x, b.min.x), minOf(a.max.y, b.max.y) - maxOf(a.min.y, b.min.y), minOf(a.max.z, b.max.z) - maxOf(a.min.z, b.min.z))
             if (e.any { it <= 0 }) return@mapNotNull null
             // The overlap is the groove. Its depth runs along the direction the housed part sticks out of this one;

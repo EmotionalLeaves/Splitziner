@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.47.0 - raised panels
+
+- **Raised-panel doors.** A panel with bevelled edges, the classic raised panel, is now recognised. The cut list names it with its edge thickness and bevel width. It gets its own drawing and the steps to raise it with a router table or a tilted saw blade. The grooves in the frame are sized to its thin edge.
+- Long part descriptions no longer run off the edge of the drawing sheet or the guide page.
+
 ## v1.46.0 - five-piece drawer fronts
 
 - **Five-piece drawer fronts.** A frame-and-panel drawer front is now made on the bench as one piece ("make the drawer front"). It is screwed on from inside once the drawer hangs, with a single instruction. Its parts are named drawer front stile, rail and panel.

@@ -68,7 +68,10 @@ object HowTo {
             val sizes = w.holeDiameters.distinct().sorted().joinToString(", ") { d(it) }
             out += "Drill the holes${if (sizes.isNotEmpty()) " ($sizes $u)" else ""} with a ${pick(Work.HOLES)}, with a scrap board behind to stop the back splintering."
         }
-        if (Work.EDGE_SHAPE in w.work) out += "Round or bevel the edges with a ${pick(Work.EDGE_SHAPE)}; test the setting on an offcut first."
+        val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
+        if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +
+            "Use a panel-raising bit in a router table, or the table saw with the blade tilted and the panel stood on edge against a tall fence. Cut the end-grain edges first, so the long-grain cuts clean up any tear-out, and test the fit in an offcut of the groove."
+        else if (Work.EDGE_SHAPE in w.work) out += "Round or bevel the edges with a ${pick(Work.EDGE_SHAPE)}; test the setting on an offcut first."
         if (Work.THICKNESS in w.work) out += "Plane it down to ${d(row.t)} $u with a ${pick(Work.THICKNESS)}, taking light passes off both faces."
         val mortiseSizes = HashSet<String>()
         for (g in grooves) {

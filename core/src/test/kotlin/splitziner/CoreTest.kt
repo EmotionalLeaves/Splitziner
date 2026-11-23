@@ -2264,6 +2264,34 @@ class FramePanelTest {
         assertTrue(hinges.all { it.size == "inset hinges" }, hinges.map { it.size }.toString())
     }
 
+    /** A raised panel: flat back at [yb], a tongue [tg] thick all round, bevelled [bw] in to a field [rise] higher (toward -y). */
+    private fun raised(x0: Double, x1: Double, z0: Double, z1: Double, yb: Double, tg: Double = 6.35, rise: Double = 9.525, bw: Double = 38.1): splitziner.mesh.Mesh {
+        val rings = listOf(listOf(x0, x1, z0, z1, yb), listOf(x0, x1, z0, z1, yb - tg), listOf(x0 + bw, x1 - bw, z0 + bw, z1 - bw, yb - tg - rise))
+        val v = ArrayList<Double>()
+        for (r in rings) for ((x, z) in listOf(r[0] to r[2], r[1] to r[2], r[1] to r[3], r[0] to r[3])) { v += x; v += r[4]; v += z }
+        val t = ArrayList<Int>()
+        t += listOf(0, 2, 1, 0, 3, 2, 8, 9, 10, 8, 10, 11)
+        for (ring in 0..1) for (i in 0..3) { val j = (i + 1) % 4; val a = 4 * ring; val b = 4 * (ring + 1); t += listOf(a + i, a + j, b + j, a + i, b + j, b + i) }
+        return splitziner.mesh.Mesh(v.toDoubleArray(), t.toIntArray())
+    }
+
+    @Test fun raisedPanelDoorsAreNamedAndGrooved() {
+        val W = 762.0; val D = 406.4; val H = 762.0; val sw = 57.15; val g = 9.525
+        val ms = arrayListOf(b(0.0, 0.0, 0.0, T, D, H), b(W - T, 0.0, 0.0, T, D, H), b(T, 0.0, 0.0, W - 2 * T, D - 6.35, T), b(T, 0.0, H - T, W - 2 * T, D - 6.35, T),
+            b(T, D - 6.35, 0.0, W - 2 * T, 6.35, H))
+        val dw = W / 2 - 3.2; val dh = H - 3.2
+        for (x0 in listOf(1.6, W / 2 + 1.6)) {
+            ms += listOf(b(x0, -T, 1.6, sw, T, dh), b(x0 + dw - sw, -T, 1.6, sw, T, dh), b(x0 + sw, -T, 1.6, dw - 2 * sw, T, sw), b(x0 + sw, -T, 1.6 + dh - sw, dw - 2 * sw, T, sw))
+            ms += raised(x0 + sw - g, x0 + dw - sw + g, 1.6 + sw - g, 1.6 + dh - sw + g, -T + (T + 6.35) / 2)
+        }
+        val (a, _, steps) = guide(ms)
+        assertTrue(a.cutList.rows.any { it.description.contains("RAISED (EDGE 6.3 THK, BEVEL 38.1 WIDE)") }, a.cutList.rows.map { it.description }.toString())
+        assertEquals(2, a.parts.count { it.name == "Door panel" }, a.parts.map { it.name }.toString())
+        assertTrue(steps.flatMap { it.text }.any { it.startsWith("Cut a groove 1/4 in wide and 3/8 in deep") }, steps.flatMap { it.text }.toString())
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null, housed = a.housed)
+        assertTrue(report.findings.none { it.title.contains("occupy the same space") }, report.findings.map { it.title }.toString())
+    }
+
     @Test fun panelledChestIsScrewedFromInsideAndHasALid() {
         val W = 914.4; val D = 457.2; val H = 482.6; val sw = 63.5; val g = 9.525; val pt = 6.35
         val ms = arrayListOf<splitziner.mesh.Mesh>()

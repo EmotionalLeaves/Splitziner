@@ -485,3 +485,9 @@ Departures from the build spec, newest first.
 - A five-piece (frame-and-panel) drawer front is one front: its parts are named "Drawer front stile/rail/panel", it is made on the bench and screwed on as one from inside the drawer, with one line for it.
 - A frame-and-panel door is measured whole when deciding whether it sits inset in a face frame, so both doors of a pair get the same hinges.
 - The bench picture of a frame round a panel leaves the panel in place and pulls the stiles out to the sides and the rails out at the ends; muntins stay between the panels.
+
+## v1.47
+- A raised panel is recognised from its shape: flat back, a tongue of even thickness all round its outline, and a flat field set in the same distance on all four sides. The cut list calls it "PANEL t X w X l, RAISED (EDGE e THK, BEVEL b WIDE)"; it gets a detail drawing and the steps to raise it (panel-raising bit in a router table, or a tilted table-saw blade; end grain first).
+- For frame-and-panel detection and for the groove sizes, a raised panel is measured by its tongue, not its full thickness; a panel up to 32 mm (1-1/4 in) thick may be raised.
+- The drawing note says to leave about 1/16 in (2 mm) spare in each groove across the grain for a solid-wood panel, the usual allowance; the app does not size it into the cut list.
+- A long description in a drawing's list of material is lettered smaller (down to 60%) to keep the list inside the border; a long item heading in the guide is set smaller, then broken after a comma.

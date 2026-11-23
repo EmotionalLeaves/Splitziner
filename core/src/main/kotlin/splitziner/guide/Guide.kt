@@ -747,9 +747,15 @@ object GuideLayout {
             pg.text(25.0, yy, "MAKING THE PARTS", 4.0, vAlign = VAlign.TOP, bold = true); yy -= 7
             yy = para(pg, 25.0, yy, "Plain boards are only cut to size. These need more:", 3.0, w - 50) - 3
             for ((head, steps) in info.making) {
-                val need = 6 + steps.sumOf { wrapHanging("0. $it", 3.0, w - 56, 4.0).size * 4.5 + 1 }
+                val need = 10 + steps.sumOf { wrapHanging("0. $it", 3.0, w - 56, 4.0).size * 4.5 + 1 }
                 if (yy - need < 16) { pg = pages.new(); yy = h - 26 }
-                pg.text(25.0, yy, head, 3.4, vAlign = VAlign.TOP, bold = true); yy -= 6
+                // A long heading (a raised panel's) is set smaller, then broken after a comma, never run off the page.
+                val room = w - 50
+                val hs = (3.4 * room / StrokeFont.width(head, 3.4)).coerceIn(2.8, 3.4)
+                val lines = if (StrokeFont.width(head, hs) <= room || !head.contains(", ")) listOf(head)
+                    else head.split(", ").fold(listOf("")) { acc, part -> val last = acc.last(); val joined = if (last.isEmpty()) part else "$last, $part"
+                        if (last.isEmpty() || StrokeFont.width(joined, hs) <= room) acc.dropLast(1) + joined else acc.dropLast(1) + "$last," + part }
+                for (ln in lines) { pg.text(25.0, yy, ln, hs, vAlign = VAlign.TOP, bold = true); yy -= hs + 2.6 }
                 steps.forEachIndexed { i, t -> yy = para(pg, 28.0, yy, "${i + 1}. $t", 3.0, w - 56, hang = 4.0) - 1 }
                 yy -= 4
             }

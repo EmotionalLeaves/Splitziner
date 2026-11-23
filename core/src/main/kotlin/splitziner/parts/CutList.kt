@@ -84,6 +84,38 @@ object PartDescriber {
         return Math.toDegrees(kotlin.math.atan2(along, across))
     }
 
+    /**
+     * A raised panel (a frame-and-panel door's): flat on the back, a thin tongue all round its edge to sit in the
+     * frame's grooves, and bevelled up from it to a flat field in the middle. Returns the tongue's thickness and the
+     * bevel's width (mm), or null for anything else.
+     */
+    fun raisedPanel(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
+        val e = doubleArrayOf(obb.extents.x, obb.extents.y, obb.extents.z)
+        val k = e.indices.minByOrNull { e[it] }!!
+        val (a, b) = e.indices.filter { it != k }
+        if (e[k] > 32.0 || e[a] < 100.0 || e[b] < 100.0) return null
+        val v = m.vertices
+        val tol = 0.3
+        val pts = (0 until m.vertexCount).map { i -> val p = Vec3(v[3 * i], v[3 * i + 1], v[3 * i + 2]) - obb.center
+            doubleArrayOf(p dot obb.axes[a], p dot obb.axes[b], p dot obb.axes[k]) }
+        fun onEdge(q: DoubleArray) = abs(abs(q[0]) - e[a] / 2) < tol || abs(abs(q[1]) - e[b] / 2) < tol
+        val edge = pts.filter { onEdge(it) }; val inner = pts.filter { !onEdge(it) }
+        if (edge.size < 8 || inner.size < 4) return null
+        // The edge is the tongue, both its faces flat; one of them is the back.
+        val eLo = edge.minOf { it[2] }; val eHi = edge.maxOf { it[2] }
+        if (edge.any { abs(it[2] - eLo) > tol && abs(it[2] - eHi) > tol }) return null
+        val tongue = eHi - eLo
+        val backLow = abs(eLo + e[k] / 2) < tol
+        if (!backLow && abs(eHi - e[k] / 2) >= tol) return null
+        if (tongue < 3.0 || tongue > 0.75 * e[k]) return null
+        // The field: every point off the edge is on the far face, set in the same distance all round.
+        val far = if (backLow) e[k] / 2 else -e[k] / 2
+        if (inner.any { abs(it[2] - far) > tol }) return null
+        val insetA = e[a] / 2 - inner.maxOf { abs(it[0]) }; val insetB = e[b] / 2 - inner.maxOf { abs(it[1]) }
+        if (insetA < 6.0 || abs(insetA - insetB) > 2.0) return null
+        return tongue to (insetA + insetB) / 2
+    }
+
     fun angledEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
         val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
         val order = e.indices.sortedBy { e[it] }
@@ -185,6 +217,10 @@ object PartDescriber {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             val a = (Math.round(deg * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE BEVELLED AT $a")
+        }
+        // A raised panel: named with its edge (the tongue that goes in the grooves) and its bevel, not "shaped".
+        raisedPanel(m, obb)?.let { (tongue, bevel) ->
+            return PartDescription(PartKind.PANEL, t, w, l, fill, "PANEL ${d(t)} X ${d(w)} X ${d(l)}, RAISED (EDGE ${d(tongue)} THK, BEVEL ${d(bevel)} WIDE)")
         }
         if (fill > SOLID_FILL) {
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD

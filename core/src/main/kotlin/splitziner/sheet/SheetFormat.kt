@@ -293,14 +293,23 @@ object ListOfMaterial {
         if (rows.isEmpty()) return 0.0
         val th = minOf(L.list, ROW - 2.0)
         val data = cells(rows, singlePart)
-        return HEADS.indices.sumOf { c -> maxOf(StrokeFont.width(HEADS[c], th * 0.8), data.maxOf { StrokeFont.width(it[c].uppercase(), th) }) + 4 }
+        return colWidths(data, th).sum()
+    }
+
+    /** A description longer than this (mm) is lettered smaller to fit, down to [MIN_SQUEEZE] of the usual height. */
+    private const val MAX_DESC = 120.0
+    private const val MIN_SQUEEZE = 0.6
+
+    private fun colWidths(data: List<List<String>>, th: Double) = HEADS.indices.map { c ->
+        val w = maxOf(StrokeFont.width(HEADS[c], th * 0.8), data.maxOf { StrokeFont.width(it[c].uppercase(), th) })
+        (if (c == 3) maxOf(minOf(w, MAX_DESC), data.maxOf { StrokeFont.width(it[c].uppercase(), th * MIN_SQUEEZE) }) else w) + 4
     }
 
     fun draw(dl: DisplayList, rows: List<CutListRow>, xRight: Double, yBottom: Double, L: Lettering, singlePart: Boolean): Double {
         if (rows.isEmpty()) return yBottom
         val th = minOf(L.list, ROW - 2.0)
         val data = cells(rows, singlePart)
-        val widths = HEADS.indices.map { c -> maxOf(StrokeFont.width(HEADS[c], th * 0.8), data.maxOf { StrokeFont.width(it[c].uppercase(), th) }) + 4 }
+        val widths = colWidths(data, th)
         val total = widths.sum()
         val x0 = xRight - total
         var y = yBottom
@@ -313,7 +322,12 @@ object ListOfMaterial {
                 val v = row[c]
                 // An empty cell shows a dash, as the standard's examples do.
                 if (v.isEmpty()) dl.text(x + widths[c] / 2, y + ROW / 2, "—", th, HAlign.CENTER, VAlign.CENTER)
-                else dl.text(x + 2, y + ROW / 2, v, if (ri == 0) th * 0.8 else th, vAlign = VAlign.CENTER)
+                else {
+                    val h0 = if (ri == 0) th * 0.8 else th
+                    // Squeezed to its cell when it is longer than the column allows.
+                    val fit = (widths[c] - 4) / StrokeFont.width(v.uppercase(), h0)
+                    dl.text(x + 2, y + ROW / 2, v, if (fit < 1.0) h0 * maxOf(MIN_SQUEEZE, fit) else h0, vAlign = VAlign.CENTER)
+                }
                 x += widths[c]
             }
             y += ROW

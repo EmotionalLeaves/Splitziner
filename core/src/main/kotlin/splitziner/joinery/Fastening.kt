@@ -610,7 +610,7 @@ object Fastening {
             val k = (0..2).minByOrNull { pb.extents[it] }!!
             val depth = (0..2).filter { it != k }.minOf { a -> minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]) }
             val step = stepOf[p.id] ?: mainOf(p)
-            joints.getOrPut(step) { ArrayList() } += Joint(st, p, 0, "", "panel", true, at = "${fmt.format(pb.extents[k])} ${fmt.unitLabel}|${fmt.format(depth)} ${fmt.unitLabel}|" +
+            joints.getOrPut(step) { ArrayList() } += Joint(st, p, 0, "", "panel", true, at = "${fmt.format(splitziner.check.FramePanels.edgeRange(p, k)?.let { it.second - it.first } ?: pb.extents[k])} ${fmt.unitLabel}|${fmt.format(depth)} ${fmt.unitLabel}|" +
                 fp.sunk.filter { it.first == pid && it.second !in fp.stiles }.map { it.second }.distinctBy { byId[it]?.item }.joinToString(","), ref = byId[fp.rails[0]])
         }
         val inFrame = framePanels.flatMap { g -> g.sunk.map { setOf(it.first, it.second) } }.toSet()

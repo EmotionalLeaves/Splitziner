@@ -20,6 +20,20 @@ object FramePanels {
     /** A panel this thin or thinner (mm) can sit in a groove: 1/2 in. */
     private const val MAX_PANEL = 13.0
 
+    /** A raised panel this thick at most (mm), field and all: 1-1/4 in. */
+    private const val MAX_RAISED = 32.0
+
+    /** How far the panel's outer edge reaches through its thickness, from the points on its outline. */
+    fun edgeRange(p: Part, k: Int): Pair<Double, Double>? {
+        val b = p.mesh.bounds; val v = p.mesh.vertices
+        var lo = Double.MAX_VALUE; var hi = -Double.MAX_VALUE
+        for (i in 0 until p.mesh.vertexCount) {
+            val onEdge = (0..2).any { a -> a != k && (kotlin.math.abs(v[3 * i + a] - b.min[a]) < 0.3 || kotlin.math.abs(v[3 * i + a] - b.max[a]) < 0.3) }
+            if (onEdge) { lo = minOf(lo, v[3 * i + k]); hi = maxOf(hi, v[3 * i + k]) }
+        }
+        return if (lo > hi) null else lo to hi
+    }
+
     /** A panel this narrow at least (mm), both ways: a five-piece drawer front's panel can be under 4 in tall. */
     private const val MIN_PANEL = 50.0
 
@@ -43,10 +57,13 @@ object FramePanels {
         for (p in live) {
             val pb = p.mesh.bounds; val pe = pb.extents
             val k = (0..2).minByOrNull { pe[it] }!!
-            if (pe[k] > MAX_PANEL || (0..2).filter { it != k }.any { pe[it] < MIN_PANEL }) continue
+            if (pe[k] > MAX_RAISED || (0..2).filter { it != k }.any { pe[it] < MIN_PANEL }) continue
+            // What sits in the grooves is the panel's edge: all of it for a flat panel, the tongue of a raised one.
+            val (eLo, eHi) = edgeRange(p, k) ?: continue
+            if (eHi - eLo > MAX_PANEL) continue
             val strips = live.filter { s -> s !== p && s.mesh.bounds.let { sb -> val se = sb.extents
                 (0..2).all { a -> minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]) > 0.5 } &&
-                    sb.min[k] < pb.min[k] - 0.5 && sb.max[k] > pb.max[k] + 0.5 &&
+                    sb.min[k] < eLo - 0.5 && sb.max[k] > eHi + 0.5 &&
                     (0..2).filter { it != k }.any { a -> val ov = minOf(sb.max[a], pb.max[a]) - maxOf(sb.min[a], pb.min[a]); ov <= MAX_GROOVE && ov < pe[a] - 1.0 } &&
                     // A strip lies flat in the panel's plane (a case's side, on edge to it, is not one), and is long for its width.
                     (0..2).minByOrNull { se[it] } == k &&
