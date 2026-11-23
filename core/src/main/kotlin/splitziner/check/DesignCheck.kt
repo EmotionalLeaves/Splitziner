@@ -182,6 +182,28 @@ object DesignCheck {
         return depth >= 1.0 && depth <= 0.5 * bt
     }
 
+    /**
+     * The low shelf inside a closed pedestal (a display plinth) that is there to be loaded with ballast: a board lying
+     * flat in the bottom quarter, clear of the floor, with an upright part from the floor beside each of its four edges
+     * and a top over it. Null when there is none.
+     */
+    fun ballastShelf(live: List<Part>): Part? {
+        if (live.size < 5) return null
+        val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+        val h = all.extents.z
+        fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
+        return live.firstOrNull { s ->
+            val b = s.mesh.bounds
+            flat(s) && b.min.z > all.min.z + 25.0 && b.max.z < all.min.z + 0.25 * h && b.extents.x > 0.5 * all.extents.x && b.extents.y > 0.5 * all.extents.y &&
+                // Walled in on four sides by parts standing on the floor, reaching above it.
+                listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== s && !flat(w) && w.mesh.bounds.min.z <= all.min.z + 1.0 && w.mesh.bounds.max.z >= all.max.z - 50.0 &&
+                    (if (lo) w.mesh.bounds.max[ax] <= b.min[ax] + 25.0 && w.mesh.bounds.max[ax] >= all.min[ax] else w.mesh.bounds.min[ax] >= b.max[ax] - 25.0) &&
+                    w.mesh.bounds.min[1 - ax] <= b.max[1 - ax] && w.mesh.bounds.max[1 - ax] >= b.min[1 - ax] } } &&
+                // And closed over: a flat part across the top.
+                live.any { t -> t !== s && flat(t) && t.mesh.bounds.max.z >= all.max.z - 1.0 && t.mesh.bounds.extents.x > 0.5 * all.extents.x }
+        }
+    }
+
     fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt), housed: List<Pair<String, String>> = emptyList()): CheckReport {
         val housedPairs = housed.map { setOf(it.first, it.second) }.toSet()
         val live = parts.filter { !it.excluded }
@@ -446,6 +468,9 @@ object DesignCheck {
             val h = all.maxOf { it.max.z } - all.minOf { it.min.z }; val dd = all.maxOf { it.max.y } - all.minOf { it.min.y }
             if (live.any { it.name == "Hanging rail" }) out += Finding(Severity.CHECK, "Hang it from the studs",
                 "It has a hanging rail across the back: it is screwed to the wall through that rail, into the studs (or with plugs made for masonry). Plasterboard alone will not hold a loaded cabinet.")
+            // A closed pedestal with a low shelf inside (a display plinth) stands free: its shelf takes the weight.
+            else if (h > 760.0 && h > 2.0 * dd && ballastShelf(live) != null) out += Finding(Severity.CHECK, "Weigh it down",
+                "It is ${d(h)} $u tall and only ${d(dd)} $u deep, and stands free. Load the low shelf inside (item ${ballastShelf(live)!!.item}) with sandbags or bricks before anything goes on top, so it cannot be tipped; if it stands against a wall, an anti-tip strap into a stud does as well.")
             // A crate (battens across a lid) is packing, not furniture: it is not stood in a room.
             else if (h > 760.0 && h > 2.0 * dd && live.none { it.name == "Batten" }) out += Finding(Severity.CHECK, "Fix it to the wall",
                 "It is ${d(h)} $u tall and only ${d(dd)} $u deep. Furniture this shape can be pulled over, by a child climbing it or a heavy drawer pulled out. Fix it to the wall with an anti-tip strap or bracket into a stud." +

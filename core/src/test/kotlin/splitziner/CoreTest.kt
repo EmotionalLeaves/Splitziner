@@ -2380,7 +2380,7 @@ class DisplayPieceTest {
         val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "p.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
         assertTrue(a.parts.none { it.name == "Door" }, a.parts.map { it.name }.toString())
         val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
-        assertTrue(report.findings.any { it.title == "Fix it to the wall" && it.detail.contains("sandbags") })
+        assertTrue(report.findings.any { it.title == "Weigh it down" && it.detail.contains("sandbags") }, report.findings.map { it.title }.toString())
     }
 
     @Test fun stripsOnACratesLidAreBattens() {

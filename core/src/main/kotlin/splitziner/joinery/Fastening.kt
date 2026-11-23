@@ -784,7 +784,7 @@ object Fastening {
             // A cabinet with a hanging rail is screwed to the wall through it instead: two screws into each stud it crosses.
             val rail = live.firstOrNull { it.name == "Hanging rail" } ?: live.firstOrNull { it.name == "Wall cleat" }
             if (rail != null) totals[if (fmt.isInch) "#10 x 3 in screws to hang it (into studs)" else "5 x 75 mm screws to hang it (into studs)"] = 2 * maxOf(2, ceil(rail.mesh.bounds.extents.x / 406.4).toInt())
-            else if (h > 760.0 && h > 2.0 * dd) totals["anti-tip wall strap kit"] = 1
+            else if (h > 760.0 && h > 2.0 * dd && splitziner.check.DesignCheck.ballastShelf(live) == null) totals["anti-tip wall strap kit"] = 1
         }
         // A wall cleat is screwed to the wall, and the piece hung on it, last.
         live.firstOrNull { it.name == "Wall cleat" }?.let { wc ->

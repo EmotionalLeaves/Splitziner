@@ -642,3 +642,6 @@ Departures from the build spec, newest first.
 ## v1.85
 - The plinth template can carry a clear acrylic cover (a vitrine): five sheets, the outside flush with the plinth, 12 in tall and 3/16 in thick by default.
 - Any model with a clear cover on top (five sheets 1/4 in or thinner, at least 2 in across, four walls standing on the piece's top and a lid on them, inside its outline) has the cover named "Acrylic cover" and left out of the wood lists and drawings, before the rest is named, so the plinth under it is read as without it. A note gives the size to order (outside size and thickness), made up by a plastics fabricator, glued, with polished edges; it rests on the top and lifts off. The user's own exclusion choice does not bring it back in this version.
+
+## v1.86
+- A closed pedestal with a low shelf inside (a flat board in the bottom quarter, clear of the floor, walled in on four sides by parts standing on the floor, with a top over it) is a free-standing display piece: its tip check is "Weigh it down", naming the shelf to load with sandbags or bricks, and its hardware has no wall strap. A wall strap is still mentioned for one that stands against a wall.

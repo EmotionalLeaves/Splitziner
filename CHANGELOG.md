@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.86.0 - weigh plinths down
+
+- **Plinths stand free.** A plinth with a low ballast shelf now gets "Weigh it down: load the shelf with sandbags or bricks" instead of being told to fix it to a wall, and no wall strap is added to its hardware.
+
 ## v1.85.0 - acrylic cover
 
 - **Plinths with a clear cover.** The plinth design can now have an acrylic cover (a vitrine) on top. Any model with a clear cover like that keeps the cover out of the wood lists, with a note giving the exact size to order from a plastics fabricator.
