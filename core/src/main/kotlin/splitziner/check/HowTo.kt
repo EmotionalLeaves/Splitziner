@@ -76,6 +76,7 @@ object HowTo {
             "down to ${taper.groupValues[2].lowercase()} $u at the other end. Saw it with a taper jig on the table saw (or on the band saw just outside the line), one face at a time, then plane to the line."
         val slope = Regex("""ONE EDGE SLOPED FROM ([^ ]+) TO ([^ ,]+)""").find(row.description)
         if (slope != null) out += "Mark the slope, measuring both from the same long edge: ${slope.groupValues[1]} $u at one end (the full width) and ${slope.groupValues[2]} $u at the other. Join the marks with a straight edge and saw along the line (a circular saw against a clamped guide, or a jigsaw just outside it and plane to the line)."
+        if (row.description.contains("A RIGHT TRIANGLE")) out += "Draw a line corner to corner across the blank and saw along it: each blank makes two triangles${if (row.qty > 1) ", so cut ${(row.qty + 1) / 2} blank${if ((row.qty + 1) / 2 == 1) "" else "s"} for ${row.qty}" else ""}."
         val raised = Regex("""RAISED \(EDGE ([^ ]+) THK, BEVEL ([^ ]+) WIDE\)""").find(row.description)
         if (raised != null) out += "Raise the panel: cut the bevel ${raised.groupValues[2]} $u wide on all four edges of the front face, leaving the edge ${raised.groupValues[1]} $u thick to slide into the grooves. " +
             "Use a panel-raising bit in a router table, or the table saw with the blade tilted and the panel stood on edge against a tall fence. Cut the end-grain edges first, so the long-grain cuts clean up any tear-out, and test the fit in an offcut of the groove."

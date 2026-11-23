@@ -749,3 +749,6 @@ Departures from the build spec, newest first.
 ## v2.17
 - A "Print browser" template: an open bin for flipping through prints at a fair, low at the front and high at the back, its sides sloping between. Default 22 in inside, 14 in deep, 6 in at the front and 12 in at the back.
 - A flat part whose outline is a right trapezoid (a rectangle with one edge sawn on a slope from end to end) is "ONE EDGE SLOPED FROM a TO b": it gets a detail drawing and a making step (mark both ends from the same long edge, saw the straight line), not full-size template pages.
+
+## v2.18
+- A flat part whose outline is a right triangle (a corner shelf, a corbel, a gusset) is "A RIGHT TRIANGLE" of its blank's size, not "shaped": a detail drawing and a making step (saw the blank corner to corner; one blank makes two), no full-size pages.

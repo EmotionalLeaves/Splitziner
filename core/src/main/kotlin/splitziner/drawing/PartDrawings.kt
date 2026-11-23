@@ -82,7 +82,7 @@ object PartDrawings {
             if (row.kind != splitziner.parts.PartKind.BOARD && row.kind != splitziner.parts.PartKind.PANEL) return@filter false
             val p = row.memberIds.firstNotNullOfOrNull { byId[it] } ?: return@filter false
             val d = runCatching { splitziner.parts.PartDescriber.describe(p.mesh, fmt) }.getOrNull() ?: return@filter false
-            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED") && !d.desc.contains("RAISED") && !d.desc.contains("TAPERED") && !d.desc.contains("SLOPED")
+            p.mesh.isWatertight && !d.desc.contains("NOTCHED") && !d.desc.contains("HOLE") && !d.desc.contains("ENDS CUT") && !d.desc.contains("EDGE BEVELLED") && !d.desc.contains("RAISED") && !d.desc.contains("TAPERED") && !d.desc.contains("SLOPED") && !d.desc.contains("A RIGHT TRIANGLE")
         }.map { it.item }.toSet() - pinItems(parts) - doorItems(parts)
     }
 

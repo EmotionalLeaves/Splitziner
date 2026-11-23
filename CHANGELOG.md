@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.18.0 - right triangles
+
+- Triangular parts (corner shelves, brackets, gussets) are now described as right triangles, with "saw the blank corner to corner, one blank makes two", instead of as odd shapes needing a printed template.
+
 ## v2.17.0 - print browser
 
 - **New design: Print browser.** A bin for flipping through prints at a fair or in the studio, low at the front and high at the back.

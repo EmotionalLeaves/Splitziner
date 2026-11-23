@@ -244,6 +244,17 @@ object PartDescriber {
         return minOf(a, b) to maxOf(a, b)
     }
 
+    /** A flat part whose outline is a triangle with one square corner. */
+    fun rightTriangle(m: Mesh): Boolean {
+        val pr = runCatching { splitziner.edit.Prisms.of(m) }.getOrNull() ?: return false
+        val g = pr.outline
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return false
+        val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
+        if (c.size != 3) return false
+        return (0..2).count { i -> val a = (c[(i + 2) % 3].x - c[i].x) to (c[(i + 2) % 3].y - c[i].y); val b = (c[(i + 1) % 3].x - c[i].x) to (c[(i + 1) % 3].y - c[i].y)
+            kotlin.math.abs(a.first * b.first + a.second * b.second) < 0.01 * Math.hypot(a.first, a.second) * Math.hypot(b.first, b.second) } == 1
+    }
+
     fun describe(m: Mesh, fmt: LengthFormat): PartDescription {
         val ext = m.extents
         val obb = OrientedBounds.of(m)
@@ -312,6 +323,11 @@ object PartDescriber {
         }
         // A board with one edge sawn on a slope (a print bin's side): four corners, two of them square, the sloped
         // edge between the long and the short end. Marked and sawn along a straight line, not traced from a template.
+        // A right triangle (a gusset, a shelf bracket): a rectangle sawn corner to corner, two from one blank.
+        if (rightTriangle(m)) {
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, A RIGHT TRIANGLE")
+        }
         slopedEdge(m)?.let { (lo, hi) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
             return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE EDGE SLOPED FROM ${d(hi)} TO ${d(lo)}")
