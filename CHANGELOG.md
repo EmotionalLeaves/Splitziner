@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.13.0 - crate markings
+
+- Crates now remind you to mark "This way up" and "Fragile", and to add handles at the ends of a big one.
+
 ## v2.12.0 - plinth top
 
 - **Plinth tops you can actually fix.** The guide used to have you screw a plinth's top on from inside, which you can't reach once the ballast shelf is in. Now you load the ballast, then screw the top down from above with a few countersunk screws, so it can come off again to empty the ballast when the plinth moves.

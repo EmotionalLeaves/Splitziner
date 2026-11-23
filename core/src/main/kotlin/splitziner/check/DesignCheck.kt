@@ -44,6 +44,9 @@ class CheckReport(val findings: List<Finding>, val work: List<ItemWork>, val too
  * shapes alone. It knows nothing of wood species, glue, screws or loads, and says so where that matters.
  */
 object DesignCheck {
+    /** A crate longer than this (mm, 30 in) is a two-person carry: handles at the ends. */
+    private const val CRATE_HANDLES = 762.0
+
     /** A long sheet as some suppliers sell it (mm, 10 ft). */
     private const val LONG_SHEET = 3048.0
 
@@ -392,7 +395,8 @@ object DesignCheck {
             val u = if (fmt.isInch) " in" else " mm"
             if (iw > 2 * foam && ih > 2 * foam && idp > 2 * foam)
                 out += Finding(Severity.NOTE, "What it takes",
-                    "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u. Lined with ${d(foam)}$u of foam all round, it takes a work up to ${d(iw - 2 * foam)} x ${d(ih - 2 * foam)} x ${d(idp - 2 * foam)}$u, wrapped.", listOf(lid.id))
+                    "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u. Lined with ${d(foam)}$u of foam all round, it takes a work up to ${d(iw - 2 * foam)} x ${d(ih - 2 * foam)} x ${d(idp - 2 * foam)}$u, wrapped. Mark the outside \"This way up\" with arrows, and \"Fragile\"" +
+                        (if (maxOf(ob.extents.x, ob.extents.z) > CRATE_HANDLES) "; at this size, screw a handle (a short batten or a rope handle) to each end so two people can carry it." else "."), listOf(lid.id))
             else out += Finding(Severity.CHECK, "Too shallow for foam",
                 "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u: too little to line with ${d(foam)}$u of foam all round. Make it deeper, or plan another way to hold the work still.", listOf(lid.id))
         }

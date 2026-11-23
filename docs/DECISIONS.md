@@ -733,3 +733,6 @@ Departures from the build spec, newest first.
 
 ## v2.12
 - A closed plinth with a ballast shelf has its top screwed down through its face into the cleats, a few countersunk screws, after the ballast is loaded: once the shelf is in, nothing can reach the cleats from inside, and the top has to come off again to empty the ballast when the plinth moves. The heads are filled only if it never will.
+
+## v2.13
+- A crate's note adds the usual markings ("This way up" with arrows, "Fragile") and, for one longer than 30 in, a handle at each end so two people can carry it. Shipping practice, given as advice.
