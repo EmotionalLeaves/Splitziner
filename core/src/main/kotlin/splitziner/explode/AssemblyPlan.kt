@@ -693,8 +693,8 @@ object AssemblyPlan {
     /** Slats laid in one step, at most: a big bed's worth. */
     private const val MAX_SLATS = 30
 
-    /** Drawers (or their fronts) hung in one step, at most. */
-    private const val MAX_DRAWERS = 12
+    /** Drawers, their fronts or doors hung in one step, at most: a kitchen run's worth (each is hung the same way). */
+    private const val MAX_DRAWERS = 24
 
     /** [hungGiven], when not null, names the parts hung last (doors, drawers made whole, shelves on pins) instead of finding them. */
     private fun planCore(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null, hungGiven: Set<String>? = null, hungFirst: Set<String> = emptySet(),

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.0 - Big runs
+
+- Big kitchens: all the doors (up to 24) are hung in one step instead of being split oddly across two.
+
 ## v1.27.0 - Splayed legs
 
 - Picnic tables and anything with splayed board legs: the legs are recognised as legs, and each end (two legs and their crosspieces) is made as a frame on the bench.

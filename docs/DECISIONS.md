@@ -402,3 +402,7 @@ Departures from the build spec, newest first.
 - A crosspiece called a cleat that joins two legs counts as a frame rail: a picnic table's ends (two legs, top cleat, seat support) are made on the bench as frames.
 - A frame's part list no longer repeats a cleat that is also one of its rails.
 - Slats go on from above whenever the way up is clear, like treads.
+
+## v1.28
+- Up to 24 drawers, drawer fronts or doors are hung in one step (was 12): an eight-cabinet kitchen run's sixteen doors were split 10 and 6.
+- The command-line tool takes --up y|-y|x|z|auto; auto stands the model up as the app does on import. With it, every Y-up test model gives the same parts list and step titles as its Z-up original (flat objects such as a picture frame aside, which have no clear up).

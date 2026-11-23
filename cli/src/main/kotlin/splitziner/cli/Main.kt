@@ -9,7 +9,7 @@ import kotlin.system.exitProcess
 /** Runs the engine on a file and writes what it found; the way to check the engine without a phone. */
 fun main(args: Array<String>) {
     if (args.isEmpty()) { System.err.println("usage: <file.stl> [--out <dir>] [--units mm|cm|in|m] [--display mm|in]"); exitProcess(1) }
-    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null; var style = "decimal"
+    var out = File("build/out"); var units: String? = null; var display: String? = null; var file: String? = null; var full = false; var only: Set<String>? = null; var boards = false; var fix = false; var tools: Set<splitziner.check.Tool>? = null; var style = "decimal"; var up = "z"
     var i = 0
     while (i < args.size) {
         when (args[i]) {
@@ -22,6 +22,8 @@ fun main(args: Array<String>) {
             "--boards" -> boards = true
             "--fix" -> fix = true
             "--tools" -> tools = splitziner.check.Tool.parse(args[++i].split(','))
+            // --up y|-y|x|z, or auto to stand the model up as the app does on import.
+            "--up" -> up = args[++i]
             else -> file = args[i]
         }
         i++
@@ -41,11 +43,13 @@ fun main(args: Array<String>) {
             file = tmp.path; if (units == null) units = "mm"
         }
         val f = File(file ?: error("no input file"))
-        val a0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style))
+        val z0 = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style))
+        if (up == "auto") up = Pipeline.guessUp(z0.parts).also { println("up        guessed $it") }
+        val a0 = if (up == "z") z0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up))
         // --only P01,P05: keep just those parts, to look at one corner of a model.
-        var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
+        var a = if (only == null) a0 else Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up, excludedPartIds = a0.parts.map { it.id }.filter { it !in only!! }.toSet()))
         // MATERIAL=Oak sets every item's material, as the app's new-design chips do.
-        System.getenv("MATERIAL")?.let { m -> a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style,
+        System.getenv("MATERIAL")?.let { m -> a = Pipeline.analyze(f, AnalysisOptions(fileUnits = units, displayUnits = display, inchStyle = style, up = up,
             itemOverrides = a.cutList.rows.associate { r -> splitziner.parts.CutList.itemKey(r.kind, r.t, r.w, r.l) to splitziner.parts.ItemOverride(material = m) })) }
         out.mkdirs()
         File(out, "cutlist.csv").writeText(CsvWriter.cutList(a.cutList, a.format))
