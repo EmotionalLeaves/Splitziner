@@ -329,3 +329,7 @@ Departures from the build spec, newest first.
 ## v1.13
 - "Before you build" names grooves, rabbets and mortises together ("cut the grooves, rabbets and mortises that item 2 needs"); it said "grooves" for a leg that only has mortises.
 - A part's second mortise of the same size is told in one line ("cut the other mortise … the same size, at …"), the method having just been given.
+
+## v1.14
+- Cutting plans number the cuts on each sheet in the order to make them, as a panel-saw cutting diagram does: each cut runs right across the piece of sheet being cut; a rip along the sheet's length comes first wherever one frees whole strips (as a store cuts sheets), otherwise a crosscut; the last piece in a region is freed across its far end, then along its side. The number sits in a small box at the start of each cut.
+- Help: "Which way is up" now explains that the app stands up a model that plainly lies on its back.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.14.0 - Numbered cuts on the cutting plan
+
+- Cutting plans now number the cuts on each sheet in the order to make them, so you can break a sheet down without working it out at the saw, or ask the store to make the first rips.
+
 ## v1.13.0 - Mortise wording
 
 - Clearer wording for mortised legs: "Before you build" mentions mortises, and the second mortise of the same size is a one-line step instead of repeating the whole method.

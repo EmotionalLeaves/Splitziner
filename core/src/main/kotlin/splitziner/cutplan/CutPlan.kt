@@ -156,6 +156,40 @@ object CutPlanner {
         return open
     }
 
+    /** One straight saw cut across a region of the sheet: from (x0, y0) to (x1, y1), in sheet coordinates. */
+    class Cut(val n: Int, val x0: Double, val y0: Double, val x1: Double, val y1: Double) { val rip: Boolean get() = abs(x1 - x0) < 1e-6 }
+
+    /**
+     * The order to make a layout's cuts in, as a panel saw or a guide rail cuts a sheet: each cut runs right across
+     * the piece of sheet being cut. Rips along the sheet's length come first where they free whole strips (as a
+     * store cuts sheets), then the strips are cut across. Cuts that would only trim waste off the far edges are
+     * left out.
+     */
+    fun cutOrder(sh: SheetLayout, sheetW: Double, sheetL: Double, kerf: Double): List<Cut> {
+        val out = ArrayList<Cut>()
+        fun split(x0: Double, y0: Double, x1: Double, y1: Double, ps: List<PlacedPiece>) {
+            if (ps.isEmpty()) return
+            if (ps.size == 1) {
+                // Free the last piece from its offcuts: across its far side, then along it.
+                val pc = ps[0]
+                if (pc.y + pc.l < y1 - 0.5) out += Cut(out.size + 1, x0, pc.y + pc.l, x1, pc.y + pc.l)
+                if (pc.x + pc.w < x1 - 0.5) out += Cut(out.size + 1, pc.x + pc.w, y0, pc.x + pc.w, minOf(y1, pc.y + pc.l))
+                return
+            }
+            // A line that no piece crosses: just past a piece's far edge (where the saw cut goes).
+            fun clear(along: Boolean, at: Double) = ps.none { pc -> if (along) pc.x < at - 0.5 && pc.x + pc.w > at + 0.5 else pc.y < at - 0.5 && pc.y + pc.l > at + 0.5 }
+            val ripAt = ps.map { it.x + it.w }.filter { it < x1 - 0.5 && it > x0 + 0.5 }.distinct().sorted().firstOrNull { clear(true, it) && ps.any { pc -> pc.x + pc.w <= it + 0.5 } && ps.any { pc -> pc.x >= it - 0.5 } }
+            val crossAt = ps.map { it.y + it.l }.filter { it < y1 - 0.5 && it > y0 + 0.5 }.distinct().sorted().firstOrNull { clear(false, it) && ps.any { pc -> pc.y + pc.l <= it + 0.5 } && ps.any { pc -> pc.y >= it - 0.5 } }
+            when {
+                ripAt != null -> { out += Cut(out.size + 1, ripAt, y0, ripAt, y1); split(x0, y0, ripAt, y1, ps.filter { it.x + it.w <= ripAt + 0.5 }); split(ripAt + kerf, y0, x1, y1, ps.filter { it.x >= ripAt - 0.5 }) }
+                crossAt != null -> { out += Cut(out.size + 1, x0, crossAt, x1, crossAt); split(x0, y0, x1, crossAt, ps.filter { it.y + it.l <= crossAt + 0.5 }); split(x0, crossAt + kerf, x1, y1, ps.filter { it.y >= crossAt - 0.5 }) }
+                else -> return
+            }
+        }
+        split(0.0, 0.0, sheetW, sheetL, sh.pieces)
+        return out
+    }
+
     /** A board at least this wide (mm) of sheet thickness is ripped from a sheet in metric shops, not bought as a length. */
     private const val SHEET_STRIP_MIN = 150.0
 
@@ -464,6 +498,16 @@ object CutPlanLayout {
                 val g = rows.any { it.item == pc.item && it.grain }
                 label(p, ax, ay, pw, pl, "${pc.item}" + if (g) " G" else "", "${d(pc.w)} x ${d(pc.l)}")
             }
+            // The cuts in order, numbered in a small box at the start of each, so the sheet can be broken down
+            // (or the store asked to make the first rips) without working it out at the saw.
+            val cuts = CutPlanner.cutOrder(sh, sw, sl, s.kerf)
+            if (cuts.size >= 2) for (c in cuts) {
+                val cx = x0 + c.x0 * k; val cy = y0 + c.y0 * k
+                val bx = if (c.rip) cx else cx + 2.6; val by = if (c.rip) cy + 2.6 else cy
+                p.rect(bx - 2.1, by - 1.6, bx + 2.1, by + 1.6, LineStyle.THIN)
+                p.text(bx, by, "${c.n}", 2.2, HAlign.CENTER, VAlign.CENTER)
+            }
+            if (cuts.size >= 2 && i % 2 == 0) p.text(20.0, 10.0, "Boxed numbers: the order of the cuts, each right across the piece being cut.", 2.4)
         }
 
         // Lengths as bars.

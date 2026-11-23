@@ -1794,3 +1794,20 @@ class UpGuessTest {
         assertTrue(stood.report.warnings.any { it.contains("lying on its back") })
     }
 }
+
+class CutOrderTest {
+    @Test fun everyPieceIsFreedByStraightCutsInOrder() {
+        val row = splitziner.parts.CutListRow(1, 4, "", "PANEL", "", "", "", splitziner.parts.PartKind.PANEL, 19.05, 584.2, 914.4, listOf("P01"), name = "Side")
+        val r = splitziner.cutplan.CutPlanner.plan(listOf(row), splitziner.cutplan.StockSettings.INCH)
+        val sh = r.sheets.first()
+        val cuts = splitziner.cutplan.CutPlanner.cutOrder(sh, sh.w.takeIf { it > 0 } ?: 1219.2, sh.l.takeIf { it > 0 } ?: 2438.4, 3.175)
+        assertTrue(cuts.size >= sh.pieces.size - 1, cuts.size.toString())
+        assertEquals((1..cuts.size).toList(), cuts.map { it.n })
+        // No cut runs through a piece.
+        for (c in cuts) for (pc in sh.pieces) {
+            val crosses = if (c.rip) pc.x < c.x0 - 0.5 && pc.x + pc.w > c.x0 + 0.5 && pc.y < maxOf(c.y0, c.y1) && pc.y + pc.l > minOf(c.y0, c.y1)
+                else pc.y < c.y0 - 0.5 && pc.y + pc.l > c.y0 + 0.5 && pc.x < maxOf(c.x0, c.x1) && pc.x + pc.w > minOf(c.x0, c.x1)
+            assertFalse(crosses, "cut ${c.n} crosses item at ${pc.x},${pc.y}")
+        }
+    }
+}
