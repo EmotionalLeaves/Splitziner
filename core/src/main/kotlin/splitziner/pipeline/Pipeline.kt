@@ -420,6 +420,8 @@ object Pipeline {
         // A rod with one end sunk into a board (a coat rack's peg) sits in a drilled hole: housed as drawn.
         val pegs = live.filter { it.kind == splitziner.parts.PartKind.ROD }.mapNotNull { r -> splitziner.check.Pegs.host(r, live)?.let { r.id to it.id } }
         val housed = ((edited?.housed ?: emptyList()) + tenons + grooved + pegs).distinct()
+        // Glass for a frame or shadow box is cut by a glass shop: on the list of things to order too.
+        orders += runCatching { splitziner.check.DesignCheck.glassOrders(cut.parts, fmt) }.getOrDefault(emptyList())
         return Analysis(name, report, cut.parts, cut, fmt, bounds, timings, named, edited?.notes ?: emptyList(), housed, orders)
     }
 }

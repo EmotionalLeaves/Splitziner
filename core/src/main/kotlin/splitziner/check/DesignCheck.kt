@@ -207,6 +207,28 @@ object DesignCheck {
     /** Where galleries hang a work: its centre at about eye level, 57 in (1.45 m) from the floor, the usual museum rule. */
     private fun HANG_HEIGHT(fmt: LengthFormat) = "Galleries usually hang work with its centre about ${if (fmt.isInch) "57 in" else "1.45 m"} from the floor."
 
+    /** Glass and backing to have cut elsewhere for a picture frame or shadow box, one line each, for the shopping list. */
+    fun glassOrders(parts: List<Part>, fmt: LengthFormat): List<String> {
+        val live = parts.filter { !it.excluded }
+        val d = { v: Double -> fmt.format(v) }
+        val u = if (fmt.isInch) " in" else " mm"
+        val gap = if (fmt.isInch) 1.5875 else 2.0
+        val strips = live.filter { it.name == "Back strip" }
+        if (strips.size == 4) {
+            val o = strips.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            val sw = strips.maxOf { p -> p.mesh.bounds.extents.let { minOf(it.x, it.y) } }
+            val sz = "${d(o.extents.x - 2 * sw - gap)} x ${d(o.extents.y - 2 * sw - gap)}$u"
+            return listOf("Glass or acrylic, $sz, cut by a glass shop with smoothed edges", "Backing board (hardboard or foam board), $sz")
+        }
+        val sides = live.filter { it.name == "Box side" }
+        if (sides.size == 4 && live.any { it.name == "Glass stop" }) {
+            val o = sides.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            val st = sides.minOf { p -> p.mesh.bounds.extents.let { minOf(it.x, it.y) } }
+            return listOf("Glass or acrylic about ${if (fmt.isInch) "1/8 in" else "3 mm"} thick, ${d(o.extents.x - 2 * st - gap)} x ${d(o.extents.y - 2 * st - gap)}$u, cut by a glass shop with smoothed edges")
+        }
+        return emptyList()
+    }
+
     /** Notes worth printing at the end of the build guide: what to get or do once the piece is made. */
     private val FINISH_TITLES = listOf("Glass, backing and hanging", "Glass and hanging", "Hanging (not in the model)", "Canvas to cut", "What it takes", "Weigh it down")
 

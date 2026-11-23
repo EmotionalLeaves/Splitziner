@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.9.0 - glass to order
+
+- The glass and backing for frames and shadow boxes are now on the "To order" list, with their sizes.
+- Fixed: on the guide's cover, a long overall size could run into the hardware heading.
+
 ## v2.8.0 - dialog order
 
 - New design reads in a better order: picture, description, common sizes, your sizes, then the optional material.

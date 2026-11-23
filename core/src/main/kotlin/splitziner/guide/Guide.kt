@@ -753,7 +753,7 @@ object GuideLayout {
         for ((k, v) in listOf("SIZE" to info.overallSize, "PARTS" to "${info.partCount}", "STEPS" to "${steps.size}")) {
             p.text(25.0, y, k, 3.2, vAlign = VAlign.TOP, bold = true)
             // A long size ("31-1/2 x 18-7/16 x 35-7/16 in") goes under its label rather than into the hardware list.
-            if (45.0 + splitziner.sheet.StrokeFont.width(v, 3.2) > w / 2 + 2) { y -= 5.5; p.text(25.0, y, v, 3.2, vAlign = VAlign.TOP) }
+            if (45.0 + splitziner.sheet.StrokeFont.width(v, 3.2) > w / 2 - 3) { y -= 5.5; p.text(25.0, y, v, 3.2, vAlign = VAlign.TOP) }
             else p.text(45.0, y, v, 3.2, vAlign = VAlign.TOP)
             y -= 6
         }

@@ -720,3 +720,7 @@ Departures from the build spec, newest first.
 
 ## v2.8
 - The new-design dialog reads top to bottom as people use it: picture, description, common sizes, the sizes, then the optional material.
+
+## v2.9
+- A picture frame's glass and backing board, and a shadow box's glass, are on the "To order" list (shopping list and the guide's cover), cut to the sizes the notes give.
+- On the guide's cover, a size that would run into the hardware heading goes under its label.
