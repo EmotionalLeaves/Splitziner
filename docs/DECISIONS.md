@@ -872,3 +872,6 @@ Departures from the build spec, newest first.
 
 ## v2.47
 - The glTF and PLY readers keep triangles in plain growing arrays rather than lists of boxed numbers (a phone scan can hold millions of triangles: boxed, that is several times the memory), and stop with the usual message past the app's triangle limit.
+
+## v2.48
+- A model of one to three parts, all solid shapes rather than boards (a scanned or sculpted work), gets a note pointing to the project menu's Make a crate for this and Make a plinth for this.

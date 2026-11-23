@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.48.0 - work note
+
+- Open a sculpture or scan and the Check tab now points you to making a crate or plinth for it.
+
 ## v2.47.0 - scan memory
 
 - Large scans in glTF or PLY use much less memory when opening.

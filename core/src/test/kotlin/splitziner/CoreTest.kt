@@ -2899,3 +2899,15 @@ class ScanUnitsTest {
         assertEquals(1.0, k.scale, 1e-9)
     }
 }
+
+class WorkNoteTest {
+    @Test fun aLoneSolidShapeIsOfferedACrateOrPlinth() {
+        // A rough lump: an octahedron 200 mm across, one solid part.
+        val v = listOf(Vec3(100.0, 0.0, 0.0), Vec3(-100.0, 0.0, 0.0), Vec3(0.0, 80.0, 0.0), Vec3(0.0, -80.0, 0.0), Vec3(0.0, 0.0, 150.0), Vec3(0.0, 0.0, -150.0))
+        val f = listOf(intArrayOf(0, 2, 4), intArrayOf(2, 1, 4), intArrayOf(1, 3, 4), intArrayOf(3, 0, 4), intArrayOf(2, 0, 5), intArrayOf(1, 2, 5), intArrayOf(3, 1, 5), intArrayOf(0, 3, 5))
+        val mesh = splitziner.mesh.Mesh(v.flatMap { listOf(it.x, it.y, it.z) }.toDoubleArray(), f.flatMap { it.toList() }.toIntArray())
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(listOf(mesh))), "lump.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "A work to show or ship?" }, report.findings.map { it.title }.toString())
+    }
+}
