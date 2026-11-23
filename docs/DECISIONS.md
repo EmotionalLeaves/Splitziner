@@ -742,3 +742,6 @@ Departures from the build spec, newest first.
 
 ## v2.15
 - A flat piece drawn standing, as it will hang (a picture frame, a stretcher, a cradled panel), is laid down when the app guesses which way is up: thinner one way than 15% of either other way, and no more than 6 in, it gets that thin side up, as it is made on the bench. A Y-up export of a picture frame is now read lying flat too. A standing shadow box (deeper than 15% of its size) is still read standing; drawn lying it is recognised.
+
+## v2.16
+- The names a studio piece's parts get only when it lies the way it is made (face bar, box side, glass stop, back strip, panel face, cradle) count as strong evidence when guessing which way is up, so a shadow box drawn standing, as it hangs, is laid face down too.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.16.0 - standing shadow box
+
+- Shadow boxes modelled standing up, as they hang, are now laid face down the way you build them too.
+
 ## v2.15.0 - flat pieces laid down
 
 - **Frames drawn hanging on a wall.** A picture frame, stretcher or cradled panel modelled standing upright, as it will hang, is now laid down flat the way you build it, so its parts and steps come out right.

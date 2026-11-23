@@ -261,7 +261,9 @@ object Pipeline {
 
     // Spindles and seats are left out: a cabinet on its back is full of upright strips between level boards.
     private val STRONG_ROLES = setOf("Kick board", "Leg", "Centre leg", "Stringer", "Tread", "Foot", "Top rail", "Drawer front", "Sliding door", "Slat", "Stile", "Apron", "Back slat",
-        "Plinth", "Lid", "Runner", "Kicker", "Drawer rail", "Hanging rail", "Corbel", "Rung", "Ladder side", "Back rail", "Guard rail", "Bracket", "Lip", "Back board")
+        "Plinth", "Lid", "Runner", "Kicker", "Drawer rail", "Hanging rail", "Corbel", "Rung", "Ladder side", "Back rail", "Guard rail", "Bracket", "Lip", "Back board",
+        // A studio piece read the way it is made (a shadow box face down) names its parts only that way up.
+        "Face bar", "Box side", "Glass stop", "Back strip", "Panel face", "Cradle")
     private val WEAK_ROLES = setOf("Post", "Stretcher", "Back panel", "Modesty panel", "Cleat", "Side rail", "End rail")
 
     /** Parts in telling roles counted at most (two points each): a loft bed's 12 slats, 4 legs, ladder and guard rails all count. */
