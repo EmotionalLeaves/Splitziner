@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.40.0 - apronless tables
+
+- Tables with legs going straight into the top (no rails): the legs now go on last with leg mounting plates and hanger bolts, and you're warned if tall legs have nothing bracing them.
+
 ## v2.39.0 - studio headings
 
 - New design: the studio designs are grouped under Showing work, Making work, and Storing and moving, so they're easier to find.

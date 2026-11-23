@@ -2777,3 +2777,20 @@ class StudioSectionsTest {
         assertEquals(sectioned.size, sectioned.toSet().size)
     }
 }
+
+class ApronlessTableTest {
+    @Test fun legsStraightIntoATopAreBoltedOnLast() {
+        fun b(x: Double, y: Double, z: Double, w: Double, d: Double, h: Double) = Fixtures.box(x, x + w, y, y + d, z, z + h)
+        val L = 1500.0; val D = 800.0; val H = 750.0; val t = 30.0; val s = 75.0
+        val ms = listOf(b(0.0, 0.0, H - t, L, D, t), b(100.0, 100.0, 0.0, s, s, H - t), b(L - 100 - s, 100.0, 0.0, s, s, H - t), b(100.0, D - 100 - s, 0.0, s, s, H - t), b(L - 100 - s, D - 100 - s, 0.0, s, s, H - t))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "t.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, splitziner.parts.Apronless.legs(a.parts).size, a.parts.map { it.name }.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertTrue(pl.steps.last().partIds.all { id -> pl.parts.first { it.id == id }.name == "Leg" })
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(4, f.all.count { it.kind == "legplate" })
+        assertTrue(f.all.none { it.kind == "brackets" || it.kind == "counterbored" }, f.all.map { it.kind }.toString())
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.any { it.title == "Legs with nothing between them" }, report.findings.map { it.title }.toString())
+    }
+}

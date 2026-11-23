@@ -841,3 +841,8 @@ Departures from the build spec, newest first.
 
 ## v2.39
 - The New design dialog's Art and studio tab lists its designs under three headings, by what they are for: Showing work (plinths, the screen, frames, shadow box, ledge), Making work (easel, stretcher, cradled panel, taboret), Storing and moving (rack, browser, flat file, crate). With fifteen designs, one block of chips had become hard to scan.
+
+## v2.40
+- A table whose legs go straight into its top, with nothing else touching them (no aprons, rails or stretchers): the top is put down first (face down) and the legs go on last, each bolted with a leg mounting plate and a hanger bolt (or threaded inserts), one per leg in the board its end mostly sits under. Not corner brackets or screws, which work loose with legs held only at the top. Found on a real downloaded table after "make it from boards".
+- Such legs over 18 in long get a CHECK: nothing between them, so a sideways push levers on one joint; aprons or a low stretcher stiffen it (a rule of thumb, not a calculation).
+- The many-sided plinth is called "Many-sided plinth" in the list (shorter on a phone).

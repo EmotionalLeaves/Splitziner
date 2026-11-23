@@ -361,7 +361,9 @@ object AssemblyPlan {
             o.mesh.bounds.extents.let { minOf(it.x, it.y) } > SLAT_RAIL_MAX } }
         val onTop = live0.filter { o -> o.name != "Spindle" && standing.any { p -> kotlin.math.abs(o.mesh.bounds.min.z - p.mesh.bounds.max.z) < 1.0 && over(p, o) } }
         val rackLate = if (standing.size >= 3 && onTop.isNotEmpty() && onTop.all { o -> o.mesh.bounds.extents.let { minOf(it.x, it.y) } <= SLAT_RAIL_MAX }) standing + onTop else emptyList()
-        val late = casters + lid + stops + sbBack + rackLate
+        // A table with its legs straight into the top: the top laid face down, the legs bolted on last, from below.
+        val bareLegs = if (casters.isEmpty()) runCatching { splitziner.parts.Apronless.legs(live0) }.getOrDefault(emptyList()) else emptyList()
+        val late = casters + lid + stops + sbBack + rackLate + bareLegs
         // A many-sided column's staves are taped flat, glued and rolled up together: one first step, the rest on it.
         val staves = runCatching { splitziner.parts.Staves.find(live0) }.getOrDefault(emptyList())
         if (staves.isNotEmpty() && late.isEmpty() && staves.size < live0.size) {
@@ -386,6 +388,7 @@ object AssemblyPlan {
         if (stops.isNotEmpty()) r = lastStep(r, stops, Vec3(0.0, 0.0, 1.0))
         if (sbBack.isNotEmpty()) r = lastStep(r, sbBack, Vec3(0.0, 0.0, 1.0))
         if (casters.isNotEmpty()) r = lastStep(r, casters, Vec3(0.0, 0.0, -1.0))
+        if (bareLegs.isNotEmpty()) r = lastStep(r, bareLegs, Vec3(0.0, 0.0, -1.0))
         val planned = r.parts.associateBy { it.id }
         return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
     }

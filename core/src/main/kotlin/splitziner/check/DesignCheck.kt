@@ -216,6 +216,9 @@ object DesignCheck {
     /** Further than this (mm, 24 in) up inside a box is out of a person's reach from its open bottom. */
     private const val REACH = 610.0
 
+    /** Legs longer than this (mm, 18 in) with nothing between them are worth a word: a coffee table's are not. */
+    private const val APRONLESS_TALL = 457.2
+
     fun ballastShelf(live: List<Part>): Part? {
         if (live.size < 5) return null
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
@@ -519,6 +522,11 @@ object DesignCheck {
             // Groups of parts joined to each other but to nothing else.
             val groups = rel.groups
             val pieces = runCatching { splitziner.parts.Pieces.find(live) }.getOrNull()
+            // Legs held only at their top ends lever on that one joint whenever the table is pushed.
+            runCatching { splitziner.parts.Apronless.legs(live) }.getOrDefault(emptyList()).let { lg ->
+                if (lg.isNotEmpty() && lg.maxOf { it.mesh.bounds.extents.z } > APRONLESS_TALL) out += Finding(Severity.CHECK, "Legs with nothing between them",
+                    "The legs go straight into the top with no aprons, rails or stretchers, so each is held only by the bolt at its top. That is usual for a low table; at this height a push sideways levers on that one joint and it can work loose or wobble. Aprons between the legs under the top, or a stretcher low down, make it far stiffer (a workshop rule of thumb, not a calculation).", lg.map { it.id })
+            }
             // A folding screen's panels stand a hinge's gap apart on purpose.
             val leaves = runCatching { splitziner.parts.Screens.leaves(live) }.getOrNull()
             if (leaves != null) out += Finding(Severity.NOTE, "A folding screen of ${leaves.size} panels",

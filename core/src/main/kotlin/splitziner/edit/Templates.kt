@@ -340,7 +340,7 @@ object Templates {
             }
             out
         },
-        Template("polyplinth", "Six or eight-sided plinth", "A many-sided gallery pedestal: its sides ripped with both long edges bevelled, glued up round in one go (taped flat and rolled into the column), and a top cut to the same shape screwed down on them. Open at the bottom.", listOf(
+        Template("polyplinth", "Many-sided plinth", "A many-sided gallery pedestal: its sides ripped with both long edges bevelled, glued up round in one go (taped flat and rolled into the column), and a top cut to the same shape screwed down on them. Open at the bottom.", listOf(
             Field("n", "Number of sides", 6.0, 6.0, count = true), Field("across", "Across the corners", 610.0, 24.0), Field("h", "Height", 915.0, 36.0), Field("t", "Board thickness", 18.0, 0.75),
         )) { v ->
             val n = Math.round(v.getValue("n")).toInt(); val r = v.getValue("across") / 2; val h = v.getValue("h"); val t = v.getValue("t")
