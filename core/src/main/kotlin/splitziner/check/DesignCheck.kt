@@ -323,6 +323,20 @@ object DesignCheck {
             out += Finding(Severity.NOTE, (if (n == 1) "Drawer" else "$n drawers") + " on slides (items ${its.joinToString(", ")})",
                 "Items ${its.joinToString(", ")} make ${if (n == 1) "a drawer. It runs" else "$n drawers, all the same. Each runs"} on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit the box's depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", drs.flatMap { it.ids })
         }
+        // A picture frame's glass, backing and fixings are not in the model: what to get, and the size the rabbet takes.
+        run {
+            val strips = live.filter { it.name == "Back strip" }
+            if (strips.size != 4) return@run
+            val o = strips.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            val sw = strips.maxOf { p -> p.mesh.bounds.extents.let { minOf(it.x, it.y) } }
+            val gap = if (fmt.isInch) 1.5875 else 2.0
+            val w = o.extents.x - 2 * sw - gap; val h = o.extents.y - 2 * sw - gap
+            val u = if (fmt.isInch) " in" else " mm"
+            out += Finding(Severity.NOTE, "Glass, backing and hanging (not in the model)",
+                "The rabbet takes pieces ${d(w)} x ${d(h)}$u (its opening, less ${d(gap)}$u for play). Get glass or acrylic and a backing board (hardboard or foam board) cut to that size, " +
+                    "framer's points (flexible or glazier's) to hold them in from the back, and two D-rings with picture wire to hang it, the rings about a third of the way down the sides.",
+                strips.map { it.id })
+        }
         // Doors hang on hinges, which are hardware too.
         val doors = runCatching { Doors.find(live) }.getOrDefault(emptyList())
         run { val idx = live.indices.associateBy { live[it].id }; for (dr in doors) idx[dr.id]?.let { onSlides += it } }

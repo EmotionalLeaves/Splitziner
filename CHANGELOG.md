@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.82.0 - picture frame template
+
+- **New design: Picture frame.** Enter the size of your art. You get mitred face bars with back strips glued behind them, which make the rabbet without a router. The guide gives the glass and backing size to get, and how to hang the frame.
+
 ## v1.81.0 - taboret template
 
 - **New design: Taboret.** A painter's rolling cart on casters, with drawers over an open shelf and a gallery rail round the top so brushes and tubes stay put. Choose the size, how many drawers, the shelf height and the caster height.

@@ -550,6 +550,21 @@ object Roles {
                 if (shelves.any { sh -> touches(p, sh) && b.max.y <= sh.mesh.bounds.min.y + 0.5 && b.max.z > sh.mesh.bounds.max.z + 3.0 }) out[p.id] = "Lip"
             }
         }
+        // A picture frame drawn face down: two layers of flat members, each a ring; the narrower ring glued on the back
+        // of the face bars makes the rabbet, and its members are back strips.
+        run {
+            if (live.size < 8 || all.extents.z > 0.25 * minOf(all.extents.x, all.extents.y)) return@run
+            val layers = live.groupBy { Math.round(it.mesh.bounds.min.z) to Math.round(it.mesh.bounds.max.z) }
+            if (layers.size != 2 || layers.values.any { it.size != 4 }) return@run
+            val (a, b) = layers.values.toList()
+            fun outline(ps: List<Part>) = ps.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
+            fun opening(ps: List<Part>): Double { val o = outline(ps); return ps.maxOf { p -> val e = p.mesh.bounds.extents; minOf(e.x, e.y) } }
+            // Both rings have the same outline; the one with the narrower members is behind.
+            val oa = outline(a); val ob = outline(b)
+            if (kotlin.math.abs(oa.extents.x - ob.extents.x) > 1.0 || kotlin.math.abs(oa.extents.y - ob.extents.y) > 1.0) return@run
+            val back = if (opening(a) < opening(b) - 1.0) a else if (opening(b) < opening(a) - 1.0) b else return@run
+            for (p in back) out[p.id] = "Back strip"
+        }
         // Short round parts standing on the floor under the piece, three or more alike (a taboret's): casters, bought.
         run {
             val round = live.filter { p -> val e = p.mesh.bounds.extents; val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)

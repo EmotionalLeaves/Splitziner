@@ -627,3 +627,8 @@ Departures from the build spec, newest first.
 ## v1.81
 - A "Taboret" template: a carcass on four casters, drawers on slides over an open shelf, a top with a gallery rail round the back and sides. Default 20 x 18 x 32 in overall, 3 drawers, an 8 in shelf opening, 3 in casters, a 2 in gallery. The casters are drawn as round blocks their overall size, a little in from each corner.
 - With casters, the case is planned without them and they are added as the last step, so nothing is ever set out on its casters.
+
+## v1.82
+- A "Picture frame" template, drawn face down as it is made: four face bars mitred at the corners and four narrower mitred back strips glued behind them, set flush with the outside, so the opening steps out into a rabbet without a router. Sized from the art: 1/8 in (3 mm) of play in all, a lip over the art (3/8 in default). Default an 11 x 14 in print, 2 in x 3/4 in face bars, 1/2 in strips.
+- A frame drawn as two rings of four flat members with one outline: the narrower ring's members are back strips.
+- With back strips, a note says what is not in the model: glass or acrylic and a backing board cut to the rabbet less 1/16 in (2 mm), framer's points, two D-rings and picture wire about a third of the way down. Standard framing practice, given as such.

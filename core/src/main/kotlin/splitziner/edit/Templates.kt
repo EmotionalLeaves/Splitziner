@@ -336,6 +336,25 @@ object Templates {
             }
             out
         },
+        Template("frame", "Picture frame", "A frame for a picture or print, drawn lying face down as it is made: four face bars mitred at the corners, with four narrower mitred strips glued behind them so the opening steps out into a rabbet the art, glass and backing drop into. No router needed.", listOf(
+            Field("aw", "Art width", 279.4, 11.0), Field("ah", "Art height", 355.6, 14.0),
+            Field("bar", "Face bar width", 50.0, 2.0), Field("t", "Face bar thickness", 19.0, 0.75),
+            Field("lip", "Lip over the art", 10.0, 0.375), Field("st", "Back strip thickness", 12.0, 0.5),
+        )) { v ->
+            val b = v.getValue("bar"); val t = v.getValue("t"); val r = v.getValue("lip"); val st = v.getValue("st")
+            if (r >= b - 6.0) throw SizesDoNotFit()
+            // A little play round the art (1/8 in in all) so it drops in.
+            val iw = v.getValue("aw") + 3.0; val ih = v.getValue("ah") + 3.0
+            val ow = iw - 2 * r + 2 * b; val oh = ih - 2 * r + 2 * b
+            val sb = b - r
+            fun ring(w0: Double, z0: Double, z1: Double, bw: Double) = listOf(
+                quadZ(listOf(0.0 to 0.0, ow to 0.0, ow - bw to bw, bw to bw), z0, z1),
+                quadZ(listOf(bw to oh - bw, ow - bw to oh - bw, ow to oh, 0.0 to oh), z0, z1),
+                quadZ(listOf(0.0 to 0.0, bw to bw, bw to oh - bw, 0.0 to oh), z0, z1),
+                quadZ(listOf(ow to 0.0, ow to oh, ow - bw to oh - bw, ow - bw to bw), z0, z1))
+            // Face down on the bench: the face bars at the bottom, the strips on their backs.
+            ring(ow, 0.0, t, b) + ring(ow, t, t + st, sb)
+        },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
             Field("w", "Outside width", 610.0, 24.0), Field("h", "Outside height", 762.0, 30.0),
             Field("bar", "Bar width", 50.0, 2.0), Field("t", "Bar depth", 19.0, 0.75),

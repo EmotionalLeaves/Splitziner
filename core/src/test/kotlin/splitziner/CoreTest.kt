@@ -2510,3 +2510,20 @@ class CasterTest {
         assertTrue(cp.leftOut.any { it.startsWith("Casters: 4") }, cp.leftOut.toString())
     }
 }
+
+class PictureFrameTest {
+    @Test fun aFrameHasBackStripsMakingItsRabbetAndSaysWhatGlassToGet() {
+        val t = splitziner.edit.Templates.byKey("frame")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "f.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Back strip" }, a.parts.map { it.name }.toString())
+        val fmt = LengthFormat("in", "fraction")
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, fmt, null)
+        // An 11 x 14 in print: the rabbet takes 11-1/16 x 14-1/16 in.
+        assertTrue(report.findings.any { it.title.startsWith("Glass, backing") && it.detail.contains("11-1/16 x 14-1/16") }, report.findings.map { it.title }.toString())
+        // The face bars are glued up first, the strips after, onto them.
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val strip = pl.parts.filter { it.name == "Back strip" }.minOf { it.step ?: 0 }
+        assertTrue(pl.parts.filter { it.name != "Back strip" }.all { (it.step ?: 0) < strip })
+    }
+}
