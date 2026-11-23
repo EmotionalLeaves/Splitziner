@@ -344,8 +344,11 @@ object Fastening {
                 }
                 if (kind != null) {
                     val one = if (a.name in setOf("Face bar", "Back", "Glass stop")) a else b
-                    joints.getOrPut(step) { ArrayList() } += Joint(one, if (one === a) b else a, if (kind == "stop") 2 else 0, if (kind == "stop") pick(15.0, fmt, true) ?: "" else "", kind, false)
+                    // The back: two small screws into each side, through the back and into the side's edge.
+                    val backSize = if (kind == "backscrew") pick(maxOf(25.4, one.mesh.bounds.extents.let { minOf(it.x, it.y, it.z) } + 15.0), fmt, false)?.let { gauged(it, 6.0, fmt) } ?: "" else ""
+                    joints.getOrPut(step) { ArrayList() } += Joint(one, if (one === a) b else a, if (kind == "stop" || kind == "backscrew") 2 else 0, if (kind == "stop") pick(15.0, fmt, true) ?: "" else backSize, kind, false)
                     if (kind == "stop") totals["${pick(15.0, fmt, true) ?: ""} brads"] = (totals["${pick(15.0, fmt, true) ?: ""} brads"] ?: 0) + 2
+                    if (kind == "backscrew" && backSize.isNotEmpty()) totals["$backSize screws"] = (totals["$backSize screws"] ?: 0) + 2
                 }
                 continue
             }
@@ -801,6 +804,13 @@ object Fastening {
             totals["double sliding-door track set, at least $len long"] = 1
             totals["flush pulls (recessed handles)"] = (totals["flush pulls (recessed handles)"] ?: 0) + ds.size
         }
+        // A picture frame or shadow box hangs on two D-rings and wire; a frame's glass and backing are held by points.
+        if (live.any { it.name == "Back strip" || it.name == "Glass stop" }) {
+            val w = live.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }.let { maxOf(it.extents.x, it.extents.y) }
+            if (live.any { it.name == "Back strip" }) totals["framer's points (flexible or glazier's)"] = 8 + 2 * (w / 300.0).toInt()
+            totals["D-rings, with their screws"] = 2
+            totals["picture wire, about ${size(1.5 * w, fmt)} long"] = 1
+        }
         // A crate's lid goes on once the work is packed in, with screws only, so it opens again.
         live.firstOrNull { it.name == "Crate lid" }?.let { lid ->
             val frame = live.firstOrNull { o -> o !== lid && o.name != "Batten" && (0..2).all { k -> o.mesh.bounds.min[k] <= lid.mesh.bounds.max[k] + 0.5 && lid.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 0.5 } }
@@ -1170,7 +1180,7 @@ object Fastening {
             else if (j.kind == "cratepack") "Before ${key.first} goes on, glue the battens to it (as below) and pack the work in, wrapped, with foam all round so it cannot shift. Then screw the lid on: screws only, no glue, so it can be opened again. Mark the lid and one corner of the frame so it goes back on the same way round."
             else if (j.kind == "facebox") "Glue the face frame onto the front edges of the box, the lip even all round inside, and clamp it till the glue sets. Nothing goes through the face."
             else if (j.kind == "stop") "Clean the glass and lay it in from the back, onto the lip. Then set ${if (g.size > 1) "the stops" else key.first} in tight behind it and pin ${if (g.size > 1) "them" else "it"} to the box sides with ${j.size} brads, ${if (n > 1) "two to each" else "two"}, no glue, so the glass can be changed."
-            else if (j.kind == "backscrew") "Mount the work on ${key.first} first. Then screw it to the box sides with small screws, no glue, so it comes off again; two D-rings and picture wire on the box sides hang it."
+            else if (j.kind == "backscrew") "Mount the work on ${key.first} first. Then screw it to the box sides with ${sized(js.filter { it.kind == "backscrew" }.sumOf { it.count }, j.size)} screws, two into each side, no glue, so it comes off again; two D-rings and picture wire on the box sides hang it."
             else if (j.kind == "faceglue") "Lay ${key.first} face down on a flat bench. Spread glue along the back edges of the cradle, lower it on with the edges flush all round, and weigh it down evenly (boards with weights on them, or clamps all round) until the glue sets. Nothing goes through the face: a nail or screw there would show in the painting."
             else if (j.kind == "caster") "Turn the piece upside down on a blanket. Screw ${if (g.size > 1) "each caster's plate" else "the caster's plate"} to the underside of ${key.first} with the screws that come with it, its centre about ${j.at} from each edge at the corner, so the wheel swivels clear."
             else if (j.kind == "foldhinge") "Hinge ${key.second} to the back of ${key.first} with a pair of ${j.size} butt hinges, so it folds in flat. Then tie it to the front legs at about knee height with a light chain or a cord, as long as the legs should spread: it stops the legs sliding apart under load."

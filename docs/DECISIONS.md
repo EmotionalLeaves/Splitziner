@@ -690,3 +690,7 @@ Departures from the build spec, newest first.
 
 ## v1.99
 - Help lists every design by group, and has a topic, "Making for showing art", on what the studio designs add beyond the wood (ballast, covers to order, glass sizes, crate capacity and lid, cradle gluing, casters).
+
+## v2.0
+- Version 2.0 follows 1.99 (the version code is major·10000 + minor·100 + patch, so 1.100 would equal 2.0).
+- Picture frames and shadow boxes list their hanging hardware: two D-rings with their screws, picture wire about 1-1/2 times the longer side, and for frames framer's points (8, plus 2 for each foot of the longer side). A shadow box's back is fixed with two screws into each side, sized to go through the back and an inch into the side, counted for the whole back.

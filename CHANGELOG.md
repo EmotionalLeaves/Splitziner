@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.0.0 - hanging hardware
+
+- **Version 2.0.** Picture frames and shadow boxes now list their hanging hardware (D-rings and picture wire, plus framer's points for frames), and a shadow box's back screws are sized and counted.
+
 ## v1.99.0 - help for studio designs
 
 - Help now lists every design and has a new topic, "Making for showing art", on what the studio designs tell you beyond the wood.
