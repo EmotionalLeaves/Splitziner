@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.14.0 - pedestal top reach
+
+- Tall closed pedestals without a ballast shelf also get their top screwed down from above, since the inside of the top is out of reach from below.
+
 ## v2.13.0 - crate markings
 
 - Crates now remind you to mark "This way up" and "Fragile", and to add handles at the ends of a big one.

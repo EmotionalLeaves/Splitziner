@@ -140,7 +140,8 @@ object Fastening {
     fun plan(parts: List<Part>, steps: List<BuildStep>, method: JoinMethod, fmt: LengthFormat, tools: Set<Tool>? = null, housed: List<Pair<String, String>> = emptyList()): FastenPlan {
         val live = parts.filter { !it.excluded }
         // A closed plinth with a ballast shelf (its top is screwed down through its face; see "balltop").
-        val ballast = runCatching { splitziner.check.DesignCheck.ballastShelf(live) != null }.getOrDefault(false)
+        val ballastIn = runCatching { splitziner.check.DesignCheck.ballastShelf(live) != null }.getOrDefault(false)
+        val ballast = ballastIn || runCatching { splitziner.check.DesignCheck.closedPedestal(live) }.getOrDefault(false)
         val rel = DesignCheck.relations(live)
         val stepOf = HashMap<String, Int>()
         // A part's step is the step it is joined in: its bench step if it has one, else its main step.
@@ -530,7 +531,7 @@ object Fastening {
                 val top = if (thr.name == "Top") thr else into; val cl = if (top === thr) into else thr
                 val tt = top.mesh.bounds.extents.z; val ct = cl.mesh.bounds.extents.z
                 val sz = pick(tt + minOf(1.5 * tt, ct - 3.0), fmt, false)?.let { gauged(it, tt, fmt, ct) } ?: ""
-                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, "balltop", false)
+                joints.getOrPut(step) { ArrayList() } += Joint(top, cl, count, sz, if (ballastIn) "balltop" else "pedtop", false)
                 if (sz.isNotEmpty()) totals["$sz screws"] = (totals["$sz screws"] ?: 0) + count
                 continue
             }
@@ -1187,6 +1188,7 @@ object Fastening {
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
             else if (j.kind == "balltop") "Load the ballast onto the low shelf first (sandbags or bricks). Then screw ${key.first} down through its face into ${key.second} with ${sized(js.filter { it.kind == "balltop" }.sumOf { it.count }, j.size)} screws, countersunk: a few, so the top can come off again to empty the ballast when the plinth moves. Fill the heads only if it never will."
+            else if (j.kind == "pedtop") "Screw ${key.first} down through its face into ${key.second} with ${sized(js.filter { it.kind == "pedtop" }.sumOf { it.count }, j.size)} screws, countersunk (the cleats are too far inside to reach from below); set the heads just below the surface and fill them before painting."
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "pocketin") "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes along ${if (key.second.contains(" and ")) "their" else "its"} edge, on the inside, so nothing shows outside$times. Glue the joint too."
@@ -1216,7 +1218,7 @@ object Fastening {
         if (groups.size > room) {
             // Name the rest, so the reader knows which joints "the same way" means.
             fun how(j: Joint) = when {
-                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "foldhinge" -> "on hinges, to fold"; j.kind == "caster" -> "caster plate screws"; j.kind == "balltop" -> "screwed down, removable"; j.kind == "faceglue" -> "glued, weighed down"; j.kind == "facebox" -> "glued"; j.kind == "stop" -> "pinned, no glue"; j.kind == "backscrew" -> "screwed, no glue"; j.kind == "cratepack" -> "screwed, no glue"; j.kind == "peghole" -> "glued in a drilled hole"; j.kind == "glass" -> "glass in a rabbet"; j.kind == "wallcleat" -> "hung on a French cleat"; j.kind == "applied" -> "screwed on from inside"; j.kind == "pocketin" -> "pocket screws from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
+                j.kind == "slides" -> "on slides"; j.kind == "runners" -> "on wooden runners"; j.kind == "lid" -> "on a piano hinge"; j.kind == "foldhinge" -> "on hinges, to fold"; j.kind == "caster" -> "caster plate screws"; j.kind == "balltop" -> "screwed down, removable"; j.kind == "pedtop" -> "screwed down, filled"; j.kind == "faceglue" -> "glued, weighed down"; j.kind == "facebox" -> "glued"; j.kind == "stop" -> "pinned, no glue"; j.kind == "backscrew" -> "screwed, no glue"; j.kind == "cratepack" -> "screwed, no glue"; j.kind == "peghole" -> "glued in a drilled hole"; j.kind == "glass" -> "glass in a rabbet"; j.kind == "wallcleat" -> "hung on a French cleat"; j.kind == "applied" -> "screwed on from inside"; j.kind == "pocketin" -> "pocket screws from inside"; j.kind == "hinges" -> "on hinges"; j.kind == "pins" -> "on shelf pins"; j.kind == "edge" -> "edge glued"; j.kind == "edgebolt" -> "connector bolts"; j.kind == "sliding" -> "in sliding tracks"; j.kind == "housed" -> "glued in its groove"; j.glueOnly -> "glue"; j.kind == "thin" -> "groove or cleat"; j.kind == "brackets" || j.kind == "corner" -> "brackets"; j.kind == "counterbored" -> "counterbored screws"; j.kind == "rod" -> "in rod sockets"; j.kind == "mitre" -> "glued mitres"; j.kind == "under" -> "screwed from below"; j.kind == "bedrail" -> "on bed rail fasteners"; j.kind == "tenon" -> "loose tenon glued in"; j.kind == "mortise" -> "mortise and tenon"; j.kind == "laminate" || j.kind == "front" -> "glue and brads"; j.kind == "cabinets" -> "screwed together"; j.kind == "up" -> "screwed from below"
                 else -> "${count(j.count)} ${j.size} ${j.kind}"
             }
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }

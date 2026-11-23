@@ -190,6 +190,24 @@ object DesignCheck {
      * flat in the bottom quarter, clear of the floor, with an upright part from the floor beside each of its four edges
      * and a top over it. Null when there is none.
      */
+    /**
+     * A tall closed pedestal (a plinth): a top over four walls that stand on the floor, too tall (over 24 in) to reach
+     * the top's underside from the open bottom. Its top is screwed down through its face.
+     */
+    fun closedPedestal(live: List<Part>): Boolean {
+        if (live.size < 5) return false
+        val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+        if (all.extents.z < REACH) return false
+        fun flat(p: Part) = p.mesh.bounds.extents.let { it.z <= minOf(it.x, it.y) }
+        val top = live.filter { flat(it) && it.mesh.bounds.max.z >= all.max.z - 1.0 }.maxByOrNull { it.mesh.bounds.extents.x * it.mesh.bounds.extents.y } ?: return false
+        val b = top.mesh.bounds
+        return listOf(0 to true, 0 to false, 1 to true, 1 to false).all { (ax, lo) -> live.any { w -> w !== top && !flat(w) && w.mesh.bounds.min.z <= all.min.z + 1.0 && w.mesh.bounds.max.z >= b.min.z - 1.0 &&
+            (if (lo) w.mesh.bounds.max[ax] <= b.min[ax] + 25.0 else w.mesh.bounds.min[ax] >= b.max[ax] - 25.0) && w.mesh.bounds.min[1 - ax] <= b.max[1 - ax] && w.mesh.bounds.max[1 - ax] >= b.min[1 - ax] } }
+    }
+
+    /** Further than this (mm, 24 in) up inside a box is out of a person's reach from its open bottom. */
+    private const val REACH = 610.0
+
     fun ballastShelf(live: List<Part>): Part? {
         if (live.size < 5) return null
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }

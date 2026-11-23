@@ -2383,6 +2383,17 @@ class DisplayPieceTest {
         assertTrue(report.findings.any { it.title == "Weigh it down" && it.detail.contains("sandbags") }, report.findings.map { it.title }.toString())
     }
 
+    @Test fun aTallClosedPlinthsTopIsScrewedDownFromAbove() {
+        // No ballast shelf: the top's cleats are 40 in up from the open bottom, out of reach.
+        val W = 406.4; val D = 406.4; val H = 1066.8
+        val ms = listOf(b(0.0, 0.0, 0.0, W, T, H), b(0.0, D - T, 0.0, W, T, H), b(0.0, T, 0.0, T, D - 2 * T, H), b(W - T, T, 0.0, T, D - 2 * T, H),
+            b(T, T, H - T, W - 2 * T, D - 2 * T, T), b(T, T, H - T - T, W - 2 * T, T, T), b(T, D - 2 * T, H - T - T, W - 2 * T, T, T))
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "p.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.any { it.kind == "pedtop" }, f.all.map { "${it.through.name}>${it.into.name}:${it.kind}" }.toString())
+    }
+
     @Test fun stripsOnACratesLidAreBattens() {
         val W = 1016.0; val D = 152.4; val H = 812.8; val pt = 12.7; val fw = 88.9
         val ms = arrayListOf(b(0.0, pt, 0.0, W, D - 2 * pt, T), b(0.0, pt, H - T, W, D - 2 * pt, T), b(0.0, pt, T, T, D - 2 * pt, H - 2 * T), b(W - T, pt, T, T, D - 2 * pt, H - 2 * T),

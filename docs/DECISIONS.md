@@ -736,3 +736,6 @@ Departures from the build spec, newest first.
 
 ## v2.13
 - A crate's note adds the usual markings ("This way up" with arrows, "Fragile") and, for one longer than 30 in, a handle at each end so two people can carry it. Shipping practice, given as advice.
+
+## v2.14
+- Any tall closed pedestal (a top over four walls standing on the floor, over 24 in tall, so its underside is out of reach from the open bottom) has its top screwed down through its face into its cleats, countersunk and filled, rather than up through the cleats from inside. With a ballast shelf, as before, the ballast goes in first and the screws stay removable.
