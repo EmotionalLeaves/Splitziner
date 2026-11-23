@@ -371,3 +371,8 @@ Departures from the build spec, newest first.
 
 ## v1.21
 - On a bench with spindles, a rail resting on top of them is said after them, even when another part of its item (an apron, a bottom rail) goes on first; and before the second leg of a frame.
+
+## v1.22
+- A corbel must be solid (1 in or more thick) and bracket-sized (under 700 mm): a thin shaped panel in a real-world desk model was being called one.
+- Projects saved less than a minute ago read "Just now", not "0 minutes ago".
+- scripts/guide-diff.sh takes UNITS from the environment (UNITS="" lets the file's units be detected), so real-world samples can be compared too.

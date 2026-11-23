@@ -2128,7 +2128,9 @@ private fun ProjectCard(p: ProjectMeta, thumb: java.io.File, version: Int, enabl
                 // How far the build has got in Build mode, once it has started.
                 val ctx = LocalContext.current
                 val built = remember(p.id, version) { ctx.getSharedPreferences("build", Context.MODE_PRIVATE).let { b -> (b.getStringSet("done_${p.id}", emptySet())?.size ?: 0) to b.getInt("total_${p.id}", 0) } }
-                val when0 = if (at > 0) android.text.format.DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString() else ""
+                // Under a minute old reads "Just now", not "0 minutes ago".
+                val when0 = if (at <= 0) "" else if (System.currentTimeMillis() - at < 60_000L) "Just now"
+                    else android.text.format.DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
                 val progress = if (built.first > 0 && built.second > 0) (if (built.first >= built.second) "built" else "${built.first} of ${built.second} steps done") else null
                 Text(listOfNotNull(when0.ifBlank { null }, progress).joinToString("  \u00b7  "), style = MaterialTheme.typography.bodySmall,
                     color = if (progress != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis)

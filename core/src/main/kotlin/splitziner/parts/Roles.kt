@@ -145,7 +145,8 @@ object Roles {
             run {
                 val fill = kotlin.math.abs(p.mesh.volume) / (e.x * e.y * e.z)
                 val thinAx = (0..2).minByOrNull { e[it] }!!
-                if (thinAx != 2 && fill in 0.4..0.6 && e.z > 2 * t && live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && touches(p, o) }) {
+                // Solid (an inch or more) and bracket-sized, not a thin shaped panel.
+                if (thinAx != 2 && fill in 0.4..0.6 && e.z > 2 * t && t >= 25.0 && dims[2] < 700.0 && live.any { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) } && touches(p, o) }) {
                     out[p.id] = "Corbel"; return@run
                 }
             }

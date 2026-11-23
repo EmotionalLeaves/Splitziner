@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.22.0 - Small fixes
+
+- Thin shaped panels are no longer mistaken for corbels.
+- A project you just saved reads "Just now" on the home screen.
+
 ## v1.21.0 - Frame order
 
 - Frames with spindles (crib ends, chair backs) now read in true order: bottom rail, spindles, top rail, then the second leg.
