@@ -63,6 +63,14 @@ object Templates {
     /** Above this (mm, 30 in) a stretcher side gets a brace across the middle, as stretcher makers advise. */
     private const val BRACE_OVER = 762.0
 
+    /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
+    private val STUDIO = listOf("plinth", "easel", "stretcher", "frame", "rack", "taboret", "crate", "ledge")
+
+    /** The designs in labelled groups, in the order the new-design picker shows them. */
+    fun groups(): List<Pair<String, List<Template>>> = listOf(
+        "Art and studio" to STUDIO.mapNotNull { k -> ALL.firstOrNull { it.key == k } },
+        "Furniture" to ALL.filter { it.key !in STUDIO })
+
     /** Null when the sizes make the piece, else what is wrong, in words for the person who typed them. */
     fun problem(t: Template, values: Map<String, Double>): String? =
         try { t.build(values); null } catch (e: SizesDoNotFit) { e.message } catch (e: Exception) { "Those sizes do not make this piece." }

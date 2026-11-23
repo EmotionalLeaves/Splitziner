@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.83.0 - grouped design picker
+
+- **Easier to find a starting design.** New design now shows "Art and studio" designs (plinth, easel, stretcher, picture frame, canvas rack, taboret, art crate, picture ledge) in their own group, above the furniture.
+
 ## v1.82.0 - picture frame template
 
 - **New design: Picture frame.** Enter the size of your art. You get mitred face bars with back strips glued behind them, which make the rabbet without a router. The guide gives the glass and backing size to get, and how to hang the frame.

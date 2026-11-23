@@ -632,3 +632,6 @@ Departures from the build spec, newest first.
 - A "Picture frame" template, drawn face down as it is made: four face bars mitred at the corners and four narrower mitred back strips glued behind them, set flush with the outside, so the opening steps out into a rabbet without a router. Sized from the art: 1/8 in (3 mm) of play in all, a lip over the art (3/8 in default). Default an 11 x 14 in print, 2 in x 3/4 in face bars, 1/2 in strips.
 - A frame drawn as two rings of four flat members with one outline: the narrower ring's members are back strips.
 - With back strips, a note says what is not in the model: glass or acrylic and a backing board cut to the rabbet less 1/16 in (2 mm), framer's points, two D-rings and picture wire about a third of the way down. Standard framing practice, given as such.
+
+## v1.83
+- The new-design picker shows its designs in two labelled groups, "Art and studio" first (plinth, easel, stretcher, picture frame, canvas rack, taboret, art crate, picture ledge), then "Furniture", with "One board" at the end. The app's own user works in a studio; the grouping lives in core (Templates.groups) so the order is one list.

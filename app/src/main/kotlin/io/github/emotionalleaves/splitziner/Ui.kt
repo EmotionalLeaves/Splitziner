@@ -2039,7 +2039,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     val inch = vm.inchLocale
     val unit = if (inch) "in" else "mm"
     fun show(mm: Double, count: Boolean) = if (count) "${mm.toInt()}" else if (inch) "%.2f".format(java.util.Locale.US, mm / 25.4).trimEnd('0').trimEnd('.') else "${Math.round(mm)}"
-    var key by remember { mutableStateOf<String?>(splitziner.edit.Templates.ALL.first().key) }
+    var key by remember { mutableStateOf<String?>(splitziner.edit.Templates.groups().first().second.first().key) }
     val template = key?.let { splitziner.edit.Templates.byKey(it) }
     val values = remember(key) { androidx.compose.runtime.mutableStateMapOf<String, String>().apply { template?.let { t -> val d = splitziner.edit.Templates.defaults(t, inch); t.fields.forEach { put(it.key, show(d.getValue(it.key), it.count)) } } } }
     var error by remember { mutableStateOf<String?>(null) }
@@ -2081,9 +2081,15 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         title = { Text("New design") },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (t in splitziner.edit.Templates.ALL) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
-                    androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                // In groups, studio pieces first; a blank start ("One board") ends the furniture list.
+                val groups = splitziner.edit.Templates.groups()
+                for ((g, pair) in groups.withIndex()) {
+                    val (label, ts) = pair
+                    Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = if (g == 0) 0.dp else 4.dp))
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (t in ts) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
+                        if (g == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                    }
                 }
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
