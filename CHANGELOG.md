@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.91.0 - design picker tabs
+
+- **Tidier New design screen.** The designs are under two tabs, Art and studio and Furniture, so the picture and the sizes of the one you pick stay in view.
+
 ## v1.90.0 - wall plinth
 
 - **New design: Wall plinth.** A box that hangs on the wall to show a small work, hung on a French cleat. The guide covers putting the wall cleat up level and into the studs.

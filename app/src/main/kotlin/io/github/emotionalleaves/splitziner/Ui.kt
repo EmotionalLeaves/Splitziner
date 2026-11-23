@@ -2082,15 +2082,16 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
         title = { Text("New design") },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                // In groups, studio pieces first; a blank start ("One board") ends the furniture list.
+                // In groups, one shown at a time so the sizes stay in view: studio pieces first; a blank start
+                // ("One board") ends the furniture list.
                 val groups = splitziner.edit.Templates.groups()
-                for ((g, pair) in groups.withIndex()) {
-                    val (label, ts) = pair
-                    Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = if (g == 0) 0.dp else 4.dp))
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (t in ts) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
-                        if (g == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
-                    }
+                var group by remember { mutableStateOf(groups.indexOfFirst { g -> g.second.any { it.key == key } }.takeIf { it >= 0 } ?: (groups.size - 1)) }
+                androidx.compose.material3.TabRow(selectedTabIndex = group, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
+                    for ((g, pair) in groups.withIndex()) androidx.compose.material3.Tab(selected = group == g, onClick = { group = g }, text = { Text(pair.first) })
+                }
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (t in groups[group].second) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
+                    if (group == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
                 }
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
