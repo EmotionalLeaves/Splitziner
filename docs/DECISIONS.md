@@ -648,3 +648,8 @@ Departures from the build spec, newest first.
 
 ## v1.87
 - Things made to order elsewhere (so far a clear cover) are carried as a list on the analysis and shown under "To order" in the shopping list and its checklist, with the outside size and thickness.
+
+## v1.88
+- A "Cradled panel" template (a painting panel): a thin plywood face with a cradle of strips on edge round its back, flush with its edges, and braces across so no bay is over 24 in (610 mm). Drawn face down. Default 24 x 30 in, a 1/4 in face, a 1-1/2 in deep cradle of 3/4 in strips.
+- A thin face (1/2 in or less) on the bench with strips on edge on its back, flush with its edges: the face is the panel face, strips at the edge the cradle, any inside braces. The cradle is screwed up first on the bench, then glued to the face, which is weighed down: nothing is driven through the face.
+- The main build's first step after the bench steps, when it only puts one part down, takes the next step's parts too (as without bench steps). A joint line said word for word twice in a step is said once.

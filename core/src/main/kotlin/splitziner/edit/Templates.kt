@@ -60,11 +60,14 @@ object Templates {
         return splitziner.mesh.MeshOps.fixWinding(Mesh(v, tri.toIntArray()))
     }
 
+    /** A cradled panel's bays are kept under this (mm, 24 in): thin plywood spanning more can bow. */
+    private const val CRADLE_BAY = 610.0
+
     /** Above this (mm, 30 in) a stretcher side gets a brace across the middle, as stretcher makers advise. */
     private const val BRACE_OVER = 762.0
 
     /** Designs for making and showing art, listed first and in this order: the app's own user works in a studio. */
-    private val STUDIO = listOf("plinth", "easel", "stretcher", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
+    private val STUDIO = listOf("plinth", "easel", "stretcher", "cradle", "frame", "rack", "flatfile", "taboret", "crate", "ledge")
 
     /** The designs in labelled groups, in the order the new-design picker shows them. */
     fun groups(): List<Pair<String, List<Template>>> = listOf(
@@ -400,6 +403,24 @@ object Templates {
                 val f0 = if (k == 0) kick + 2.0 else zs + 2.0
                 val f1 = if (k == n - 1) h - 2.0 else zs + share - 2.0
                 out += box(2.0, -t, f0, w - 4.0, t, f1 - f0)
+            }
+            out
+        },
+        Template("cradle", "Cradled panel", "A painting panel: a thin plywood face glued onto a cradle of strips on edge round its back, with braces across so no span is over 24 in. Drawn face down, as it is glued up.", listOf(
+            Field("w", "Width", 610.0, 24.0), Field("h", "Height", 762.0, 30.0),
+            Field("pt", "Panel thickness", 6.0, 0.25), Field("depth", "Cradle depth", 38.0, 1.5), Field("sw", "Strip thickness", 19.0, 0.75),
+        )) { v ->
+            val w = v.getValue("w"); val h = v.getValue("h"); val pt = v.getValue("pt"); val dp = v.getValue("depth"); val sw = v.getValue("sw")
+            if (w < 4 * sw || h < 4 * sw) throw SizesDoNotFit()
+            // The face lies on the bench; the cradle stands on its back, its outside flush with the face's edges.
+            val out = arrayListOf(box(0.0, 0.0, 0.0, w, h, pt),
+                box(0.0, 0.0, pt, w, sw, dp), box(0.0, h - sw, pt, w, sw, dp),
+                box(0.0, sw, pt, sw, h - 2 * sw, dp), box(w - sw, sw, pt, sw, h - 2 * sw, dp))
+            // Braces across the short way, evenly spaced, as few as keep every bay under 24 in (610 mm).
+            val long = maxOf(w, h); val n = maxOf(0, kotlin.math.ceil((long - 2 * sw) / CRADLE_BAY).toInt() - 1)
+            for (k in 1..n) {
+                val at = sw + k * (long - 2 * sw) / (n + 1) - sw / 2
+                out += if (h >= w) box(sw, at, pt, w - 2 * sw, sw, dp) else box(at, sw, pt, sw, h - 2 * sw, dp)
             }
             out
         },

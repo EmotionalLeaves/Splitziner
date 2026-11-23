@@ -100,6 +100,9 @@ object AssemblyPlan {
                 o.mesh.bounds.min.z <= rb.max.z && o.mesh.bounds.max.z >= rb.min.z && o.mesh.bounds.min.y < rb.max.y && o.mesh.bounds.max.y > rb.min.y } ?: continue
             out[r.id] = out.getValue(apron.id)
         }
+        // A painting panel's cradle (its strips and braces) is put together first, then glued onto the face.
+        live.filter { (it.name == "Cradle" || it.name == "Brace") && out[it.id] == it.id }.takeIf { cs -> cs.count { it.name == "Cradle" } >= 4 && live.any { it.name == "Panel face" } }
+            ?.forEach { out[it.id] = "cradle1" }
         // Cleats screwed along the inside face of a standing panel go on with the panel flat on the bench: once the
         // case is closed round them there is no room to drive the screws (a plinth's shelf and top cleats).
         run {
@@ -314,8 +317,24 @@ object AssemblyPlan {
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
         val casters = all.filter { it.name == "Caster" && !it.excluded }
-        if (order != null || casters.isEmpty() || casters.size == all.count { !it.excluded }) return planInner(all, maxSteps, order)
-        return castersLast(planInner(all - casters.toSet(), maxSteps, null), all, casters)
+        if (order != null) return planInner(all, maxSteps, order)
+        if (casters.isEmpty() || casters.size == all.count { !it.excluded }) return foldLone(planInner(all, maxSteps, order))
+        return castersLast(foldLone(planInner(all - casters.toSet(), maxSteps, null)), all, casters)
+    }
+
+    /**
+     * The main build's first step, after the bench steps, that only puts one part down ("start with the panel face")
+     * is a page with nothing to do: the next parts go on in it, as [loneBase] does when there are no bench steps.
+     */
+    private fun foldLone(r: PlanResult): PlanResult {
+        val st = r.steps
+        val m = st.indexOfFirst { !it.subassembly }
+        if (m <= 0 || m + 1 >= st.size) return r
+        val a = st[m]; val b = st[m + 1]
+        if (a.partIds.size != 1 || r.parts.none { it.id == a.partIds[0] } || b.subassembly || b.partIds.any { it.startsWith("drawer") }) return r
+        val merged = b.copy(step = a.step, partIds = a.partIds + b.partIds, items = (a.items + b.items).distinct().sorted(), placed = a.partIds, directions = (a.directions + b.directions).distinct())
+        val steps = st.take(m) + merged + st.drop(m + 2).map { it.copy(step = it.step - 1, continues = it.continues?.let { c -> if (c > b.step) c - 1 else c }) }
+        return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { if (it >= b.step) it - 1 else it }) }, steps)
     }
 
     /**

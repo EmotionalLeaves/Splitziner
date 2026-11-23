@@ -6,6 +6,9 @@ package splitziner.parts
  * and a name from the file or from the maker always wins.
  */
 object Roles {
+    /** A cradled panel's face is no thicker than this (mm, 1/2 in): a painting surface, not a table top. */
+    private const val CRADLE_FACE = 13.0
+
     /** A round part standing on the floor no taller than this (mm, 6 in) is a caster, not a leg. */
     private const val CASTER_MAX = 152.4
 
@@ -564,6 +567,20 @@ object Roles {
             if (kotlin.math.abs(oa.extents.x - ob.extents.x) > 1.0 || kotlin.math.abs(oa.extents.y - ob.extents.y) > 1.0) return@run
             val back = if (opening(a) < opening(b) - 1.0) a else if (opening(b) < opening(a) - 1.0) b else return@run
             for (p in back) out[p.id] = "Back strip"
+        }
+        // A cradled painting panel, drawn face down: a thin panel on the bench with strips on edge round its back,
+        // flush with its edges, and any across the middle. The strips round it are the cradle, those inside braces.
+        run {
+            val face = live.filter { p -> val e = p.mesh.bounds.extents; e.z <= CRADLE_FACE && e.x > 4 * e.z && e.y > 4 * e.z && kotlin.math.abs(p.mesh.bounds.min.z - all.min.z) < 0.5 }
+                .singleOrNull() ?: return@run
+            val fb = face.mesh.bounds
+            if (kotlin.math.abs(fb.extents.x - all.extents.x) > 1.0 || kotlin.math.abs(fb.extents.y - all.extents.y) > 1.0) return@run
+            val rest = live - face
+            if (rest.size < 4 || rest.any { p -> val b = p.mesh.bounds; kotlin.math.abs(b.min.z - fb.max.z) > 0.5 || b.extents.z <= minOf(b.extents.x, b.extents.y) }) return@run
+            for (p in rest) { val b = p.mesh.bounds
+                val edge = b.min.x <= all.min.x + 0.5 || b.max.x >= all.max.x - 0.5 || b.min.y <= all.min.y + 0.5 || b.max.y >= all.max.y - 0.5
+                out[p.id] = if (edge) "Cradle" else "Brace" }
+            out[face.id] = "Panel face"
         }
         // Short round parts standing on the floor under the piece, three or more alike (a taboret's): casters, bought.
         run {

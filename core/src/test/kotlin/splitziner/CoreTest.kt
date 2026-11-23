@@ -2542,3 +2542,19 @@ class CoverTest {
         assertEquals(1, a.parts.count { it.name == "Top" })
     }
 }
+
+class CradleTest {
+    @Test fun aCradledPanelsFaceIsOnlyGluedAndItsCradleMadeFirst() {
+        val t = splitziner.edit.Templates.byKey("cradle")
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(t.build(splitziner.edit.Templates.defaults(t, true) + mapOf("w" to 914.4, "h" to 1219.2)), bos)
+        val a = Pipeline.analyze(bos.toByteArray(), "c.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(1, a.parts.count { it.name == "Panel face" }, a.parts.map { it.name }.toString())
+        assertEquals(4, a.parts.count { it.name == "Cradle" })
+        assertEquals(1, a.parts.count { it.name == "Brace" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertTrue(pl.steps[0].subassembly)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        // Nothing is driven through the face.
+        assertTrue(f.all.filter { it.through.name == "Panel face" || it.into.name == "Panel face" }.all { it.kind == "faceglue" }, f.all.map { it.kind }.toString())
+    }
+}

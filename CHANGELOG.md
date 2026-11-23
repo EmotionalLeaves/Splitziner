@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.88.0 - cradled panel
+
+- **New design: Cradled panel.** A painting panel: a thin plywood face glued to a cradle of strips, with braces so it stays flat. You make the cradle first, then glue the face on and weigh it down, with nothing going through the painting surface.
+
 ## v1.87.0 - to order list
 
 - The shopping list now has a "To order" line for an acrylic cover, with the size to give the plastics shop.
