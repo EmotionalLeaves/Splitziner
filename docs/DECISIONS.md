@@ -727,3 +727,6 @@ Departures from the build spec, newest first.
 
 ## v2.10
 - The new-design dialog keeps the picture's room while the picture is drawn, so the chips and fields below do not jump when it arrives (a tap could land on the wrong thing; v2.8's device run failed on exactly that, and v2.9's passed).
+
+## v2.11
+- When the sizes typed leave some part no room, the dialog says so in the picture's place instead of adding a line above the description.

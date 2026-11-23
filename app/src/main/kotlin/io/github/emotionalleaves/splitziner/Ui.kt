@@ -2098,8 +2098,12 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {
                     // The picture's room is kept while it is drawn, so nothing below jumps when it arrives.
-                    Box(Modifier.fillMaxWidth().height(130.dp)) { preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) } }
-                    sizesWrong?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    // Sizes that do not fit are said in the picture's place, for the same reason.
+                    Box(Modifier.fillMaxWidth().height(130.dp), contentAlignment = Alignment.Center) {
+                        val wrong = sizesWrong
+                        if (wrong != null) Text(wrong, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        else preview?.let { SheetThumb(it, Modifier.fillMaxWidth().height(130.dp)) }
+                    }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     // Standard canvas and print sizes, one tap each, for the designs that have them.
                     val presets = splitziner.edit.Templates.presets(template, inch)

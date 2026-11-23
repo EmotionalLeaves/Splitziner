@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.11.0 - size message in place
+
+- In New design, a "those sizes do not fit" message now shows where the picture goes, so nothing below moves.
+
 ## v2.10.0 - steady dialog
 
 - Fixed: in New design, the options no longer jump down when the picture appears, so a quick tap lands where you meant.
