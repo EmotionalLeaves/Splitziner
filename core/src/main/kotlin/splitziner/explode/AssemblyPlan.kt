@@ -393,7 +393,8 @@ object AssemblyPlan {
         val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList())
             .map { id -> unitParts.firstOrNull { u -> u.id == id }?.id ?: units.entries.firstOrNull { (_, ms) -> ms.any { it.id == id } }?.key ?: id }.toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live) + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
-            unitParts.map { it.id }.filter { it.startsWith("drawer") || it.startsWith("door") || it == "ladder" } + appliedFronts
+            unitParts.map { it.id }.filter { it.startsWith("drawer") || it.startsWith("door") || it == "ladder" } + appliedFronts +
+            unitParts.filter { it.name == "Back leg" }.map { it.id }   // an easel's back leg is hinged on last
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
             members = subs)
         val moved = HashMap<String, Int>()
@@ -907,7 +908,8 @@ object AssemblyPlan {
         val dirOf = HashMap<Int, Dir>()
         // Doors, drawers and adjustable shelves go in once the box is finished: taken off first, so they go on last.
         val drawerSets = if (hungGiven != null) emptyList() else runCatching { splitziner.check.Drawers.find(parts).map { it.ids } }.getOrDefault(emptyList())
-        val hungIds = hungGiven ?: runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()).toSet()
+        val hungIds = hungGiven ?: (runCatching { splitziner.check.Doors.find(parts).map { it.id } + splitziner.check.Doors.sliding(parts) + drawerSets.flatten() + splitziner.check.ShelfPins.find(parts) }.getOrDefault(emptyList()) +
+            parts.filter { it.name == "Back leg" }.map { it.id }).toSet()
         val hung = (0 until n).filter { parts[it].id in hungIds && it != base }.toMutableSet()
         // Each drawer comes out whole; a door or a shelf on its own.
         val idIndex = (0 until n).associateBy { parts[it].id }

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.52.0 - easels
+
+- **Easels and A-frames.** On an easel, the back leg is now hinged on last with a pair of butt hinges, with a chain or cord to the front legs so they can't spread. The board the canvas stands on is named the ledge.
+- **Parts that meet along a line** no longer show as floating. A board across leaning legs, for example, touches them only along one edge; these are now found and joined.
+
 ## v1.51.0 - plinths and crates
 
 - **Gallery plinths and art crates.** A display plinth's front used to be mistaken for a door, and so did a crate's screwed-on lid. They are now plain sides. Strips screwed across the face of a panel, like a crate's battens, are named battens instead of face-frame stiles.

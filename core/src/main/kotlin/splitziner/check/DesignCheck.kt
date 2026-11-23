@@ -635,6 +635,25 @@ object DesignCheck {
             }
             t += stride
         }
+        // A plain board can meet a sloping face along a line only (a ledge across leaning easel legs): look out from
+        // points all along each edge of its faces too, every ~10 mm. Only for simple shapes, where it is cheap.
+        if (m.triangleCount <= EDGE_SAMPLE_TRIS) for (tt in 0 until m.triangleCount) {
+            val nrm = Vec3(nr[3 * tt], nr[3 * tt + 1], nr[3 * tt + 2])
+            val ctr = Vec3(c[3 * tt], c[3 * tt + 1], c[3 * tt + 2])
+            for (e in 0..2) {
+                val v0 = m.vertex(m.triangles[3 * tt + e]); val v1 = m.vertex(m.triangles[3 * tt + (e + 1) % 3])
+                val steps = ((v1 - v0).length / 10.0).toInt().coerceIn(1, 200)
+                for (q in 1 until steps) {
+                    // Pulled half a millimetre inside the face, not a share of it: on a long face a share is far from the edge.
+                    val p = (v0 + (v1 - v0) * (q.toDouble() / steps)).let { e0 -> (ctr - e0).let { d -> if (d.length < 1e-9) e0 else e0 + d.normalized() * minOf(0.5, d.length / 2) } }
+                    val h = other.firstHit(p - nrm * TOUCH, nrm, -1e-9)
+                    if (h != null && h.t <= 2 * TOUCH) return true
+                }
+            }
+        }
         return false
     }
+
+    /** Parts with at most this many triangles (boards, blocks) are sampled along their edges for line contacts. */
+    private const val EDGE_SAMPLE_TRIS = 64
 }

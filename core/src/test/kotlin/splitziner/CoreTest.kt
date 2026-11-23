@@ -2379,3 +2379,20 @@ class DisplayPieceTest {
         assertTrue(a.parts.none { it.name == "Door" })
     }
 }
+
+class EaselTest {
+    @Test fun anEaselsBackLegIsHingedOnLastAndItsLedgeNamed() {
+        val bytes = javaClass.getResourceAsStream("/complex/easel.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "easel.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(1, a.parts.count { it.name == "Back leg" }, a.parts.map { it.name }.toString())
+        assertEquals(1, a.parts.count { it.name == "Ledge" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(pl.steps.size, pl.parts.first { it.name == "Back leg" }.step)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertEquals(1, f.all.count { it.kind == "foldhinge" })
+        assertTrue(f.all.none { it.kind != "foldhinge" && (it.through.name == "Back leg" || it.into.name == "Back leg") })
+        // Every part is joined: no floating parts on a line contact.
+        val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
+        assertTrue(report.findings.none { it.title.contains("touch nothing") || it.title.contains("touches nothing") }, report.findings.map { it.title }.toString())
+    }
+}

@@ -457,6 +457,26 @@ object Roles {
                 if (below) out[p.id] = "Guard rail"
             }
         }
+        // An easel or A-frame: a leaning leg touching the rest only at its top end is a back leg, hinged there to fold;
+        // a wide board across the front of the other leaning legs, part way up, is the ledge a canvas stands on.
+        run {
+            val leaning = live.filter { out[it.id] == "Leg" && it.mesh.bounds.min.z <= all.min.z + 1.0 &&
+                runCatching { splitziner.mesh.OrientedBounds.of(it.mesh) }.getOrNull()?.let { obb -> val oe = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
+                    Math.toDegrees(kotlin.math.acos(kotlin.math.abs(obb.axes[oe.indices.maxByOrNull { oe[it] }!!].z).coerceIn(0.0, 1.0))) >= 5.0 } == true }
+            if (leaning.size < 3) return@run
+            for (l in leaning) {
+                val lb = l.mesh.bounds
+                val near = live.filter { o -> o !== l && touches(l, o) }
+                if (near.isNotEmpty() && near.all { o -> maxOf(o.mesh.bounds.min.z, lb.min.z) >= lb.max.z - 0.2 * lb.extents.z }) out[l.id] = "Back leg"
+            }
+            val front = leaning.filter { out[it.id] == "Leg" }
+            if (front.size < 2 || leaning.none { out[it.id] == "Back leg" }) return@run
+            for (p in live) {
+                if (out[p.id] !in setOf(null, "Rail", "End rail", "Stretcher", "Shelf")) continue
+                val b = p.mesh.bounds
+                if (front.count { touches(p, it) } >= 2 && b.extents.x > 3 * b.extents.z && b.extents.z >= 50.0 && b.min.z in 0.25 * h..0.6 * h) out[p.id] = "Ledge"
+            }
+        }
         return out
     }
 }
