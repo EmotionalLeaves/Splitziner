@@ -339,3 +339,10 @@ Departures from the build spec, newest first.
 - Two parts of equal thickness screwed face to face (a cleat on a bed rail) are screwed through the one whose far face is inside the piece, so no screw heads show outside. Thinner-through still decides when they differ.
 - A deck's slats are laid in one step after the cleats they rest on (up to 30), not spread over several steps of three to five; spacing them is one job with one block.
 - A part is never fitted "from below" when the way from above is just as clear.
+
+## v1.16
+- A ladder is found by shape: two slim bars (under 90 mm across) standing side by side 250-650 mm apart, with three or more level bars between them spread over at least 0.4 of their height. They are "Ladder side" and "Rung", not legs and rails.
+- The ladder is one sub-assembly, made flat on the bench in one step however many rungs it has, and fitted in the last step of the main build, sideways from the side it is fixed to (it is screwed to the side rail, so it waits for it).
+- A strip lying along the face of a leg with a board resting on it (a desk top under a loft bed) is a cleat.
+- A rail standing on edge above a bed's side rail, in the same plane and carrying no slats, is a guard rail even when it stops short of a leg (at a ladder opening). One hooked on at one end only reads "one pair where it meets it".
+- Two parts of equal thickness screwed face to face: through the one on the inner side, towards the middle of the piece (replaces the "far face on the outside" test of v1.15, which a ladder outside the rail defeated).

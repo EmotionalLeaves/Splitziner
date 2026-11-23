@@ -258,9 +258,11 @@ object Fastening {
             val ea = hi[i][k] - lo[i][k]; val eb = hi[j][k] - lo[j][k]
             // Equal thicknesses (a cleat on a bed's side rail): through the one whose far face is inside the piece, so
             // the screw heads do not show on the outside.
-            fun shows(n: Int): Boolean { val o = if (n == i) j else i; val far = if (lo[n][k] < lo[o][k]) lo[n][k] else hi[n][k]
-                return kotlin.math.abs(far - envLo[k]) < 1.0 || kotlin.math.abs(far - envHi[k]) < 1.0 }
-            val aFirst = if (kotlin.math.abs(ea - eb) < 0.5) !(shows(i) && !shows(j)) else ea <= eb
+            // The inner one is the one on the side of the other towards the middle of the piece.
+            val mid = (envLo[k] + envHi[k]) / 2
+            fun inner(n: Int): Boolean { val o = if (n == i) j else i; val cn = (lo[n][k] + hi[n][k]) / 2; val co = (lo[o][k] + hi[o][k]) / 2
+                return (cn - co) * (mid - co) > 0 }
+            val aFirst = if (kotlin.math.abs(ea - eb) < 0.5) !(inner(j) && !inner(i)) else ea <= eb
             val (thr, into, tThrough, depth) = if (aFirst) listOf(a, b, ea, eb) else listOf(b, a, eb, ea)
             thr as Part; into as Part; tThrough as Double; depth as Double
             // Parts of one sub-assembly are joined on the bench. Anything else is joined in the main build, when the
@@ -890,7 +892,7 @@ object Fastening {
                 "Screw a closet rod socket (a cup or flange sized for the rod) to the inside of ${key.first} at each end of ${key.second}, its centre ${ats.first()}${if (ats.size > 1) " on each side" else ""}; open sockets let the rod lift out. Cut the rod a little short if the sockets need it, then drop it in."
             }
             else if (j.kind == "sliding") "Fit a double sliding-door track across the opening, ${j.at} long: screw the deep channel under the top and the shallow one on the bottom, both set back the same from the front edge (or cut two grooves in each, as the track's maker shows). ${if (key.first == key.second) "Lift one ${key.first} into the back channels first, then the other into the front ones" else "Lift ${key.first} into the back channels first, then ${key.second} into the front ones"}; they overlap where they pass. Fit a flush pull (a recessed handle) to each, so they can slide past each other."
-            else if (j.kind == "bedrail") "Hang ${key.second} on ${key.first} with bed rail fasteners, one pair at each end$times: let the slotted plate into a shallow recess in ${key.first} and screw it in, screw the hooked plate to the end of ${key.second} at the same height, then hook the rail on and tap it down. No glue, so the bed comes apart to move."
+            else if (j.kind == "bedrail") "Hang ${key.second} on ${key.first} with bed rail fasteners, ${if (g.size == 1) "one pair where it meets it" else "one pair at each end"}$times: let the slotted plate into a shallow recess in ${key.first} and screw it in, screw the hooked plate to the end of ${key.second} at the same height, then hook the rail on and tap it down. No glue, so the bed comes apart to move."
             else if (j.kind == "mitre") {
                 val names = joinedNames(g.flatMap { listOf(itemName(it.through), itemName(it.into)) }.distinct())
                 val corners = if (g.size == 1) "the mitred corner" else "the ${count(g.size)} mitred corners"

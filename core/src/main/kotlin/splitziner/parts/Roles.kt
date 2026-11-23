@@ -9,6 +9,12 @@ object Roles {
     /** A board narrower than this (mm) is a strip (rail, upright), never a shelf, side or top. */
     private const val NARROW = 150.0
 
+    /** A ladder's sides and rungs are slimmer than this (mm) across: a 2x3 at most. */
+    private const val LADDER_BAR = 90.0
+
+    /** Clear space between a ladder's sides (mm): room for a foot, short of a bench's width. */
+    private val LADDER_GAP = 250.0..650.0
+
     fun names(parts: List<Part>): Map<String, String> {
         val live = parts.filter { !it.excluded }
         if (live.size < 2) return emptyMap()
@@ -36,6 +42,28 @@ object Roles {
         }
         val all = live.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
         val h = all.extents.z
+        // A ladder: two slim bars standing side by side, a hand's span or more apart, with three or more level bars
+        // (rungs) spanning between them up their height. Its sides are not legs, nor its rungs rails or cleats.
+        run {
+            fun near(a: Part, o: Part) = (0..2).all { k -> o.mesh.bounds.min[k] <= a.mesh.bounds.max[k] + 1.0 && a.mesh.bounds.min[k] <= o.mesh.bounds.max[k] + 1.0 }
+            val bars = live.filter { p -> p.id !in out && p.mesh.bounds.extents.let { e -> maxOf(e.x, e.y) < LADDER_BAR && e.z > 6 * maxOf(e.x, e.y) } }
+            for (u in bars.indices) for (v in u + 1 until bars.size) {
+                val a = bars[u]; val c = bars[v]
+                if (a.id in out || c.id in out) continue
+                val ab = a.mesh.bounds; val cb = c.mesh.bounds
+                // Lined up across one way, apart the other.
+                val along = (0..1).firstOrNull { k -> kotlin.math.abs(ab.min[1 - k] - cb.min[1 - k]) < 1.0 && kotlin.math.abs(ab.max[1 - k] - cb.max[1 - k]) < 1.0 } ?: continue
+                val gap = maxOf(ab.min[along], cb.min[along]) - minOf(ab.max[along], cb.max[along])
+                if (gap !in LADDER_GAP) continue
+                val rungs = live.filter { r -> r.id !in out && r !== a && r !== c && near(r, a) && near(r, c) && r.mesh.bounds.extents.let { e ->
+                    (0..2).maxByOrNull { e[it] } == along && listOf(e.x, e.y, e.z).sorted()[1] < LADDER_BAR } }
+                if (rungs.size < 3) continue
+                val zs = rungs.map { it.mesh.bounds.center.z }
+                if (zs.max() - zs.min() < 0.4 * minOf(ab.extents.z, cb.extents.z)) continue
+                out[a.id] = "Ladder side"; out[c.id] = "Ladder side"
+                for (r in rungs) out[r.id] = "Rung"
+            }
+        }
         // Legs first: square posts standing on the floor, at least twice as tall as they are thick (a bed's legs are
         // short). Rails are then known by the legs they join.
         val legs = HashSet<String>()
@@ -90,6 +118,13 @@ object Roles {
                 val backer = live.firstOrNull { o -> o !== p && touches(p, o) && o.mesh.bounds.extents.let { oe -> oe[longAx] >= e[longAx] - 1.0 && oe[3 - thinAx - longAx] > 1.5 * e[3 - thinAx - longAx] } &&
                     (kotlin.math.abs(o.mesh.bounds.max[thinAx] - b.min[thinAx]) < 1.0 || kotlin.math.abs(o.mesh.bounds.min[thinAx] - b.max[thinAx]) < 1.0) }
                 if (backer != null && live.count { o -> o.id in legs && touches(p, o) } >= 2) { out[p.id] = "Cleat"; continue }
+                // A strip lying along the face of a leg with a board resting on it (a desk top under a loft bed): a cleat.
+                if (longAx != 2) {
+                    val onLeg = live.any { o -> o.id in legs && touches(p, o) && (kotlin.math.abs(o.mesh.bounds.max[thinAx] - b.min[thinAx]) < 1.0 || kotlin.math.abs(o.mesh.bounds.min[thinAx] - b.max[thinAx]) < 1.0) }
+                    val carries = live.any { o -> o !== p && o.mesh.bounds.extents.let { oe -> oe.z <= minOf(oe.x, oe.y) && oe.x > 2 * e.x && oe.y > 2 * e.y || oe.z <= minOf(oe.x, oe.y) && maxOf(oe.x, oe.y) > NARROW } &&
+                        kotlin.math.abs(o.mesh.bounds.min.z - b.max.z) < 1.0 && touches(p, o) }
+                    if (onLeg && carries) { out[p.id] = "Cleat"; continue }
+                }
             }
             // Square-ish in section and long: a leg standing up, a rail or apron lying down.
             if (dims[1] < 2.5 * t && (dims[2] > 4 * dims[1] || (dims[2] > 3 * dims[1] && live.count { o -> o.id in legs && touches(p, o) } >= 2))) {
@@ -252,10 +287,12 @@ object Roles {
         if (live.any { out[it.id] == "Slat" }) {
             val carriers = live.filter { out[it.id] == "Slat" || out[it.id] == "Cleat" }
             for (p in live) {
-                val r = out[p.id]; if (r != "Side rail" && r != "End rail") continue
+                val r = out[p.id]; if (r != "Side rail" && r != "End rail" && r != "Rail") continue
                 if (carriers.any { touches(p, it) }) continue
                 val b = p.mesh.bounds; val thin = (0..1).minByOrNull { b.extents[it] }!!
-                val below = live.any { o -> o !== p && out[o.id] == r && o.mesh.bounds.max.z < b.min.z && kotlin.math.abs(o.mesh.bounds.min[thin] - b.min[thin]) < 1.0 &&
+                // A plain rail counts when it stands on edge (a short guard rail stopping at the ladder).
+                if (r == "Rail" && !(b.extents[thin] < b.extents.z && b.extents.z < b.extents[1 - thin])) continue
+                val below = live.any { o -> o !== p && (out[o.id] == r || (r == "Rail" && out[o.id] in setOf("Side rail", "End rail"))) && o.mesh.bounds.max.z < b.min.z && kotlin.math.abs(o.mesh.bounds.min[thin] - b.min[thin]) < 1.0 &&
                     carriers.any { c -> touches(o, c) } }
                 if (below) out[p.id] = "Guard rail"
             }

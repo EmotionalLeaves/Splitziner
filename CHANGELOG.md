@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.16.0 - Ladders
+
+- Loft and bunk beds with a ladder: the ladder is recognised (sides and rungs), made flat on the bench in one step, and fitted last, from the side.
+- A desk top under a loft bed sits on cleats, now called cleats.
+- A guard rail that stops at the ladder opening is called a guard rail.
+
 ## v1.15.0 - Bunk beds: guard rails and slats in one go
 
 - Bunk beds: the rails round the top bunk are now called guard rails and hook on like the side rails, so the bed still comes apart.

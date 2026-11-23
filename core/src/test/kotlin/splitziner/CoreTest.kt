@@ -1838,3 +1838,37 @@ class BunkBedTest {
         assertTrue(f.all.count { it.kind == "bedrail" && (it.through.name == "Guard rail" || it.into.name == "Guard rail") } >= 2)
     }
 }
+
+class LoftBedTest {
+    @Test fun ladderIsMadeOnTheBenchAndFittedLast() {
+        val T = 19.05; val L = 2032.0; val Wd = 990.6; val H = 1828.8; val post = 88.9
+        val b = { x: Double, y: Double, z: Double, w: Double, d: Double, h: Double -> Fixtures.box(Vec3(x, y, z), Vec3(x + w, y + d, z + h)) }
+        val ms = ArrayList<splitziner.mesh.Mesh>()
+        for (x in listOf(0.0, Wd - post)) for (y in listOf(0.0, L - post)) ms += b(x, y, 0.0, post, post, H)
+        val z = 1371.6
+        ms += b(0.0, post, z, T, L - 2 * post, 184.15); ms += b(Wd - T, post, z, T, L - 2 * post, 184.15)
+        ms += b(post, 0.0, z, Wd - 2 * post, T, 184.15); ms += b(post, L - T, z, Wd - 2 * post, T, 184.15)
+        ms += b(T, post, z + 50.8, T, L - 2 * post, 38.1); ms += b(Wd - 2 * T, post, z + 50.8, T, L - 2 * post, 38.1)
+        val gap = (L - 2 * post - 12 * 88.9) / 11
+        for (i in 0 until 12) ms += b(T, post + i * (88.9 + gap), z + 50.8 + 38.1, Wd - 2 * T, 88.9, T)
+        ms += b(0.0, post, H - 127.0, T, L - 2 * post, 88.9)
+        for (y in listOf(post + 25.4, post + 25.4 + 406.4 - 38.1)) ms += b(Wd, y, 0.0, 38.1, 38.1, H - 88.9)
+        for (k in 1..5) ms += b(Wd, post + 25.4 + 38.1, k * 280.0, 38.1, 406.4 - 2 * 38.1, 38.1)
+        ms += b(post, post, 698.5, T, 609.6, 38.1); ms += b(Wd - post - T, post, 698.5, T, 609.6, 38.1); ms += b(post, post, 736.6, Wd - 2 * post, 609.6, T)
+        val a = Pipeline.analyze(Fixtures.binaryStl(Fixtures.soup(ms)), "loft.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val names = a.parts.map { it.name }
+        assertEquals(2, names.count { it == "Ladder side" }, names.toString())
+        assertEquals(5, names.count { it == "Rung" }, names.toString())
+        assertEquals(4, names.count { it == "Cleat" }, names.toString())
+        assertEquals(4, names.count { it == "Leg" }, names.toString())
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val rungs = pl.parts.filter { it.name == "Rung" || it.name == "Ladder side" }
+        // One bench step makes the whole ladder; it goes on in the last step, from the side it hangs on.
+        val bench = pl.steps.filter { st -> st.subassembly && st.partIds.any { id -> rungs.any { it.id == id } } }
+        assertEquals(1, bench.size)
+        assertEquals(7, bench[0].partIds.size)
+        assertTrue(rungs.all { it.step == pl.steps.maxOf { s -> s.step } }, rungs.map { it.step }.toString())
+        val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fmt = LengthFormat("in", "fraction"))
+        assertTrue(g.any { p -> p.title.contains("make the ladder from") }, g.map { it.title }.toString())
+    }
+}

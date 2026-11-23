@@ -83,6 +83,9 @@ object AssemblyPlan {
         }
         // A case standing on another's top (a desk's hutch, a dresser's mirror stand) is built whole, then set on.
         upperUnit(live)?.let { ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "upper" }
+        // A ladder is glued and screwed up flat on the bench (sides and rungs), then fixed to the bed whole.
+        val ladder = live.filter { it.name == "Ladder side" || it.name == "Rung" }
+        if (ladder.count { it.name == "Ladder side" } >= 2 && ladder.count { it.name == "Rung" } >= 3) for (p in ladder) out[p.id] = "ladder"
         // A face frame is glued up flat on the bench, then fixed to the front of the case whole.
         val ff = live.filter { it.name == "Stile" || it.name == "Face frame rail" }
         if (ff.size >= 3 && ff.any { it.name == "Stile" } && ff.any { it.name == "Face frame rail" }) for (p in ff) out[p.id] = "faceframe"
@@ -260,7 +263,8 @@ object AssemblyPlan {
                 ids += u.map { it.id }
             }
             val first = kind.first()
-            if (first.size > BIG_SUB) {
+            // A ladder lies flat in one plane, its rungs all alike: one picture shows it whatever its length.
+            if (first.size > BIG_SUB && !first.all { it.name == "Ladder side" || it.name == "Rung" }) {
                 // A whole cabinet is too much for one picture: it is built in a few bench steps, as on its own.
                 // Its back panel goes on last, once the case is together, as in the main build.
                 val backs = first.filter { it.name == "Back panel" }.takeIf { first.size - it.size >= 3 }.orEmpty()
@@ -291,7 +295,7 @@ object AssemblyPlan {
         // Drawers are made whole and hung last, with any doors and shelves on pins.
         val appliedFronts = runCatching { splitziner.check.Drawers.find(live).flatMap { d -> d.ids - d.boxIds.toSet() } }.getOrDefault(emptyList()).toSet()
         val hungMain = runCatching { splitziner.check.Doors.find(live).map { it.id } + splitziner.check.Doors.sliding(live) + splitziner.check.ShelfPins.find(live) }.getOrDefault(emptyList()).toSet() +
-            unitParts.map { it.id }.filter { it.startsWith("drawer") } + appliedFronts
+            unitParts.map { it.id }.filter { it.startsWith("drawer") || it == "ladder" } + appliedFronts
         val main = planCore(unitParts, maxOf(MIN_MAIN_STEPS, maxSteps - bench.size, minOf(MAX_MAIN_STEPS, ceil(unitParts.size / 3.0).toInt())), hungGiven = hungMain, hungFirst = appliedFronts,
             members = subs)
         val moved = HashMap<String, Int>()
@@ -806,7 +810,8 @@ object AssemblyPlan {
             // it leaves straight forward on its slides: such units are trusted to come out of the front.
             // Applied drawer fronts come off before their drawers (so go on after them).
             val firstOff = hungGroups.filter { g -> g.all { parts[it].id in hungFirst } }
-            val outFront = (if (firstOff.isNotEmpty()) firstOff else hungGroups).filter { g -> g.all { i -> i in remaining && (hungGiven != null || blockers(i, outDir, present).all { it in g }) } }
+            // A ladder is fitted last but comes off sideways, away from the side it is fixed to, not out of the front.
+            val outFront = (if (firstOff.isNotEmpty()) firstOff else hungGroups).filter { g -> g.none { parts[it].id == "ladder" } }.filter { g -> g.all { i -> i in remaining && (hungGiven != null || blockers(i, outDir, present).all { it in g }) } }
             if (outFront.isNotEmpty()) {
                 val take = LinkedHashMap<Int, Dir>()
                 for (g in outFront) for (i in g) take[i] = outDir
