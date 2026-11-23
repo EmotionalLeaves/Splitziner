@@ -15,6 +15,25 @@ object Templates {
 
     class Template(val key: String, val name: String, val blurb: String, val fields: List<Field>, val build: (Map<String, Double>) -> List<Mesh>)
 
+    /** A common size for a design ("16 x 20"): the fields it sets, in millimetres. */
+    class Preset(val label: String, val values: Map<String, Double>)
+
+    /** Standard canvas and print sizes, inches: what art is made and sold at. */
+    private val INCH_SIZES = listOf(8 to 10, 11 to 14, 12 to 16, 16 to 20, 18 to 24, 24 to 30, 24 to 36, 30 to 40, 36 to 48)
+
+    /** Standard canvas sizes in centimetres, as sold where sizes are metric. */
+    private val CM_SIZES = listOf(20 to 30, 30 to 40, 40 to 50, 50 to 70, 60 to 80, 70 to 100, 80 to 120)
+
+    /**
+     * Common sizes for [t] (a stretcher, a panel, a frame), in inches or centimetres to suit [inch]; empty for designs
+     * that have none. Each sets the design's width and height fields.
+     */
+    fun presets(t: Template, inch: Boolean): List<Preset> {
+        val keys = when (t.key) { "stretcher", "cradle" -> "w" to "h"; "frame" -> "aw" to "ah"; "shadowbox" -> "iw" to "ih"; else -> return emptyList() }
+        return if (inch) INCH_SIZES.map { (a, b) -> Preset("$a x $b in", mapOf(keys.first to a * 25.4, keys.second to b * 25.4)) }
+        else CM_SIZES.map { (a, b) -> Preset("$a x $b cm", mapOf(keys.first to a * 10.0, keys.second to b * 10.0)) }
+    }
+
     /** Sizes that cannot make the piece: a part would come out with no size at all, or less. */
     class SizesDoNotFit : IllegalArgumentException("Those sizes do not fit together: some part would have no room. Make the piece bigger or its parts smaller.")
 

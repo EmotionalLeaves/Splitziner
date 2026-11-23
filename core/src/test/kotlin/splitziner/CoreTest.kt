@@ -2578,3 +2578,13 @@ class ShadowBoxTest {
         assertTrue(f.all.filter { it.through.name == "Face bar" && it.into.name == "Box side" || it.into.name == "Face bar" && it.through.name == "Box side" }.all { it.kind == "facebox" })
     }
 }
+
+class PresetTest {
+    @Test fun everyCommonSizeBuilds() {
+        for (t in splitziner.edit.Templates.ALL) for (inch in listOf(true, false)) for (p in splitziner.edit.Templates.presets(t, inch)) {
+            val v = splitziner.edit.Templates.defaults(t, inch) + p.values
+            assertNull(splitziner.edit.Templates.problem(t, v), "${t.key} ${p.label}")
+        }
+        assertTrue(splitziner.edit.Templates.presets(splitziner.edit.Templates.byKey("stretcher"), true).any { it.label == "16 x 20 in" })
+    }
+}

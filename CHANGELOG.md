@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.6.0 - common sizes
+
+- **Common sizes, one tap.** Stretchers, cradled panels, picture frames and shadow boxes now offer standard canvas and print sizes (8 x 10 to 36 x 48 in) in New design.
+
 ## v2.5.0 - hanging height
 
 - The hanging notes now add the gallery rule of thumb: hang a work with its centre about 57 in from the floor.

@@ -2107,6 +2107,17 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                         }
                     }
                     Text(template.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Standard canvas and print sizes, one tap each, for the designs that have them.
+                    val presets = splitziner.edit.Templates.presets(template, inch)
+                    if (presets.isNotEmpty()) {
+                        Text("Common sizes", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            for (pr in presets) {
+                                val on = pr.values.all { (k, mm) -> values[k] == show(mm, false) }
+                                androidx.compose.material3.FilterChip(selected = on, onClick = { for ((k, mm) in pr.values) values[k] = show(mm, false); error = null }, label = { Text(pr.label) })
+                            }
+                        }
+                    }
                     // The whole row toggles, its words as well as the box: a small box is hard to hit on a phone.
                     for (f in template.fields) if (f.toggle) Row(Modifier.fillMaxWidth().clickable { values[f.key] = if (values[f.key] == "1") "0" else "1"; error = null }, verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Checkbox(values[f.key] == "1", { values[f.key] = if (it) "1" else "0"; error = null })
