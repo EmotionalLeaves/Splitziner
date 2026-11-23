@@ -547,6 +547,16 @@ object Roles {
                 if (shelves.any { sh -> touches(p, sh) && b.max.y <= sh.mesh.bounds.min.y + 0.5 && b.max.z > sh.mesh.bounds.max.z + 3.0 }) out[p.id] = "Lip"
             }
         }
+        // A flat frame lying on the bench (a canvas stretcher, a picture frame), every member the same thickness in one
+        // layer: a straight member inside it, touching none of its outer edges, is a brace.
+        run {
+            val t0 = live.first().mesh.bounds
+            if (live.size < 5 || live.any { p -> p.mesh.bounds.let { b -> kotlin.math.abs(b.min.z - t0.min.z) > 0.5 || kotlin.math.abs(b.max.z - t0.max.z) > 0.5 } } || all.extents.z > 0.25 * minOf(all.extents.x, all.extents.y)) return@run
+            for (p in live) {
+                val b = p.mesh.bounds
+                if (b.min.x > all.min.x + 0.5 && b.max.x < all.max.x - 0.5 && b.min.y > all.min.y + 0.5 && b.max.y < all.max.y - 0.5) out[p.id] = "Brace"
+            }
+        }
         return out
     }
 }

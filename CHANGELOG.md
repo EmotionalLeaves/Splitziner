@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.76.0 - canvas stretcher
+
+- **New design: Canvas stretcher.** A mitred frame to stretch a canvas on, with a brace across the middle once a side is over 30 in, and a cross of braces when both sides are. Set the outside size, bar width and depth. The corners are fixed (a strainer), with no expansion keys.
+- Screws going into a thin part are no heavier than that part can take, so a 3/4 in board gets #8 screws, not #10.
+
 ## v1.75.0 - which end to measure from
 
 - **Clearer measurements in the build steps.** When parts are set along a board, the guide now says which end to measure from. "From each end" is only used when the spacing really is the same from both ends; otherwise you get each end's distances separately, smallest first.

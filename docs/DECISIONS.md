@@ -603,3 +603,8 @@ Departures from the build spec, newest first.
 
 ## v1.75
 - Placing lines name the end a part is measured from ("from the left end", "from the front end"). "From each end" is kept only when copies sit at the same distances from both ends; when the two ends differ, one line gives each end its own distances. Distances are listed smallest first.
+
+## v1.76
+- A "Canvas stretcher" template, drawn lying face down as it is made: four bars mitred at the corners, a brace across the middle once a side passes 30 in (the usual stretcher-maker advice), a cross of braces when both do. Fixed corners (a strainer): expansion keys are not modelled, and the blurb says so.
+- In a flat frame of one layer, a straight member inside it touching none of its outer edges is a brace.
+- A screw's gauge is also capped by the part it bites into, by the same thickness rule: a #10 into a 3/4 in part splits it, so it becomes a #8.

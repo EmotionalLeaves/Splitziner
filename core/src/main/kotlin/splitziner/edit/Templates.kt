@@ -39,6 +39,17 @@ object Templates {
         return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
     }
 
+    /** A four-cornered outline in plan (x, y pairs, in order round it) made [z1] - [z0] thick: a mitred bar lying flat. */
+    private fun quadZ(q: List<Pair<Double, Double>>, z0: Double, z1: Double): Mesh {
+        if (z1 - z0 < 1.0) throw SizesDoNotFit()
+        val pts = q.map { Vec3(it.first, it.second, z0) } + q.map { Vec3(it.first, it.second, z1) }
+        val v = DoubleArray(24) { pts[it / 3].let { p -> if (it % 3 == 0) p.x else if (it % 3 == 1) p.y else p.z } }
+        return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
+    }
+
+    /** Above this (mm, 30 in) a stretcher side gets a brace across the middle, as stretcher makers advise. */
+    private const val BRACE_OVER = 762.0
+
     /** Null when the sizes make the piece, else what is wrong, in words for the person who typed them. */
     fun problem(t: Template, values: Map<String, Double>): String? =
         try { t.build(values); null } catch (e: SizesDoNotFit) { e.message } catch (e: Exception) { "Those sizes do not make this piece." }
@@ -282,6 +293,24 @@ object Templates {
             listOf(box(0.0, p, 0.0, W, id, t), box(0.0, p, H - t, W, id, t), box(0.0, p, t, t, id, H - 2 * t), box(W - t, p, t, t, id, H - 2 * t),
                 box(0.0, 0.0, 0.0, W, p, H), box(0.0, p + id, 0.0, W, p, H),
                 box(0.0, -t, 0.0, bw, t, H), box(W / 2 - bw / 2, -t, 0.0, bw, t, H), box(W - bw, -t, 0.0, bw, t, H))
+        },
+        Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
+            Field("w", "Outside width", 610.0, 24.0), Field("h", "Outside height", 762.0, 30.0),
+            Field("bar", "Bar width", 50.0, 2.0), Field("t", "Bar depth", 19.0, 0.75),
+        )) { v ->
+            val w = v.getValue("w"); val h = v.getValue("h"); val b = v.getValue("bar"); val t = v.getValue("t")
+            if (w < 3 * b || h < 3 * b) throw SizesDoNotFit()
+            val out = arrayListOf(
+                quadZ(listOf(0.0 to 0.0, w to 0.0, w - b to b, b to b), 0.0, t),
+                quadZ(listOf(b to h - b, w - b to h - b, w to h, 0.0 to h), 0.0, t),
+                quadZ(listOf(0.0 to 0.0, b to b, b to h - b, 0.0 to h), 0.0, t),
+                quadZ(listOf(w to 0.0, w to h, w - b to h - b, w - b to b), 0.0, t))
+            val across = h > BRACE_OVER; val upright = w > BRACE_OVER
+            // Across the middle, side to side; the other one, when both, in two lengths either side of it.
+            if (across) out += box(b, h / 2 - b / 2, 0.0, w - 2 * b, b, t)
+            if (upright && across) { out += box(w / 2 - b / 2, b, 0.0, b, h / 2 - b / 2 - b, t); out += box(w / 2 - b / 2, h / 2 + b / 2, 0.0, b, h / 2 - b / 2 - b, t) }
+            else if (upright) out += box(w / 2 - b / 2, b, 0.0, b, h - 2 * b, t)
+            out
         },
         Template("rack", "Canvas rack", "A floor rack to store paintings on edge: a box open at the front and top, split into slots by plywood dividers, with a rail across the front top to tie the dividers.", listOf(
             Field("w", "Width", 1200.0, 48.0), Field("d", "Depth", 500.0, 20.0), Field("h", "Height", 900.0, 36.0),

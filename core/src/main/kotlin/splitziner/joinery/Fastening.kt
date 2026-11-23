@@ -104,8 +104,10 @@ object Fastening {
      * stock under 5/8 in, #8 (4 mm) through 5/8 to 1 in, #10 (5 mm) through anything thicker. Written as sold:
      * "#8 x 1-1/2 in", "4 x 40 mm".
      */
-    private fun gauged(length: String, through: Double, fmt: LengthFormat): String {
-        val g = when { through < 15.5 -> 0; through <= 25.9 -> 1; else -> 2 }
+    private fun gauged(length: String, through: Double, fmt: LengthFormat, into: Double = Double.MAX_VALUE): String {
+        // Nor heavier than the part it bites into would take by the same rule: a #10 into the end of a 3/4 in bar splits it.
+        fun of(t: Double) = when { t < 15.5 -> 0; t <= 25.9 -> 1; else -> 2 }
+        val g = minOf(of(through), of(into))
         return if (fmt.isInch) "${listOf("#6", "#8", "#10")[g]} x $length" else "${listOf("3.5", "4", "5")[g]} x $length"
     }
 
@@ -575,7 +577,7 @@ object Fastening {
                     val brads = tThrough < THIN || pinInstead
                     // Through the first part, then into the second for 1.5 times that thickness but never within 3 mm of its far side.
                     val want = tThrough + minOf(1.5 * tThrough, depth - 3.0)
-                    size = pick(want, fmt, brads)?.let { if (brads) it else gauged(it, tThrough, fmt) } ?: ""; kind = if (brads) "brads" else "screws"
+                    size = pick(want, fmt, brads)?.let { if (brads) it else gauged(it, tThrough, fmt, tInto) } ?: ""; kind = if (brads) "brads" else "screws"
                     // A part too thick for any stock screw to pass through and still bite (a 3 in trestle post) is
                     // counterbored, as joiners do: a plug-sized hole sinks each head so the screw passes only
                     // COUNTERBORE_LEAVE of wood, and a glued wooden plug hides it afterwards.
