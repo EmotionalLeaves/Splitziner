@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.64.0 - pocket-screwed aprons
+
+- **Stronger, neater table and chair legs.** Aprons and rails are now pocket-screwed into the legs from the inside, instead of screwed through the leg into the apron's end grain. That joint held poorly and left screw heads showing on the legs. You can still choose glue and dowels.
+
 ## v1.63.0 - split bookcases
 
 - A bookcase exported as one solid and taken apart into boards is now built board by board, instead of as one big "sub-assembly A".

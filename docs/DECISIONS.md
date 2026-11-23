@@ -561,3 +561,6 @@ Departures from the build spec, newest first.
 
 ## v1.63
 - Members split from one drawn part stay one bench unit as a flat frame only when the frame is 100 mm (4 in) thick or less: a whole bookcase taken apart (all its boards the full depth) is built board by board.
+
+## v1.64
+- An apron or rail (a board 1 in / 25.5 mm thick or less) meeting a leg or post (32 mm / 1-1/4 in thick or more) end-on is pocket-screwed from its inside face whatever the leg's size, as was already done for legs too thick to screw through: a screw driven through the leg into end grain holds little, and its head shows on the leg. The guide still offers glue and dowels.

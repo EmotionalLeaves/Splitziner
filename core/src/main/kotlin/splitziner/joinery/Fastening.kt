@@ -577,6 +577,18 @@ object Fastening {
                     // counterbored, as joiners do: a plug-sized hole sinks each head so the screw passes only
                     // COUNTERBORE_LEAVE of wood, and a glued wooden plug hides it afterwards.
                     val longest = if (fmt.isInch) SCREW_IN.last() * 25.4 else SCREW_MM.last()
+                    // An apron or rail meeting a leg end-on, whatever the leg's size, is pocket-screwed from its inside
+                    // face: a screw through the leg into end grain holds little, and its head shows on the leg.
+                    if (!brads && (thr.name == "Leg" || thr.name == "Post") && tThrough >= 32.0) {
+                        val railT = (0..2).minOf { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] }
+                        val railLong = (0..2).maxByOrNull { ax -> rel.hi[ii][ax] - rel.lo[ii][ax] } == k
+                        if (railLong && railT <= 25.5) {
+                            val ps = if (fmt.isInch) fraction(when { railT < 16 -> 1.0; railT < 22 -> 1.25; else -> 1.5 }) else "${when { railT < 16 -> 25; railT < 22 -> 32; else -> 38 }} mm"
+                            joints.getOrPut(step) { ArrayList() } += Joint(thr, into, count, ps, "pocket screws", false)
+                            totals["$ps pocket screws"] = (totals["$ps pocket screws"] ?: 0) + count
+                            continue
+                        }
+                    }
                     if (!brads && tThrough + MIN_BITE > longest) {
                         // A board rail meeting a thick leg end-on (a workbench's apron) is pocket-screwed from its
                         // inside face into the leg: far stronger than a long screw driven through the leg into its end grain.
