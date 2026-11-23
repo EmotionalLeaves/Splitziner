@@ -2865,7 +2865,9 @@ class FitToWorkTest {
         val p = splitziner.edit.Templates.fitTo("plinth", 300.0, 200.0, 500.0, false)
         assertEquals(505.0, p.getValue("w"), 0.01); assertEquals(405.0, p.getValue("d"), 0.01); assertEquals(1070.0, p.getValue("h"), 0.01)
         // Both build at those sizes.
-        for (k in listOf("crate", "plinth")) { val t = splitziner.edit.Templates.byKey(k); assertTrue(t.build(splitziner.edit.Templates.defaults(t, false) + splitziner.edit.Templates.fitTo(k, 300.0, 200.0, 500.0, false)).isNotEmpty()) }
+        val sb = splitziner.edit.Templates.fitTo("shadowbox", 300.0, 200.0, 500.0, false)
+        assertEquals(355.0, sb.getValue("iw"), 0.01); assertEquals(555.0, sb.getValue("ih"), 0.01); assertEquals(230.0, sb.getValue("depth"), 0.01)
+        for (k in listOf("crate", "plinth", "shadowbox")) { val t = splitziner.edit.Templates.byKey(k); assertTrue(t.build(splitziner.edit.Templates.defaults(t, false) + splitziner.edit.Templates.fitTo(k, 300.0, 200.0, 500.0, false)).isNotEmpty()) }
     }
 }
 

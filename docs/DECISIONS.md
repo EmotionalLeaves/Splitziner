@@ -875,3 +875,6 @@ Departures from the build spec, newest first.
 
 ## v2.48
 - A model of one to three parts, all solid shapes rather than boards (a scanned or sculpted work), gets a note pointing to the project menu's Make a crate for this and Make a plinth for this.
+
+## v2.49
+- The project menu also has "Make a shadow box for this": the box's inside is the work's face (the wider level size by its height) plus an inch (25.4 mm) of air each side, and its depth the work's thinner level size plus an inch in front, under the glass. The note on solid shapes and Help mention it.

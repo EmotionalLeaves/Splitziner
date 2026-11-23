@@ -693,7 +693,7 @@ object DesignCheck {
             "${items(leaky)}. The 3D file leaves small holes in these surfaces, so their sizes are read from the outside and their weight is estimated. The drawings are not affected.", leaky.map { it.id })
         // A shape, not a thing made of boards (a scanned or sculpted work): point to what the app can make for it.
         if (live.isNotEmpty() && live.size <= 3 && live.all { it.kind == PartKind.SHAPED && it.t >= 0.3 * it.w }) out += Finding(Severity.NOTE, "A work to show or ship?",
-            "This model is a shape rather than boards. If it is a work of yours (a sculpture, a cast), the project menu (\u22ee) has Make a crate for this and Make a plinth for this: a crate to ship it in or a plinth to show it on, sized from this model.")
+            "This model is a shape rather than boards. If it is a work of yours (a sculpture, a cast), the project menu (\u22ee) has Make a crate for this, Make a plinth for this and Make a shadow box for this, sized from this model.")
         out += Finding(Severity.NOTE, "Joint strength is not checked", "The build guide says how each joint is fixed (choose screws, pocket screws, dowels or brads under More > Joining on the Guide tab), sized by workshop rules of thumb. Nothing here calculates whether a joint is strong enough for the load it will carry.")
         return CheckReport(out.sortedBy { it.severity.ordinal }, work, toolsNeeded)
     }

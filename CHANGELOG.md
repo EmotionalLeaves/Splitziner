@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.49.0 - shadow box for a work
+
+- "Make a shadow box for this" in the project menu: a shadow box sized for the open model, with an inch of air round it.
+
 ## v2.48.0 - work note
 
 - Open a sculpture or scan and the Check tab now points you to making a crate or plinth for it.

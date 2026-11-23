@@ -121,6 +121,9 @@ object Templates {
     /** Foam all round a work in its crate (mm, 2 in), as the crate's sizes by the work assume. */
     private const val CRATE_FOAM = 50.8
 
+    /** Air round a work in a shadow box (mm, 1 in), at its sides and in front of it. */
+    private const val BOX_AIR = 25.4
+
     /** Room round a work on its plinth's top (mm, 4 in each side). */
     private const val PLINTH_MARGIN = 101.6
 
@@ -137,6 +140,8 @@ object Templates {
         return when (key) {
             // The crate's face is its width and height, the work standing in it; its depth the work's depth.
             "crate" -> mapOf("w" to up(maxOf(x, y) + 2 * CRATE_FOAM), "h" to up(z + 2 * CRATE_FOAM), "d" to up(minOf(x, y) + 2 * CRATE_FOAM))
+            // A shadow box: an inch of air round the work's face and in front of it under the glass.
+            "shadowbox" -> mapOf("iw" to up(maxOf(x, y) + 2 * BOX_AIR), "ih" to up(z + 2 * BOX_AIR), "depth" to up(minOf(x, y) + BOX_AIR))
             "plinth" -> mapOf("w" to up(maxOf(300.0, x + 2 * PLINTH_MARGIN)), "d" to up(maxOf(300.0, y + 2 * PLINTH_MARGIN)), "h" to up((EYE_LEVEL - z / 2).coerceIn(457.2, 1066.8)))
             else -> emptyMap()
         }
