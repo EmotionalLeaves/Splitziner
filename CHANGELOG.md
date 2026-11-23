@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.35.0 - L-shaped kitchens
+
+- L-shaped kitchens: both runs of cabinets are recognised and built as whole cabinets.
+
 ## v1.34.0 - Platform beds
 
 - Platform beds: the frame goes up first, then the centre beam and ledgers, then all the slats in one step, then the headboard.

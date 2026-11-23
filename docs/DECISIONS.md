@@ -434,3 +434,7 @@ Departures from the build spec, newest first.
 
 ## v1.34
 - A bed with one deck of slats (no seat back) is built as a builder does: the frame round the outside on its legs first, then what runs inside it (a centre beam on its legs, the ledgers), then all the slats, then the headboard and guard rails. This fixes the platform bed noted in v1.33. Bunk beds (two decks, built deck by deck from the bottom) and benches with backs keep the general order.
+
+## v1.35
+- An L-shaped kitchen's second run, turned at right angles, is found as cabinets too (a second search for repeats among the parts the first run did not take), so both runs are built as cabinets on the bench and set out.
+- A run of repeated cabinets starts at its first repeating part, not at whatever else stands further along that way (the other run, a corner cabinet); before, the first run's cabinets were cut short.

@@ -99,7 +99,14 @@ object AssemblyPlan {
             }
         }
         // Identical cabinets in a row (a kitchen run): each is built whole, then they are set side by side and joined.
-        modules(live, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
+        val mods1 = modules(live, out.filterValues { it.startsWith("drawer") }.keys)
+        mods1.forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${k + 1}" }
+        // A second run at right angles (an L-shaped kitchen) repeats its own way: found among the parts left over.
+        if (mods1.isNotEmpty()) {
+            val taken = mods1.flatten().toSet()
+            val rest = live.filter { it.id !in taken }
+            modules(rest, out.filterValues { it.startsWith("drawer") }.keys).forEachIndexed { k, ids -> for (id in ids) if (out[id] == id.substringBefore('.')) out[id] = "module${mods1.size + k + 1}" }
+        }
         // A tenon goes with the rail whose end it is on: glued in (or cut on it) before the rail is fitted.
         for (t in live.filter { it.name == "Tenon" }) {
             val tb = t.mesh.bounds
@@ -159,7 +166,9 @@ object AssemblyPlan {
         val ax = if (kotlin.math.abs(d.x) > 1) 0 else if (kotlin.math.abs(d.y) > 1) 1 else 2
         // Modules stand side by side on the floor: a pattern repeating upwards (shelves and dividers) is not one.
         if (ax == 2) return emptyList()
-        val start = ps.minOf { corner(it)[ax] }
+        // Where the row starts: its first repeating part, not whatever else stands further along that way (the corner
+        // cabinet of an L-shaped kitchen, or the other run).
+        val start = ps.filter { at(it, 1) != null }.minOfOrNull { corner(it)[ax] } ?: return emptyList()
         fun chain(p: Part): Int { var k = 1; while (at(p, k) != null) k++; return k }
         val cand = ps.filter { corner(it)[ax] < start + d[ax] - 1.0 && at(it, 1) != null }
         if (cand.size < 4) return emptyList()
