@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.92.0 - face-up cradle
+
+- Cradled panels drawn face up are now recognised too, and the build starts with the cradle and the face together.
+
 ## v1.91.0 - design picker tabs
 
 - **Tidier New design screen.** The designs are under two tabs, Art and studio and Furniture, so the picture and the sizes of the one you pick stay in view.

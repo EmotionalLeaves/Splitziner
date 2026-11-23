@@ -662,3 +662,7 @@ Departures from the build spec, newest first.
 
 ## v1.91
 - The new-design picker shows one group at a time, under two tabs ("Art and studio", "Furniture"), so the preview and sizes stay near the top of the dialog instead of below twenty-odd chips.
+
+## v1.92
+- A cradled panel drawn face up (the cradle under the face) is recognised as well as one drawn face down.
+- The main build's lone first step folds into the next also when what it puts down is one made sub-assembly ("start with the cradle from step 1 and the panel face").

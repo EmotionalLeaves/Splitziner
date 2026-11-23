@@ -331,7 +331,9 @@ object AssemblyPlan {
         val m = st.indexOfFirst { !it.subassembly }
         if (m <= 0 || m + 1 >= st.size) return r
         val a = st[m]; val b = st[m + 1]
-        if (a.partIds.size != 1 || r.parts.none { it.id == a.partIds[0] } || b.subassembly || b.partIds.any { it.startsWith("drawer") }) return r
+        // One part, or one made sub-assembly (its parts all of one unit).
+        val keys = runCatching { unitKeys(r.parts) }.getOrDefault(emptyMap())
+        if (a.partIds.map { keys[it] ?: it }.distinct().size != 1 || b.subassembly || b.partIds.any { it.startsWith("drawer") }) return r
         val merged = b.copy(step = a.step, partIds = a.partIds + b.partIds, items = (a.items + b.items).distinct().sorted(), placed = a.partIds, directions = (a.directions + b.directions).distinct())
         val steps = st.take(m) + merged + st.drop(m + 2).map { it.copy(step = it.step - 1, continues = it.continues?.let { c -> if (c > b.step) c - 1 else c }) }
         return PlanResult(r.parts.map { p -> p.copy(step = p.step?.let { if (it >= b.step) it - 1 else it }) }, steps)
