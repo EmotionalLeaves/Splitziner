@@ -327,7 +327,7 @@ object Templates {
             listOf(box(0.0, 0.0, 0.0, w, t, bh), box(0.0, -d, z, w, d, t), box(0.0, -d - t, z, w, t, lip))
         },
         Template("crate", "Art crate", "A crate to ship a framed painting: a frame of boards on edge round it, plywood screwed on both faces (one is the lid), and battens across the lid to stiffen it and lift it.", listOf(
-            Field("w", "Inside width", 1000.0, 40.0), Field("h", "Inside height", 800.0, 32.0), Field("d", "Inside depth", 120.0, 5.0), Field("t", "Frame thickness", 18.0, 0.75),
+            Field("w", "Inside width", 1000.0, 40.0), Field("h", "Inside height", 800.0, 32.0), Field("d", "Inside depth", 180.0, 7.0), Field("t", "Frame thickness", 18.0, 0.75),
             Field("ply", "Plywood thickness", 12.0, 0.5), Field("bat", "Batten width", 90.0, 3.5),
         )) { v ->
             val iw = v.getValue("w"); val ih = v.getValue("h"); val id = v.getValue("d"); val t = v.getValue("t"); val p = v.getValue("ply"); val bw = v.getValue("bat")

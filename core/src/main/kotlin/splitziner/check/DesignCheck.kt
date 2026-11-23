@@ -345,6 +345,25 @@ object DesignCheck {
             out += Finding(Severity.NOTE, (if (n == 1) "Drawer" else "$n drawers") + " on slides (items ${its.joinToString(", ")})",
                 "Items ${its.joinToString(", ")} make ${if (n == 1) "a drawer. It runs" else "$n drawers, all the same. Each runs"} on a pair of slides, which are hardware and not in the model" + (if (slide != null) ": $slide slides fit the box's depth of ${d(depth)} $u." else ".") + " Fit them following the slides' own instructions.", drs.flatMap { it.ids })
         }
+        // A crate: how big a work it takes once it is lined with foam (2 in all round, a usual allowance for art).
+        run {
+            val lid = live.firstOrNull { it.name == "Crate lid" } ?: return@run
+            val shell = live.filter { it.name != "Batten" }
+            if (shell.size < 6) return@run
+            val ob = shell.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+            val lt = lid.mesh.bounds.extents.y
+            val back = shell.filter { it !== lid && it.mesh.bounds.extents.let { e -> e.y <= minOf(e.x, e.z) } }.maxByOrNull { it.mesh.bounds.max.y } ?: return@run
+            val frame = shell.filter { it !== lid && it !== back }
+            val ft = frame.minOf { p -> p.mesh.bounds.extents.let { e -> minOf(e.x, e.z) } }
+            val iw = ob.extents.x - 2 * ft; val ih = ob.extents.z - 2 * ft; val idp = ob.extents.y - lt - back.mesh.bounds.extents.y
+            val foam = if (fmt.isInch) 50.8 else 50.0
+            val u = if (fmt.isInch) " in" else " mm"
+            if (iw > 2 * foam && ih > 2 * foam && idp > 2 * foam)
+                out += Finding(Severity.NOTE, "What it takes",
+                    "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u. Lined with ${d(foam)}$u of foam all round, it takes a work up to ${d(iw - 2 * foam)} x ${d(ih - 2 * foam)} x ${d(idp - 2 * foam)}$u, wrapped.", listOf(lid.id))
+            else out += Finding(Severity.CHECK, "Too shallow for foam",
+                "Inside it measures ${d(iw)} x ${d(ih)} x ${d(idp)}$u: too little to line with ${d(foam)}$u of foam all round. Make it deeper, or plan another way to hold the work still.", listOf(lid.id))
+        }
         // A picture frame's glass, backing and fixings are not in the model: what to get, and the size the rabbet takes.
         run {
             val strips = live.filter { it.name == "Back strip" }

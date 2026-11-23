@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.95.0 - crate capacity
+
+- **Crates say what fits.** The check now gives the crate's inside size and the largest work it takes with 2 in of foam all round. The art crate design is now 7 in deep inside by default, which fits a framed painting up to 3 in deep.
+
 ## v1.94.0 - crate lid last
 
 - **Crates build in a packing order.** The crate is built first, and the lid with its battens goes on last. The lid is screwed only, with no glue, after the work is packed in foam, so you can open it again at the gallery. Crates no longer get a wall strap on their hardware list.
