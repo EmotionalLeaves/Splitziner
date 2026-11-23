@@ -707,3 +707,6 @@ Departures from the build spec, newest first.
 ## v2.4
 - In the new-design dialog a yes/no option toggles when its words are tapped, not only its small box.
 - A device test makes a display plinth with its clear cover through the dialog, as a person would, and checks the cover is left out and ordered.
+
+## v2.5
+- Hanging notes (frames, shadow boxes, cradled panels) add where galleries hang work: its centre about 57 in (1.45 m) from the floor, the usual museum rule, stated as usual practice.

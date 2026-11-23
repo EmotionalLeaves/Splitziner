@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.5.0 - hanging height
+
+- The hanging notes now add the gallery rule of thumb: hang a work with its centre about 57 in from the floor.
+
 ## v2.4.0 - tappable options
 
 - In New design, tap an option's words (like "A clear acrylic cover on top") to tick it, not just the small box.

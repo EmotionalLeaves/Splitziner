@@ -204,6 +204,9 @@ object DesignCheck {
         }
     }
 
+    /** Where galleries hang a work: its centre at about eye level, 57 in (1.45 m) from the floor, the usual museum rule. */
+    private fun HANG_HEIGHT(fmt: LengthFormat) = "Galleries usually hang work with its centre about ${if (fmt.isInch) "57 in" else "1.45 m"} from the floor."
+
     /** Notes worth printing at the end of the build guide: what to get or do once the piece is made. */
     private val FINISH_TITLES = listOf("Glass, backing and hanging", "Glass and hanging", "Hanging (not in the model)", "Canvas to cut", "What it takes", "Weigh it down")
 
@@ -384,7 +387,7 @@ object DesignCheck {
         }
         // A cradled panel hangs by its cradle.
         if (live.count { it.name == "Cradle" } >= 4 && live.any { it.name == "Panel face" })
-            out += Finding(Severity.NOTE, "Hanging (not in the model)", "Screw two D-rings to the inside of the cradle's sides, about a third of the way down, and string picture wire between them.", live.filter { it.name == "Cradle" }.map { it.id })
+            out += Finding(Severity.NOTE, "Hanging (not in the model)", "Screw two D-rings to the inside of the cradle's sides, about a third of the way down, and string picture wire between them. ${HANG_HEIGHT(fmt)}", live.filter { it.name == "Cradle" }.map { it.id })
         // A shadow box's glass is not in the model: the size that drops in behind the lip.
         run {
             val sides = live.filter { it.name == "Box side" }
@@ -394,7 +397,7 @@ object DesignCheck {
             val gap = if (fmt.isInch) 1.5875 else 2.0
             val u = if (fmt.isInch) " in" else " mm"
             out += Finding(Severity.NOTE, "Glass and hanging (not in the model)",
-                "Get glass or acrylic about ${if (fmt.isInch) "1/8 in" else "3 mm"} thick cut to ${d(ob.extents.x - 2 * st - gap)} x ${d(ob.extents.y - 2 * st - gap)}$u (the box's inside, less ${d(gap)}$u for play), and two D-rings with picture wire to hang it.", sides.map { it.id })
+                "Get glass or acrylic about ${if (fmt.isInch) "1/8 in" else "3 mm"} thick cut to ${d(ob.extents.x - 2 * st - gap)} x ${d(ob.extents.y - 2 * st - gap)}$u (the box's inside, less ${d(gap)}$u for play), and two D-rings with picture wire to hang it. ${HANG_HEIGHT(fmt)}", sides.map { it.id })
         }
         // A picture frame's glass, backing and fixings are not in the model: what to get, and the size the rabbet takes.
         run {
@@ -407,7 +410,7 @@ object DesignCheck {
             val u = if (fmt.isInch) " in" else " mm"
             out += Finding(Severity.NOTE, "Glass, backing and hanging (not in the model)",
                 "The rabbet takes pieces ${d(w)} x ${d(h)}$u (its opening, less ${d(gap)}$u for play), ${d(strips.minOf { p -> p.mesh.bounds.extents.z })}$u deep: the glass, any mat, the art and the backing together must fit in that depth. Get glass or acrylic and a backing board (hardboard or foam board) cut to that size, " +
-                    "framer's points (flexible or glazier's) to hold them in from the back, and two D-rings with picture wire to hang it, the rings about a third of the way down the sides.",
+                    "framer's points (flexible or glazier's) to hold them in from the back, and two D-rings with picture wire to hang it, the rings about a third of the way down the sides. ${HANG_HEIGHT(fmt)}",
                 strips.map { it.id })
         }
         // Doors hang on hinges, which are hardware too.
