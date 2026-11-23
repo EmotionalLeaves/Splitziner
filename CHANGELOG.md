@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.44.0 - Outdoor timber
+
+- Outdoor projects: pressure-treated pine, cedar, redwood and teak are in the material list. With any of them, the shopping list says to use exterior-rated screws and waterproof glue.
+
 ## v1.43.0 - Bevel drawings
 
 - Bevelled strips (French cleats) get their own detail drawing, with the angle noted.

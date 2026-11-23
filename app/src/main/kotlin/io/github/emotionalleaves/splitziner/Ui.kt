@@ -712,7 +712,7 @@ private fun ItemDialog(row: CutListRow, howTo: List<String>, onDismiss: () -> Un
                 OutlinedTextField(value = material, onValueChange = { material = it }, label = { Text("Material (e.g. birch plywood)") }, singleLine = true)
                 // Common materials: tapping one fills the box, and the app then knows roughly what it weighs.
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    for (m in splitziner.material.Materials.COMMON.take(12)) androidx.compose.material3.SuggestionChip(onClick = { material = m.name }, label = { Text(m.name, style = MaterialTheme.typography.labelSmall) })
+                    for (m in splitziner.material.Materials.COMMON.take(16)) androidx.compose.material3.SuggestionChip(onClick = { material = m.name }, label = { Text(m.name, style = MaterialTheme.typography.labelSmall) })
                 }
                 Row(Modifier.fillMaxWidth().clickable { forAll = !forAll }, verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = forAll, onCheckedChange = { forAll = it })

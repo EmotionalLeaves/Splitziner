@@ -699,7 +699,10 @@ object Fastening {
         val hardware = totals.entries.sortedWith(compareBy({ kindRank(it.key) }, { lengthOf(it.key) })).map { (k, n) -> if (k.startsWith("pair of ")) "$n ${if (n == 1) "pair" else "pairs"} of ${k.removePrefix("pair of ")}"
             // Gauge and length read as sold, after the count: "26 screws, #8 x 1-1/2 in", not "26 × #8 x 1-1/2 in screws".
             else Regex("""^((?:#\d+|\d+(?:\.\d+)?) x .+) screws$""").find(k)?.let { m -> "$n screws, ${m.groupValues[1]}" } ?: "$n × $k" } + listOf("Wood glue") +
-            (if ((method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) && totals.keys.any { it.endsWith("screws") || it.contains("brackets") || it.endsWith("brads") }) listOf("Buy about 10% extra fasteners") else emptyList())
+            (if ((method == JoinMethod.SCREWS || method == JoinMethod.POCKET_SCREWS) && totals.keys.any { it.endsWith("screws") || it.contains("brackets") || it.endsWith("brads") }) listOf("Buy about 10% extra fasteners") else emptyList()) +
+            // Outdoor timber: plain steel rusts outdoors, and the copper in treated lumber eats it.
+            (if (live.any { splitziner.material.Materials.outdoor(it.material) } && totals.keys.any { it.endsWith("screws") || it.contains("brackets") || it.endsWith("brads") })
+                listOf("All fasteners exterior-rated: coated deck screws rated for treated lumber, or stainless steel; and exterior (waterproof) wood glue") else emptyList())
         return FastenPlan(method, joints, hardware, every)
     }
 

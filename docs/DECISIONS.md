@@ -465,3 +465,7 @@ Departures from the build spec, newest first.
 
 ## v1.43
 - A board with a bevelled edge gets its own detail drawing (its end view shows the slope) with a note giving the angle and how to rip it, instead of being listed as a plain board; it gets no full-size template.
+
+## v1.44
+- Outdoor timbers in the material list: pressure-treated pine (600 kg/m3), cedar (380), redwood (420), teak (650). The item material chips show them.
+- When any part is outdoor timber (or its material says treated, outdoor or exterior), the shopping list adds that all fasteners must be exterior-rated (coated deck screws rated for treated lumber, or stainless steel) and the glue waterproof: plain steel rusts outdoors, and the copper in treated lumber corrodes it.

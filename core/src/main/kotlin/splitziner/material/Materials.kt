@@ -25,6 +25,10 @@ object Materials {
         Material("Walnut", 640.0, listOf("walnut")),
         Material("Cherry", 580.0, listOf("cherry")),
         Material("Beech", 720.0, listOf("beech")),
+        Material("Pressure-treated pine", 600.0, listOf("pressure-treated", "pressure treated", "treated", "pt pine", "acq")),
+        Material("Cedar", 380.0, listOf("cedar")),
+        Material("Redwood", 420.0, listOf("redwood")),
+        Material("Teak", 650.0, listOf("teak")),
         Material("Steel", 7850.0, listOf("steel")),
         Material("Aluminium", 2700.0, listOf("aluminium", "aluminum")),
         Material("PLA (3D print)", 1240.0, listOf("pla")),
@@ -32,10 +36,16 @@ object Materials {
         Material("Acrylic", 1180.0, listOf("acrylic", "perspex", "plexi")),
     )
 
+    /** Whether it is timber meant for outdoors (pressure-treated, cedar, redwood, teak): outdoor fasteners and glue. */
+    fun outdoor(text: String): Boolean {
+        val t = text.lowercase()
+        return listOf("treated", "acq", "cedar", "redwood", "teak", "ipe", "outdoor", "exterior").any { Regex("""\b$it""").containsMatchIn(t) }
+    }
+
     /** Whether it is solid timber (oak, pine...), as opposed to a sheet good, metal or plastic. */
     fun wood(text: String): Boolean {
         val t = text.lowercase()
-        val woods = listOf("pine", "fir", "spruce", "cedar", "poplar", "oak", "maple", "ash", "birch", "walnut", "cherry", "beech", "hemlock", "larch", "teak", "mahogany", "sapele", "elm", "alder", "hickory", "timber", "wood", "lumber")
+        val woods = listOf("pine", "fir", "spruce", "cedar", "poplar", "oak", "maple", "ash", "birch", "walnut", "cherry", "beech", "hemlock", "larch", "teak", "redwood", "treated", "mahogany", "sapele", "elm", "alder", "hickory", "timber", "wood", "lumber")
         return !sheetGood(t) && woods.any { Regex("""\b$it""").containsMatchIn(t) }
     }
 

@@ -2176,3 +2176,21 @@ class FrenchCleatTest {
         assertEquals(pl.steps.size, pl.parts.first { it.name == "Wall cleat" }.step)
     }
 }
+
+class OutdoorTest {
+    @Test fun outdoorTimberAsksForExteriorFasteners() {
+        assertTrue(splitziner.material.Materials.outdoor("Pressure-treated pine"))
+        assertTrue(splitziner.material.Materials.outdoor("western red cedar"))
+        assertFalse(splitziner.material.Materials.outdoor("Pine"))
+        assertEquals(600.0, splitziner.material.Materials.density("pressure treated pine"))
+        val t = splitziner.edit.Templates.byKey("bench")
+        val ms = t.build(splitziner.edit.Templates.defaults(t, true))
+        val bos = ByteArrayOutputStream(); StlWriter.writeParts(ms, bos)
+        val a0 = Pipeline.analyze(bos.toByteArray(), "b.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val a = Pipeline.analyze(bos.toByteArray(), "b.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm",
+            itemOverrides = a0.cutList.rows.associate { r -> splitziner.parts.CutList.itemKey(r.kind, r.t, r.w, r.l) to splitziner.parts.ItemOverride(material = "Cedar") }))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.hardware.any { it.startsWith("All fasteners exterior-rated") }, f.hardware.toString())
+    }
+}
