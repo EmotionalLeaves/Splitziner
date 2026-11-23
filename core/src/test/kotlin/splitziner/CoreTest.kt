@@ -1114,7 +1114,8 @@ class TemplatesTest {
             val meshes = t.build(splitziner.edit.Templates.defaults(t, inch))
             val parts = meshes.mapIndexed { i, m -> Part("P%02d".format(i + 1), "P", m) }
             val cut = CutList.build(parts, fmt)
-            assertTrue(cut.rows.all { it.kind == PartKind.PANEL || it.kind == PartKind.BOARD }, "${t.name}: ${cut.rows.map { it.description }}")
+            // Round parts only where they are meant: a taboret's casters.
+            assertTrue(cut.rows.all { it.kind == PartKind.PANEL || it.kind == PartKind.BOARD || (t.key == "taboret" && it.kind == PartKind.ROD) }, "${t.name}: ${cut.rows.map { it.description }}")
             val rep = splitziner.check.DesignCheck.run(cut.parts, cut.rows, fmt, null)
             assertTrue(rep.findings.none { it.title.contains("occupy the same space") || it.title.contains("touch nothing") || it.title.contains("tip over") || it.title.contains("not a thickness") }, "${t.name}: ${rep.findings.map { it.title }}")
             // The whole file round-trips through the reader as the same number of parts.

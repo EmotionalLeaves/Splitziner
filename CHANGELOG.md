@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.81.0 - taboret template
+
+- **New design: Taboret.** A painter's rolling cart on casters, with drawers over an open shelf and a gallery rail round the top so brushes and tubes stay put. Choose the size, how many drawers, the shelf height and the caster height.
+- Pieces on casters are now built as a normal case first, with the casters going on at the very end.
+
 ## v1.80.0 - casters
 
 - **Casters.** Round feet under a rolling piece (a taboret, a cart) are now treated as casters to buy, not as rods to cut. They go on last, with the piece upside down, screwed to the bottom board. The cutting plan lists them as something to buy.

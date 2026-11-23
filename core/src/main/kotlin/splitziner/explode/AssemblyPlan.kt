@@ -313,38 +313,21 @@ object AssemblyPlan {
             steps.drop(2).map { it.copy(step = it.step - 1) }
 
     fun plan(all: List<Part>, maxSteps: Int = 10, order: List<List<String>>? = null): PlanResult {
-        val r = planInner(all, maxSteps, order)
-        if (order != null) return r
-        return castersLast(r)
+        val casters = all.filter { it.name == "Caster" && !it.excluded }
+        if (order != null || casters.isEmpty() || casters.size == all.count { !it.excluded }) return planInner(all, maxSteps, order)
+        return castersLast(planInner(all - casters.toSet(), maxSteps, null), all, casters)
     }
 
     /**
      * Casters go on last, in a step of their own, with the piece upside down: screwed to the underside of a case
-     * already built, never set out first for the case to be built on.
+     * already built. The case is planned without them, so nothing is set out on them or started from them.
      */
-    private fun castersLast(r: PlanResult): PlanResult {
-        val casters = r.parts.filter { it.name == "Caster" && !it.excluded }
-        if (casters.isEmpty()) return r
-        val ids = casters.map { it.id }.toSet()
-        val cItems = casters.mapNotNull { it.item }.toSet()
-        val byId = r.parts.associateBy { it.id }
-        val kept = r.steps.mapNotNull { st ->
-            val left = st.partIds - ids
-            if (left.isEmpty()) null else st.copy(partIds = left, placed = st.placed - ids, explodeOf = st.explodeOf - ids,
-                items = st.items.filter { i -> i !in cItems || left.any { byId[it]?.item == i } })
-        }
-        // The main build's first step left with one part put down: the next parts go on in it.
-        val m = kept.indexOfFirst { !it.subassembly }
-        val folded = if (m >= 0 && m + 1 < kept.size && kept[m].partIds.size == 1 && !kept[m + 1].subassembly && kept[m + 1].partIds.none { it.startsWith("drawer") })
-            kept.take(m) + kept[m + 1].copy(step = kept[m].step, partIds = kept[m].partIds + kept[m + 1].partIds, items = (kept[m].items + kept[m + 1].items).distinct().sorted(),
-                placed = kept[m].partIds, directions = (kept[m].directions + kept[m + 1].directions).distinct()) + kept.drop(m + 2)
-            else kept
-        val renumber = HashMap<Int, Int>()
-        if (folded !== kept) renumber[kept[m + 1].step] = m + 1
-        val steps = folded.mapIndexed { k, st -> renumber[st.step] = k + 1; st.copy(step = k + 1, continues = st.continues?.let { renumber[it] ?: it }) }
-        val last = BuildStep(steps.size + 1, casters.map { it.id }, listOf(Vec3(0.0, 0.0, -1.0)), cItems.sorted())
+    private fun castersLast(r: PlanResult, all: List<Part>, casters: List<Part>): PlanResult {
+        val last = BuildStep(r.steps.size + 1, casters.map { it.id }, listOf(Vec3(0.0, 0.0, -1.0)), casters.mapNotNull { it.item }.distinct().sorted())
         val drop = maxOf(50.0, casters.maxOf { it.mesh.bounds.extents.z })
-        return PlanResult(r.parts.map { p -> if (p.id in ids) p.copy(step = last.step, explode = Vec3(0.0, 0.0, -drop)) else p.copy(step = p.step?.let { renumber[it] ?: it }) }, steps + last)
+        val planned = r.parts.associateBy { it.id }
+        val ids = casters.map { it.id }.toSet()
+        return PlanResult(all.map { p -> if (p.id in ids) p.copy(step = last.step, explode = Vec3(0.0, 0.0, -drop)) else planned[p.id] ?: p }, r.steps + last)
     }
 
     private fun planInner(all: List<Part>, maxSteps: Int, order: List<List<String>>?): PlanResult {

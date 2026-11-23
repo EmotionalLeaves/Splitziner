@@ -47,6 +47,19 @@ object Templates {
         return splitziner.mesh.MeshOps.fixWinding(Mesh(v, intArrayOf(0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7)))
     }
 
+    /** An upright round part (a caster, drawn as its overall size) on the floor at ([cx], [cy]). */
+    private fun cylZ(cx: Double, cy: Double, z0: Double, r: Double, h: Double, n: Int = 24): Mesh {
+        if (r < 1.0 || h < 1.0) throw SizesDoNotFit()
+        val v = DoubleArray(3 * (2 * n + 2)); val tri = ArrayList<Int>()
+        for (i in 0 until n) { val a = 2 * Math.PI * i / n
+            for ((k, z) in listOf(z0, z0 + h).withIndex()) { val j = 3 * (2 * i + k); v[j] = cx + r * kotlin.math.cos(a); v[j + 1] = cy + r * kotlin.math.sin(a); v[j + 2] = z } }
+        val c0 = 2 * n; val c1 = 2 * n + 1
+        v[3 * c0] = cx; v[3 * c0 + 1] = cy; v[3 * c0 + 2] = z0; v[3 * c1] = cx; v[3 * c1 + 1] = cy; v[3 * c1 + 2] = z0 + h
+        for (i in 0 until n) { val a0 = 2 * i; val a1 = 2 * i + 1; val b0 = 2 * ((i + 1) % n); val b1 = b0 + 1
+            tri += listOf(c0, b0, a0, c1, a1, b1, a0, b0, b1, a0, b1, a1) }
+        return splitziner.mesh.MeshOps.fixWinding(Mesh(v, tri.toIntArray()))
+    }
+
     /** Above this (mm, 30 in) a stretcher side gets a brace across the middle, as stretcher makers advise. */
     private const val BRACE_OVER = 762.0
 
@@ -293,6 +306,35 @@ object Templates {
             listOf(box(0.0, p, 0.0, W, id, t), box(0.0, p, H - t, W, id, t), box(0.0, p, t, t, id, H - 2 * t), box(W - t, p, t, t, id, H - 2 * t),
                 box(0.0, 0.0, 0.0, W, p, H), box(0.0, p + id, 0.0, W, p, H),
                 box(0.0, -t, 0.0, bw, t, H), box(W / 2 - bw / 2, -t, 0.0, bw, t, H), box(W - bw, -t, 0.0, bw, t, H))
+        },
+        Template("taboret", "Taboret", "A painter's rolling cart: a carcass on four casters, drawers on slides over an open shelf, and a top with a gallery rail round the back and sides so brushes and tubes stay put.", listOf(
+            Field("w", "Width", 508.0, 20.0), Field("d", "Depth", 457.0, 18.0), Field("h", "Height, casters included", 813.0, 32.0),
+            Field("n", "Drawers", 3.0, 3.0, count = true), Field("shelf", "Open shelf height", 200.0, 8.0), Field("caster", "Caster height", 76.0, 3.0),
+            Field("gallery", "Gallery rail height", 50.0, 2.0), Field("t", "Board thickness", 18.0, 0.75), Field("dt", "Drawer box thickness", 12.0, 0.5),
+        )) { v ->
+            val w = v.getValue("w"); val d = v.getValue("d"); val h = v.getValue("h"); val t = v.getValue("t"); val dt = v.getValue("dt")
+            val c = v.getValue("caster"); val sh = v.getValue("shelf"); val g = v.getValue("gallery")
+            val n = v.getValue("n").toInt().coerceIn(1, 6)
+            val back = 6.0; val inner = w - 2 * t; val dIn = d - back; val top = h - g - t
+            val out = arrayListOf(box(0.0, 0.0, c, t, d, top - c), box(w - t, 0.0, c, t, d, top - c),
+                box(t, 0.0, c, inner, dIn, t), box(t, 0.0, c + t + sh, inner, dIn, t), box(t, d - back, c, inner, back, top - c),
+                box(0.0, 0.0, top, w, d, t),
+                box(0.0, d - t, top + t, w, t, g), box(0.0, 0.0, top + t, t, d - t, g), box(w - t, 0.0, top + t, t, d - t, g))
+            // Casters drawn as their overall size, a little in from each corner of the bottom.
+            val r = minOf(35.0, 0.12 * minOf(w, d)); val inset = r + 15.0
+            for ((x, y) in listOf(inset to inset, w - inset to inset, inset to d - inset, w - inset to d - inset)) out += cylZ(x, y, 0.0, r, c)
+            // Drawers share the space between the shelf and the top, as the chest of drawers does.
+            val z0 = c + 2 * t + sh; val share = (top - z0) / n
+            if (share < 60.0) throw SizesDoNotFit()
+            val slide = 12.7; val bx0 = t + slide; val bx1 = w - t - slide; val y1 = dIn - 10.0
+            for (k in 0 until n) {
+                val zs = z0 + k * share; val zb = zs + 6.0; val bh = share - 12.0
+                out += box(bx0, 0.0, zb, bx1 - bx0, dt, bh); out += box(bx0, y1 - dt, zb, bx1 - bx0, dt, bh)
+                out += box(bx0, dt, zb, dt, y1 - 2 * dt, bh); out += box(bx1 - dt, dt, zb, dt, y1 - 2 * dt, bh)
+                out += box(bx0 + dt, dt, zb, bx1 - bx0 - 2 * dt, y1 - 2 * dt, 6.0)
+                out += box(t + 2.0, -t, zs + 2.0, inner - 4.0, t, share - 4.0)
+            }
+            out
         },
         Template("stretcher", "Canvas stretcher", "A frame to stretch a canvas on, drawn lying face down on the bench as it is made: four bars mitred at the corners, with a brace across the middle once a side passes 30 in (a cross when both do). Fixed corners: a strainer, with no expansion keys.", listOf(
             Field("w", "Outside width", 610.0, 24.0), Field("h", "Outside height", 762.0, 30.0),
