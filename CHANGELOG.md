@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.38.0 - notched sides
+
+- Stepped sides (a step stool's) are listed as a rectangle with one corner notched out, with how to mark and cut it, instead of "shaped".
+- Help mentions the new studio designs and sets of pieces.
+
 ## v2.37.1 - test fix
 
 - Same as v2.37 (identical pieces built once, deep plinth tops screwed down) and v2.36 (folding screen design); a test fix so the build could be published.

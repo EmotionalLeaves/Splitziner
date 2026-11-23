@@ -50,6 +50,10 @@ object HowTo {
         stave?.let { sm ->
             out += "Rip both long edges at ${sm.groupValues[1]} with the saw blade tilted, sloping towards each other, so the outside face is ${d(row.w)} $u wide and the inside face ${sm.groupValues[2]} $u. Cut all ${row.qty} at one setting, and check the tilt on offcuts first: a full ring of test pieces should close with no gap."
         }
+        // A square notch out of one corner: two lines squared in from the edges, sawn to where they meet.
+        Regex("""ONE CORNER NOTCHED OUT (\S+) X (\S+)""").find(row.description)?.let { nm ->
+            out += "Mark the notch on the corner the drawing shows: ${nm.groupValues[1]} $u along the ${d(row.l)} $u edge and ${nm.groupValues[2]} $u along the ${d(row.w)} $u edge, square both lines in until they meet, and saw down each line to the meeting point (a jigsaw, or a handsaw finished with a chisel). Cut both of a pair together, or mark the second from the first, so they match."
+        }
         // A regular polygon: a circle through its corners, stepped round.
         Regex(""", A REGULAR (\S+(?: POLYGON)?), SIDES (\S+)""").find(row.description)?.let { pm ->
             val n = when (pm.groupValues[1]) { "PENTAGON" -> 5; "HEXAGON" -> 6; "OCTAGON" -> 8; else -> pm.groupValues[1].substringBefore('-').toIntOrNull() ?: 0 }

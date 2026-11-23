@@ -2757,3 +2757,14 @@ class PiecesAlikeTest {
         assertTrue(g.first().title.contains("piece 1 of 2 (make 4 alike)"), g.first().title)
     }
 }
+
+class CornerNotchTest {
+    @Test fun aSteppedSideIsNotchedNotShaped() {
+        val t = 19.05; val prof = listOf(0.0 to 0.0, 457.2 to 0.0, 457.2 to 438.15, 228.6 to 438.15, 228.6 to 209.55, 0.0 to 209.55)
+        val gf = org.locationtech.jts.geom.GeometryFactory()
+        val poly = gf.createPolygon((prof + prof[0]).map { org.locationtech.jts.geom.Coordinate(it.first, it.second) }.toTypedArray())
+        val m = splitziner.edit.Prisms.toMesh(splitziner.edit.Prism(splitziner.view.ViewDef("top", splitziner.math.Vec3(0.0, 0.0, 1.0), splitziner.math.Vec3(1.0, 0.0, 0.0)), poly, 0.0, t))
+        val d = splitziner.parts.PartDescriber.describe(m, LengthFormat("in", "fraction"))
+        assertTrue(d.desc.contains("ONE CORNER NOTCHED OUT 9 X 9"), d.desc)
+    }
+}

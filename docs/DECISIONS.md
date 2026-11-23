@@ -834,3 +834,7 @@ Departures from the build spec, newest first.
 
 ## v2.37.1
 - v2.37 with its new unit test corrected (it called the guide builder by a wrong name, so CI could not compile the tests). Includes everything in v2.37 and v2.36 (v2.36's phone test crashed inside Compose's layout while drawing, in a test that passed unchanged before; treated as a flake and run again here).
+
+## v2.38
+- A flat part that is its rectangle with one square notch out of a corner (a step stool's stepped side) is "ONE CORNER NOTCHED OUT a X b", not "shaped": a detail drawing and a making step (square both lines in, saw to where they meet, mark the second of a pair from the first). No full-size pages.
+- Help, "Making for showing art", mentions the many-sided plinth, the folding screen, and sets of pieces built in turn (identical ones once).

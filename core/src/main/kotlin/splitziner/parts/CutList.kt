@@ -360,6 +360,31 @@ object PartDescriber {
         return n to sides.average()
     }
 
+    /**
+     * A flat part that is its rectangle with one square notch out of a corner (a step stool's stepped side): the notch's
+     * two sides (mm), along the blank's length and width, or null.
+     */
+    fun cornerNotch(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Pair<Double, Double>? {
+        val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return null
+        if (g.numGeometries != 1 || g !is org.locationtech.jts.geom.Polygon || g.numInteriorRing != 0) return null
+        val c = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(g, 0.3).coordinates.dropLast(1)
+        if (c.size != 6) return null
+        val env = g.envelopeInternal
+        // Every edge square to the box: an L.
+        for (i in c.indices) { val a = c[i]; val b = c[(i + 1) % 6]
+            if (kotlin.math.abs(a.x - b.x) > 0.5 && kotlin.math.abs(a.y - b.y) > 0.5) return null }
+        // The one corner of the box the outline misses, and the inner corner of the notch.
+        val corners = listOf(env.minX to env.minY, env.maxX to env.minY, env.maxX to env.maxY, env.minX to env.maxY)
+        val missing = corners.filter { (x, y) -> c.none { kotlin.math.abs(it.x - x) < 0.5 && kotlin.math.abs(it.y - y) < 0.5 } }
+        if (missing.size != 1) return null
+        val (mx, my) = missing[0]
+        val inner = c.filter { p -> kotlin.math.abs(p.x - env.minX) > 0.5 && kotlin.math.abs(p.x - env.maxX) > 0.5 && kotlin.math.abs(p.y - env.minY) > 0.5 && kotlin.math.abs(p.y - env.maxY) > 0.5 }
+        if (inner.size != 1) return null
+        val nx = kotlin.math.abs(inner[0].x - mx); val ny = kotlin.math.abs(inner[0].y - my)
+        // Along the blank's length first.
+        return if (env.width >= env.height) nx to ny else ny to nx
+    }
+
     /** A flat part whose outline is a triangle with one square corner. */
     fun rightTriangle(m: Mesh, pre: org.locationtech.jts.geom.Geometry? = null): Boolean {
         val g = pre ?: runCatching { splitziner.edit.Prisms.of(m) }.getOrNull()?.outline ?: return false
@@ -449,6 +474,11 @@ object PartDescriber {
         // A board with one edge sawn on a slope (a print bin's side): four corners, two of them square, the sloped
         // edge between the long and the short end. Marked and sawn along a straight line, not traced from a template.
         // A right triangle (a gusset, a shelf bracket): a rectangle sawn corner to corner, two from one blank.
+        // A stepped side: the blank with one square notch out of a corner, marked with a square and sawn.
+        (if (t < 0.3 * w) outline?.let { cornerNotch(m, it) } else null)?.let { (a, b) ->
+            val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
+            return PartDescription(kind, t, w, l, fill, "$kind ${d(t)} X ${d(w)} X ${d(l)}, ONE CORNER NOTCHED OUT ${d(a)} X ${d(b)}")
+        }
         // A regular polygon (a hexagonal plinth's top): named with its sides, marked out with a compass.
         outline?.let { regularPolygon(m, it) }?.let { (n, side) ->
             val kind = if (w >= PANEL_MIN_WIDTH) PartKind.PANEL else PartKind.BOARD
