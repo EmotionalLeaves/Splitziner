@@ -18,6 +18,7 @@ data class AnalysisOptions(
     val displayUnits: String? = null,
     val inchStyle: String = "decimal",
     val itemOverrides: Map<String, ItemOverride> = emptyMap(),
+    /** Parts the user left out; "+id" instead marks one the app would leave out itself (a clear cover) that the user keeps in. */
     val excludedPartIds: Set<String> = emptySet(),
     val partNames: Map<String, String> = emptyMap(),
     /**
@@ -386,7 +387,8 @@ object Pipeline {
         // A clear cover on top (a plinth's vitrine) is made by a plastics shop: named, kept out of the wood lists and
         // drawings (and out of naming the rest), and said once with the size to order.
         val beforeCover = edited?.parts ?: named
-        val coverIds = runCatching { splitziner.check.Covers.find(beforeCover) }.getOrDefault(emptyList()).toSet()
+        // The user can keep a cover in the lists: their "+id" mark in the excluded set says so.
+        val coverIds = runCatching { splitziner.check.Covers.find(beforeCover) }.getOrDefault(emptyList()).let { ids -> if (ids.any { "+$it" in options.excludedPartIds }) emptyList() else ids }.toSet()
         val orders = ArrayList<String>()
         if (coverIds.isNotEmpty()) {
             val cs = beforeCover.filter { it.id in coverIds }

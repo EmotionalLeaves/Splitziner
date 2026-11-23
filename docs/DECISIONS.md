@@ -684,3 +684,6 @@ Departures from the build spec, newest first.
 ## v1.97
 - A "Shadow box" template, drawn face down: a box of four sides, a mitred face frame glued on its front with a lip over the opening, four 1/4 in square glass stops inside 1/8 in back from the lip (room for 1/8 in glass), and a back panel. Default 12 x 16 x 3 in inside.
 - Recognised by its layers: four flat face bars on the bench, four sides standing on them up to a thin back, and four thin strips between. The box is made first; the face frame is glued on (nothing through the face); the glass and stops go in next, the stops pinned without glue so the glass can be changed; the back is screwed on last without glue, the work mounted on it first. A note gives the glass size (the box's inside less 1/16 in, 2 mm).
+
+## v1.98
+- A clear cover the app leaves out can be brought back: including any of its sheets in the part's dialog keeps the whole cover in the lists. Stored as a "+id" mark in the project's excluded set, so old projects read the same.

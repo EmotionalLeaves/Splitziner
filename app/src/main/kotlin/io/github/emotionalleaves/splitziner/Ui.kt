@@ -574,7 +574,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             vm.update { m ->
                 m.copy(
                     partNames = if (name.isBlank() || name == p.id) m.partNames - p.id else m.partNames + (p.id to name),
-                    excluded = if (excluded) m.excluded + p.id else m.excluded - p.id,
+                    // A part the app left out itself (a clear cover) is kept in by a "+id" mark when the user includes it.
+                    excluded = if (excluded) m.excluded + p.id - "+${p.id}" else m.excluded - p.id + (if (p.excluded && p.id !in m.excluded) setOf("+${p.id}") else emptySet()),
                 )
             }
         }

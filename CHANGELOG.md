@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.98.0 - keep cover in
+
+- If you want to make the acrylic cover yourself, tick any of its sheets back in (tap the part in the Parts list) and the whole cover comes back into the lists.
+
 ## v1.97.0 - shadow box
 
 - **New design: Shadow box.** A deep frame for objects and 3D work. You make the box, glue the face frame on, set the glass in behind the lip with removable stops, and screw on the back with your work mounted on it. The guide gives the glass size.

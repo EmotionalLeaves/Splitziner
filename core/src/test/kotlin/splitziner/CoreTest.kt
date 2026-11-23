@@ -2540,6 +2540,10 @@ class CoverTest {
         // The plinth itself is named as without the cover: no door, a top, not a shelf.
         assertTrue(a.parts.none { it.name == "Door" })
         assertEquals(1, a.parts.count { it.name == "Top" })
+        // Kept in by the user (one sheet marked): the whole cover is back in the lists.
+        val id = a.parts.first { it.name == "Acrylic cover" }.id
+        val kept = Pipeline.analyze(bos.toByteArray(), "p.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm", displayUnits = "in", inchStyle = "fraction", excludedPartIds = setOf("+$id")))
+        assertTrue(kept.parts.none { it.excluded }); assertTrue(kept.orders.isEmpty())
     }
 }
 
