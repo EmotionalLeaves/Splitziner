@@ -66,10 +66,27 @@ object DimPlanner {
         // On sculpted shapes a "level" can be one stray facet; a real one is a visible share of the whole surface.
         val floor = (if (detail) DETAIL_LEVEL_OF_SURFACE else MIN_LEVEL_OF_SURFACE) * scene.area
         val share = if (detail) DETAIL_LEVEL_SHARE else MIN_LEVEL_SHARE
-        area.entries.filter { it.value >= share * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
+        val pos = area.entries.filter { it.value >= share * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
             .filter { it.first > lo[k] + 1e-6 && it.first < hi[k] - 1e-6 }
-            .sortedByDescending { it.second }.take(maxPerAxis).map { it.first }
+        // On an assembly, a face looking the negative way is a level too when no positive one lies within a board's
+        // thickness of it: where a part starts with nothing ending there (a modesty panel's bottom edge 10 in off the
+        // floor, a hutch's front 12 in back from the desk's) would otherwise have no dimension at all.
+        val neg = if (detail) emptyList() else run {
+            val na = HashMap<Long, Double>()
+            for (t in 0 until scene.triangleCount) if (n[3 * t + k] < -0.9999) { val key = Math.round(c[3 * t + k] * 1000); na[key] = (na[key] ?: 0.0) + a[t] }
+            val all = area.keys.map { it / 1000.0 }
+            // A part's edge is a small face however long it is: judged against the surface only, not the largest level.
+            na.entries.filter { it.value >= NEG_SHARE * max && it.value >= floor }.map { it.key / 1000.0 to it.value }
+                .filter { it.first > lo[k] + 1e-6 && it.first < hi[k] - 1e-6 && all.none { p -> abs(p - it.first) <= BOARD_GAP } }
+        }
+        (pos.sortedByDescending { it.second }.take(maxPerAxis) + neg.sortedByDescending { it.second }).take(maxPerAxis).map { it.first }
     }
+
+    /** A down- or front-facing level this close (mm, about a board's thickness) to an up- or back-facing one is the same part's other face. */
+    private const val BOARD_GAP = 26.0
+
+    /** Share of the largest level a negative-facing level needs: low, as such a level is often only boards' edges. */
+    private const val NEG_SHARE = 0.02
 
     /** True when the view has a visible edge lying exactly at screen coordinate [sc] across the measuring direction. */
     fun hasEdgeAt(lines: ViewLines, horizontal: Boolean, sc: Double): Boolean = anchor(lines, horizontal, sc, true) != null

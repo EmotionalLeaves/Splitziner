@@ -66,6 +66,9 @@ class DisplayList(val widthMm: Double, val heightMm: Double, val name: String = 
     /** Drawings are lettered in capitals throughout; build guides keep the writer's capitalisation. */
     var upperCase = true
 
+    /** What the page shows, in a few words, for the app's page bar ("Sheets 1-2 of 3"); empty when it has no name of its own. */
+    var label: String = ""
+
     fun segs(xy: DoubleArray, style: LineStyle) { if (xy.isNotEmpty()) prims += Segments(xy, style) }
     fun line(x0: Double, y0: Double, x1: Double, y1: Double, style: LineStyle = LineStyle.THIN) { prims += Segments(doubleArrayOf(x0, y0, x1, y1), style) }
     fun polyline(xy: DoubleArray, style: LineStyle = LineStyle.THIN, closed: Boolean = false) { prims += Polyline(xy, style, closed) }

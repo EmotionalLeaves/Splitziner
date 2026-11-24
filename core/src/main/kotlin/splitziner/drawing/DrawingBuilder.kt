@@ -52,7 +52,9 @@ object DrawingBuilder {
      * The scales a drafter in these units would pick, largest first. Metric drawings step 1, 1/2, 1/5, 1/10 (ISO 5455);
      * inch drawings halve each time (full, half, quarter, eighth), so nothing jumps from 1/4 straight to 1/10.
      */
-    fun scalesFor(inch: Boolean): DoubleArray = if (inch) doubleArrayOf(4.0, 2.0, 1.0, 1 / 2.0, 1 / 4.0, 1 / 8.0, 1 / 16.0, 1 / 32.0, 1 / 64.0)
+    // Inch drawings also take 1:12 ("1 in = 1 ft") and 1:24: between 1/8 and 1/16, and 1/16 and 1/32, a halving left
+    // furniture drawn half the size the sheet had room for, with half the paper empty.
+    fun scalesFor(inch: Boolean): DoubleArray = if (inch) doubleArrayOf(4.0, 2.0, 1.0, 1 / 2.0, 1 / 4.0, 1 / 8.0, 1 / 12.0, 1 / 16.0, 1 / 24.0, 1 / 32.0, 1 / 64.0)
         else doubleArrayOf(10.0, 5.0, 2.0, 1.0, 1 / 2.0, 1 / 5.0, 1 / 10.0, 1 / 20.0, 1 / 50.0, 1 / 100.0)
     private val LAST_RESORT = setOf(1 / 50.0, 1 / 100.0, 1 / 64.0)
 

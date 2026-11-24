@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.60.0 - Drawings that use the paper
+
+Critique round 3, part 1: drawings that use the paper, and clearer labels.
+
+- Inch drawings can now be drawn at 1 in = 1 ft (1:12) and 1:24, so furniture is no longer drawn at half the size the sheet allows.
+- Drawings dimension where parts start, not only where they end: a modesty panel's height off the floor, a hutch's setback from the desk front.
+- New design no longer shows the previous design's picture while drawing the new one.
+- Check: "The app can fix 15 of the 19 problems in one tap."
+- Cutting plan: the page bar says what each page shows ("Sheets 1–2 of 3", "Boards").
+
 ## v2.59.0 - Clearer screens, much faster big models
 
 Critique round 2, part 2: cleaner screens and much faster big models.

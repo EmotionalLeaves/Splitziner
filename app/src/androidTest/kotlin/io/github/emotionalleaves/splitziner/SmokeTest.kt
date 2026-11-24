@@ -399,7 +399,7 @@ class SmokeTest {
             }
             rule.waitUntil(30_000) { rule.onAllNodesWithText("New design").fetchSemanticsNodes().isNotEmpty() }
             shot("n00_home")
-            tap("New design"); shot("n01a_studio_designs"); tap("Furniture"); tap("Bookcase"); shot("n01_new_design")
+            tap("New design"); shot("n01a_studio_designs"); tap("Furniture"); tap("Bookcase"); Thread.sleep(2000); rule.waitForIdle(); shot("n01_new_design")
             tap("Create")
             waitFor(vm, 120_000) { (vm.state.value.open != null && vm.state.value.busyLabel == null) || vm.state.value.error != null }
             assertNull(vm.state.value.error)

@@ -949,3 +949,11 @@ Read every page of three hard models (hutch desk, art crate, folding screen) and
 - Drawing note "Remove all burrs and sharp edges" (metalwork) is now "Sand all edges smooth and break sharp corners".
 - Speed on a 2,020-part model: 464 s to about 47 s. The guide's per-joint checks are worked out once per part; the drawing's buried-part test rules out parts by covered area before any polygon union; the CLI reuses its fastening plan for the cutting plan.
 - Known, next: drawing sheets leave much of the paper empty (a hutch desk at 1/16 on C); repeated bays are not built bay by bay.
+
+## v2.60 (critique round 3, part 1)
+- Inch drawings also use 1:12 ("1 in = 1 ft") and 1:24. Between 1/8 and 1/16 the views were halved, with up to 40% of the sheet empty (a hutch desk at 1/16 on C, now 1/12).
+- Assembly drawings dimension a face looking down or to the front when no up- or back-facing face is within a board's thickness of it (26 mm): where a part starts with nothing ending there. The modesty panel's 10 in and the hutch's 12 in setback were undimensioned. Such levels need 2% of the largest level's area (they are often only board edges), not 15%.
+- New design: picking another design clears the picture until the new one is drawn; the last design's picture (a plinth's box) stood in for a bookcase.
+- Check summary: "The app can fix 15 of the 19 problems in one tap", not "15 of them".
+- Cutting plan pages carry what they show ("What to buy", "Sheets 1–2 of 3", "Boards"); the page bar uses it. DisplayList has a label for this.
+- Phone test waits for the New design picture before its screenshot.

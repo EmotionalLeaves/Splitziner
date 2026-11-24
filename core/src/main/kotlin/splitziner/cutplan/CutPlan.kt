@@ -464,6 +464,8 @@ object CutPlanLayout {
         fun page(): DisplayList {
             val p = DisplayList(w, h, "cutplan_page%02d".format(list.size + 1))
             p.upperCase = false
+            // Until a layout claims it: the buying pages that open the plan.
+            p.label = if (list.isEmpty()) "What to buy" else "What to buy, continued"
             p.text(12.0, h - 12, "${title.uppercase()} - CUTTING PLAN", 3.0, vAlign = VAlign.TOP, bold = true)
             p.line(10.0, h - 17, w - 10, h - 17)
             list += p
@@ -507,7 +509,8 @@ object CutPlanLayout {
         val cellW = (w - 40 - 10) / 2; val cellH = h - 24 - 16 - 14
         val k = minOf(cellW / s.sheetW, cellH / s.sheetL)
         r.sheets.forEachIndexed { i, sh ->
-            if (i % 2 == 0) p = page()
+            if (i % 2 == 0) { p = page(); val n = r.sheets.size
+                p.label = if (i + 1 >= n) "Sheet ${i + 1} of $n" else "Sheets ${i + 1}\u2013${i + 2} of $n" }
             // Every panel at one scale, so a half sheet looks half the size of a full one; each hangs from the top of the page.
             val sw = if (sh.w > 0) sh.w else s.sheetW; val sl = if (sh.l > 0) sh.l else s.sheetL
             val x0 = 20.0 + (i % 2) * (cellW + 10); val y0 = maxOf(18.0, h - 24 - 16 - sl * k)
@@ -535,14 +538,14 @@ object CutPlanLayout {
 
         // Lengths as bars.
         if (r.boards.isNotEmpty()) {
-            p = page(); y = h - 26
+            p = page(); y = h - 26; p.label = "Boards"
             val barW = w - 40 - 34; val kb = barW / (r.boards.maxOfOrNull { it.length.takeIf { l -> l > 0 } ?: s.boardL } ?: s.boardL)
             var lastKey: List<Any>? = null
             var n = 0
             for (b in r.boards.sortedWith(compareBy({ it.stockName ?: "" }, { it.t }, { it.w }, { -it.length }))) {
                 val key = listOf(b.kind, b.stockName ?: "${b.t}x${b.w}", b.material, b.length)
                 val newGroup = key != lastKey
-                if (y - (if (newGroup) 22 else 13) < 16) { p = page(); y = h - 26 }
+                if (y - (if (newGroup) 22 else 13) < 16) { p = page(); y = h - 26; p.label = "Boards, continued" }
                 if (newGroup) {
                     val count = r.boards.count { listOf(it.kind, it.stockName ?: "${it.t}x${it.w}", it.material, it.length) == key }
                     val section = if (b.kind == PartKind.ROD) "Rod ${d((b.t + b.w) / 2)} dia" else if (b.stockName != null) "${b.stockName} (actual ${d(b.t)} x ${d(b.w)})" else "${d(b.t)} x ${d(b.w)}"

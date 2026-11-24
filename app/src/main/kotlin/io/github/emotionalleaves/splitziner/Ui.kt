@@ -1577,7 +1577,7 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
     val valid = w != null && l != null && b != null && k != null && w > 0 && l > 0 && b > 0 && k >= 0
     // The sheet's longer side is its length, whichever box it was typed in.
     val stock = if (valid) splitziner.cutplan.StockSettings(minOf(w!!, l!!) * unit, maxOf(w, l) * unit, b!! * unit, k!! * unit, rotate, lumber = fmt.isInch, longer = longer) else null
-    class Made(val pages: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, val summary: String, val buy: List<String>)
+    class Made(val pages: List<io.github.emotionalleaves.splitziner.render.PreparedSheet>, val summary: String, val buy: List<String>, val labels: List<String> = emptyList())
     // Worked out again as the sizes change, away from the screen's thread; the plan is shown, not just shared.
     val made by androidx.compose.runtime.produceState<Made?>(null, stock, open.analysis) {
         val st = stock ?: return@produceState
@@ -1592,7 +1592,7 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
                     plan.boards.size.takeIf { it > 0 }?.let { "$it length${if (it == 1) "" else "s"}" },
                     used?.let { "${Math.round(it * 100)}% of sheet used" },
                     plan.leftOut.size.takeIf { it > 0 }?.let { "$it part${if (it == 1) "" else "s"} too big for the stock" }).joinToString("  \u00b7  ")
-                Made(dls.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, summary, splitziner.cutplan.CutPlanner.shoppingList(plan, fmt))
+                Made(dls.map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }, summary, splitziner.cutplan.CutPlanner.shoppingList(plan, fmt), dls.map { it.label })
             }.onFailure { Diagnostics.logError("cutting plan", it) }.getOrNull()
         }
     }
@@ -1647,7 +1647,8 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
                     if (pages.isNotEmpty()) io.github.emotionalleaves.splitziner.render.SheetPreview(pages[shown], Modifier.fillMaxSize())
                     else if (valid) LinearProgressIndicator(Modifier.align(Alignment.Center).fillMaxWidth(0.6f))
                 }
-                if (pages.size > 1) PagerBar(if (shown == 0) "What to buy" else "Sheets, page ${shown + 1}", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
+                // Each layout page holds a run of the sheets and boards: named by what is on it, not by its page number.
+                if (pages.size > 1) PagerBar(if (shown == 0) "What to buy" else made?.labels?.getOrNull(shown)?.takeIf { it.isNotBlank() } ?: "Layout $shown", "${shown + 1} of ${pages.size}  \u00b7  pinch to zoom, double-tap to fit",
                     shown > 0, shown < pages.size - 1, { page = shown - 1 }, { page = shown + 1 })
                 androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = pages.isNotEmpty(), onClick = {
@@ -1721,7 +1722,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                         }, style = MaterialTheme.typography.titleMedium)
                     // How many of the problems the app can fix itself, so a long red list is not taken as a lost cause.
                     val fixable = report?.findings?.count { it.severity == splitziner.check.Severity.PROBLEM && it.fixes.isNotEmpty() } ?: 0
-                    if (report != null && report.problems > 0 && fixable > 0) Text(if (fixable == report.problems) "All of them can be fixed with one tap below." else "$fixable of them can be fixed with one tap below.",
+                    if (report != null && report.problems > 0 && fixable > 0) Text(if (fixable == report.problems) "The app can fix all ${if (report.problems == 1) "of it" else "${report.problems}"} in one tap." else "The app can fix $fixable of the ${report.problems} problems in one tap.",
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     Text(if (owned == null) "Tools: not chosen yet" else if (owned.isEmpty()) "Tools: none ticked" else "Tools: " + owned.joinToString(", ") { it.label.lowercase() },
                         style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -2142,7 +2143,11 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     var sizesWrong by remember { mutableStateOf<String?>(null) }
     // A small picture of the design at the sizes typed so far, redrawn a moment after typing stops.
     val sizesKey = key + values.entries.sortedBy { it.key }.joinToString { "${it.key}=${it.value}" }
+    val previewKey = remember { arrayOf<String?>(null) }
     val preview by androidx.compose.runtime.produceState<io.github.emotionalleaves.splitziner.render.PreparedSheet?>(null, sizesKey) {
+        // Another design picked: its picture, not the last design's, while the new one is drawn (a plinth's box
+        // stood in for a bookcase).
+        if (previewKey[0] != key) { value = null; previewKey[0] = key }
         val t = template ?: run { value = null; return@produceState }
         kotlinx.coroutines.delay(250)
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
