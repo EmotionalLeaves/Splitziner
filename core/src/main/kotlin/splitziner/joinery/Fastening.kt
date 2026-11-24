@@ -1244,8 +1244,12 @@ object Fastening {
             // made (see the making notes): by now the parts they are in may be screwed together.
             val pins = g.sumOf { it.count }; val brad = g[0].at.substringBefore('|')
             val cuts = if (g.size > 1) "${if (rabbet) "rabbets" else "grooves"}" else (if (rabbet) "rabbet" else "groove")
-            out += if (rabbet && pins > 0 && brad.isNotEmpty()) "Glue ${key.first} into the $cuts in $where (cut when you made the parts) and pin it with ${sized(pins, brad)} brads$times."
-                else "Glue ${key.first} into the $cuts in $where (cut when you made the parts)$times."
+            // Several of the thin part (20 backs in a run of bays) are counted, and pinned as "them".
+            val nThin = g.map { it.into.id }.distinct().size
+            val what = if (nThin > 1 && key.first.startsWith("item ")) "$nThin× ${key.first}" else key.first
+            val it_ = if (nThin > 1) "them" else "it"
+            out += if (rabbet && pins > 0 && brad.isNotEmpty()) "Glue $what into the $cuts in $where (cut when you made the parts) and pin $it_ with ${sized(pins, brad)} brads$times."
+                else "Glue $what into the $cuts in $where (cut when you made the parts)$times."
         }
         // Joints of the same kind between the same items are told once.
         // One item under several names (item 2 as bottom, top and shelf) is one line: "item 2 (bottom, top and shelf)".

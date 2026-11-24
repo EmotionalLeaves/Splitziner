@@ -961,3 +961,8 @@ Read every page of three hard models (hutch desk, art crate, folding screen) and
 ## v2.61 (critique round 3, part 2)
 - Assembly drawings dimension a level that covers 3% of the largest level's area (was 15%): board edges set positions (a dresser's drawer boxes, a bookcase's shelves), and at 15% only the overall sizes survived. The 8-per-axis limit and ordinate style above 5 keep stacks readable.
 - Framing is named as framing. Long, low boards on edge carrying three or more parts across their top edges are joists (a deck's), not a case's sides and divider. Upright posts with three or more parts passing right across their faces and nothing on their tops are posts (a slatted wall's), not legs. A bed's rails end at its legs, so its legs stay legs.
+
+## v2.62 (critique round 3, part 3)
+- The app's cutting plan draws one sheet to a page, centred and twice the size: two side by side on a letter page left each layout a sixth of a phone screen. The CLI keeps two to a page (CutPlanLayout.pages perPage).
+- Rabbet lines count the thin parts: "Glue the 20 back panels (2) into the rabbets ... and pin them".
+- Stress model fixed: the library wall's shelves ran into its backs (a clash the check would flag); with that fixed, its shelves get their spacing ("7-1/8 in apart, evenly"). Its steps still mix bays: open.

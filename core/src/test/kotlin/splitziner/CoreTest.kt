@@ -722,6 +722,10 @@ class CutPlanTest {
         java.io.File("build/preview").mkdirs()
         pages.forEachIndexed { i, pg -> java.io.File("build/preview/cutplan%d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(pg)) }
         println("cutplan: sheets=${r.sheets.size} boards=${r.boards.size} pages=${pages.size} buy=${splitziner.cutplan.CutPlanner.shoppingList(r, fmt)}")
+        // One sheet to a page, for a phone: a page per sheet, each named.
+        val one = splitziner.cutplan.CutPlanLayout.pages(r, rows, "Cabinet, storage", fmt, perPage = 1)
+        assertEquals(r.sheets.size, one.count { it.label.startsWith("Sheet ") })
+        one.forEachIndexed { i, pg -> java.io.File("build/preview/cutplan_one%d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(pg)) }
     }
 
     @Test fun oversizeAndGrainAreRespected() {

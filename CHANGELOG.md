@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.62.0 - A cutting plan you can read on a phone
+
+Critique round 3, part 3: a cutting plan you can read on a phone.
+
+- The cutting plan shows one sheet per page at twice the size, so the pieces and cut numbers are readable without zooming. The shared PDF gets the same bigger layouts.
+- Guide lines count several thin panels properly: "Glue the 20 back panels into the rabbets… and pin them".
+
 ## v2.61.0 - Drawings with the dimensions you build from
 
 Critique round 3, part 2: drawings with the dimensions you build from, and framing called by its name.

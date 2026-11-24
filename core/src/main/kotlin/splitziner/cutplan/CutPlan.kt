@@ -458,7 +458,8 @@ object CutPlanLayout {
         return lines
     }
 
-    fun pages(r: CutPlanResult, rows: List<CutListRow>, title: String, fmt: LengthFormat, a4: Boolean = !fmt.isInch, extraBuy: List<String> = emptyList()): List<DisplayList> {
+    /** [perPage]: sheets drawn on each layout page, 1 or 2; one is big enough to read on a phone. */
+    fun pages(r: CutPlanResult, rows: List<CutListRow>, title: String, fmt: LengthFormat, a4: Boolean = !fmt.isInch, extraBuy: List<String> = emptyList(), perPage: Int = 2): List<DisplayList> {
         val w = if (a4) 210.0 else 215.9; val h = if (a4) 297.0 else 279.4
         val list = ArrayList<DisplayList>()
         fun page(): DisplayList {
@@ -506,14 +507,15 @@ object CutPlanLayout {
         }
 
         // Sheets, two to a page, each drawn to scale with its length up the page.
-        val cellW = (w - 40 - 10) / 2; val cellH = h - 24 - 16 - 14
+        val cols = perPage.coerceIn(1, 2)
+        val cellW = (w - 40 - 10 * (cols - 1)) / cols; val cellH = h - 24 - 16 - 14
         val k = minOf(cellW / s.sheetW, cellH / s.sheetL)
         r.sheets.forEachIndexed { i, sh ->
-            if (i % 2 == 0) { p = page(); val n = r.sheets.size
-                p.label = if (i + 1 >= n) "Sheet ${i + 1} of $n" else "Sheets ${i + 1}\u2013${i + 2} of $n" }
+            if (i % cols == 0) { p = page(); val n = r.sheets.size
+                p.label = if (cols == 1 || i + 1 >= n) "Sheet ${i + 1} of $n" else "Sheets ${i + 1}\u2013${i + 2} of $n" }
             // Every panel at one scale, so a half sheet looks half the size of a full one; each hangs from the top of the page.
             val sw = if (sh.w > 0) sh.w else s.sheetW; val sl = if (sh.l > 0) sh.l else s.sheetL
-            val x0 = 20.0 + (i % 2) * (cellW + 10); val y0 = maxOf(18.0, h - 24 - 16 - sl * k)
+            val x0 = 20.0 + (i % cols) * (cellW + 10) + (if (cols == 1) (cellW - sw * k) / 2 else 0.0); val y0 = maxOf(18.0, h - 24 - 16 - sl * k)
             val top = y0 + sl * k
             p.text(x0, top + 9, "Sheet ${i + 1} of ${r.sheets.size}: ${d(sh.thickness)} thick" + (if (sh.material.isBlank()) "" else ", ${sh.material}"), 3.2, bold = true)
             p.text(x0, top + 3.5, (if (sh.size == "sheet") "" else "${sh.size.replaceFirstChar { it.uppercase() }}, ") + "${d(sw)} x ${d(sl)}, ${Math.round(sh.used * 100)}% used", 2.8)
@@ -533,7 +535,7 @@ object CutPlanLayout {
                 p.rect(bx - 2.1, by - 1.6, bx + 2.1, by + 1.6, LineStyle.THIN)
                 p.text(bx, by, "${c.n}", 2.2, HAlign.CENTER, VAlign.CENTER)
             }
-            if (cuts.size >= 2 && i % 2 == 0) p.text(20.0, 10.0, "Boxed numbers: the order of the cuts, each right across the piece being cut.", 2.4)
+            if (cuts.size >= 2 && i % cols == 0) p.text(20.0, 10.0, "Boxed numbers: the order of the cuts, each right across the piece being cut.", 2.4)
         }
 
         // Lengths as bars.

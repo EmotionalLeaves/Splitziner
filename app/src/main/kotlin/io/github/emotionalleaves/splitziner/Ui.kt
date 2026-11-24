@@ -1585,7 +1585,7 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
             runCatching {
                 val rows = vm.cutRows(open)
                 val plan = splitziner.cutplan.CutPlanner.plan(rows, st)
-                val dls = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
+                val dls = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()), perPage = 1)
                 val used = plan.sheets.map { it.used }.let { if (it.isEmpty()) null else it.average() }
                 val summary = listOfNotNull(
                     plan.sheets.size.takeIf { it > 0 }?.let { "$it sheet${if (it == 1) "" else "s"}" },
