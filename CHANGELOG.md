@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.54.0 - stave drawing note
+
+- Many-sided plinth sides: the detail drawing now spells out the bevel and both face widths.
+
 ## v2.53.0 - wall finishing notes
 
 - Display walls: the guide ends with how to finish the wall and where to hang heavy work (into the studs, with their spacing).

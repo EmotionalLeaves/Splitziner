@@ -246,6 +246,10 @@ object PartDrawings {
             return listOf("RAISED PANEL: FLAT BACK; FRONT BEVELLED ${m.groupValues[2]} WIDE ALL ROUND DOWN TO AN EDGE ${m.groupValues[1]} THICK, WHICH FITS THE FRAME'S GROOVES (SEE THE EDGE VIEWS). " +
                 "CUT THE END-GRAIN EDGES FIRST. LEAVE ABOUT ${if (fmt.isInch) "1/16 IN" else "2 MM"} SPARE IN EACH GROOVE ACROSS THE GRAIN SO A SOLID-WOOD PANEL CAN SWELL.")
         }
+        Regex("""LONG EDGES CUT AT (\S+) \(BEVEL\), NARROW FACE (\S+)""").find(row.description)?.let { m ->
+            return listOf("BOTH LONG EDGES BEVELLED AT ${m.groupValues[1]} OFF SQUARE, SLOPING TOWARDS EACH OTHER (SEE THE END VIEW): ${fmt.format(row.w)} WIDE ON THE OUTSIDE FACE, ${m.groupValues[2]} ON THE INSIDE. " +
+                "RIP BOTH AT ONE BLADE TILT; ALL ${row.qty} ALIKE SO THE MITRES CLOSE ROUND THE RING.")
+        }
         val deg = Regex("""ONE EDGE BEVELLED AT (\S+)""").find(row.description)?.groupValues?.get(1) ?: return emptyList()
         return listOf("ONE LONG EDGE BEVELLED AT $deg OFF SQUARE, RIGHT ACROSS THE THICKNESS (SEE THE END VIEW). RIP IT WITH THE BLADE TILTED; THE WIDTH IS MEASURED ON THE WIDE FACE.")
     }

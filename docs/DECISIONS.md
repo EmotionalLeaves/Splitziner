@@ -894,3 +894,6 @@ Departures from the build spec, newest first.
 ## v2.53
 - A stud wall gets a note, also on the guide's last page: fill the screw heads and sheet joints, sand and paint (gallery walls are usually white, matt or eggshell); hang heavy work on screws into the studs (their spacing on centre, from the inner studs), light work anywhere on the plywood with screws short enough not to come through. "Keep it on its feet" goes on that page too.
 - Help mentions the display wall.
+
+## v2.54
+- A stave's detail drawing says in its notes how its long edges are bevelled: the angle off square, sloping towards each other, the outside and inside face widths, and to rip them all at one blade tilt.
