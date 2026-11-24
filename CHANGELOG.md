@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.61.0 - Drawings with the dimensions you build from
+
+Critique round 3, part 2: drawings with the dimensions you build from, and framing called by its name.
+
+- Drawings dimension the positions board edges set, such as drawer and shelf heights. Before, a six-drawer dresser showed only its overall height and width.
+- A deck's joists are joists (not "sides and a divider"), and a slatted wall's uprights are posts (not "legs").
+
 ## v2.60.0 - Drawings that use the paper
 
 Critique round 3, part 1: drawings that use the paper, and clearer labels.

@@ -37,7 +37,7 @@ class DimGroup(
  */
 object DimPlanner {
     /** A level must cover at least this share of the largest level on its axis to earn a dimension. */
-    private const val MIN_LEVEL_SHARE = 0.15
+    private const val MIN_LEVEL_SHARE = 0.03
 
     /** A level must also cover at least this share of the model's whole surface. */
     private const val MIN_LEVEL_OF_SURFACE = 0.002

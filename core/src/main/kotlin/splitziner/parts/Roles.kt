@@ -717,6 +717,25 @@ object Roles {
             val alike = strips.groupBy { p -> p.mesh.bounds.extents.let { e -> listOf(e.x, e.y, e.z).map { kotlin.math.round(it) } } }.values.filter { it.size >= 2 }
             for (g in alike) if (g.map { out[it.id] }.distinct().size > 1 || live.any { out[it.id] == "Door" && kotlin.math.abs(it.mesh.bounds.max.y - all.max.y) < 1.0 }) for (p in g) out[p.id] = "Back rail"
         }
+        // Framing, not furniture. Boards on edge, long and low, carrying three or more parts laid across their top
+        // edges (a deck's or platform's boards) are joists, not a case's sides and divider. Upright posts with three or
+        // more parts fixed across their faces and nothing on their tops (a slatted wall, a fence) are posts, not legs.
+        run {
+            fun across(p: Part, k: Int, top: Boolean): Int { val b = p.mesh.bounds
+                return live.count { q -> q !== p && q.mesh.bounds.let { c ->
+                    (if (top) kotlin.math.abs(c.min.z - b.max.z) < 1.0 else (kotlin.math.abs(c.max[k] - b.min[k]) < 1.0 || kotlin.math.abs(c.min[k] - b.max[k]) < 1.0)) &&
+                    (0..2).filter { it != (if (top) 2 else k) }.all { a -> c.min[a] < b.max[a] - 0.5 && c.max[a] > b.min[a] + 0.5 } &&
+                    // Across: running the other way, and passing beyond it on both sides (a slat over a post), not
+                    // ending at it (a bed's rail meeting its leg).
+                    c.extents.let { ce -> val long = (0..2).maxByOrNull { ce[it] }!!; long != (0..2).maxByOrNull { b.extents[it] }!! &&
+                        (if (top) c.min[long] <= b.min[long] + 1.0 && c.max[long] >= b.max[long] - 1.0 else c.min[long] < b.min[long] - 1.0 && c.max[long] > b.max[long] + 1.0) } } } }
+            for (p in live) {
+                val e = p.mesh.bounds.extents; val long = (0..2).maxByOrNull { e[it] }!!; val thin = (0..2).minByOrNull { e[it] }!!
+                if (out[p.id] in setOf("Side", "Divider", "Rail", "Stretcher", "Apron") && long != 2 && thin != 2 && e.z > 2 * e[thin] && e[long] >= 6 * e.z && across(p, 2, true) >= 3) out[p.id] = "Joist"
+                if (out[p.id] in setOf("Leg", "Post") && long == 2 && live.none { q -> q !== p && kotlin.math.abs(q.mesh.bounds.min.z - p.mesh.bounds.max.z) < 1.0 && q.mesh.bounds.min.x < p.mesh.bounds.max.x && q.mesh.bounds.max.x > p.mesh.bounds.min.x && q.mesh.bounds.min.y < p.mesh.bounds.max.y && q.mesh.bounds.max.y > p.mesh.bounds.min.y } &&
+                    ((0..1).maxOf { k -> across(p, k, false) } >= 3)) out[p.id] = "Post"
+            }
+        }
         return out
     }
 }

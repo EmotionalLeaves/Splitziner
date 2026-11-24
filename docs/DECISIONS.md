@@ -957,3 +957,7 @@ Read every page of three hard models (hutch desk, art crate, folding screen) and
 - Check summary: "The app can fix 15 of the 19 problems in one tap", not "15 of them".
 - Cutting plan pages carry what they show ("What to buy", "Sheets 1–2 of 3", "Boards"); the page bar uses it. DisplayList has a label for this.
 - Phone test waits for the New design picture before its screenshot.
+
+## v2.61 (critique round 3, part 2)
+- Assembly drawings dimension a level that covers 3% of the largest level's area (was 15%): board edges set positions (a dresser's drawer boxes, a bookcase's shelves), and at 15% only the overall sizes survived. The 8-per-axis limit and ordinate style above 5 keep stacks readable.
+- Framing is named as framing. Long, low boards on edge carrying three or more parts across their top edges are joists (a deck's), not a case's sides and divider. Upright posts with three or more parts passing right across their faces and nothing on their tops are posts (a slatted wall's), not legs. A bed's rails end at its legs, so its legs stay legs.
