@@ -2932,3 +2932,12 @@ class DisplayWallTest {
         assertTrue(report.findings.none { it.title == "Fix it to the wall" || it.title.startsWith("Spindles") || it.severity == splitziner.check.Severity.PROBLEM }, report.findings.map { it.title }.toString())
     }
 }
+
+class MirroredPiecesTest {
+    @Test fun aPairFacingEachOtherIsMadeAlike() {
+        val bytes = javaClass.getResourceAsStream("/complex/stand_pair.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "stand_pair.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(setOf(2), pl.steps.map { it.alike }.toSet())
+    }
+}

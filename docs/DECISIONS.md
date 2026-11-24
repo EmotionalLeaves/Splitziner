@@ -897,3 +897,6 @@ Departures from the build spec, newest first.
 
 ## v2.54
 - A stave's detail drawing says in its notes how its long edges are bevelled: the angle off square, sloping towards each other, the outside and inside face widths, and to rip them all at one blade tilt.
+
+## v2.55
+- Pieces in a set count as alike whichever way each is turned or mirrored in plan (a pair of nightstands facing each other): their parts compared in all eight quarter-turns and mirror images. A pair of handed pieces (doors hinged opposite ways) is made alike too; the door step already says to hinge on the side wanted.

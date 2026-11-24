@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.55.0 - mirrored pairs
+
+- A pair of pieces facing each other (nightstands, say) is now recognised as two alike and built once.
+
 ## v2.54.0 - stave drawing note
 
 - Many-sided plinth sides: the detail drawing now spells out the bevel and both face widths.

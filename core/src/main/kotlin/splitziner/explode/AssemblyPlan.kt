@@ -338,9 +338,17 @@ object AssemblyPlan {
         // Separate pieces in one file (nesting plinths, a pair of nightstands): each built on its own, one after another.
         splitziner.parts.Pieces.find(all.filter { !it.excluded })?.let { ps ->
             // Identical pieces (four plinths alike) are built once, "make 4 alike": the same parts in the same places.
+            // The same whichever way it is turned or mirrored in plan (a pair of nightstands facing each other).
+            val cmp = Comparator<List<Long>> { a, b -> a.zip(b).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 } ?: 0 }
             fun sig(piece: List<Part>): List<List<Long>> { val b0 = piece.map { it.mesh.bounds }.reduce { x, y -> x.union(y) }
-                return piece.map { p -> val b = p.mesh.bounds; listOf(b.min.x - b0.min.x, b.min.y - b0.min.y, b.min.z - b0.min.z, b.extents.x, b.extents.y, b.extents.z, kotlin.math.abs(p.mesh.volume) / 1000.0).map { Math.round(it) } }
-                    .sortedWith { a, b -> a.zip(b).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 } ?: 0 } }
+                val W = b0.extents.x; val D = b0.extents.y
+                return (0 until 8).map { t ->
+                    piece.map { p -> val b = p.mesh.bounds
+                        var x = b.min.x - b0.min.x; var y = b.min.y - b0.min.y; var ex = b.extents.x; var ey = b.extents.y; var w = W; var d = D
+                        if (t and 4 != 0) x = w - x - ex
+                        repeat(t and 3) { val nx = d - y - ey; val ny = x; x = nx; y = ny; val te = ex; ex = ey; ey = te; val tw = w; w = d; d = tw }
+                        listOf(x, y, b.min.z - b0.min.z, ex, ey, b.extents.z, kotlin.math.abs(p.mesh.volume) / 1000.0).map { Math.round(it) } }.sortedWith(cmp)
+                }.minWithOrNull { a, b -> a.zip(b).map { (x, y) -> cmp.compare(x, y) }.firstOrNull { it != 0 } ?: 0 }!! }
             val groups = ps.indices.groupBy { sig(ps[it]) }.values.toList()
             val steps = ArrayList<BuildStep>(); val planned = HashMap<String, Part>()
             for ((i, g) in groups.withIndex()) {
