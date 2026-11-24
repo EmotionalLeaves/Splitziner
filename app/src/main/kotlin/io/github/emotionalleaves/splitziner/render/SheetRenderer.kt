@@ -19,7 +19,7 @@ class PreparedSheet(val widthMm: Float, val heightMm: Float, val name: String, p
     class Item(val path: Path, val fill: Boolean, val width: Float, val dash: FloatArray?, val color: Int)
 
     /** Draws at [pxPerMm] with the sheet's top-left corner at the canvas origin. */
-    fun draw(canvas: Canvas, pxPerMm: Float, paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)) {
+    fun draw(canvas: Canvas, pxPerMm: Float, paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG), minPx: Float = MIN_STROKE_PX) {
         canvas.save()
         // Paper space has Y up; the canvas has Y down.
         canvas.translate(0f, heightMm * pxPerMm)
@@ -29,7 +29,9 @@ class PreparedSheet(val widthMm: Float, val heightMm: Float, val name: String, p
             if (it.fill) { paint.style = Paint.Style.FILL; paint.pathEffect = null }
             else {
                 paint.style = Paint.Style.STROKE
-                paint.strokeWidth = it.width
+                // Never thinner than a pixel: a thin line on a small picture (a design preview, a step card) would
+                // otherwise vanish, leaving only the heavy outline: a bookcase drawn as an empty box.
+                paint.strokeWidth = maxOf(it.width, minPx / pxPerMm)
                 paint.strokeJoin = Paint.Join.ROUND
                 paint.strokeCap = if (it.dash == null) Paint.Cap.ROUND else Paint.Cap.BUTT
                 paint.pathEffect = it.dash?.let { d -> DashPathEffect(d, 0f) }
@@ -40,6 +42,9 @@ class PreparedSheet(val widthMm: Float, val heightMm: Float, val name: String, p
     }
 
     companion object {
+        /** The thinnest line drawn on screen, in pixels. */
+        const val MIN_STROKE_PX = 1.2f
+
         fun of(list: DisplayList): PreparedSheet {
             val items = ArrayList<Item>()
             for (op: Op in RenderOps.flatten(list)) when (op) {
@@ -81,7 +86,7 @@ object PdfExporter {
                 val info = PdfDocument.PageInfo.Builder(Math.round(s.widthMm * PT_PER_MM), Math.round(s.heightMm * PT_PER_MM), i + 1).create()
                 val page = doc.startPage(info)
                 page.canvas.drawColor(Color.WHITE)
-                s.draw(page.canvas, PT_PER_MM)
+                s.draw(page.canvas, PT_PER_MM, minPx = 0f)   // print keeps the drawing's own line weights
                 doc.finishPage(page)
             }
             // Written under a temporary name first, so a failed export never leaves half a PDF behind.
@@ -110,7 +115,7 @@ object ImageExporter {
         try {
             val canvas = Canvas(bmp)
             canvas.drawColor(Color.WHITE)
-            sheet.draw(canvas, dpi / 25.4f)
+            sheet.draw(canvas, dpi / 25.4f, minPx = 0f)
             val dir = File(context.cacheDir, "exports").apply { mkdirs() }
             val out = File(dir, fileName)
             out.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }

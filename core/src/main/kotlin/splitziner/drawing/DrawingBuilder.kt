@@ -129,6 +129,12 @@ object DrawingBuilder {
                     b[j].min[a] < b[i].max[a] + 3.0 && b[j].max[a] > b[i].min[a] - 3.0 && b[j].min[c] < b[i].max[c] + 3.0 && b[j].max[c] > b[i].min[c] - 3.0 }
                 .map { j -> rect(b[j].min[a], b[j].min[c], b[j].max[a], b[j].max[c]) }
             if (cover.isEmpty()) return false
+            // Cheap first: if the covers, each grown by the 3 mm allowed below and clipped to it, add up to less than its
+            // area, they cannot cover it (a lattice's strips each cross a thousand others, all with gaps between).
+            val area = me.area
+            val reach = cover.sumOf { r -> val e = r.envelopeInternal
+                maxOf(0.0, minOf(e.maxX + 3.0, b[i].max[a] - 0.5) - maxOf(e.minX - 3.0, b[i].min[a] + 0.5)) * maxOf(0.0, minOf(e.maxY + 3.0, b[i].max[c] - 0.5) - maxOf(e.minY - 3.0, b[i].min[c] + 0.5)) }
+            if (reach < area - 1e-6) return false
             // A door's few millimetres of clearance do not let anyone see in.
             return runCatching { org.locationtech.jts.operation.union.CascadedPolygonUnion.union(cover).buffer(3.0).covers(me) }.getOrDefault(false)
         }
@@ -185,7 +191,8 @@ object DrawingBuilder {
         val n = ArrayList<String>()
         n += "DRAWING GENERATED FROM MESH DATA. VERIFY ALL DIMENSIONS BEFORE CUTTING."
         n += "DIMENSIONS ARE FROM THE LOWER LEFT FRONT CORNER UNLESS SHOWN OTHERWISE."
-        n += "REMOVE ALL BURRS AND SHARP EDGES."
+        // Wood and sheet goods: edges are sanded off, not deburred (a metalworking note read as boilerplate).
+        n += "SAND ALL EDGES SMOOTH AND BREAK SHARP CORNERS."
         n += info.notes.filter { it.isNotBlank() }
         if (sheet.compact) n += listOf("PRODUCED USING SPLITZINER", info.softwareVersion, if (info.sourceFile.isBlank()) "" else "FROM ${info.sourceFile}").filter { it.isNotBlank() }.joinToString(" ") + "."
         return n

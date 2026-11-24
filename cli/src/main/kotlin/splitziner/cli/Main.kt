@@ -96,7 +96,7 @@ fun main(args: Array<String>) {
         if (full) {
             // The same steps the app takes, written as SVG so they can be looked at.
             fun time(label: String, f: () -> Unit) { val t = System.nanoTime(); runCatching(f).onFailure { println("FAILED    $label: $it"); it.printStackTrace() }; println("time      $label ${(System.nanoTime() - t) / 1_000_000} ms") }
-            val info = splitziner.sheet.DrawingInfo(title = splitziner.text.Names.fromFile(f.name), drawingNo = "TEST-1")
+            val info = splitziner.sheet.DrawingInfo(title = splitziner.text.Names.fromFile(f.name), sourceFile = f.name, softwareVersion = "CLI", date = java.time.LocalDate.now().toString())
             var plan: splitziner.explode.PlanResult? = null
             time("plan") { plan = splitziner.explode.AssemblyPlan.plan(a.parts); println("plan      ${plan!!.steps.size} steps") }
             if (System.getenv("HOWTO") != null) for (row in a.cutList.rows) {
@@ -134,10 +134,12 @@ fun main(args: Array<String>) {
                 println("details   ${items.size} drawn, ${plain.size} plain items left to the list")
                 for ((row, d) in items) { File(out, "item%02d.svg".format(row.item)).writeText(splitziner.export.SvgWriter.write(d.sheets[0])); if (d.qa.isNotEmpty()) println("detail    ${d.qa}") }
             }
+            var fastenDone: splitziner.joinery.FastenPlan? = null
             time("guide") {
                 val pl = plan!!
                 val method = System.getenv("METHOD")?.let { m -> splitziner.joinery.JoinMethod.valueOf(m) } ?: splitziner.joinery.JoinMethod.defaultFor(tools)
                 val fasten = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, method, a.format, tools, a.housed)
+                fastenDone = fasten
                 println("hardware  ${method.label}: ${fasten.hardware}")
                 if (System.getenv("JOINTS") != null) for ((st, js) in fasten.byStep.toSortedMap()) for (j in js) println("joint     step $st: ${j.through.id} (item ${j.through.item} ${j.through.desc}) into ${j.into.id} (item ${j.into.item} ${j.into.desc}): ${j.count} ${j.size} ${j.kind}")
                 if (System.getenv("UPGUESS") != null) println("upguess   " + splitziner.pipeline.Pipeline.guessUp(a.parts))
@@ -164,7 +166,7 @@ fun main(args: Array<String>) {
                 println("tools     ${rep.toolsNeeded}")
             }
             time("cutplan") {
-                val cutRows = plan?.let { pl -> runCatching { splitziner.joinery.Fastening.grownRows(a.cutList.rows, splitziner.joinery.Fastening.plan(pl.parts, pl.steps, System.getenv("METHOD")?.let { m -> splitziner.joinery.JoinMethod.valueOf(m) } ?: splitziner.joinery.JoinMethod.defaultFor(tools), a.format, tools, a.housed)) }.getOrNull() } ?: a.cutList.rows
+                val cutRows = fastenDone?.let { f -> runCatching { splitziner.joinery.Fastening.grownRows(a.cutList.rows, f) }.getOrNull() } ?: a.cutList.rows
                 val cp = splitziner.cutplan.CutPlanner.plan(cutRows, splitziner.cutplan.StockSettings.defaultFor(a.format))
                 splitziner.cutplan.CutPlanLayout.pages(cp, cutRows, splitziner.text.Names.fromFile(f.name), a.format, extraBuy = listOfNotNull(splitziner.cutplan.EdgeBanding.line(a.parts, a.format))).forEachIndexed { i, d -> File(out, "cutplan%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("cutplan   ${splitziner.cutplan.CutPlanner.shoppingList(cp, a.format)} leftOut ${cp.leftOut.size}")

@@ -938,3 +938,14 @@ Read every page of three hard models (hutch desk, art crate, folding screen) and
 - Plurals of paired names: "fronts and backs".
 - Speed: the drawing's "buried part" test only unions what overlaps each part (a 2,020-part model stalled there for minutes); the fastening plan no longer rescans every part per joint.
 - Known, next: on a 2,020-part model the guide (200 s) and cutting plan (175 s) are still far too slow; repeated bays (a 20-bay library wall) are not built bay by bay.
+
+## v2.59 (critique round 2, screens and speed)
+- Guide tab: the Steps/Pages row gives the step count; the "draft order" caution is the first line of the list, not a column squeezing the chips. Each step's "You need" is a short bulleted list ("2 sides (1): panel 3/4 x 24 x 28-1/2"), in Build mode too.
+- Check tab: the two notes every design gets are one line at the foot of the list. The summary is amber, not red, when one tap fixes every problem.
+- Parts tab: no internal part numbers (P01...) on the rows, and the names told apart as in the cut list; the paragraph explaining the two share buttons is gone.
+- Drawing: the Turn to fill chip sits top left, over the sheet's border (or its blank lower left corner once turned), never the title block.
+- Cutting plan opens on the first sheet's layout; the buying page is one tap back. The stock line reads "Sheets 1220 x 2440 mm · boards 2440 mm long or more · saw cut 3 mm".
+- Small pictures (New design preview, step cards) draw no line thinner than 1.2 px, so a bookcase's shelves show instead of an empty box. Printing and PDFs keep the drawing's own line weights.
+- Drawing note "Remove all burrs and sharp edges" (metalwork) is now "Sand all edges smooth and break sharp corners".
+- Speed on a 2,020-part model: 464 s to about 47 s. The guide's per-joint checks are worked out once per part; the drawing's buried-part test rules out parts by covered area before any polygon union; the CLI reuses its fastening plan for the cutting plan.
+- Known, next: drawing sheets leave much of the paper empty (a hutch desk at 1/16 on C); repeated bays are not built bay by bay.

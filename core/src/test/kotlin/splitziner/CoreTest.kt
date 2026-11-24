@@ -2956,3 +2956,16 @@ class SawhorseTest {
         assertTrue(f.all.none { it.kind == "foldhinge" })
     }
 }
+
+class PreviewFacingTest {
+    /** The New design picture shows a bookcase's open front, not its back panel. */
+    @Test fun bookcasePreviewFacesFront() {
+        val t = splitziner.edit.Templates.byKey("shelves")!!
+        val parts = t.build(splitziner.edit.Templates.defaults(t, false)).mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
+        val turned = splitziner.pipeline.Pipeline.facingFront(parts)
+        val all = turned.map { it.mesh.bounds }.reduce { a, b -> a.union(b) }
+        // Nothing thin covers the whole front face (the view looks from the front, -Y).
+        val coverFront = turned.any { p -> val b = p.mesh.bounds; b.extents.y < 20.0 && b.min.y <= all.min.y + 1.0 && b.extents.x >= 0.9 * all.extents.x && b.extents.z >= 0.8 * all.extents.z }
+        kotlin.test.assertFalse(coverFront, "the back panel faces the viewer")
+    }
+}

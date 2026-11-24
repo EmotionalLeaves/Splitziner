@@ -260,6 +260,8 @@ object Fastening {
         // The whole piece's box, once: worked out per joint it made thousands of parts take minutes.
         // Looked up once, not per joint: with a thousand parts and a million contacts, scanning every part per joint is hours.
         val tenonParts = live.filter { it.name == "Tenon" }
+        val bracketIdx = live.indices.filter { live[it].name == "Bracket" }
+        val coverOf = HashMap<Int, Pair<Double, Boolean>>()
         val hasSlats = live.any { it.name == "Slat" }
         val hasBedRails = live.any { it.name == "Side rail" && it.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) } > BED_RAIL_MIN }
         val hasCrateLid = live.any { it.name == "Crate lid" }
@@ -610,9 +612,11 @@ object Fastening {
             // Slats under a mattress are not on show: only a top (named so, or a wide board) counts.
             val wideTop = thr.name == "Top" || minOf(hi[ti0].x - lo[ti0].x, hi[ti0].y - lo[ti0].y) >= 150.0
             // Open: most of its face is on show (a desk top with a hutch on its back half still is).
-            val covered = rel.lo.indices.filter { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && lo[n].z <= hi[ti0].z + 2.0 }.sumOf { n ->
-                maxOf(0.0, minOf(hi[n].x, hi[ti0].x) - maxOf(lo[n].x, lo[ti0].x)) * maxOf(0.0, minOf(hi[n].y, hi[ti0].y) - maxOf(lo[n].y, lo[ti0].y)) }
-            val hutched = rel.lo.indices.any { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
+            // Worked out once per part: they depend on the part alone, and a part has many joints.
+            val (covered, hutched) = coverOf.getOrPut(ti0) {
+                rel.lo.indices.filter { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && lo[n].z <= hi[ti0].z + 2.0 }.sumOf { n ->
+                    maxOf(0.0, minOf(hi[n].x, hi[ti0].x) - maxOf(lo[n].x, lo[ti0].x)) * maxOf(0.0, minOf(hi[n].y, hi[ti0].y) - maxOf(lo[n].y, lo[ti0].y)) } to
+                rel.lo.indices.any { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) } }
             // A crate's frame is packing, not furniture: screw heads in its top board are fine.
             val openTop = wideTop && thr.name != "Slat" && !hasCrateLid && (!hutched || (thr.name == "Top" && covered < 0.5 * (hi[ti0].x - lo[ti0].x) * (hi[ti0].y - lo[ti0].y)))
             // A top on flat stretchers (a cabinet's, a worktop on a row of them) is screwed from below, up through the
@@ -648,7 +652,7 @@ object Fastening {
             // A narrow cap (a planter's top rail, 4 in wide or less) is simply screwed down: it barely moves with the seasons.
             val narrowCap = (0..2).map { ax -> rel.hi[ti0][ax] - rel.lo[ti0][ax] }.sorted()[1] <= CAP_WIDTH
             // A shelf on wall brackets is screwed down into them and into the back board.
-            val onBrackets = live.any { it.name == "Bracket" && rel.touching[ti0].contains(idx.getValue(it.id)) }
+            val onBrackets = bracketIdx.any { it in rel.touching[ti0] }
             val topDown = k == 2 && thr.name != "Slat" && thr.name != "Tread" && !narrowCap && !onBrackets && (rel.lo[ti0].z >= rel.hi[idx.getValue(into.id)].z - 2.0) && (width > 2 * tThrough || openTop)
             // A thin panel's edge under a top (a back panel stopping beneath it) holds nothing and is held by its
             // rabbet or cleats: no bracket can be fixed to a 1/4 in edge.

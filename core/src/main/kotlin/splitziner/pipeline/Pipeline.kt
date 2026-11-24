@@ -186,6 +186,20 @@ object Pipeline {
      * drawers and doors that open towards it, a kick board and a face frame at the front, a back at the back.
      * 0 unless another turn is clearly better (by [MARGIN] points). [parts] stand the right way up already.
      */
+    /**
+     * The parts turned the way the drawings will show them, front to the front: for a small picture of a design (the
+     * New design preview), which would otherwise show a bookcase from its back.
+     */
+    fun facingFront(parts: List<Part>): List<Part> {
+        val n = runCatching { guessTurn(parts) }.getOrDefault(0)
+        if (n == 0) return parts
+        val r = upRotation("z>$n")
+        return parts.map { p -> p.copy(mesh = splitziner.mesh.Mesh(DoubleArray(p.mesh.vertices.size) { i ->
+            val v = 3 * (i / 3); val x = p.mesh.vertices[v]; val y = p.mesh.vertices[v + 1]; val z = p.mesh.vertices[v + 2]
+            r[3 * (i % 3)] * x + r[3 * (i % 3) + 1] * y + r[3 * (i % 3) + 2] * z
+        }, p.mesh.triangles)) }
+    }
+
     fun guessTurn(parts: List<Part>): Int {
         val live = parts.filter { !it.excluded }
         if (live.size < 3) return 0

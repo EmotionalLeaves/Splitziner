@@ -479,25 +479,25 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                 }
             }
         } else if (tab == 1) {
+            val shownNames0 = remember(a) { runCatching { splitziner.parts.Distinct.names(a.parts) }.getOrDefault(emptyMap()) }
             LazyColumn(Modifier.weight(1f)) {
                 // In item order, the left-out parts last; sizes in ordinary type with their unit, like the cut list.
                 val ordered = a.parts.sortedWith(compareBy({ it.excluded }, { it.item ?: Int.MAX_VALUE }, { it.id }))
                 items(ordered, key = { it.id }) { p ->
+                    val shownNames = shownNames0
                     Row(Modifier.fillMaxWidth().clickable { editPart = p }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         val it0 = p.item; if (it0 != null && !p.excluded) ItemBadge(it0) else Box(Modifier.size(28.dp))
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(splitziner.parts.Distinct.shown(p, shownNames), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             val desc = p.desc.lowercase().replaceFirstChar { it.uppercase() }
                             Text(if (p.excluded) "Left out of lists and drawings" else desc.substringBefore(',') + " ${a.format.unitLabel}" + (if (desc.contains(',')) "," + desc.substringAfter(',') else ""),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (p.excluded) Text("excluded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
-                        else Text(p.id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                     HorizontalDivider()
                 }
             }
-            Text("Share parts sends each part as its own STL in a zip; Share model sends the whole model as one STL.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { shareParts(context, open) }, modifier = Modifier.weight(1f)) { Text("Share parts", maxLines = 1) }
                 OutlinedButton(onClick = { shareModel(context, open) }, modifier = Modifier.weight(1f)) { Text("Share model", maxLines = 1) }
@@ -796,8 +796,9 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
                     val w = maxHeight; val h = maxWidth
                     Box(Modifier.requiredSize(w, h).graphicsLayer { rotationZ = 90f }) { SheetPreview(sh, Modifier.fillMaxSize()) }
                 } else SheetPreview(sh, Modifier.fillMaxSize())
+                // Top left: the sheet's border there, or its empty lower left corner when turned, never the title block.
                 if (sh.widthMm > sh.heightMm) androidx.compose.material3.FilterChip(selected = turned, onClick = { turned = !turned }, label = { Text(if (turned) "Turned" else "Turn to fill") },
-                    modifier = Modifier.align(Alignment.TopEnd))
+                    modifier = Modifier.align(Alignment.TopStart))
             }
             if (state.drawingBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
@@ -978,13 +979,14 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     // Steps to read on the phone by default; the printable pages (the PDF) one tap away.
     var asPages by rememberSaveable { mutableStateOf(false) }
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             androidx.compose.material3.FilterChip(selected = !asPages, onClick = { asPages = false }, label = { Text("Steps") })
             androidx.compose.material3.FilterChip(selected = asPages, onClick = { asPages = true }, label = { Text("Pages") })
-            Text("A draft order worked out from the shapes: read it through before you build.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            if (g != null) Text("${g.stepCount} steps", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (!asPages) Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
             if (g != null && g.work.isNotEmpty()) LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { Text("A draft order worked out from the shapes: read it through before you build.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 items(g.work.size) { i ->
                     val st = g.work[i]
                     ElevatedCard(Modifier.fillMaxWidth()) {
@@ -993,8 +995,10 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                             Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.small).clickable { showBuild = true }) {
                                 SheetThumb(st.picture, Modifier.fillMaxWidth().height(190.dp))
                             }
-                            if (st.parts.isNotEmpty()) Text("You need: " + st.parts.joinToString("; ") { it.replace(Regex("""^(.*?\)) ([A-Z]+ [0-9].*)$""")) { m -> m.groupValues[1] + " " + m.groupValues[2].lowercase() } },
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (st.parts.isNotEmpty()) {
+                                Text("You need", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 2.dp))
+                                for (n in st.parts) Text("\u2022 " + needLine(n), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             for ((k, line) in st.text.withIndex()) Row(Modifier.padding(top = 4.dp)) {
                                 Text("${k + 1}.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
                                 Text(line, style = MaterialTheme.typography.bodyMedium)
@@ -1081,7 +1085,7 @@ private fun BuildModeDialog(open: OpenProject, work: List<WorkStep>, onDismiss: 
                     if (st.parts.isNotEmpty()) {
                         item { Text("You need", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
                         // "Item 1 (side) PANEL 18 X 600 X 1500" in ordinary type, as on the Parts tab.
-                        items(st.parts) { Text("\u2022 " + it.replace(Regex("""^(.*?\)) ([A-Z]+ [0-9].*)$""")) { m -> m.groupValues[1] + " " + m.groupValues[2].lowercase() }, style = MaterialTheme.typography.bodyMedium) }
+                        items(st.parts) { Text("\u2022 " + needLine(it), style = MaterialTheme.typography.bodyMedium) }
                     }
                     item { Text("What to do", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
                     items(st.text.size) { i ->
@@ -1568,7 +1572,7 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
     var rotate by remember { mutableStateOf(prefs.getBoolean("rotate", true)) }
     var longer by remember { mutableStateOf(prefs.getBoolean("longer", true)) }
     var editing by remember { mutableStateOf(false) }
-    var page by remember { mutableStateOf(0) }
+    var page by remember { mutableStateOf(-1) }   // -1: not chosen yet, so it opens on the first sheet layout
     val w = num(sheetW); val l = num(sheetL); val b = num(boardL); val k = num(kerf)
     val valid = w != null && l != null && b != null && k != null && w > 0 && l > 0 && b > 0 && k >= 0
     // The sheet's longer side is its length, whichever box it was typed in.
@@ -1608,7 +1612,7 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
                         Row(Modifier.fillMaxWidth().clickable { editing = !editing }, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Stock", style = MaterialTheme.typography.labelLarge)
-                                Text("Sheets ${sheetW.trim()} x ${sheetL.trim()}, boards ${boardL.trim()}${if (longer) " or longer" else ""} long, saw cut ${kerf.trim()} ($tag)" + if (!rotate) ", grain kept" else "",
+                                Text("Sheets ${sheetW.trim()} x ${sheetL.trim()} $tag \u00b7 boards ${boardL.trim()} $tag long${if (longer) " or more" else ""} \u00b7 saw cut ${kerf.trim()} $tag" + if (!rotate) " \u00b7 grain kept" else "",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             TextButton(onClick = { editing = !editing }) { Text(if (editing) "Done" else "Change") }
@@ -1637,7 +1641,8 @@ private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> 
                     }
                 }
                 val pages = made?.pages.orEmpty()
-                val shown = page.coerceIn(0, maxOf(0, pages.size - 1))
+                // Opens on the first sheet's layout, the picture people came for; the buying page is one tap back.
+                val shown = (if (page < 0) (if (pages.size > 1) 1 else 0) else page).coerceIn(0, maxOf(0, pages.size - 1))
                 Box(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
                     if (pages.isNotEmpty()) io.github.emotionalleaves.splitziner.render.SheetPreview(pages[shown], Modifier.fillMaxSize())
                     else if (valid) LinearProgressIndicator(Modifier.align(Alignment.Center).fillMaxWidth(0.6f))
@@ -2146,7 +2151,7 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 val mm = t.fields.associate { f -> f.key to (num(values[f.key] ?: "")?.let { v -> if (f.count) v else if (inch) v * 25.4 else v } ?: d.getValue(f.key)) }
                 val parts = try { t.build(mm) } catch (e: splitziner.edit.Templates.SizesDoNotFit) { sizesWrong = e.message; return@runCatching null }.mapIndexed { i, m -> splitziner.parts.Part("P$i", "P$i", m) }
                 sizesWrong = null
-                io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(parts, 90.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false)))
+                io.github.emotionalleaves.splitziner.render.PreparedSheet.of(splitziner.explode.ExplodedView.render(splitziner.pipeline.Pipeline.facingFront(parts), 90.0, 60.0, splitziner.explode.ExplodeOptions(balloons = false)))
             }.getOrNull()
         }
     }
@@ -2442,4 +2447,15 @@ private fun DesignSizesDialog(open: OpenProject, vm: AppViewModel, onDismiss: ()
             }
         },
     )
+}
+
+
+/**
+ * A step's "you need" entry as it reads at the bench: "2× Item 1 (side): PANEL 18 X 600 X 1500" becomes
+ * "2 sides (1): panel 18 x 600 x 1500". Hardware lines are left as they are.
+ */
+internal fun needLine(n: String): String {
+    val m = Regex("""^(\d+)\s*[x×]\s*Item (\S+) \(([^)]+)\):\s*(.*)$""").find(n) ?: return n
+    val count = m.groupValues[1].toInt(); val name = m.groupValues[3]
+    return (if (count == 1) name.replaceFirstChar { it.uppercase() } else "$count ${splitziner.guide.GuideSteps.pluralOf(name)}") + " (${m.groupValues[2]}): " + m.groupValues[4].lowercase()
 }

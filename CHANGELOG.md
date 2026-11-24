@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.59.0 - Clearer screens, much faster big models
+
+Critique round 2, part 2: cleaner screens and much faster big models.
+
+- Guide: each step's "You need" is a short list that reads like a shopping note, and the steps get more of the screen.
+- Check: the standard notes sit at the foot of the list. The summary is amber, not red, when one tap fixes everything.
+- Parts: no internal part numbers, and parts that share a name are told apart.
+- Drawing: the Turn to fill button no longer covers the title block.
+- Cutting plan: opens on the sheet layouts, and the stock line is plain ("boards 8 ft long or more · saw cut 1/8 in").
+- Small pictures keep their thin lines, so the New design bookcase shows its shelves.
+- Drawings say "sand all edges smooth" instead of a metalworking note.
+- A 2,000-part model now goes through in under a minute (it took nearly eight).
+
 ## v2.58.0 - Critique round 2: a guide you can build from, at any size
 
 Critique round 2: the build guide and checks, made general and tested from 2 to 2,000+ parts.
