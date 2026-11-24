@@ -283,7 +283,7 @@ object DesignCheck {
     }
 
     /** Notes worth printing at the end of the build guide: what to get or do once the piece is made. */
-    private val FINISH_TITLES = listOf("Glass, backing and hanging", "Glass and hanging", "Hanging (not in the model)", "Canvas to cut", "What it takes", "Weigh it down")
+    private val FINISH_TITLES = listOf("Glass, backing and hanging", "Glass and hanging", "Hanging (not in the model)", "Canvas to cut", "What it takes", "Weigh it down", "Keep it on its feet", "A wall to hang on")
 
     /** The [report]'s notes that belong at the end of the build guide, each as "Title. Detail". */
     fun finishNotes(report: CheckReport?): List<String> = report?.findings.orEmpty().filter { f -> FINISH_TITLES.any { f.title.startsWith(it) } }
@@ -611,6 +611,13 @@ object DesignCheck {
         if (live.isNotEmpty()) run {
             val all = live.map { it.mesh.bounds }
             val h = all.maxOf { it.max.z } - all.minOf { it.min.z }; val dd = all.maxOf { it.max.y } - all.minOf { it.min.y }
+            // A gallery wall's faces: filled, sanded and painted, and work hung into its studs.
+            runCatching { splitziner.parts.StudWalls.find(live) }.getOrNull()?.let { w ->
+                val oc = w.studs.map { it.mesh.bounds.center }.let { cs -> val ax = if (w.plates[0].mesh.bounds.extents.x >= w.plates[0].mesh.bounds.extents.y) 0 else 1; cs.map { it[ax] }.sorted().zipWithNext { a, b -> b - a }.let { g -> if (g.size >= 3) g.drop(1).dropLast(1).sorted()[(g.size - 2) / 2] else g.maxOrNull() } }
+                out += Finding(Severity.NOTE, "A wall to hang on",
+                    "Fill the screw heads and the joints between sheets, sand them flat and paint it (gallery walls are usually white, in a matt or eggshell finish). Heavy work hangs best on screws into the studs" +
+                        (oc?.let { " (${d(it)} $u apart on centre; mark them on the skin before it goes on, or find them by the screw heads)" } ?: "") + "; light work can hang anywhere on the plywood with screws short enough not to come through the other face.")
+            }
             if (live.any { it.name == "Hanging rail" }) out += Finding(Severity.CHECK, "Hang it from the studs",
                 "It has a hanging rail across the back: it is screwed to the wall through that rail, into the studs (or with plugs made for masonry). Plasterboard alone will not hold a loaded cabinet.")
             // A closed pedestal with a low shelf inside (a display plinth) stands free: its shelf takes the weight.

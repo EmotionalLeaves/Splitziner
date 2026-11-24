@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.53.0 - wall finishing notes
+
+- Display walls: the guide ends with how to finish the wall and where to hang heavy work (into the studs, with their spacing).
+
 ## v2.52.0 - display wall
 
 - New studio design: a freestanding display wall (stud frame, plywood skin on one or both faces, feet). The guide frames it, skins it, and stands it on its feet.
