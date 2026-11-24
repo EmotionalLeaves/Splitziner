@@ -377,7 +377,9 @@ object AssemblyPlan {
         val rackLate = if (standing.size >= 3 && onTop.isNotEmpty() && onTop.all { o -> o.mesh.bounds.extents.let { minOf(it.x, it.y) } <= SLAT_RAIL_MAX }) standing + onTop else emptyList()
         // A table with its legs straight into the top: the top laid face down, the legs bolted on last, from below.
         val bareLegs = if (casters.isEmpty()) runCatching { splitziner.parts.Apronless.legs(live0) }.getOrDefault(emptyList()) else emptyList()
-        val late = casters + lid + stops + sbBack + rackLate + bareLegs
+        // Legs screwed to a beam (a sawhorse's): the beam on the bench, then the legs, then it is stood up.
+        val beamLegs = if (live0.any { it.name == "Beam" }) live0.filter { it.name == "Leg" } else emptyList()
+        val late = casters + lid + stops + sbBack + rackLate + bareLegs + beamLegs
         // A stud wall: the frame first, then a skin on each face, then it is stood up on its feet.
         runCatching { splitziner.parts.StudWalls.find(live0) }.getOrNull()?.let { w ->
             // The frame in one go, laid flat: plates on edge, the studs between them.
@@ -418,6 +420,7 @@ object AssemblyPlan {
         if (sbBack.isNotEmpty()) r = lastStep(r, sbBack, Vec3(0.0, 0.0, 1.0))
         if (casters.isNotEmpty()) r = lastStep(r, casters, Vec3(0.0, 0.0, -1.0))
         if (bareLegs.isNotEmpty()) r = lastStep(r, bareLegs, Vec3(0.0, 0.0, -1.0))
+        if (beamLegs.isNotEmpty()) r = lastStep(r, beamLegs, Vec3(0.0, 0.0, -1.0))
         val planned = r.parts.associateBy { it.id }
         return PlanResult(all.map { planned[it.id] ?: it }, r.steps)
     }

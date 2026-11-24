@@ -477,6 +477,13 @@ object GuideSteps {
                     }
                 }
             }
+            // Splayed legs with compound-cut ends (a sawhorse's): how to set each one, since no square shows it.
+            if (!st.subassembly) cur.filter { it.name == "Leg" && it.desc.contains("(COMPOUND)") }.let { ls ->
+                val m = ls.firstNotNullOfOrNull { Regex("""ENDS CUT AT (\S+) AND (\S+) \(COMPOUND\)""").find(it.desc) }
+                val beam = drawn.firstOrNull { it.name == "Beam" }
+                if (ls.isNotEmpty() && m != null) lines += "Set each item ${ls[0].item ?: "-"}" + named(listOf(ls[0])) + " splayed as drawn (its ends are cut at ${m.groupValues[1]} and ${m.groupValues[2]}), so both cut ends lie flat" +
+                    (beam?.let { b -> ": the top end flush with the top of item ${b.item ?: "-"}" + named(listOf(b)) + ", the foot flat on the floor" } ?: "") + ". Clamp it, check with a bevel gauge, then fix it."
+            }
             // A stud wall's frame, laid out flat: the studs' spacing on centre, the usual way framers set them out.
             if (fmt != null && cur.count { it.name == "Stud" } >= 2 && cur.any { it.name == "Plate" }) {
                 val studs = cur.filter { it.name == "Stud" }; val plate = cur.first { it.name == "Plate" }

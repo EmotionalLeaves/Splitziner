@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.56.0 - sawhorse
+
+- Sawhorses: the four splayed legs are no longer mistaken for an easel's folding leg. The beam goes down first and each leg is set and checked at its angles.
+
 ## v2.55.0 - mirrored pairs
 
 - A pair of pieces facing each other (nightstands, say) is now recognised as two alike and built once.

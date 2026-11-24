@@ -538,11 +538,12 @@ object Roles {
                 runCatching { splitziner.mesh.OrientedBounds.of(it.mesh) }.getOrNull()?.let { obb -> val oe = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
                     Math.toDegrees(kotlin.math.acos(kotlin.math.abs(obb.axes[oe.indices.maxByOrNull { oe[it] }!!].z).coerceIn(0.0, 1.0))) >= 5.0 } == true }
             if (leaning.size < 3) return@run
-            for (l in leaning) {
+            val backs = leaning.filter { l ->
                 val lb = l.mesh.bounds
                 val near = live.filter { o -> o !== l && touches(l, o) }
-                if (near.isNotEmpty() && near.all { o -> maxOf(o.mesh.bounds.min.z, lb.min.z) >= lb.max.z - 0.2 * lb.extents.z }) out[l.id] = "Back leg"
-            }
+                near.isNotEmpty() && near.all { o -> maxOf(o.mesh.bounds.min.z, lb.min.z) >= lb.max.z - 0.2 * lb.extents.z } }
+            // Only when the others are fixed front legs: legs all alike held at their tops (a sawhorse's) are its legs.
+            if (leaning.size - backs.size >= 2) for (l in backs) out[l.id] = "Back leg"
             val front = leaning.filter { out[it.id] == "Leg" }
             if (front.size < 2 || leaning.none { out[it.id] == "Back leg" }) return@run
             for (p in live) {
@@ -683,6 +684,17 @@ object Roles {
                 val b = p.mesh.bounds
                 if (b.min.x > all.min.x + 0.5 && b.max.x < all.max.x - 0.5 && b.min.y > all.min.y + 0.5 && b.max.y < all.max.y - 0.5) out[p.id] = "Brace"
             }
+        }
+        // A board on edge that every leg is fixed to and nothing else touches the legs (a sawhorse's top): the beam.
+        run {
+            val legs = live.filter { out[it.id] == "Leg" }
+            if (legs.size < 3) return@run
+            val held = legs.map { l -> live.filter { o -> o !== l && out[o.id] != "Leg" && touches(l, o) } }
+            val one = held.map { it.singleOrNull() }
+            val beam = one.firstOrNull() ?: return@run
+            if (one.any { it !== beam }) return@run
+            val e = beam.mesh.bounds.extents
+            if (e.z > minOf(e.x, e.y) && beam.mesh.bounds.max.z >= all.max.z - 1.0) out[beam.id] = "Beam"
         }
         // A rail lying on spindles' tops (a drying rack's, a railing's) is their top rail, whatever else it touches.
         run {

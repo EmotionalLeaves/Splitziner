@@ -900,3 +900,7 @@ Departures from the build spec, newest first.
 
 ## v2.55
 - Pieces in a set count as alike whichever way each is turned or mirrored in plan (a pair of nightstands facing each other): their parts compared in all eight quarter-turns and mirror images. A pair of handed pieces (doors hinged opposite ways) is made alike too; the door step already says to hinge on the side wanted.
+
+## v2.56
+- Leaning legs all held only at their tops are not an easel's folding back legs unless at least two fixed front legs remain: a sawhorse's four legs are legs.
+- A board on edge at the top that every leg is fixed to, with nothing else touching the legs, is the beam: it is put down first and the legs fixed to it last. A step fitting legs with compound-cut ends says to set each splayed as drawn so both cut ends lie flat (flush with the beam's top, foot on the floor), checked with a bevel gauge.

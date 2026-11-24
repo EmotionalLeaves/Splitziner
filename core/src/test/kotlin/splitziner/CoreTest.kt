@@ -2941,3 +2941,16 @@ class MirroredPiecesTest {
         assertEquals(setOf(2), pl.steps.map { it.alike }.toSet())
     }
 }
+
+class SawhorseTest {
+    @Test fun fourSplayedLegsOnABeamAreLegsNotFoldingBackLegs() {
+        val bytes = javaClass.getResourceAsStream("/complex/sawhorse.stl")!!.readBytes()
+        val a = Pipeline.analyze(bytes, "sawhorse.stl", splitziner.pipeline.AnalysisOptions(fileUnits = "mm"))
+        assertEquals(4, a.parts.count { it.name == "Leg" }, a.parts.map { it.name }.toString())
+        assertEquals(1, a.parts.count { it.name == "Beam" })
+        val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
+        assertEquals(2, pl.steps.size)
+        val f = splitziner.joinery.Fastening.plan(pl.parts, pl.steps, splitziner.joinery.JoinMethod.SCREWS, LengthFormat("in", "fraction"))
+        assertTrue(f.all.none { it.kind == "foldhinge" })
+    }
+}
