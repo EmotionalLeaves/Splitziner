@@ -966,3 +966,7 @@ Read every page of three hard models (hutch desk, art crate, folding screen) and
 - The app's cutting plan draws one sheet to a page, centred and twice the size: two side by side on a letter page left each layout a sixth of a phone screen. The CLI keeps two to a page (CutPlanLayout.pages perPage).
 - Rabbet lines count the thin parts: "Glue the 20 back panels (2) into the rabbets ... and pin them".
 - Stress model fixed: the library wall's shelves ran into its backs (a clash the check would flag); with that fixed, its shelves get their spacing ("7-1/8 in apart, evenly"). Its steps still mix bays: open.
+
+## v2.63 (critique round 3, part 4)
+- When the list of material beside the views costs them a scale step, it goes on a sheet of its own ("LIST OF MATERIAL ON SHEET 2") and the views take the step: the dresser went from 1/12 to 1/8. Not when the user pinned the sheet or scale.
+- The pictorial's label is kept inside the border; a small picture in the corner pushed "SCALE: NONE" off the sheet.

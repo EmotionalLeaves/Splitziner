@@ -309,14 +309,21 @@ object DrawingBuilder {
             val listH = ListOfMaterial.height(rows.size)
             val listFits = listH <= MAX_LIST_SHARE * sheet.height
             if (!listFits && pinned == null && ci < candidates.size - 1) continue
-            val lh = if (listFits) listH else 0.0
-            val s = scales.firstOrNull { place(sheet, it, lh).fits } ?: continue
+            var lh = if (listFits) listH else 0.0
+            var s = scales.firstOrNull { place(sheet, it, lh).fits } ?: continue
+            var onSheet = listFits
+            // A list beside the views that costs them a scale step (a dresser at 1/12 where 1/8 fits without it) goes on
+            // a sheet of its own instead, as assembly drawings often have it: the views are what the sheet is for.
+            if (lh > 0 && pinned == null && settings.scale == null) {
+                val s2 = scales.firstOrNull { place(sheet, it, 0.0).fits }
+                if (s2 != null && s2 > s * 1.01) { s = s2; lh = 0.0; onSheet = false }
+            }
             val fill = place(sheet, s, lh).fill
             val big = maxOf(wf, hf) * s
             // A long, narrow part (a 68 in apron 3 in deep) also needs its narrow side readable, or a notch in it is lost.
             val narrow = maxOf(minOf(wf, hf), minOf(wt, ht), minOf(wr, hr)) * s
             val ok = pinned != null || settings.scale != null || (big >= MIN_VIEW_MM && narrow >= MIN_NARROW_MM && fill >= MIN_FILL) || s == scales.first()
-            if (ok || ci == candidates.size - 1) { chosen = Layout(sheet, s, fill, listFits); break }
+            if (ok || ci == candidates.size - 1) { chosen = Layout(sheet, s, fill, onSheet); break }
         }
         val qa = ArrayList<String>()
         if (chosen == null) {
@@ -546,7 +553,9 @@ object DrawingBuilder {
                     for (q in xy.indices step 2) { bx0 = minOf(bx0, xy[q]); bx1 = maxOf(bx1, xy[q]); by0 = minOf(by0, xy[q + 1]) }
                 }
                 val (cx, ty) = if (bx0 < bx1) (bx0 + bx1) / 2 to by0 - L.dims * 2.5 else (x0 + x1b) / 2 to y0
-                dl.text(cx, maxOf(y0, ty), "PICTORIAL VIEW, SCALE: NONE", L.dims, splitziner.sheet.HAlign.CENTER, tag = "section")
+                // Kept inside the border: a small picture in the corner would push its label off the sheet.
+                val label = "PICTORIAL VIEW, SCALE: NONE"; val half = splitziner.sheet.StrokeFont.width(label, L.dims) / 2 + 2
+                dl.text(cx.coerceIn(sheet.fieldX0 + half, sheet.fieldX1 - half), maxOf(y0, ty), label, L.dims, splitziner.sheet.HAlign.CENTER, tag = "section")
             }
         }.onFailure { qa += "Pictorial view left off: ${it.message}" }
         qa += dl.qa

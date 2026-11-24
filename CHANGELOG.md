@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.63.0 - Bigger views on the drawing
+
+Critique round 3, part 4: bigger views on the drawing.
+
+- When the parts list beside the views would force them smaller, the list moves to its own sheet and the views are drawn a scale bigger. A dresser now draws at 1/8 instead of 1/12.
+- The pictorial's caption no longer runs off the edge of the sheet.
+
 ## v2.62.0 - A cutting plan you can read on a phone
 
 Critique round 3, part 3: a cutting plan you can read on a phone.
