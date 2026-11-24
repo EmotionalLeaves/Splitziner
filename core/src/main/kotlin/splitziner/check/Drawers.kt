@@ -1,5 +1,7 @@
 package splitziner.check
 
+import splitziner.parts.Pieces
+
 import splitziner.math.Vec3
 import splitziner.parts.Part
 
@@ -40,6 +42,10 @@ object Drawers {
         fun ext(i: Int) = hi[i] - lo[i]
         fun thin(i: Int) = minOf(ext(i).x, ext(i).y, ext(i).z)
         val out = ArrayList<Drawer>(); val used = HashSet<Int>()
+        // A box between two separate pieces (a row of crates) is not in an opening: what stands beside a drawer is
+        // its own carcass.
+        val pieceOf = HashMap<String, Int>()
+        runCatching { Pieces.find(live) }.getOrNull()?.forEachIndexed { k, ps -> ps.forEach { pieceOf[it.id] = k } }
         // Candidate bottoms: flat horizontal boards.
         for (b in live.indices) {
             if (b in used) continue
@@ -78,7 +84,8 @@ object Drawers {
             val lidded = live.indices.any { j -> j !in set && lo[j].z < boxTop - 1 && hi[j].z > boxTop - 0.25 * (boxTop - bl.z) && lo[j].x < bh.x - 1 && hi[j].x > bl.x + 1 && lo[j].y < bh.y - 1 && hi[j].y > boxFront + 1 && ext(j).z < 30 && lo[j].z > bl.z + 0.5 * (boxTop - bl.z) }
             if (lidded) continue
             // In an opening: something outside the box on both sides over most of its height and depth.
-            fun beside(left: Boolean): Double? = live.indices.filter { j -> j !in set &&
+            val own = pieceOf[live[b].id]
+            fun beside(left: Boolean): Double? = live.indices.filter { j -> j !in set && pieceOf[live[j].id] == own &&
                 lo[j].z < bh.z && hi[j].z > bl.z + 0.3 * (bh.z - bl.z) && lo[j].y < bh.y && hi[j].y > bl.y + 0.3 * (bh.y - bl.y) &&
                 (if (left) hi[j].x <= bl.x + 0.5 else lo[j].x >= bh.x - 0.5) }
                 .minOfOrNull { j -> if (left) bl.x - hi[j].x else lo[j].x - bh.x }

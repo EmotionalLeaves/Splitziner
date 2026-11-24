@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.58.0 - Critique round 2: a guide you can build from, at any size
+
+Critique round 2: the build guide and checks, made general and tested from 2 to 2,000+ parts.
+
+- Steps put parts in an order that can be built: each goes in once something it touches is there. A crate's battens go on its lid before the lid goes on.
+- Parts that share a name are told apart everywhere: "hutch side", "front leg" and "back leg", "long apron" and "short apron".
+- Rabbets for thin backs are cut when the parts are made, and the back is cut big enough to reach into them. The cutting plan and shopping list use that size, and the brads are counted.
+- Brads for thin panels are spaced about every 6 in, so counts match real practice.
+- Missing positions are given: a part flush with the top of what holds it, battens spread along a lid, and even spacing for many slats.
+- New check: a panel drawn the size of its opening behind a frame, touching it only along its edges.
+- No touching part is left without a fixing.
+- Big models: separate crates are no longer mistaken for drawers, alike pieces are counted, and 200 slats are one step. Large models no longer stall on the drawing.
+
 ## v2.57.0 - critique round 1
 
 - The Guide tab now shows steps you can read on your phone (the printable pages are under Pages).

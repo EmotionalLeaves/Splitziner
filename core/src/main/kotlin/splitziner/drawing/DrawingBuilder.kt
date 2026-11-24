@@ -124,7 +124,9 @@ object DrawingBuilder {
             val (a, c) = (0..2).filter { it != k }
             val me = rect(b[i].min[a] + 0.5, b[i].min[c] + 0.5, b[i].max[a] - 0.5, b[i].max[c] - 0.5)
             if (me.isEmpty || me.area <= 0) return false
-            val cover = b.indices.filter { j -> j != i && (if (larger) b[j].min[k] >= b[i].max[k] - 0.5 else b[j].max[k] <= b[i].min[k] + 0.5) }
+            // Only what overlaps it as seen matters: with thousands of parts, unioning the rest is what takes the time.
+            val cover = b.indices.filter { j -> j != i && (if (larger) b[j].min[k] >= b[i].max[k] - 0.5 else b[j].max[k] <= b[i].min[k] + 0.5) &&
+                    b[j].min[a] < b[i].max[a] + 3.0 && b[j].max[a] > b[i].min[a] - 3.0 && b[j].min[c] < b[i].max[c] + 3.0 && b[j].max[c] > b[i].min[c] - 3.0 }
                 .map { j -> rect(b[j].min[a], b[j].min[c], b[j].max[a], b[j].max[c]) }
             if (cover.isEmpty()) return false
             // A door's few millimetres of clearance do not let anyone see in.

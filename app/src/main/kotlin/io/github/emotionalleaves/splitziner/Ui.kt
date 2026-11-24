@@ -313,8 +313,8 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
     var showShopping by remember { mutableStateOf(false) }
     var showPrices by remember { mutableStateOf(false) }
     var priceVersion by remember { mutableIntStateOf(0) }
-    if (showPrices) PricesDialog(open, onDismiss = { showPrices = false; priceVersion++ })
-    if (showCutPlan) CutPlanDialog(open, onDismiss = { showCutPlan = false })
+    if (showPrices) PricesDialog(open, vm, onDismiss = { showPrices = false; priceVersion++ })
+    if (showCutPlan) CutPlanDialog(open, vm, onDismiss = { showCutPlan = false })
     if (showShopping) ShoppingDialog(open, vm, onDismiss = { showShopping = false })
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -505,9 +505,9 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
         } else {
             // Roughly what it weighs, from the materials the user has set; typical densities, so only an estimate.
             val wt = remember(a.cutList.rows) { splitziner.material.Materials.weight(a.parts, a.cutList.rows) }
-            val cost = remember(a, priceVersion) { runCatching { woodCost(context, splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, a.format)), a.format)) }.getOrNull() }
+            val cost = remember(a, priceVersion) { runCatching { woodCost(context, splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), savedStock(context, a.format)), a.format)) }.getOrNull() }
             // What to buy, first: the stock the cutting plan uses, what it costs and roughly what the piece weighs.
-            val buy = remember(a) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(a.cutList.rows, savedStock(context, a.format)), a.format) }.getOrDefault(emptyList()) }
+            val buy = remember(a) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), savedStock(context, a.format)), a.format) }.getOrDefault(emptyList()) }
             Card(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                 Column(Modifier.padding(12.dp)) {
                     Text("To buy", style = MaterialTheme.typography.titleSmall)
@@ -1411,9 +1411,9 @@ private fun money(v: Double) = java.text.NumberFormat.getCurrencyInstance().form
 
 /** Type what each kind of stock costs where you buy it; the cut list and shopping list then add it up. */
 @Composable
-private fun PricesDialog(open: OpenProject, onDismiss: () -> Unit) {
+private fun PricesDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val items = remember(open.analysis) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(open.analysis.cutList.rows, savedStock(context, open.analysis.format)), open.analysis.format) }.getOrDefault(emptyList()) }
+    val items = remember(open.analysis) { runCatching { splitziner.cutplan.CutPlanner.shoppingItems(splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), savedStock(context, open.analysis.format)), open.analysis.format) }.getOrDefault(emptyList()) }
     val vals = remember { androidx.compose.runtime.mutableStateListOf(*items.map { b -> prices(context).getString(b.one, "") ?: "" }.toTypedArray()) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1452,7 +1452,7 @@ private fun shareShopping(context: Context, open: OpenProject, vm: AppViewModel,
 private fun shoppingText(context: Context, open: OpenProject, vm: AppViewModel, stock: splitziner.cutplan.StockSettings): String {
     run {
         val a = open.analysis; val fmt = a.format
-        val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, stock)
+        val plan = splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), stock)
         val sb = StringBuilder("Shopping list: ${open.meta.title.ifBlank { open.meta.name }}\n\nWood\n")
         for (b in splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt)) {
             val p = priceOf(context, b.one)
@@ -1486,7 +1486,7 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
     val lists by androidx.compose.runtime.produceState<ShopLists?>(null, open.analysis) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             runCatching {
-                val plan = splitziner.cutplan.CutPlanner.plan(open.analysis.cutList.rows, savedStock(context, fmt))
+                val plan = splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), savedStock(context, fmt))
                 val buy = splitziner.cutplan.CutPlanner.shoppingItems(plan, fmt)
                 val wood = buy.map { b -> ShopLine(b.line, priceOf(context, b.one)?.let { money(it * b.count) }) } +
                     plan.leftOut.map { ShopLine(it, null) } + open.analysis.orders.map { ShopLine(it, null) } +
@@ -1552,7 +1552,7 @@ private fun ShoppingDialog(open: OpenProject, vm: AppViewModel, onDismiss: () ->
 }
 
 @Composable
-private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
+private fun CutPlanDialog(open: OpenProject, vm: AppViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val fmt = open.analysis.format
     val unit = if (fmt.isInch) 25.4 else 1.0
@@ -1579,7 +1579,7 @@ private fun CutPlanDialog(open: OpenProject, onDismiss: () -> Unit) {
         val st = stock ?: return@produceState
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             runCatching {
-                val rows = open.analysis.cutList.rows
+                val rows = vm.cutRows(open)
                 val plan = splitziner.cutplan.CutPlanner.plan(rows, st)
                 val dls = splitziner.cutplan.CutPlanLayout.pages(plan, rows, open.meta.title.ifBlank { open.meta.name }, fmt, extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(open.analysis.parts, fmt) }.getOrNull()))
                 val used = plan.sheets.map { it.used }.let { if (it.isEmpty()) null else it.average() }
@@ -1698,7 +1698,9 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         // The verdict first, coloured by how serious it is.
         val (bg, fg) = when {
             report == null -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurface
-            report.problems > 0 -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+            // Red only for problems that need the maker; amber when one tap fixes them all.
+            report.problems > 0 && report.findings.count { it.severity == splitziner.check.Severity.PROBLEM && it.fixes.isNotEmpty() } < report.problems -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+            report.problems > 0 -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
             report.checks > 0 -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
             else -> successColors()
         }
@@ -1734,7 +1736,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
         // Filters by how serious, so a long list can be worked through one kind at a time.
         var only by remember { mutableStateOf<splitziner.check.Severity?>(null) }
-        // The two standing notes every design gets are said once, in small type above the list, not counted as findings.
+        // The two standing notes every design gets are said once, in a short line at the foot of the list, not counted as findings.
         val standing = setOf("Joint strength is not checked", "Choose your tools")
         val found = report.findings.filter { it.title !in standing }
         val counts = found.groupingBy { it.severity }.eachCount()
@@ -1747,9 +1749,7 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
         }
         val shownFindings = found.filter { only == null || it.severity == only }
         LazyColumn(Modifier.weight(1f)) {
-            if (only == null || only == splitziner.check.Severity.NOTE) item(key = "standing") {
-                Text(report.findings.filter { it.title in standing }.joinToString(" ") { it.detail }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
-            }
+
             items(shownFindings) { f ->
                 val (word, color) = when (f.severity) {
                     splitziner.check.Severity.PROBLEM -> "Problem" to MaterialTheme.colorScheme.error
@@ -1786,6 +1786,10 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                     }
                     }
                 }
+            }
+            item(key = "standing") {
+                Text("For every design: joints are sized by workshop rules of thumb, not calculated for the load. Tick the tools you have (Tools, above) and each part is checked against them.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp))
             }
             if (report.toolsNeeded.isNotEmpty()) item {
                 Text(if (owned == null) "Work this build involves" else "Your tools on this build", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
@@ -2357,8 +2361,8 @@ internal fun makeBuildPack(context: Context, open: OpenProject, vm: AppViewModel
                 val a = open.analysis; val fmt = a.format
                 val dir = File(context.cacheDir, "exports").apply { mkdirs() }
                 val stock = savedStock(context, fmt)
-                val plan = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, stock)
-                val cutPages = splitziner.cutplan.CutPlanLayout.pages(plan, a.cutList.rows, open.meta.title.ifBlank { open.meta.name }, fmt,
+                val plan = splitziner.cutplan.CutPlanner.plan(vm.cutRows(open), stock)
+                val cutPages = splitziner.cutplan.CutPlanLayout.pages(plan, vm.cutRows(open), open.meta.title.ifBlank { open.meta.name }, fmt,
                     extraBuy = listOfNotNull(runCatching { splitziner.cutplan.EdgeBanding.line(a.parts, fmt) }.getOrNull())).map { io.github.emotionalleaves.splitziner.render.PreparedSheet.of(it) }
                 val files = listOf(
                     PdfExporter.write(context, d.sheets, "${base}_drawings.pdf"),

@@ -142,6 +142,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return plan!!
     }
 
+    @Volatile private var grownFor: Pair<Analysis, Any?>? = null
+    @Volatile private var grown: List<splitziner.parts.CutListRow>? = null
+
+    /**
+     * The cut list as the saw must cut it: thin parts set in rabbets or grooves cut big enough to reach into them.
+     * The cutting plan and shopping list use these sizes.
+     */
+    fun cutRows(open: OpenProject): List<splitziner.parts.CutListRow> {
+        val a = open.analysis
+        val key = a to (open.meta.stepOrder to (methodFor(open.meta) to toolsFor(open.meta)))
+        grown?.let { if (grownFor == key) return it }
+        val r = runCatching {
+            val pl = planOf(a, open.meta.stepOrder)
+            splitziner.joinery.Fastening.grownRows(a.cutList.rows, splitziner.joinery.Fastening.plan(pl.parts, pl.steps, methodFor(open.meta), a.format, toolsFor(open.meta), a.housed))
+        }.getOrDefault(a.cutList.rows)
+        grown = r; grownFor = key
+        return r
+    }
+
     /** The hardware list the guide would give (fasteners and glue), worked out here so the shopping list has it. */
     fun hardwareFor(open: OpenProject): List<String> = runCatching {
         val a = open.analysis
@@ -397,8 +416,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Items that need more than cutting to size, with their steps. */
     fun makingSteps(a: splitziner.pipeline.Analysis, tools: Set<splitziner.check.Tool>?, fasten: splitziner.joinery.FastenPlan? = null): List<Pair<String, List<String>>> {
-        val cuts = fasten?.let { f -> runCatching { splitziner.joinery.Fastening.cutLines(f) { p -> "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${p.name.lowercase()})" else "") } }.getOrNull() } ?: emptyMap()
-        return a.cutList.rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools, cuts[r.item].orEmpty()))?.let { "Item ${r.item}" + (if (r.name.isNotBlank()) " (${r.name.lowercase()})" else "") + ": ${r.description}" to it } }
+        val shownNames = splitziner.parts.Distinct.names(a.parts)
+        val cuts = fasten?.let { f -> runCatching { splitziner.joinery.Fastening.cutLines(f) { p -> val sn = splitziner.parts.Distinct.shown(p, shownNames); "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${sn.lowercase()})" else "") } }.getOrNull() } ?: emptyMap()
+        val rows = fasten?.let { f -> runCatching { splitziner.joinery.Fastening.grownRows(a.cutList.rows, f) }.getOrNull() } ?: a.cutList.rows
+        return rows.mapNotNull { r -> splitziner.check.HowTo.making(howTo(a, r, tools, cuts[r.item].orEmpty()))?.let { "Item ${r.item}" + (if (r.name.isNotBlank()) " (${r.name.lowercase()})" else "") + ": ${r.description}" to it } }
     }
 
     /**

@@ -809,9 +809,12 @@ object AssemblyPlan {
             val alike = n > 1 && last != null && !st.subassembly && !last.subassembly && (sameItem || sameName) &&
                 (last.directions.toSet() == st.directions.toSet() || (opposite && sameItem)) &&
                 // Drawers and their fronts go in all together, a chest's worth: hanging them is the same job each time.
+                // Copies of one part going on the same way (200 slats, 40 deck boards) are one job however many there
+                // are: split into steps of 30, the split falls wherever the count runs out, not anywhere a maker would stop.
+                ((sameItem && last.directions.toSet() == st.directions.toSet()) ||
                 last.partIds.size + st.partIds.size <= (if ((last.partIds + st.partIds).all { it.startsWith("drawer") || nameOf[it] == "Drawer front" || nameOf[it] == "Door" }) MAX_DRAWERS
                     // A bed's or bench's slats (or a rack's spindles) go down in one go, spaced with one block: laying them is one job.
-                    else if ((last.partIds + st.partIds).all { nameOf[it] == "Slat" || nameOf[it] == "Spindle" }) MAX_SLATS else MAX_GROUP)
+                    else if ((last.partIds + st.partIds).all { nameOf[it] == "Slat" || nameOf[it] == "Spindle" }) MAX_SLATS else MAX_GROUP))
             if (alike) { out[out.size - 1] = last!!.copy(partIds = last.partIds + st.partIds, directions = (last.directions + st.directions).distinct()); renumber[st.step] = out.size; continue }
             out += st.copy(step = out.size + 1); renumber[st.step] = out.size
         }

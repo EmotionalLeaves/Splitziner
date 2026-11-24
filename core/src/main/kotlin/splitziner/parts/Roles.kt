@@ -208,6 +208,13 @@ object Roles {
             val backs = live.filter { o -> o !== p && kotlin.math.abs(o.mesh.bounds.min.y - b.max.y) < 1.0 &&
                 o.mesh.bounds.min.x < b.max.x && o.mesh.bounds.max.x > b.min.x && o.mesh.bounds.min.z < b.max.z && o.mesh.bounds.max.z > b.min.z }
             if (backs.all { o -> o.mesh.bounds.extents.let { oe -> oe.y <= minOf(oe.x, oe.z) && oe.x >= e.x - 0.5 && oe.z >= e.z - 0.5 } }) { out[p.id] = "Batten"; continue }
+            // A face frame covers the edges of a case's panels (deep front to back). Strips across the faces of square
+            // posts or battens (a slatted wall, a fence) are not one: many alike are slats, and the rules below name the rest.
+            if (backs.none { o -> o.mesh.bounds.extents.let { oe -> oe.y >= 3 * minOf(oe.x, oe.z) } }) {
+                val alike = live.count { o -> o.mesh.bounds.extents.let { oe -> listOf(oe.x, oe.y, oe.z).sorted().zip(listOf(e.x, e.y, e.z).sorted()).all { (u, v) -> kotlin.math.abs(u - v) < 1.0 } } }
+                if (alike >= 3) out[p.id] = "Slat"
+                continue
+            }
             out[p.id] = if (e.z > e.x) "Stile" else "Face frame rail"
         }
         // A rail between two stiles, flush with their faces, belongs to the frame even with an opening behind it

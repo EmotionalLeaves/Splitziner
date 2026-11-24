@@ -34,6 +34,9 @@ object GuideSteps {
     /** A build step names at most this many positions; more, and the picture says it better. */
     private const val MAX_PLACING = 2
 
+    /** More copies than this spread along one part are not listed one by one: their even spacing is said, or the picture shows them. */
+    private const val MAX_LISTED = 5
+
     const val PICTURE_W = 170.0
     const val PICTURE_H = 115.0
 
@@ -54,6 +57,35 @@ object GuideSteps {
         fun touch(a: Part, c: Part) = (0..2).all { k -> b(a).min[k] <= b(c).max[k] + 0.5 && b(c).min[k] <= b(a).max[k] + 0.5 }
         val bench = built.isEmpty()
         val pool = cur + built
+        fun many(s: Part) = cur.count { it.item == s.item } > 1
+        fun hostOf(s: Part) = pool.filter { it !== s && touch(it, s) && (bench || it.item != s.item) }.maxByOrNull { h -> (0..2).maxOf { k -> b(h).extents[k] } }
+        // Three or more copies of a part spread along one host (battens across a lid, cleats along a wall) are one line
+        // giving each one's place from the same end, flush ones included, so none is left unplaced.
+        val spread = HashSet<String>(); val spreadLines = ArrayList<String>()
+        for ((_, same) in cur.filter { it.item != null && it.item !in skipItems }.groupBy { it.item to hostOf(it)?.id }) {
+            if (same.size < 3) continue
+            val host = hostOf(same[0]) ?: continue
+            val contact = (0..2).minByOrNull { k -> minOf(b(same[0]).max[k], b(host).max[k]) - maxOf(b(same[0]).min[k], b(host).min[k]) }!!
+            for (k in (0..2).filter { it != contact }) {
+                if (same.any { b(it).extents[k] >= b(host).extents[k] - 1.0 }) continue
+                val offs = same.map { b(it).min[k] - b(host).min[k] }.sorted()
+                if (offs.map { Math.round(it) }.distinct().size < same.size) continue
+                same.forEach { spread += "${it.id}|$k" }
+                val edge = when (k) { 2 -> "bottom"; 1 -> "front"; else -> "left" }
+                val from = when (k) { 2 -> "bottom edge"; 1 -> "front edge"; else -> "left end" }
+                // Many of them: the even spacing if there is one (said once), else the drawing shows them better than a list.
+                val pitch = offs.zipWithNext { a, c -> c - a }
+                if (same.size > MAX_LISTED) {
+                    if (pitch.max() - pitch.min() > 1.5) continue
+                    val p = pitch.average(); val gap = p - b(same[0]).extents[k]
+                    val first = offs[0].let { if (it < 1.0) "the first flush with its $from" else "the first ${fmt.format(Math.round(it * 2) / 2.0)}$u from its $from" }
+                    spreadLines += "Space ${same.size}× ${label(same[0])} evenly along ${label(host)}, ${fmt.format(gap)}$u apart (${fmt.format(p)}$u centre to centre), $first: a spacer block cut to the gap keeps them even."
+                    continue
+                }
+                val at = offs.map { if (it < 1.0) "flush" else fmt.format(Math.round(it * 2) / 2.0) + u }
+                spreadLines += "Set ${same.size}× ${label(same[0])} along ${label(host)}, their $edge edges ${at.dropLast(1).joinToString(", ")} and ${at.last()} from its $from."
+            }
+        }
         for (s in cur) {
             // Doors and drawer fronts are placed by their hinges or by eye, with even gaps; offsets would only mislead.
             if (s.item in skipItems || s.name == "Door" || s.name == "Drawer front" || s.name == "Rod" || s.name == "Tenon" || s.name == "Sliding door" || s.name == "Caster") continue
@@ -75,11 +107,15 @@ object GuideSteps {
                         flush["${label(s)}|$k|${label(host)}"] = edge
                     }
                 }
+                if ("${s.id}|$k" in spread) continue
                 if (k == 2 && supported) continue
                 // A shaped host (a stepped stringer) has no plain top or bottom edge to measure up or down from.
                 if (k == 2 && (host.name == "Stringer" || host.kind == splitziner.parts.PartKind.SHAPED)) continue
                 if (b(s).extents[k] >= b(host).extents[k] - 1.0) continue
                 val lo = b(s).min[k] - b(host).min[k]; val hi = b(host).max[k] - b(s).max[k]
+                // Hung flush with the top of what holds it (a modesty panel under a desk top, between its sides): said,
+                // or nothing gives its height.
+                if (k == 2 && hi < 1.0 && lo >= 1.0 && !many(s)) { out.getOrPut("${label(s)}|flush with the top edge|${label(host)}") { ArrayList() } += 0.0; continue }
                 if (lo < 1.0 || hi < 1.0) continue
                 // Held on both sides along this axis by other parts: they place it.
                 // Not parts running along this axis into it end-on (a stretcher's short braces butting its cross brace):
@@ -123,7 +159,7 @@ object GuideSteps {
             val twin = merged.keys.firstOrNull { k -> k.split('|').let { it[0] == what && it[1] == where && it[2] != of } && merged.getValue(k).map { Math.round(it * 2) } == ds.map { Math.round(it * 2) } }
             if (twin != null) { val ex = merged.remove(twin)!!; merged["$what|$where|${twin.substringAfterLast('|')} and $of"] = (ex + ds).toMutableList() } else merged[key] = ds
         }
-        return merged.entries.flatMap { (key, ds) ->
+        return spreadLines + merged.entries.flatMap { (key, ds) ->
             val (what, where, of) = key.split('|')
             val d = ds.map { Math.round(it * 2) / 2.0 }.distinct().sorted()
             val fl = axisOf[key]?.let { flush["$what|$it|$of"] }
@@ -135,6 +171,7 @@ object GuideSteps {
                 fun list(xs: List<Double>) = xs.map { Math.round(it * 2) / 2.0 }.distinct().sorted().let { v -> if (v.size == 1) fmt.format(v[0]) + u else v.dropLast(1).joinToString(", ") { fmt.format(it) + u } + " and " + fmt.format(v.last()) + u }
                 "Set ${if (ds.size > 1) "${ds.size}× " else ""}$what ${list(ds.take(n1.toInt()))} from the $e1 end and ${list(ds.drop(n1.toInt()))} from the $e2 end of $of."
             }
+            else if (where.startsWith("flush")) "Set $what $where of $of."
             else if (where.startsWith("centred")) "Centre ${if (ds.size > 1) "each $what" else what} on the ${where.substringAfterLast(' ')} of $of."
             else if (d.size == 1) "Set ${if (ds.size > 1) "each $what" else what} ${fmt.format(d[0])}$u $where of $of."
             else "Set ${ds.size}× $what ${d.dropLast(1).joinToString(", ") { fmt.format(it) + u }} and ${fmt.format(d.last())}$u $where of $of, as drawn."
@@ -162,18 +199,32 @@ object GuideSteps {
      * "Screw item 1 (side) to item 2 (stud)" reads "Screw the side (1) to the stud (2)"; "4× item 2 (leg)" reads
      * "4× leg (item 2)"; "items 8 and 9 (plinth)" reads "the plinth (items 8 and 9)".
      */
+    /** The plural a maker would say: "shelves", "feet", and each half of a pair of names ("fronts and backs"). */
+    fun pluralOf(w: String): String = if (" and " in w) w.split(" and ").joinToString(" and ") { pluralOf(it) } else if (", " in w) w.split(", ").joinToString(", ") { pluralOf(it) } else when {
+        w.endsWith("shelf") || w.endsWith("helf") -> w.dropLast(1) + "ves"; w.endsWith("foot") -> w.dropLast(4) + "feet"; w.endsWith("s") || w.endsWith("x") -> w; else -> w + "s" }
+
     fun readable(line: String): String {
         var s = line
-        s = Regex("""(\d+)× item (\d+) \(([^()]+)\)""").replace(s) { m -> "${m.groupValues[1]}× ${m.groupValues[3]} (item ${m.groupValues[2]})" }
+        fun plural0(w: String) = pluralOf(w)
+        // "items 1 (crate lid) and 4 (batten, 3×)": each by name, its count first, in order.
+        s = Regex("""\bitems ((?:\d+ \([^()]+\)(?:, | and ))+\d+ \([^()]+\))""").replace(s) { m ->
+            val each = Regex("""(\d+) \(([^(),]+)(?:, (\d+)×)?\)""").findAll(m.groupValues[1]).toList()
+            if (each.isEmpty()) m.value else each.joinToString(", ").let { _ ->
+                val names = each.map { e -> val n = e.groupValues[3].toIntOrNull(); if (n != null && n > 1) "the $n ${plural0(e.groupValues[2])} (${e.groupValues[1]})" else "the ${e.groupValues[2]} (${e.groupValues[1]})" }
+                names.dropLast(1).joinToString(", ") + " and " + names.last() } }
+        // "2× item 2 (leg)": "the 2 legs (2)".
+        s = Regex("""(\d+)× item (\d+) \(([^()]+)\)""").replace(s) { m -> "the ${m.groupValues[1]} ${plural0(m.groupValues[3])} (${m.groupValues[2]})" }
         s = Regex("""\bitems (\d+(?:, \d+)* and \d+) \(([^(),]+)\)""").replace(s) { m -> "the ${m.groupValues[2]} (items ${m.groupValues[1]})" }
         // After a count or "each" the name stands without "the", in the plural after more than one.
-        fun plural(w: String) = when { w.endsWith("shelf") -> w.dropLast(1) + "ves"; w.endsWith("foot") -> w.dropLast(4) + "feet"; w.endsWith("s") || w.endsWith("x") -> w; else -> w + "s" }
+        fun plural(w: String) = pluralOf(w)
         val many = Regex("""\b(the two|the [3-9]|the \d\d+|two|three|four|five|six|[2-9]|\d\d+|all \d+|both) item (\d+) \(([^()]+)\)""")
         s = many.replace(s) { m -> "${m.groupValues[1]} ${plural(m.groupValues[3])} (${m.groupValues[2]})" }
         s = Regex("""\b(each|every|one|another|its|either) item (\d+) \(([^()]+)\)""").replace(s) { m -> "${m.groupValues[1]} ${m.groupValues[3]} (${m.groupValues[2]})" }
         s = Regex("""\b[Ii]tem (\d+) \(([^()]+)\)""").replace(s) { m -> "the ${m.groupValues[2]} (${m.groupValues[1]})" }
+        // "the slats (item 5)": the number alone after a name, as everywhere else.
+        s = Regex("""([a-z]) \(item (\d+)\)""").replace(s) { m -> "${m.groupValues[1]} (${m.groupValues[2]})" }
         // At the start of a sentence: "The side (1) ...".
-        s = Regex("""(^|[.:;] )the """).replace(s) { m -> m.groupValues[1] + "The " }
+        s = Regex("""(^|[.] )the """).replace(s) { m -> m.groupValues[1] + "The " }
         return s
     }
 
@@ -205,7 +256,8 @@ object GuideSteps {
         val out = ArrayList<GuideStep>()
         // " (side)" after an item number, when its parts share a name of their own.
         // "item 2 (side)"; one item under a few names reads "item 2 (front and back)".
-        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { it.name.lowercase().replace("french", "French") }.distinct().let { ns ->
+        val shownNames = splitziner.parts.Distinct.names(drawn)
+        fun named(ps: List<Part>): String = ps.filter { it.name != it.id }.map { splitziner.parts.Distinct.shown(it, shownNames).lowercase().replace("french", "French") }.distinct().let { ns ->
             when (ns.size) { 1 -> " (${ns[0]})"; 2, 3 -> " (" + ns.dropLast(1).joinToString(", ") + " and " + ns.last() + ")"; else -> "" } }
         // Sub-assemblies made on the bench are referred to whole in later steps. A unit is the boards that
         // came from one drawn part; its kind (which items, how many of each) says which bench step made it.
@@ -277,7 +329,23 @@ object GuideSteps {
             val loose = cur.filter { unit(it) !in units }
             val count = LinkedHashMap<Int?, Int>()
             // Named bottom up, so nothing is listed before what it sits on (the kick board, then the bottom, then the divider on it).
-            for (p in loose.sortedBy { it.mesh.bounds.min.z }) count[p.item] = (count[p.item] ?: 0) + 1
+            // Then each item goes in only once something it touches is there: a divider that stands only on the
+            // shelves either side of it follows them, though it is lower.
+            run {
+                fun touch(a: Part, b: Part): Boolean { val x = a.mesh.bounds; val y = b.mesh.bounds; return (0..2).all { x.min[it] <= y.max[it] + 0.5 && y.min[it] <= x.max[it] + 0.5 } }
+                val there = ArrayList<Part>()
+                val before = if (st.subassembly) seqOf(st).filter { it.step < st.step }.flatMap { it.partIds }.toSet() else done
+                there += before.mapNotNull { byId[it] }
+                there += units.values.flatten()
+                if (st.subassembly) there += cur.filter { st.explodeOf.containsKey(it.id) && st.explodeOf[it.id] == null }
+                val left = loose.sortedBy { it.mesh.bounds.min.z }.groupBy { it.item }.toMutableMap()
+                val ordered = left.keys.toMutableList()
+                while (ordered.isNotEmpty()) {
+                    val next = if (there.isEmpty()) ordered[0] else ordered.firstOrNull { k -> left.getValue(k).any { p -> there.any { touch(p, it) } } } ?: ordered[0]
+                    ordered.remove(next); val ps = left.getValue(next); there += ps
+                    count[next] = ps.size
+                }
+            }
             val unitCount = LinkedHashMap<Int, MutableList<List<Part>>>()
             for ((root, ms) in units) unitCount.getOrPut(benchOf.getValue(kind(unitOf.getValue(root)))) { ArrayList() } += ms
             // This step's parts pulled out, earlier parts in place and greyed, later parts left out.
@@ -447,7 +515,15 @@ object GuideSteps {
                         val u = if (fmt.isInch) " in" else " mm"
                         val span = hi(sorted.last(), axis) - lo(sorted.first(), axis)
                         val mid = (lo(sorted.first(), axis) + hi(sorted.last(), axis)) / 2
-                        val between = sorted.drop(1).dropLast(1).map { c ->
+                        val inner = sorted.drop(1).dropLast(1)
+                        // A row of the same part (posts of a slatted wall): placed by their spacing, not each one "from the" other.
+                        val sameRow = inner.size >= 1 && sorted.map { label(it) }.distinct().size == 1
+                        val between = if (sameRow) {
+                            val centres = sorted.map { (lo(it, axis) + hi(it, axis)) / 2 }
+                            val pitch = centres.zipWithNext { a, c -> c - a }
+                            if (pitch.max() - pitch.min() <= 1.5) listOf("the ${if (inner.size == 1) "one" else "${inner.size}"} between evenly spaced, ${fmt.format(pitch.average())}$u centre to centre")
+                            else listOf("the ${if (inner.size == 1) "one" else "${inner.size}"} between at ${inner.joinToString(", ") { fmt.format((lo(it, axis) + hi(it, axis)) / 2 - lo(sorted.first(), axis)) + u }} to ${if (inner.size == 1) "its" else "their"} centres from the outside of the first")
+                        } else inner.map { c ->
                             val centre = (lo(c, axis) + hi(c, axis)) / 2
                             if (kotlin.math.abs(centre - mid) < 2.0) "${label(c)} centred between them"
                             else "${label(c)} ${fmt.format(lo(c, axis) - hi(sorted.first(), axis))}$u in from ${label(sorted.first())}"
@@ -486,13 +562,13 @@ object GuideSteps {
                             if (cross == 1) (if (f <= b) "${fmt.format(f)}$u from the front edge" else "${fmt.format(b)}$u from the back edge")
                             else (if (f <= b) "${fmt.format(f)}$u from the left end" else "${fmt.format(b)}$u from the right end") }
                         val rowText = rows.map { r -> edgeWord(r.map { it.mesh.bounds.center[cross] }.average()) }
-                        lines += (if (rows.size == 1) "Stand ${spind.size}× item $sItem in a row, centred ${rowText[0]}"
-                            else "Stand item $sItem in ${rows.size} rows of ${rows.map { it.size }.distinct().joinToString(" and ")}, centred ${rowText.joinToString(" and ")}") +
+                        lines += (if (rows.size == 1) "Stand ${spind.size}× item $sItem" + named(spind.take(1)) + " in a row, centred ${rowText[0]}"
+                            else "Stand item $sItem" + named(spind.take(1)) + " in ${rows.size} rows of ${rows.map { it.size }.distinct().joinToString(" and ")}, centred ${rowText.joinToString(" and ")}") +
                             ": centres ${fmt.format(pitches.average())}$u apart, the first ${fmt.format(cs[0].first() - ob.min[ax])}$u from the $endWord of $bName."
                         val tops = drawn.filter { o -> o.name != "Spindle" && spind.any { s -> kotlin.math.abs(o.mesh.bounds.min.z - s.mesh.bounds.max.z) < 1.0 &&
                             s.mesh.bounds.center.x in o.mesh.bounds.min.x..o.mesh.bounds.max.x && s.mesh.bounds.center.y in o.mesh.bounds.min.y..o.mesh.bounds.max.y } }
                         val tItems = tops.mapNotNull { it.item }.distinct()
-                        if (tItems.isNotEmpty()) lines += "Mark the holes in item${if (tItems.size > 1) "s" else ""} ${tItems.joinToString(" and ")} from $bName before drilling either: lay ${if (tops.size > 1) "each" else "it"} on $bName where it will sit above it and square the marks across, so every spindle stands straight."
+                        if (tItems.isNotEmpty()) lines += "Mark the holes in " + tItems.joinToString(" and ") { ti -> "item $ti" + named(tops.filter { it.item == ti }.take(1)) } + " from $bName before drilling either: lay ${if (tops.size > 1) "each" else "it"} on $bName where it will sit above it and square the marks across, so every spindle stands straight."
                         rowsTold = true
                     }
                 }
@@ -656,12 +732,7 @@ object GuideSteps {
                 }
                 else -> {
                     // What goes on, in plain words: "Step 6: the back panel", "Step 5: 4 shelves", "Step 8: hang the drawers".
-                    fun plural(w: String, n: Int) = if (n == 1) w else when {
-                        w.endsWith("helf") -> w.dropLast(1) + "ves"
-                        w.endsWith("foot") -> w.dropLast(4) + "feet"
-                        w.endsWith("s") -> w
-                        else -> w + "s"
-                    }
+                    fun plural(w: String, n: Int) = if (n == 1) w else pluralOf(w)
                     val bits = ArrayList<String>()
                     // Drawers of several sizes are still just drawers: "hang the 4 drawers".
                     val drawers = unitCount.values.filter { us -> us.all { u -> keyOf[u[0].id]?.startsWith("drawer") == true } }.sumOf { it.size }
@@ -678,13 +749,19 @@ object GuideSteps {
                     for ((item, n) in count) {
                         val ps = loose.filter { it.item == item }
                         // Every part named: counted by its own name ("the bottom and 3 shelves", one item under two names).
-                        if (ps.all { it.name != it.id }) { for (p in ps) { val k = p.name.lowercase().replace("french", "French"); byName[k] = (byName[k] ?: 0) + 1 }; continue }
+                        if (ps.all { it.name != it.id }) { for (p in ps) { val k = splitziner.parts.Distinct.shown(p, shownNames).lowercase().replace("french", "French"); byName[k] = (byName[k] ?: 0) + 1 }; continue }
                         val key = "\u0000" + (if (item != null) "item $item" else "part")
                         byName[key] = (byName[key] ?: 0) + n
                     }
                     for ((key, n) in byName) {
                         if (key.startsWith("\u0000")) { val w = key.drop(1); bits += if (n == 1) w else "$n× $w" }
-                        else bits += if (n == 1) "the $key" else "${if (base) "the " else ""}$n ${plural(key, n)}"
+                        else if (n == 1) {
+                            // The second of two rails, a step after the first: "the other rail", not "the rail" again.
+                            fun nm(p: Part) = splitziner.parts.Distinct.shown(p, shownNames).lowercase().replace("french", "French")
+                            val total = byId.values.count { nm(it) == key }; val before = done.count { id -> byId[id]?.let { nm(it) } == key }
+                            bits += if (before > 0 && total == 2) "the other $key" else if (before > 0) "another $key" else "the $key"
+                        }
+                        else bits += "${if (base) "the " else ""}$n ${plural(key, n)}"
                     }
                     val said = if (bits.size == 1) bits.firstOrNull() else bits.dropLast(1).joinToString(", ") + " and " + bits.lastOrNull()
                     // The first step says where the build starts: "Step 3: start with the 2 frames from step 1 and ...".

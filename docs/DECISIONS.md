@@ -917,3 +917,24 @@ Departures from the build spec, newest first.
 - New design folds its list of designs away once one is picked, so the picture and sizes come into view; "Other designs" opens it again.
 - Help: Reading the guide, Turning a drawing.
 - Withdrawn from the critique: "tilted parts measured thinner than their stock". The test sawhorse's legs were drawn sheared, not turned, so they really are thinner across; the measurement was right.
+
+## v2.58 (critique round 2)
+Read every page of three hard models (hutch desk, art crate, folding screen) and ran stress models from 2 to 2,020 parts. All fixes are general rules, not model cases.
+- Within a step, a part goes in only once something it touches is there (a divider between two shelves follows them, though it is lower).
+- A crate's battens are glued to its lid before the work is packed and the lid screwed on; the lines come in that order.
+- Three or more copies spread along one part get their places in one line, flush ones included; more than five are given as an even spacing with a spacer block, or left to the picture when uneven.
+- A part hung flush with the top of what holds it (a modesty panel) says so; nothing else gave its height.
+- Different parts under one name are told apart in every list and line: "Hutch side", "Front leg"/"Back leg", "Upper"/"Lower", else "Long"/"Short", "Wide"/"Narrow", "Thick"/"Thin" by the size that differs most. Display only: the role names the app reasons with are unchanged. Separate pieces and user-named parts are left alone.
+- The second of two copies placed in a later step is "the other rail". Fixing lines count copies ("screw them to the 2 shelves", "through the 2 sides").
+- Thin parts set in rabbets: the rabbet is cut when the parts are made (with the tool named), not offered as an option at assembly; the thin part's making note gives its cut size, grown by the rabbet depth as the maker reads it (1/8 in steps); the cutting plan and shopping list cut it at that size. The rabbet is pinned, and those brads are counted. Copies cut on facing sides in the build are marked in place before cutting. (Critique point "mirrored pairs must differ" withdrawn: a single rabbet along one edge makes both copies identical, flipped end for end.)
+- Brads are spaced every 150 mm (about 6 in), common cabinet practice for thin panels; screws stay at 250 mm.
+- New PROBLEM: a thin face panel drawn the size of its opening behind a frame touches the frame only along its edges (under 15% of its face rests on anything); it says to make it lap the frame (giving the size) or set it in a rabbet.
+- Every part touching another now gets a fixing: one no rule covered (slats across square posts) is fixed to its biggest neighbour with screws, or brads when thin.
+- Strips across square posts are slats, not a face frame (a face frame covers the edges of deep case panels).
+- A box between separate pieces is not a drawer: drawers stand in their own piece's opening. 40 crates in a row were 30 "drawers on slides".
+- Separate pieces made of the same items are counted ("40 alike, items 1, 2, 3"), not listed 40 times.
+- Copies of one part going on the same way stay one step however many there are (200 slats were split in steps of 30).
+- A row of 3+ uprights is placed by spacing ("evenly spaced, 23-5/8 in centre to centre") instead of a garbled "the leg from the leg".
+- Plurals of paired names: "fronts and backs".
+- Speed: the drawing's "buried part" test only unions what overlaps each part (a 2,020-part model stalled there for minutes); the fastening plan no longer rescans every part per joint.
+- Known, next: on a 2,020-part model the guide (200 s) and cutting plan (175 s) are still far too slow; repeated bays (a 20-bay library wall) are not built bay by bay.

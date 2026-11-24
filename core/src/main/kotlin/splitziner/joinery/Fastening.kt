@@ -61,6 +61,27 @@ object Fastening {
     /** One fastener per this much joint length (mm): about 10 in, a common spacing for screws in furniture. */
     private const val SPACING = 250.0
 
+    /**
+     * One brad per this much joint length (mm), about 6 in: thin panels (a 1/4 in back) are pinned closer than parts
+     * are screwed, every 4 to 6 in by common cabinet practice, or they bow off between the pins.
+     */
+    const val BRAD_SPACING = 150.0
+
+    /** Parts that are bought, hung or laid in, not fixed with fasteners: never given a fallback fixing. */
+    private val LOOSE_NAMES = setOf("Caster", "Glass", "Mat", "Acrylic cover", "Door", "Sliding door", "Drawer front", "Lid", "Rod", "Wall cleat", "Round foot", "Tenon")
+
+    /** A thin part set in a rabbet or groove: its pins, how much it grows into the cut, and along which axis. */
+    private fun setIn(spec: String, thin: Double, depthMm: Double, axis: Int, length: Double, fmt: LengthFormat, totals: MutableMap<String, Int>): Pair<Int, String> {
+        if (spec.split('|').size < 3) return 0 to ""
+        val rabbet = spec.endsWith("|rabbet")
+        val brad = if (rabbet) pick(2 * thin + 3.0, fmt, true) ?: "" else ""
+        val n = if (brad.isEmpty()) 0 else maxOf(2, ceil(length / BRAD_SPACING).toInt())
+        if (n > 0) totals["$brad brads"] = (totals["$brad brads"] ?: 0) + n
+        // The depth as the maker reads it (1/8 in or 0.5 mm steps): the part grows by what is cut, not by the exact figure.
+        val shown = if (fmt.isInch) maxOf(0.125, Math.round(depthMm / 25.4 * 8) / 8.0) * 25.4 else Math.round(maxOf(1.0, depthMm) * 2) / 2.0
+        return n to "$brad|$shown|$axis"
+    }
+
     /** A screw needs at least this much wood around it in the part it goes into (mm), or it splits it. */
     private const val MIN_INTO = 15.0
 
@@ -236,6 +257,14 @@ object Fastening {
             val a = (0..2).minByOrNull { rel.hi[thin][it] - rel.lo[thin][it] }!!
             return kotlin.math.abs(rel.hi[thin][a] - rel.hi[other][a]) < 1.0 || kotlin.math.abs(rel.lo[thin][a] - rel.lo[other][a]) < 1.0
         }
+        // The whole piece's box, once: worked out per joint it made thousands of parts take minutes.
+        // Looked up once, not per joint: with a thousand parts and a million contacts, scanning every part per joint is hours.
+        val tenonParts = live.filter { it.name == "Tenon" }
+        val hasSlats = live.any { it.name == "Slat" }
+        val hasBedRails = live.any { it.name == "Side rail" && it.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) } > BED_RAIL_MIN }
+        val hasCrateLid = live.any { it.name == "Crate lid" }
+        val cleatsDoors = live.filter { it.name == "Cleat" || it.name == "Door" }
+        val envLo0 = DoubleArray(3) { ax -> rel.lo.minOf { it[ax] } }; val envHi0 = DoubleArray(3) { ax -> rel.hi.maxOf { it[ax] } }
         for (i in live.indices) for (j in rel.touching[i]) {
             if (!seen.add(minOf(i, j).toLong() * 100000 + maxOf(i, j))) continue
             val a = live[i]; val b = live[j]
@@ -298,7 +327,7 @@ object Fastening {
                 continue
             }
             val lo = rel.lo; val hi = rel.hi
-            val envLo = DoubleArray(3) { ax -> lo.minOf { it[ax] } }; val envHi = DoubleArray(3) { ax -> hi.maxOf { it[ax] } }
+            val envLo = envLo0; val envHi = envHi0
             // The direction they meet along: where their boxes only just meet; the contact is the overlap on the other two.
             val k = (0..2).minByOrNull { ax -> minOf(hi[i][ax], hi[j][ax]) - maxOf(lo[i][ax], lo[j][ax]) }!!
             val gap = minOf(hi[i][k], hi[j][k]) - maxOf(lo[i][k], lo[j][k])
@@ -426,11 +455,11 @@ object Fastening {
                 if (!inOther) joints.getOrPut(step) { ArrayList() } += Joint(other, ten, 1, "", "tenon", true)
                 continue
             }
-            val tenonBetween = live.any { t -> t.name == "Tenon" && t.mesh.bounds.let { tb ->
+            val tenonBetween = tenonParts.any { t -> t.mesh.bounds.let { tb ->
                 listOf(a, b).any { h -> h.mesh.bounds.let { ob -> (0..2).all { kk -> tb.min[kk] >= ob.min[kk] - 0.5 && tb.max[kk] <= ob.max[kk] + 0.5 } } } &&
                 listOf(a, b).any { r -> r.mesh.bounds.let { rb -> (0..2).all { kk -> tb.min[kk] <= rb.max[kk] + 0.5 && rb.min[kk] <= tb.max[kk] + 0.5 } && !(0..2).all { kk -> tb.min[kk] >= rb.min[kk] - 0.5 && tb.max[kk] <= rb.max[kk] + 0.5 } } } } }
             if (tenonBetween) {
-                val leg = listOf(a, b).first { h -> live.any { t -> t.name == "Tenon" && t.mesh.bounds.let { tb -> h.mesh.bounds.let { ob -> (0..2).all { kk -> tb.min[kk] >= ob.min[kk] - 0.5 && tb.max[kk] <= ob.max[kk] + 0.5 } } } } }
+                val leg = listOf(a, b).first { h -> tenonParts.any { t -> t.mesh.bounds.let { tb -> h.mesh.bounds.let { ob -> (0..2).all { kk -> tb.min[kk] >= ob.min[kk] - 0.5 && tb.max[kk] <= ob.max[kk] + 0.5 } } } } }
                 val rail = if (leg === a) b else a
                 joints.getOrPut(step) { ArrayList() } += Joint(leg, rail, 1, "", "mortise", true)
                 continue
@@ -499,7 +528,7 @@ object Fastening {
             // move: a glued and screwed bed frame will not go through a door.
             // The hooked plate goes on the end of the rail that meets the other end-on; the slotted plate on the
             // leg, post or long rail it hooks onto. Only in a bed (slats) with a long side rail.
-            if (live.any { it.name == "Slat" } && live.any { it.name == "Side rail" && it.mesh.bounds.extents.let { e -> maxOf(e.x, e.y, e.z) } > BED_RAIL_MIN }) {
+            if (hasSlats && hasBedRails) {
                 fun endOn(p: Part) = (0..2).maxByOrNull { p.mesh.bounds.extents[it] }!! == k
                 val hook = listOf(a, b).firstOrNull { endOn(it) && it.name.endsWith("rail") }
                 val plate = if (hook === a) b else if (hook === b) a else null
@@ -585,7 +614,7 @@ object Fastening {
                 maxOf(0.0, minOf(hi[n].x, hi[ti0].x) - maxOf(lo[n].x, lo[ti0].x)) * maxOf(0.0, minOf(hi[n].y, hi[ti0].y) - maxOf(lo[n].y, lo[ti0].y)) }
             val hutched = rel.lo.indices.any { n -> n != ti0 && lo[n].z >= hi[ti0].z - 2.0 && minOf(hi[n].x, hi[ti0].x) > maxOf(lo[n].x, lo[ti0].x) && minOf(hi[n].y, hi[ti0].y) > maxOf(lo[n].y, lo[ti0].y) }
             // A crate's frame is packing, not furniture: screw heads in its top board are fine.
-            val openTop = wideTop && thr.name != "Slat" && live.none { it.name == "Crate lid" } && (!hutched || (thr.name == "Top" && covered < 0.5 * (hi[ti0].x - lo[ti0].x) * (hi[ti0].y - lo[ti0].y)))
+            val openTop = wideTop && thr.name != "Slat" && !hasCrateLid && (!hutched || (thr.name == "Top" && covered < 0.5 * (hi[ti0].x - lo[ti0].x) * (hi[ti0].y - lo[ti0].y)))
             // A top on flat stretchers (a cabinet's, a worktop on a row of them) is screwed from below, up through the
             // stretchers, with screws that stop well short of its face.
             // A closed plinth with a ballast shelf: nothing can reach the top's cleats from inside once the shelf is in,
@@ -595,7 +624,7 @@ object Fastening {
             // So is a closed pedestal's top sitting on its walls' top edges with no cleats under it (and no door to reach in by): brackets would be out of reach.
             val (ballastHere0, ballastHere) = judged(thr)
             val onWalls = "Top" in setOf(thr.name, into.name) && ballastHere && setOf(thr, into).first { it.name != "Top" || it === into && thr.name == "Top" }.let { w ->
-                w.name != "Top" && w.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } } && live.none { (it.name == "Cleat" || it.name == "Door") && (pieceOf[it.id] ?: live) === (pieceOf[thr.id] ?: live) }
+                w.name != "Top" && w.mesh.bounds.extents.let { e -> e.z > minOf(e.x, e.y) } } && cleatsDoors.none { (pieceOf[it.id] ?: live) === (pieceOf[thr.id] ?: live) }
             if (k == 2 && (setOf(thr.name, into.name) == setOf("Top", "Cleat") || onStaves || onWalls) && ballastHere) {
                 val top = if (thr.name == "Top") thr else into; val cl = if (top === thr) into else thr
                 val tt = top.mesh.bounds.extents.z; val ct = cl.mesh.bounds.extents.z
@@ -681,7 +710,8 @@ object Fastening {
                 val grooveDepth = minOf(GROOVE_SHARE * depth, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
                 val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(aroundThr, fmt)}|${size(grooveDepth, fmt)}|${if (flush(ti, ii)) "rabbet" else "groove"}"
-                joints.getOrPut(step) { ArrayList() } += Joint(into, thr, 0, spec, "thin", false)
+                val (pins, at) = setIn(spec, aroundThr, grooveDepth, k, length, fmt, totals)
+                joints.getOrPut(step) { ArrayList() } += Joint(into, thr, pins, spec, "thin", false, at = at, fmt = fmt)
                 continue
             }
             // A case's back panel standing on the piece below (a hutch's back on the desk top) needs nothing there.
@@ -693,7 +723,8 @@ object Fastening {
                 val grooveDepth = minOf(GROOVE_SHARE * tThrough, GROOVE_MAX)
                 val canGroove = tools == null || tools.any { it in GROOVERS }
                 val spec = if (grooveDepth < 3.0) "too thin" else if (!canGroove) "no tools" else "${size(around, fmt)}|${size(grooveDepth, fmt)}|${if (flush(ii, ti)) "rabbet" else "groove"}"
-                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, 0, spec, "thin", false)
+                val (pins, at) = setIn(spec, around, grooveDepth, k, length, fmt, totals)
+                joints.getOrPut(step) { ArrayList() } += Joint(thr, into, pins, spec, "thin", false, at = at, fmt = fmt)
                 continue
             }
             // Where a pocket or a dowel can go: an end or edge meeting a face. Two faces together, a board lying on its
@@ -777,6 +808,7 @@ object Fastening {
                 JoinMethod.GLUE_AND_BRADS -> { size = pick(tThrough + minOf(tThrough, depth - 3.0), fmt, true) ?: ""; kind = "brads" }
             }
             val glueOnly = glue || size.isEmpty()
+            if (kind == "brads" && !faceToFace) count = maxOf(2, ceil(length / BRAD_SPACING).toInt())
             if (faceToFace && !glueOnly && method != JoinMethod.DOWELS) { kind = "brads"; size = pick(tThrough + minOf(tThrough, depth - 3.0), fmt, true) ?: size }
             // Screwed up through a board into what stands on it (a hutch's sides on a desk top): driven from underneath.
             if (kind == "screws" && k == 2 && !faceToFace && rel.lo[idx.getValue(into.id)].z >= rel.hi[idx.getValue(thr.id)].z - 0.5 &&
@@ -958,6 +990,31 @@ object Fastening {
                 (j.through.mesh.bounds.max.z <= j.into.mesh.bounds.min.z + 1.0 || j.into.mesh.bounds.max.z <= j.through.mesh.bounds.min.z + 1.0) }
         // A runner or kicker is held by the screws into its apron; where its ends butt the rails, nothing is glued.
         for (js in joints.values) js.removeAll { j -> j.glueOnly && j.kind.isEmpty() && (j.through.name in RUNNER_NAMES || j.into.name in RUNNER_NAMES) }
+        // Every part touching another is held by something. A part the rules above passed over (a slat against a post,
+        // a short strip no rule names) is fixed to its biggest neighbour the plain way, rather than left loose with no
+        // fastener in the list.
+        run {
+            val held = HashSet<String>()
+            for (js in joints.values) for (j in js) { held += j.through.id; held += j.into.id }
+            val hung = doorIds + drawerOf.keys
+            for (i in live.indices) {
+                val p = live[i]
+                if (p.id in held || p.id in hung || p.name in LOOSE_NAMES) continue
+                val nb = rel.touching[i].filter { live[it].name !in LOOSE_NAMES && live[it].id !in hung }
+                    .maxByOrNull { j -> val e = live[j].mesh.bounds.extents; e.x * e.y * e.z } ?: continue
+                val q = live[nb]
+                val t = p.mesh.bounds.extents.let { minOf(it.x, it.y, it.z) }; val tq = q.mesh.bounds.extents.let { minOf(it.x, it.y, it.z) }
+                val ov = (0..2).map { k -> minOf(p.mesh.bounds.max[k], q.mesh.bounds.max[k]) - maxOf(p.mesh.bounds.min[k], q.mesh.bounds.min[k]) }
+                val len = ov.maxOrNull() ?: 0.0
+                val brad = t < THIN || tq < MIN_INTO
+                val sz = (if (brad) pick(2 * t + 3.0, fmt, true) else pick(minOf(2.5 * t, t + tq - 3.0), fmt, false)) ?: continue
+                val n = maxOf(2, ceil(len / (if (brad) BRAD_SPACING else SPACING)).toInt())
+                val kind = if (brad) "brads" else "screws"
+                joints.getOrPut(mainOf(p)) { ArrayList() } += Joint(p, q, n, sz, kind, false)
+                totals["$sz $kind"] = (totals["$sz $kind"] ?: 0) + n
+                held += p.id; held += q.id
+            }
+        }
         val every = joints.values.flatten()
         // Identical sub-assemblies are made more than once in one bench step. Every copy's joints are already in
         // the totals; the step itself tells how to make one, so it keeps only the first copy's joints.
@@ -1010,10 +1067,47 @@ object Fastening {
             val places = if (each > 1) (if (copies > 1) " ($each on each)" else " ($each places)") else ""
             val one = thins.size == 1
             val obj = if (one) "it" else "them"; val sits = if (one) "it sits" else "they sit"; val meets = if (one) "its edge meets" else "their edges meet"
-            out.getOrPut(host) { ArrayList() } += if (rabbet) "For $thin, if you set $obj in a rabbet: cut a rabbet ${parts[0]} wide and ${parts[1]} deep along the edge where $sits$places."
-                else "For $thin, if you set $obj in a groove: cut a groove ${parts[0]} wide and ${parts[1]} deep where $meets this part$places."
+            // Copies that face each other in the build (a left and a right side, each cut on its inside face) are
+            // mirror images: marked where they go, so no cut ends up on the outside.
+            fun facing(j: Joint): Pair<Int, Int>? { val a = j.through.mesh.bounds; val b = j.into.mesh.bounds
+                val k = (0..2).minByOrNull { minOf(a.max[it], b.max[it]) - maxOf(a.min[it], b.min[it]) } ?: return null
+                return k to (if (b.center[k] > a.center[k]) 1 else -1) }
+            val sides = js.mapNotNull { facing(it) }.distinct()
+            val mirrored = copies > 1 && sides.size > 1 && sides.groupBy { it.first }.values.any { g -> g.size > 1 }
+            val mark = if (mirrored) " The ${count(copies)} are cut on facing sides in the build: stand them where they go and mark each one on its inside face before cutting." else ""
+            out.getOrPut(host) { ArrayList() } += if (rabbet) "Cut a rabbet ${parts[0]} wide and ${parts[1]} deep along the edge where $sits$places, for $thin: a router with a rabbeting bit, or two passes on a table saw.$mark"
+                else "Cut a groove ${parts[0]} wide and ${parts[1]} deep where $meets this part$places, for $thin: a router with a straight bit against a fence, or a table saw.$mark"
+        }
+        // The thin part itself is cut big enough to reach into its rabbets and grooves.
+        for ((item, js) in plan.all.filter { it.kind == "thin" && it.size.split('|').size >= 3 && it.at.split('|').size >= 3 }.groupBy { it.into.item }) {
+            item ?: continue
+            val p = js[0].into; val f = js[0].fmt ?: continue
+            val grow = DoubleArray(3)
+            for (j in js.filter { it.into.id == p.id }) { val bits = j.at.split('|'); val d = bits[1].toDoubleOrNull() ?: continue; val ax = bits[2].toIntOrNull() ?: continue; grow[ax] += d }
+            if (grow.all { it == 0.0 }) continue
+            val e = p.mesh.bounds.extents
+            val sized = (0..2).map { e[it] + grow[it] }.sorted()
+            val was = (0..2).map { e[it] }.sorted()
+            fun t(v: Double) = f.format(v)
+            out.getOrPut(item) { ArrayList() } += "Bigger than the ${t(was[1])} x ${t(was[2])} it shows when built: its edges reach into the ${if (js.all { it.size.endsWith("rabbet") }) "rabbets" else "grooves"} in ${joinedNames(js.map { itemName(it.through) }.distinct())}. With no router or table saw, cut it to the list size and glue small strips (cleats) behind its edges instead."
         }
         return out
+    }
+
+    /** Cut list rows with thin parts grown into their rabbets and grooves, as the cutting plan must cut them. */
+    fun grownRows(rows: List<splitziner.parts.CutListRow>, plan: FastenPlan): List<splitziner.parts.CutListRow> {
+        val byItem = plan.all.filter { it.kind == "thin" && it.size.split('|').size >= 3 && it.at.split('|').size >= 3 }.groupBy { it.into.item }
+        if (byItem.isEmpty()) return rows
+        return rows.map { r ->
+            val js = byItem[r.item] ?: return@map r
+            val p = js[0].into; val grow = DoubleArray(3)
+            for (j in js.filter { it.into.id == p.id }) { val bits = j.at.split('|'); val d = bits[1].toDoubleOrNull() ?: continue; val ax = bits[2].toIntOrNull() ?: continue; grow[ax] += d }
+            val e = p.mesh.bounds.extents
+            val s = (0..2).map { e[it] + grow[it] }.sorted()
+            val f = js[0].fmt
+            if (kotlin.math.abs(s[1] - r.w) < 0.1 && kotlin.math.abs(s[2] - r.l) < 0.1) r
+            else r.copy(w = s[1], l = s[2], stock = if (f != null) "${f.format(r.t)} x ${f.format(s[1])} x ${f.format(s[2])}" else r.stock)
+        }
     }
 
     /** The dowels the plan uses ("3/8 x 1-1/2 in dowels"), for the guide's note on drilling them; null if none. */
@@ -1132,7 +1226,7 @@ object Fastening {
         val cut = js.filter { it.kind == "thin" && it.size.split('|').size >= 2 }
         for ((key, g) in cut.groupBy { itemName(it.into) to it.size }) {
             val parts = key.second.split('|'); val w = parts[0]; val d = parts[1]; val rabbet = parts.getOrNull(2) == "rabbet"
-            val where = joinedNames(g.map { itemName(it.through) }.distinct())
+            val where = joinedNames(g.map { it.through }.distinctBy { it.id }.groupBy { itemName(it) }.map { (nm, ps) -> if (ps.size > 1 && nm.startsWith("item ")) "${ps.size}× $nm" else nm })
             val times = if (g.size > 1) " (${g.size} joints)" else ""
             val thin = key.first.replaceFirstChar { it.uppercase() }
             // Told in full the first time; later steps that set the same part the same way only say so.
@@ -1142,8 +1236,12 @@ object Fastening {
                     else "Glue ${key.first} into its groove in $where, as in step $earlier."
                 continue
             }
-            out += if (rabbet) "$thin is too thin to take ${fixings(plan)} at its edge$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in $where, make ${key.first} $d bigger on those edges than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) behind it instead."
-                else "$thin is too thin to take ${fixings(plan)} at its edge$times. Cut a groove $w wide and $d deep in $where for its edges, make ${key.first} $d bigger on those edges than the cut list says, and glue it in. Or glue a small strip (a cleat) beside it instead."
+            // The rabbets and grooves are cut, and the thin part cut oversize to reach into them, when the parts are
+            // made (see the making notes): by now the parts they are in may be screwed together.
+            val pins = g.sumOf { it.count }; val brad = g[0].at.substringBefore('|')
+            val cuts = if (g.size > 1) "${if (rabbet) "rabbets" else "grooves"}" else (if (rabbet) "rabbet" else "groove")
+            out += if (rabbet && pins > 0 && brad.isNotEmpty()) "Glue ${key.first} into the $cuts in $where (cut when you made the parts) and pin it with ${sized(pins, brad)} brads$times."
+                else "Glue ${key.first} into the $cuts in $where (cut when you made the parts)$times."
         }
         // Joints of the same kind between the same items are told once.
         // One item under several names (item 2 as bottom, top and shelf) is one line: "item 2 (bottom, top and shelf)".
@@ -1169,10 +1267,17 @@ object Fastening {
             return names.dropLast(1).joinToString(", ") + " and " + names.last()
         }
         // One item under two names (a box's front and back) fixed the same way is one line: "item 2 (front and back)".
-        val groups = groups0.entries.associate { (k, g) -> Triple(if (k.first.startsWith("#")) joined(g.map { itemName(it.through) }.distinct()) else k.first, joined(g.map { itemName(it.into) }.distinct()), k.third) to g }
+        // Fixed into two copies of a part (both shelves), it says so: "screw it to the 2 shelves", not "the shelf".
+        fun intoNames(g: List<Joint>) = g.map { it.into }.distinctBy { it.id }.groupBy { itemName(it) }.map { (nm, ps) -> if (ps.size > 1 && nm.startsWith("item ")) "${ps.size}× $nm" else nm }
+        // Driven through each of several copies (every slat screwed to the posts): "through each slat".
+        fun throughNames(g: List<Joint>): String { val ps = g.map { it.through }.distinctBy { it.id }; val ns = ps.map { itemName(it) }.distinct()
+            return if (ns.size == 1 && ps.size > 1 && ns[0].startsWith("item ")) "${ps.size}× ${ns[0]}" else joined(ns) }
+        val groups = groups0.entries.associate { (k, g) -> Triple(if (k.first.startsWith("#")) throughNames(g) else k.first, joined(intoNames(g)), k.third) to g }
         val room = maxOf(1, maxLines - out.size)
         // Tenons go into their rails before the rails go into their mortises.
-        for ((key, g) in groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.take(room)) {
+        // A crate's battens are glued to its lid before the lid goes on over the packed work.
+        val packing = groups.values.any { g -> g[0].kind == "cratepack" }
+        for ((key, g) in groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else if (packing && it.value[0].kind == "laminate") 0 else if (it.value[0].kind == "cratepack") 1 else 2 }.take(room)) {
             val j = g[0]; val n = g.sumOf { it.count }; val times = if (g.size > 1) " (${g.size} joints)" else ""
             out += if (j.kind == "hinges") {
                 // Where they go: the hinge edge (from the front), the end ones a set distance in, any others evenly between.
@@ -1269,8 +1374,9 @@ object Fastening {
             else if (j.kind == "thin") {
                 val parts = j.size.split('|'); val w = if (parts.size >= 2) parts[0] else ""; val d = if (parts.size >= 2) parts[1] else ""
                 val rabbet = parts.getOrNull(2) == "rabbet"
-                if (w.isNotEmpty() && rabbet) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to take ${fixings(plan)} at its edge$times. Cut a rabbet (a step along the edge it sits at) $w wide and $d deep in ${key.first}, make ${key.second} $d bigger on that edge than the cut list says, and glue and pin it into the rabbet. Or glue a small strip (a cleat) along ${key.first} behind it."
-                else if (w.isNotEmpty()) "${key.second.replaceFirstChar { it.uppercase() }} is too thin to take ${fixings(plan)} at its edge$times. Cut a groove $w wide and $d deep in ${key.first} for its edge, make ${key.second} $d bigger on that edge than the cut list says, and glue it in. Or glue a small strip (a cleat) along ${key.first} beside it."
+                if (w.isNotEmpty() && rabbet) { val pins = g.sumOf { it.count }; val brad = j.at.substringBefore('|')
+                    "Glue ${key.second} into the rabbet in ${key.first} (cut when you made the parts)" + (if (pins > 0 && brad.isNotEmpty()) " and pin it with ${sized(pins, brad)} brads" else "") + "$times." }
+                else if (w.isNotEmpty()) "Glue ${key.second} into the groove in ${key.first} (cut when you made the parts)$times."
                 else if (j.size == "no tools") "Glue the edge of ${key.second} to ${key.first}$times. It is too thin for fasteners, and a groove needs a router or table saw: glue a small strip (a cleat) along ${key.first} beside it to hold it."
                 else "Glue the edge of ${key.second} to ${key.first}$times. Both are too thin for fasteners or a groove: glue a small strip (a cleat) along ${key.first} beside it to hold it."
             }
@@ -1279,7 +1385,7 @@ object Fastening {
             else if (j.kind == "up") "Screw ${key.second} down from below, up through ${key.first}, with ${sized(n, j.size)} screws$times; drill clearance holes in ${key.first} so the top pulls down tight, and check the screws stop short of the top's face."
             else if (j.kind == "cabinets") "Clamp neighbouring cabinets together with their fronts and tops flush, and screw through ${key.first} into ${key.second} with ${sized(n, j.size)} screws$times: near the front and the back, high and low. No glue, so they can come apart to move."
             else if (j.kind == "pocketin") "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes along ${if (key.second.contains(" and ")) "their" else "its"} edge, on the inside, so nothing shows outside$times. Glue the joint too."
-            else if (j.kind == "cratepack") "Before ${key.first} goes on, glue the battens to it (as below) and pack the work in, wrapped, with foam all round so it cannot shift. Then screw the lid on: screws only, no glue, so it can be opened again. Mark the lid and one corner of the frame so it goes back on the same way round."
+            else if (j.kind == "cratepack") "Let that glue dry before ${key.first} goes on. Pack the work in, wrapped, with foam all round so it cannot shift. Then screw the lid on: screws only, no glue, so it can be opened again. Mark the lid and one corner of the frame so it goes back on the same way round."
             else if (j.kind == "facebox") "Glue the face frame onto the front edges of the box, the lip even all round inside, and clamp it till the glue sets. Nothing goes through the face."
             else if (j.kind == "stop") "Clean the glass and lay it in from the back, onto the lip. Then set ${if (g.size > 1) "the stops" else key.first} in tight behind it and pin ${if (g.size > 1) "them" else "it"} to the box sides with ${j.size} brads, ${if (n > 1) "two to each" else "two"}, no glue, so the glass can be changed."
             else if (j.kind == "backscrew") "Mount the work on ${key.first} first. Then screw it to the box sides with ${sized(js.filter { it.kind == "backscrew" }.sumOf { it.count }, j.size)} screws, two into each side, no glue, so it comes off again; two D-rings and picture wire on the box sides hang it."
@@ -1301,7 +1407,7 @@ object Fastening {
                 val lengthText = if (f != null && first && rods.all { sunk[it.id] == sunk[r0.id] }) " Cut ${key.second} to ${f.format(len)} ${f.unitLabel}, not the length listed, for the holes${if (sunk[r0.id] == 2) " at both ends" else ""}." else ""
                 "Drill a $dia hole $dep deep in ${key.first} where each end of ${key.second} meets it${times}, square to the face (a block drilled square guides the bit); the drawing shows ${if (g.size > 1) "the rods" else "it"} butting, sunk this far ${if (g.size > 1) "they hold" else "it holds"}.$lengthText Glue the ends in and wipe off the squeeze-out."
             }
-            else if (j.kind == "peghole") j.at.split('|').let { (dia, dep) -> "Drill a $dia hole $dep deep in ${key.first} for ${if (g.size > 1) "each ${key.second}" else key.second}, where the drawing shows, square to the face (or at the angle drawn): a drill guide or a block drilled square keeps it straight. Glue ${if (g.size > 1) "the pegs" else "it"} in and wipe off the glue that squeezes out$times." }
+            else if (j.kind == "peghole") j.at.split('|').let { (dia, dep) -> "Drill a $dia hole $dep deep in ${key.first} for ${if (g.size > 1) "each ${key.second.replace(Regex("^\\d+× "), "")}" else key.second}, where the drawing shows, square to the face (or at the angle drawn): a drill guide or a block drilled square keeps it straight. Glue ${if (g.size > 1) "the pegs" else "it"} in and wipe off the glue that squeezes out$times." }
             else if (j.kind == "front") "Glue ${key.first} to the front edge of ${key.second} and pin it with ${sized(n, j.size)} brads$times; set the brads just below the surface and fill the holes."
             else if (j.kind == "pocket screws" && plan.method != JoinMethod.POCKET_SCREWS) "Fix ${key.second} to ${key.first} with ${sized(n, j.size)} pocket screws through pocket holes in ${if (key.second.contains(" and ")) "their" else "its"} ends, on the ${if (j.through.name == "Stile" || j.into.name == "Stile") "back of the frame" else "face that will not show"}$times (or glue and dowel them)."
             else if (j.kind == "screws" && plan.method != JoinMethod.SCREWS) "Drill pilot holes through ${key.first} and screw it to ${key.second} with ${sized(n, j.size)} screws$times."
@@ -1326,6 +1432,8 @@ object Fastening {
             val rest = groups.entries.sortedBy { if (it.value[0].kind == "tenon") 0 else 1 }.drop(room).map { (k, g) -> "${k.first.removePrefix("item ")} to ${k.second.removePrefix("item ")} (${how(g[0])})" }
             out += "Also join, item to item: ${rest.joinToString(", ")}."
         }
-        return out
+        // Several parts driven through at once (both sides, a front and back) are "them", not "it".
+        val many = groups.entries.filter { (_, g) -> g.map { it.through.id }.distinct().size > 1 }.map { it.key.first }
+        return out.map { l -> many.firstOrNull { k -> l.contains("through $k and ") }?.let { k -> l.replace("through $k and screw it to ", "through $k and screw them to ").replace("through $k and pin it ", "through $k and pin them ") } ?: l }
     }
 }

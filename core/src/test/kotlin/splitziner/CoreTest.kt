@@ -1925,7 +1925,7 @@ class CribTest {
         val pl = splitziner.explode.AssemblyPlan.plan(a.parts)
         val g = splitziner.guide.GuideSteps.build(pl.parts, pl.steps, fmt = LengthFormat("in", "fraction"))
         assertTrue(g.any { it.title.contains("make 2 slatted panels from") }, g.map { it.title }.toString())
-        assertTrue(g.any { s -> s.text.any { it.startsWith("Space the spindles (item") && it.contains("2-1/4 in apart") } }, g.flatMap { it.text }.toString())
+        assertTrue(g.any { s -> s.text.any { it.startsWith("Space the spindles (") && it.contains("2-1/4 in apart") } }, g.flatMap { it.text }.toString())
         // Two bench steps: the end frames (legs, rails, spindles) and the slatted sides, each in one picture.
         assertEquals(2, pl.steps.count { it.subassembly })
     }
@@ -2651,7 +2651,7 @@ class DryingRackTest {
         // The rails are screwed to the sides, not left resting on the dowels.
         assertTrue(f.all.any { it.kind == "screws" && setOf(it.through.name, it.into.name) == setOf("Side", "Top rail") }, f.all.map { "${it.through.name}-${it.into.name} ${it.kind}" }.toString())
         val lines = splitziner.joinery.Fastening.lines(f, 2, { p -> "item ${p.item}" })
-        assertTrue(lines.any { it.contains("Cut item 4 to 29-1/4 in") }, lines.toString())
+        assertTrue(lines.any { it.contains("Cut 22× item 4 to 29-1/4 in") }, lines.toString())
     }
 }
 
@@ -2736,7 +2736,9 @@ class FoldingScreenTest {
         assertTrue(f.hardware.none { it.contains("anti-tip") }, f.hardware.toString())
         val report = splitziner.check.DesignCheck.run(a.cutList.parts, a.cutList.rows, LengthFormat("in", "fraction"), null)
         assertTrue(report.findings.any { it.title == "A folding screen of 3 panels" }, report.findings.map { it.title }.toString())
-        assertTrue(report.findings.none { it.severity == splitziner.check.Severity.PROBLEM || it.title == "Fix it to the wall" || it.title.contains("tipping") }, report.findings.map { it.title }.toString())
+        // Its skins are drawn the size of the opening, behind the frames: they touch the frames only along their edges.
+        assertTrue(report.findings.any { it.severity == splitziner.check.Severity.PROBLEM && it.title.contains("only touches its frame along its edges") }, report.findings.map { it.title }.toString())
+        assertTrue(report.findings.none { (it.severity == splitziner.check.Severity.PROBLEM && !it.title.contains("only touches its frame")) || it.title == "Fix it to the wall" || it.title.contains("tipping") }, report.findings.map { it.title }.toString())
     }
 }
 

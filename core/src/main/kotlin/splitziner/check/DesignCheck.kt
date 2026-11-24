@@ -289,6 +289,12 @@ object DesignCheck {
     fun finishNotes(report: CheckReport?): List<String> = report?.findings.orEmpty().filter { f -> FINISH_TITLES.any { f.title.startsWith(it) } }
         .map { f -> f.title.replace(Regex(" \\(not in the model\\)$"), "") + ": " + f.detail }
 
+    /** Panels this thin (mm, 1/2 in) or thinner are held by their faces, glued on, rather than by their edges. */
+    private const val THIN_PANEL = 12.7
+
+    /** A face panel resting on less than this share of its face, the rest only meeting the frame at its edges, is loose. */
+    private const val LOOSE_SHARE = 0.15
+
     fun run(parts: List<Part>, rows: List<CutListRow>, fmt: LengthFormat, tools: Set<Tool>?, stock: StockSettings = StockSettings.defaultFor(fmt), housed: List<Pair<String, String>> = emptyList()): CheckReport {
         val housedPairs = housed.map { setOf(it.first, it.second) }.toSet()
         val live = parts.filter { !it.excluded }
@@ -311,6 +317,37 @@ object DesignCheck {
             out += Finding(Severity.CHECK, "${d(t)} $u is not a thickness shops stock",
                 "${items(ps)} ${if (ps.size == 1) "is" else "are"} ${d(t)} thick. Common stock is ${near.joinToString(" or ") { ds(it) }}. Change the thickness, or plan to plane material down.",
                 ps.map { it.id }, near.map { Fix(FixKind.SET_THICKNESS, "Make ${ds(it)} thick", ps.map { p -> p.id }, it) })
+        }
+        // A thin panel drawn exactly the size of the opening it covers, behind a frame: the frame meets it only along
+        // lines round its edge, so glue holds it by whatever little of its face lies on a rail. It falls out. Made to lap
+        // over the frame, or set in a rabbet in the frame's back, it is held all round.
+        for (p in live.filter { it.kind == PartKind.PANEL && it.t <= THIN_PANEL }.distinctBy { it.item ?: it.id.hashCode() }) {
+            val pb = p.mesh.bounds
+            val n = (0..2).minByOrNull { pb.extents[it] }!!
+            val (ua, va) = (0..2).filter { it != n }
+            val face = pb.extents[ua] * pb.extents[va]
+            if (face <= 0.0) continue
+            var area = 0.0; var setIn = false; val edges = HashSet<Int>()
+            val ring = ArrayList<splitziner.math.Aabb>()
+            for (o in live) {
+                if (o === p) continue
+                val ob = o.mesh.bounds
+                if ((0..2).any { k -> ob.min[k] > pb.max[k] + 0.5 || pb.min[k] > ob.max[k] + 0.5 }) continue
+                fun ov(k: Int) = minOf(pb.max[k], ob.max[k]) - maxOf(pb.min[k], ob.min[k])
+                if (ov(n) > 0.5) { setIn = true; break }
+                val a = maxOf(0.0, ov(ua)) * maxOf(0.0, ov(va))
+                area += a
+                ring += ob
+                if (ov(ua) <= 0.5 && ov(va) > 0.5) edges += if (ob.center[ua] < pb.center[ua]) 0 else 1
+                if (ov(va) <= 0.5 && ov(ua) > 0.5) edges += if (ob.center[va] < pb.center[va]) 2 else 3
+            }
+            if (setIn || edges.size < 3 || area >= LOOSE_SHARE * face) continue
+            val lo = DoubleArray(3) { k -> ring.minOf { it.min[k] }.coerceAtMost(pb.min[k]) }; val hi = DoubleArray(3) { k -> ring.maxOf { it.max[k] }.coerceAtLeast(pb.max[k]) }
+            val w = minOf(hi[ua] - lo[ua], hi[va] - lo[va]); val l = maxOf(hi[ua] - lo[ua], hi[va] - lo[va])
+            val ids = live.filter { it.item != null && it.item == p.item }.map { it.id }.ifEmpty { listOf(p.id) }
+            out += Finding(Severity.PROBLEM, "${items(live.filter { it.id in ids })} only touches its frame along its edges",
+                "It is drawn the size of the opening, behind the frame, so only ${Math.round(100 * area / face)}% of its face lies on anything; glue and a few pins will not hold it and it will fall out. " +
+                "Make it about ${d(w)} x ${d(l)} $u so it laps over the back of the frame all round, or cut a rabbet in the back of the frame and set it in that.", ids)
         }
         // Shapes drawn as one solid that are really several boards: a frame from a thick slab, an open box, a channel.
         for (p in live.filter { it.kind == PartKind.SHAPED || it.kind == PartKind.PANEL || it.kind == PartKind.BOARD }.distinctBy { it.item }) {
@@ -533,7 +570,10 @@ object DesignCheck {
                 "The panels stand a hinge's gap apart: each is built on its own and they are hinged together. A folding screen stands because its panels are at an angle to each other: open it to a zig-zag, each joint at about a right angle. Opened out flat it falls over; on a busy gallery floor, a small block screwed to the floor inside each angle keeps it put.")
             // Separate pieces drawn together on purpose (nesting plinths, a pair of nightstands) are a set, not a slip.
             if (pieces != null) out += Finding(Severity.NOTE, "${pieces.size} separate pieces",
-                "The file holds ${pieces.size} pieces that stand apart (${pieces.joinToString("; ") { pc -> items(pc).replaceFirstChar { it.lowercase() } }}). The guide builds each in turn; the cut list, cutting plan and shopping list cover them all together.")
+                // Pieces made of the same items are one kind, counted: "40 alike (items 1, 2 and 3)", not 40 lists.
+                pieces.groupBy { pc -> pc.mapNotNull { it.item }.sorted() }.values.let { kinds ->
+                    val said = kinds.joinToString("; ") { k -> (if (k.size > 1) "${k.size} alike, " else "") + items(k[0]).replaceFirstChar { it.lowercase() } }
+                    "The file holds ${pieces.size} pieces that stand apart ($said). The guide builds ${if (kinds.size < pieces.size) "each kind once, with how many to make" else "each in turn"}; the cut list, cutting plan and shopping list cover them all together." })
             val islands = if (pieces != null || leaves != null) emptyList() else groups.filter { it.size > 1 }.sortedByDescending { it.size }.drop(1).filter { g -> g.none { it in onSlides } }
             for (g in islands) out += Finding(Severity.PROBLEM, "${g.size} parts are joined to each other but not to the rest",
                 "${items(g.map { live[it] })} touch each other and nothing else, so as drawn they are a separate object.", g.map { live[it].id })

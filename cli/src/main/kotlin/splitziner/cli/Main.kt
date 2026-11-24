@@ -149,8 +149,9 @@ fun main(args: Array<String>) {
                 val hero = splitziner.explode.ExplodedView.render(drawn.map { it.copy(explode = null) }, 170.0, 115.0, splitziner.explode.ExplodeOptions(balloons = false), view, "hero")
                 val pages = splitziner.guide.GuideLayout.pages(splitziner.guide.GuideLayout.Info(splitziner.text.Names.fromFile(f.name), "Build guide", a.overallSize, drawn.size, hardware = fasten.hardware + a.orders.map { "To order: $it" }).let { inf ->
                     val ba = splitziner.guide.GuideLayout.beforeAndAfter(splitziner.cutplan.EdgeBanding.estimate(a.parts).items, splitziner.drawing.PartDrawings.groovedItems(a.parts, a.housed).toList(), fasten.byStep.values.flatten().any { !it.glueOnly && it.kind in setOf("screws", "pocket screws", "under", "up", "counterbored", "cabinets") }, splitziner.joinery.Fastening.pocketHoles(fasten), splitziner.drawing.PartDrawings.pinItems(a.parts).toList(), splitziner.joinery.Fastening.grooveItems(fasten), splitziner.joinery.Fastening.dowelSize(fasten), splitziner.cutplan.CutPlanner.gluingSteps(a.cutList.rows, a.format), splitziner.joinery.Fastening.pilotNote(fasten))
-                    val cuts = splitziner.joinery.Fastening.cutLines(fasten) { p -> "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${p.name.lowercase()})" else "") }
-                    val making = a.cutList.rows.mapNotNull { r -> val p = a.parts.first { it.id == r.memberIds[0] }
+                    val shownNames = splitziner.parts.Distinct.names(a.parts)
+                    val cuts = splitziner.joinery.Fastening.cutLines(fasten) { p -> val sn = splitziner.parts.Distinct.shown(p, shownNames); "item ${p.item ?: "-"}" + (if (p.name != p.id) " (${sn.lowercase()})" else "") }
+                    val making = splitziner.joinery.Fastening.grownRows(a.cutList.rows, fasten).mapNotNull { r -> val p = a.parts.first { it.id == r.memberIds[0] }
                         val st = splitziner.check.HowTo.steps(r, p, a.format, tools, splitziner.drawing.PartDrawings.grooveNotes(p, a.parts, a.housed, a.format), cuts[r.item].orEmpty()); splitziner.check.HowTo.making(st)?.let { "Item ${r.item}" + (if (r.name.isNotBlank()) " (${r.name.lowercase()})" else "") + ": ${r.description}" to it } }
                     splitziner.guide.GuideLayout.Info(inf.title, inf.subtitle, inf.overallSize, inf.partCount, inf.tools, inf.a4, inf.hardware, ba.first, ba.second + splitziner.check.DesignCheck.finishNotes(runCatching { splitziner.check.DesignCheck.run(a.parts, a.cutList.rows, a.format, null, housed = a.housed) }.getOrNull()), making) }, steps, a.cutList.rows, hero)
                 pages.forEachIndexed { i, d -> File(out, "guide%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
@@ -163,8 +164,9 @@ fun main(args: Array<String>) {
                 println("tools     ${rep.toolsNeeded}")
             }
             time("cutplan") {
-                val cp = splitziner.cutplan.CutPlanner.plan(a.cutList.rows, splitziner.cutplan.StockSettings.defaultFor(a.format))
-                splitziner.cutplan.CutPlanLayout.pages(cp, a.cutList.rows, splitziner.text.Names.fromFile(f.name), a.format, extraBuy = listOfNotNull(splitziner.cutplan.EdgeBanding.line(a.parts, a.format))).forEachIndexed { i, d -> File(out, "cutplan%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
+                val cutRows = plan?.let { pl -> runCatching { splitziner.joinery.Fastening.grownRows(a.cutList.rows, splitziner.joinery.Fastening.plan(pl.parts, pl.steps, System.getenv("METHOD")?.let { m -> splitziner.joinery.JoinMethod.valueOf(m) } ?: splitziner.joinery.JoinMethod.defaultFor(tools), a.format, tools, a.housed)) }.getOrNull() } ?: a.cutList.rows
+                val cp = splitziner.cutplan.CutPlanner.plan(cutRows, splitziner.cutplan.StockSettings.defaultFor(a.format))
+                splitziner.cutplan.CutPlanLayout.pages(cp, cutRows, splitziner.text.Names.fromFile(f.name), a.format, extraBuy = listOfNotNull(splitziner.cutplan.EdgeBanding.line(a.parts, a.format))).forEachIndexed { i, d -> File(out, "cutplan%02d.svg".format(i + 1)).writeText(splitziner.export.SvgWriter.write(d)) }
                 println("cutplan   ${splitziner.cutplan.CutPlanner.shoppingList(cp, a.format)} leftOut ${cp.leftOut.size}")
                 println("banding   ${splitziner.cutplan.EdgeBanding.line(a.parts, a.format)}")
             }

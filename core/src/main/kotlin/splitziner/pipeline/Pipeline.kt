@@ -444,7 +444,15 @@ object Pipeline {
             // With no role either, it goes by its own id, which everything reads as "no name".
             ps.map { p -> if (unnamed(p)) roles[p.id]?.let { p.copy(name = it) } ?: p.copy(name = p.id) else p }
         }
-        val cut = timed("cutlist") { CutList.build(toCut, fmt, options.itemOverrides) }
+        val cut = timed("cutlist") { CutList.build(toCut, fmt, options.itemOverrides).let { c ->
+            // Two different parts under one name ("Side" on the desk and on its hutch) are told apart in the list.
+            val shown = splitziner.parts.Distinct.names(c.parts, options.partNames.keys)
+            if (shown.isEmpty()) c else {
+                val byId = c.parts.associateBy { it.id }
+                CutListResult(c.parts, c.rows.map { r -> val ms = r.memberIds.mapNotNull { byId[it] }
+                    if (ms.none { it.id in shown }) r else r.copy(name = ms.filter { it.name != it.id }.map { splitziner.parts.Distinct.shown(it, shown) }.distinct().sorted().let { if (it.size <= 3) it.joinToString(" / ") else "" }) }, c.stock, c.warnings)
+            }
+        } }
         val bounds = cut.parts.filter { !it.excluded }.map { it.mesh.bounds }.reduceOrNull { a, b -> a.union(b) }
             ?: Aabb.of(doubleArrayOf())
         progress.report(1.0, "Done")
