@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.57.0 - critique round 1
+
+- The Guide tab now shows steps you can read on your phone (the printable pages are under Pages).
+- Drawings can be turned to fill the screen.
+- Guide sentences name the part first: "screw the side (1) to the stud (2)".
+- Compound cuts give the mitre and bevel to set on the saw.
+- The Check tab says how many problems one tap can fix, and no longer counts the standard notes.
+- Set one material for every item at once; the cut list is quieter.
+- New design folds its list away once you pick, so the sizes are in view.
+
 ## v2.56.0 - sawhorse
 
 - Sawhorses: the four splayed legs are no longer mistaken for an easel's folding leg. The beam goes down first and each leg is set and checked at its angles.

@@ -72,7 +72,8 @@ object HowTo {
             out += when {
                 v.endsWith("(MITRE)") -> "Mitre both ends at $deg, opposite ways, with a $saw: cut one end, measure ${d(row.l)} $u along the long edge to the point and cut the other. Cut a test pair from scrap first and check that two make a square corner."
                 v.endsWith("(BEVEL)") -> "Bevel both ends at $deg across the thickness, opposite ways, with a $saw with the blade tilted: cut one end, measure ${d(row.l)} $u along the outside face to the point and cut the other. Cut a test pair from scrap first and check that two make a square corner."
-                v.contains("COMPOUND") -> "Cut both ends at ${v.substringBefore(" (").lowercase()} off square (a compound cut: set both the mitre and the bevel), parallel to each other, with a $saw; measure ${d(row.l)} $u along the long edge."
+                v.contains("COMPOUND") -> splitziner.parts.PartDescriber.sawSettings(v)?.let { (mi, be) -> "Cut both ends, parallel to each other, with a $saw set to a mitre of $mi and a bevel of $be, the board flat on its wide face against the fence (a compound cut: the end leans ${v.substringBefore(" (").lowercase()} off square across its thickness and its width); measure ${d(row.l)} $u along the long edge. Cut a test piece from scrap and check it stands flat as drawn." }
+                    ?: "Cut both ends at ${v.substringBefore(" (").lowercase()} off square (a compound cut: set both the mitre and the bevel), parallel to each other, with a $saw; measure ${d(row.l)} $u along the long edge."
                 else -> "Cut both ends at $deg off square, parallel to each other, with a $saw; measure ${d(row.l)} $u along the long edge."
             }
         }

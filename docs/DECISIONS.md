@@ -904,3 +904,16 @@ Departures from the build spec, newest first.
 ## v2.56
 - Leaning legs all held only at their tops are not an easel's folding back legs unless at least two fixed front legs remain: a sawhorse's four legs are legs.
 - A board on edge at the top that every leg is fixed to, with nothing else touching the legs, is the beam: it is put down first and the legs fixed to it last. A step fitting legs with compound-cut ends says to set each splayed as drawn so both cut ends lie flat (flush with the beam's top, foot on the floor), checked with a bevel gauge.
+
+## v2.57 (critique round 1)
+- The Guide tab opens on Steps: each step as a card to read on a phone (title, picture, the parts it needs, numbered lines; the picture opens Build mode). The printable pages are under Pages.
+- Drawing sheets wider than tall can be turned a quarter to fill an upright phone screen ("Turn to fill").
+- The Check summary says how many of its problems one tap can fix.
+- The cut list no longer repeats "Tap to set material" on every row: an item shows its material only when set, and "Set the material for every item" sets all at once (each can still differ).
+- One name each: 3D's "Build steps" is now "Play the build"; the step editor is "Edit steps"; Build mode stays the guide a step to a screen.
+- Guide lines put the part's name first and its item number after it: "Drill pilot holes through the side (1) and screw it to the stud (2)"; after a count, "the two plates (3)", "4× leg (item 2)". Done on the finished lines, so every phrase the guide writes gets it.
+- Compound-cut ends give mitre saw settings: mitre = the lean across the width, bevel = asin(tan a / sqrt(1 + tan²a + tan²b)) for the lean a across the thickness, board flat on its wide face; on the making steps and the detail drawing.
+- The two notes every design gets (joint strength not checked, choose your tools) are no longer counted as findings: said once in small type above the list.
+- New design folds its list of designs away once one is picked, so the picture and sizes come into view; "Other designs" opens it again.
+- Help: Reading the guide, Turning a drawing.
+- Withdrawn from the critique: "tilted parts measured thinner than their stock". The test sawhorse's legs were drawn sheared, not turned, so they really are thinner across; the measurement was right.

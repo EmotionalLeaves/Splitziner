@@ -72,6 +72,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -463,7 +465,7 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
             }
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                androidx.compose.material3.FilledTonalButton(onClick = { playing = !playing; playStep = 1 }, contentPadding = pad) { Text(if (playing) "Show all" else "Build steps") }
+                androidx.compose.material3.FilledTonalButton(onClick = { playing = !playing; playStep = 1 }, contentPadding = pad) { Text(if (playing) "Show all" else "Play the build") }
                 androidx.compose.material3.FilledTonalButton(onClick = { showAdd = true }, enabled = state.busyLabel == null, contentPadding = pad) { Text("Add a board") }
                 if (open.meta.edits.isNotEmpty()) androidx.compose.material3.FilledTonalButton(onClick = { vm.undoLastEdit() }, enabled = state.busyLabel == null, contentPadding = pad) { Text("Undo") }
                 Box {
@@ -513,11 +515,19 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                     if (buy.size > 4) Text("and ${buy.size - 4} more: see the cutting plan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (cost != null && cost.first > 0) Text("About ${money(cost.first)} of wood" + if (cost.second > 0) " (${cost.second} kind${if (cost.second == 1) "" else "s"} of stock not priced)" else "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
                     Text(
-                        if (wt.unknownItems.size == a.cutList.rows.size) "Set a material (tap an item) to get a weight estimate."
+                        if (wt.unknownItems.size == a.cutList.rows.size) "Set a material to get a weight estimate."
                         else "Weighs about ${splitziner.material.Materials.format(wt.kg, a.format.isInch)} (typical densities)" +
                             if (wt.unknownItems.isEmpty()) "." else if (wt.unknownItems.size > 6) ", not counting ${wt.unknownItems.size} items with no material, or one the app does not know."
                             else ", not counting item${if (wt.unknownItems.size == 1) "" else "s"} ${wt.unknownItems.joinToString(", ")}: no material, or one the app does not know.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                    // One material for everything in one go; an item tapped below can still differ.
+                    Box {
+                        var pick by remember { mutableStateOf(false) }
+                        TextButton(onClick = { pick = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text(if (a.cutList.rows.all { it.material.isBlank() }) "Set the material for every item\u2026" else "Same material for every item\u2026") }
+                        androidx.compose.material3.DropdownMenu(expanded = pick, onDismissRequest = { pick = false }) {
+                            for (m in listOf("Plywood", "Birch plywood", "MDF", "Pine", "Poplar", "Oak")) androidx.compose.material3.DropdownMenuItem(text = { Text(m) }, onClick = { pick = false; vm.setAllMaterial(m) })
+                        }
+                    }
                 }
             }
             val partById = remember(a) { a.parts.associateBy { it.id } }
@@ -532,8 +542,9 @@ private fun ProjectScreen(open: OpenProject, state: UiState, vm: AppViewModel) {
                             // "Panel 18 x 600 x 1500, notched", in the units shown.
                             val desc = row.description.lowercase().replaceFirstChar { it.uppercase() }
                             Text(desc.substringBefore(',') + " ${a.format.unitLabel}" + (if (desc.contains(',')) "," + desc.substringAfter(',') else ""), style = MaterialTheme.typography.bodyMedium)
-                            Text((if (row.material.isBlank()) "Tap to set material" else row.material) + if (row.grain) "  \u00b7  grain along length" else "", style = MaterialTheme.typography.bodySmall,
-                                color = if (row.material.isBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            // Only what is set: an empty material is not repeated on every row.
+                            val meta = listOfNotNull(row.material.ifBlank { null }, if (row.grain) "grain along length" else null)
+                            if (meta.isNotEmpty()) Text(meta.joinToString("  \u00b7  "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text("\u00d7${row.qty}", style = MaterialTheme.typography.titleMedium)
                     }
@@ -765,6 +776,7 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
     var showInfo by remember { mutableStateOf(false) }
     var showQa by remember { mutableStateOf(false) }
     var sheetIndex by rememberSaveable { mutableIntStateOf(0) }
+    var turned by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(open.analysis) { vm.ensureDrawing() }
     val d = state.drawing
     val shown = if (d != null) sheetIndex.coerceIn(0, maxOf(d.sheets.size - 1, 0)) else 0
@@ -777,7 +789,16 @@ private fun DrawingTab(open: OpenProject, state: UiState, vm: AppViewModel, modi
             } else Spacer(Modifier.weight(1f))
         }
         Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
-            if (d != null && d.sheets.isNotEmpty()) SheetPreview(d.sheets[shown], Modifier.fillMaxSize())
+            if (d != null && d.sheets.isNotEmpty()) {
+                val sh = d.sheets[shown]
+                // A landscape sheet in a tall phone screen fills less than half of it; turned, it fills nearly all.
+                if (turned && sh.widthMm > sh.heightMm) androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val w = maxHeight; val h = maxWidth
+                    Box(Modifier.requiredSize(w, h).graphicsLayer { rotationZ = 90f }) { SheetPreview(sh, Modifier.fillMaxSize()) }
+                } else SheetPreview(sh, Modifier.fillMaxSize())
+                if (sh.widthMm > sh.heightMm) androidx.compose.material3.FilterChip(selected = turned, onClick = { turned = !turned }, label = { Text(if (turned) "Turned" else "Turn to fill") },
+                    modifier = Modifier.align(Alignment.TopEnd))
+            }
             if (state.drawingBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
                     Text("Working out which edges are visible\u2026", style = MaterialTheme.typography.bodyMedium)
@@ -954,10 +975,44 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
     LaunchedEffect(open.analysis, state.guide == null) { vm.ensureGuide() }
     val g = state.guide
     val shown = if (g != null) page.coerceIn(0, maxOf(g.pages.size - 1, 0)) else 0
+    // Steps to read on the phone by default; the printable pages (the PDF) one tap away.
+    var asPages by rememberSaveable { mutableStateOf(false) }
     Column(modifier.fillMaxWidth()) {
-        Text("A draft order worked out from the shapes: read it through before you build.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.material3.FilterChip(selected = !asPages, onClick = { asPages = false }, label = { Text("Steps") })
+            androidx.compose.material3.FilterChip(selected = asPages, onClick = { asPages = true }, label = { Text("Pages") })
+            Text("A draft order worked out from the shapes: read it through before you build.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        }
+        if (!asPages) Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp)) {
+            if (g != null && g.work.isNotEmpty()) LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(g.work.size) { i ->
+                    val st = g.work[i]
+                    ElevatedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(st.title.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.small).clickable { showBuild = true }) {
+                                SheetThumb(st.picture, Modifier.fillMaxWidth().height(190.dp))
+                            }
+                            if (st.parts.isNotEmpty()) Text("You need: " + st.parts.joinToString("; ") { it.replace(Regex("""^(.*?\)) ([A-Z]+ [0-9].*)$""")) { m -> m.groupValues[1] + " " + m.groupValues[2].lowercase() } },
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            for ((k, line) in st.text.withIndex()) Row(Modifier.padding(top = 4.dp)) {
+                                Text("${k + 1}.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                                Text(line, style = MaterialTheme.typography.bodyMedium)
+                            }
+                            st.check?.let { Text("Check: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(top = 4.dp)) }
+                        }
+                    }
+                }
+            }
+            if (state.guideBusy) {
+                Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
+                    Text("Working out the build order and drawing each step\u2026", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+        }
+        if (asPages) Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 6.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium).padding(6.dp)) {
             if (g != null && g.pages.isNotEmpty()) SheetPreview(g.pages[shown], Modifier.fillMaxSize())
             if (state.guideBusy) {
                 Column(Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
@@ -967,7 +1022,7 @@ private fun GuideTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                 }
             }
         }
-        if (g != null) PagerBar(g.labels.getOrNull(shown) ?: "Page ${shown + 1}", "Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 },
+        if (g != null && asPages) PagerBar(g.labels.getOrNull(shown) ?: "Page ${shown + 1}", "Page ${shown + 1} of ${g.pages.size}  \u00b7  ${g.stepCount} steps", shown > 0, shown < g.pages.size - 1, { page = shown - 1 }, { page = shown + 1 },
             jump = g.pages.indices.map { "${it + 1}.  " + (g.labels.getOrNull(it) ?: "Page ${it + 1}") }, onJump = { page = it })
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { showBuild = true }, enabled = g != null && !state.guideBusy && g.work.isNotEmpty()) { Text("Build mode") }
@@ -1073,7 +1128,7 @@ private fun StepEditor(open: OpenProject, steps: List<splitziner.explode.BuildSt
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         },
-        title = { Text("Build steps") },
+        title = { Text("Edit steps") },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                 Text("Tap a part to move it to another step. Use the arrows to move a whole step. The first step is the base everything else is built on.", style = MaterialTheme.typography.bodySmall)
@@ -1155,8 +1210,8 @@ private val HELP_SECTIONS = listOf(
     "Getting a model in" to listOf("Units", "Which way is up", "Round things", "Frames and boxes drawn as one piece", "Joined parts", "Backing up", "Projects"),
     "3D and changing the model" to listOf("Changing parts", "Overall size", "Doors, drawers and shelf pins", "Changes", "Grooves (housings)"),
     "Check and fixes" to listOf("Check", "Fixing a model", "Tools"),
-    "Drawings" to listOf("Dimensions", "Holes", "Tolerances and materials", "Full-size templates", "Not a checked drawing", "Printing"),
-    "Build guide" to listOf("Build order", "Joining", "Build mode"),
+    "Drawings" to listOf("Turning a drawing", "Dimensions", "Holes", "Tolerances and materials", "Full-size templates", "Not a checked drawing", "Printing"),
+    "Build guide" to listOf("Reading the guide", "Build order", "Joining", "Build mode"),
     "Cut list and buying" to listOf("Sizes and counts", "Cutting plan", "Shopping list", "Prices", "Weight", "CNC profiles", "Build pack"),
 )
 
@@ -1238,6 +1293,8 @@ private val HELP = listOf(
     "Tools" to "On the Check tab, Tools lets you tick what you own. The check then says which parts you cannot make, or can only make slowly, and what would do the job. The build guide's tool list follows the same choice. Your tools are remembered for the next project.",
     "Printing" to "Print, under More on the Guide and Drawing tabs and in the cutting plan, opens the phone's own print screen: choose a printer on your Wi-Fi, or Save as PDF. Drawings print each sheet at its own size where the printer allows; letter or A4 paper takes the guide and the cutting plan as they are.",
     "Projects" to "On the first screen, each project's menu (\u22ee) can rename it, make a copy to try a variation without losing the original, or delete it. Your original model file is never changed.",
+    "Reading the guide" to "The Guide tab opens on Steps: each step as a card to read on the phone, its picture, the parts it needs and what to do, numbered, naming each part first and its item number after it (\"the side (1)\"). Tap a picture to open Build mode. Pages shows the same guide as the printable pages that Share PDF and Print send. On the 3D tab, Play the build shows the same steps as the parts go on.",
+    "Turning a drawing" to "Drawing sheets are wider than they are tall. On a phone held upright, Turn to fill (top right of the sheet) turns it a quarter so it fills the screen: turn the phone to read it. Tap again to put it back.",
     "Build mode" to "On the Guide tab, Build mode shows the guide one step to a screen, for the workshop: the picture large, the parts and hardware the step uses, and what to do, numbered. Done, next marks the step done and moves on; the app remembers which steps are done, so you can stop and pick up another day where you left off.",
     "Shopping list" to "On the Cut list tab, Shopping list opens a checklist of everything to buy: the sheets and lengths from the cutting plan, edge banding, and the screws, hinges and slides the guide uses. Tick each line as it goes in the trolley; the ticks stay with the project until you clear them. Share sends the list as text.",
     "Cutting plan" to "On the Cut list tab, Cutting plan lays the panels out on sheets and the boards along bought lengths, shows the layout page by page, and tells you how much to buy. Boards can also be bought a quarter and a half longer (10 and 12 ft beside 8 ft; 3.0 and 3.6 m beside 2.4 m): each kind of board uses the length that buys least wood, and a length only partly used is bought shorter. Change the stock sizes under Stock and the plan is redrawn at once; Share PDF sends it, Print prints it (or saves it as a PDF), Share list sends just the shopping list. Tap an item and tick \"Grain runs along its length\" to keep that part from being turned on the sheet (marked G). You set the sheet size, the length boards come in and the width of your saw cut. Every sheet can be cut with straight cuts right across. It is a good layout, not a proven best one, and it does not know about defects or offcuts you already own.",
@@ -1655,6 +1712,10 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
                             report.checks > 0 -> "No problems found, ${report.checks} to check"
                             else -> "No problems found"
                         }, style = MaterialTheme.typography.titleMedium)
+                    // How many of the problems the app can fix itself, so a long red list is not taken as a lost cause.
+                    val fixable = report?.findings?.count { it.severity == splitziner.check.Severity.PROBLEM && it.fixes.isNotEmpty() } ?: 0
+                    if (report != null && report.problems > 0 && fixable > 0) Text(if (fixable == report.problems) "All of them can be fixed with one tap below." else "$fixable of them can be fixed with one tap below.",
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     Text(if (owned == null) "Tools: not chosen yet" else if (owned.isEmpty()) "Tools: none ticked" else "Tools: " + owned.joinToString(", ") { it.label.lowercase() },
                         style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
@@ -1673,16 +1734,22 @@ private fun CheckTab(open: OpenProject, state: UiState, vm: AppViewModel, modifi
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
         // Filters by how serious, so a long list can be worked through one kind at a time.
         var only by remember { mutableStateOf<splitziner.check.Severity?>(null) }
-        val counts = report.findings.groupingBy { it.severity }.eachCount()
+        // The two standing notes every design gets are said once, in small type above the list, not counted as findings.
+        val standing = setOf("Joint strength is not checked", "Choose your tools")
+        val found = report.findings.filter { it.title !in standing }
+        val counts = found.groupingBy { it.severity }.eachCount()
         if (counts.size > 1) androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            androidx.compose.material3.FilterChip(selected = only == null, onClick = { only = null }, label = { Text("All ${report.findings.size}") })
+            androidx.compose.material3.FilterChip(selected = only == null, onClick = { only = null }, label = { Text("All ${found.size}") })
             for ((sev, word) in listOf(splitziner.check.Severity.PROBLEM to "Problems", splitziner.check.Severity.CHECK to "Checks", splitziner.check.Severity.NOTE to "Notes")) {
                 val n = counts[sev] ?: 0
                 if (n > 0) androidx.compose.material3.FilterChip(selected = only == sev, onClick = { only = if (only == sev) null else sev }, label = { Text("$word $n") })
             }
         }
-        val shownFindings = report.findings.filter { only == null || it.severity == only }
+        val shownFindings = found.filter { only == null || it.severity == only }
         LazyColumn(Modifier.weight(1f)) {
+            if (only == null || only == splitziner.check.Severity.NOTE) item(key = "standing") {
+                Text(report.findings.filter { it.title in standing }.joinToString(" ") { it.detail }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
+            }
             items(shownFindings) { f ->
                 val (word, color) = when (f.severity) {
                     splitziner.check.Severity.PROBLEM -> "Problem" to MaterialTheme.colorScheme.error
@@ -2102,6 +2169,12 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 // ("One board") ends the furniture list.
                 val groups = splitziner.edit.Templates.groups()
                 var group by remember { mutableStateOf(groups.indexOfFirst { g -> g.second.any { it.key == key } }.takeIf { it >= 0 } ?: (groups.size - 1)) }
+                // The list of designs folds away once one is picked, so its picture and sizes come into view.
+                var browsing by remember { mutableStateOf(true) }
+                if (!browsing) Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.FilterChip(selected = true, onClick = { browsing = true }, label = { Text(template?.name ?: "One board") })
+                    TextButton(onClick = { browsing = true }) { Text("Other designs") }
+                } else {
                 androidx.compose.material3.TabRow(selectedTabIndex = group, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
                     for ((g, pair) in groups.withIndex()) androidx.compose.material3.Tab(selected = group == g, onClick = { group = g }, text = { Text(pair.first) })
                 }
@@ -2110,9 +2183,10 @@ private fun NewDesignDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                 for ((heading, ts) in sections) {
                     if (heading.isNotEmpty()) Text(heading, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 2.dp))
                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (t in ts) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null }, label = { Text(t.name) })
-                        if (group == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null }, label = { Text("One board") })
+                        for (t in ts) androidx.compose.material3.FilterChip(selected = key == t.key, onClick = { key = t.key; error = null; browsing = false }, label = { Text(t.name) })
+                        if (group == groups.size - 1) androidx.compose.material3.FilterChip(selected = key == null, onClick = { key = null; error = null; browsing = false }, label = { Text("One board") })
                     }
+                }
                 }
                 if (template == null) Text("Starts from a single board to build on with Add a board.", style = MaterialTheme.typography.bodySmall)
                 else {

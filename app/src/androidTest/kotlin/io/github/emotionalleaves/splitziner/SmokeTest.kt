@@ -98,7 +98,7 @@ class SmokeTest {
             tap("Drawing")
             waitFor(vm, 240_000) { vm.state.value.drawing != null && !vm.state.value.drawingBusy }
             val drawing = vm.state.value.drawing!!
-            shot("c04_drawing")
+            shot("c04_drawing"); runCatching { tap("Turn to fill"); Thread.sleep(800); shot("c04b_drawing_turned"); tap("Turned") }
             // Assembly sheet and exploded sheet; the cabinet's parts are all plain boards, so no detail sheets.
             assertTrue("sheets: ${drawing.sheets.size}", drawing.sheets.size >= 2)
             val pdf = PdfExporter.write(ctx, drawing.sheets, "smoke_drawing.pdf")
@@ -110,7 +110,7 @@ class SmokeTest {
             tap("Guide")
             waitFor(vm, 240_000) { vm.state.value.guide != null && !vm.state.value.guideBusy }
             val guide = vm.state.value.guide!!
-            shot("c05_guide")
+            shot("c05_guide"); runCatching { tap("Pages"); Thread.sleep(800); shot("c05a_guide_pages"); tap("Steps") }
             assertTrue(guide.stepCount >= 2)
             assertTrue(PdfExporter.write(ctx, guide.pages, "smoke_guide.pdf").length() > 5_000)
             println("SMOKE guide steps=${guide.stepCount} pages=${guide.pages.size}")
@@ -249,7 +249,7 @@ class SmokeTest {
             tap("3D"); Thread.sleep(3000); shot("d03_3d")
             // Play the build in 3D a few steps in.
             runCatching {
-                tap("Build steps"); rule.waitUntil(60_000) { rule.onAllNodesWithText("Step 1 of", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                tap("Play the build"); rule.waitUntil(60_000) { rule.onAllNodesWithText("Step 1 of", substring = true).fetchSemanticsNodes().isNotEmpty() }
                 repeat(6) { tap("\u2192") }; Thread.sleep(1500); shot("d06_build_steps"); tap("Show all")
             }.onFailure { println("SMOKE build steps failed: ${it.message}") }
             println("SMOKE desk sheets=${drawing.sheets.size} guide pages=${vm.state.value.guide!!.pages.size}")

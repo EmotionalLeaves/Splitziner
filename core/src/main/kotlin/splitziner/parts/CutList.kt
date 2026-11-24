@@ -218,6 +218,18 @@ object PartDescriber {
         return Taper(fsz[0].takeIf { it > 0 } ?: footSize[0], fsz[1].takeIf { it > 0 } ?: footSize[1], from, faces, adjacent, bigZ > smallZ + 1.0)
     }
 
+    /**
+     * A compound end "a° AND b°" (leaning a across the thickness, b across the width) as a mitre saw's settings with the
+     * board flat on its wide face: the mitre is b; the bevel is asin(tan a / sqrt(1 + tan²a + tan²b)), a little less than a.
+     */
+    fun sawSettings(ends: String): Pair<String, String>? {
+        val m = Regex("""(\d+(?:\.\d+)?)° AND (\d+(?:\.\d+)?)°""").find(ends.uppercase()) ?: return null
+        val a = Math.toRadians(m.groupValues[1].toDouble()); val b = Math.toRadians(m.groupValues[2].toDouble())
+        val bevel = Math.toDegrees(kotlin.math.asin(kotlin.math.tan(a) / kotlin.math.sqrt(1 + kotlin.math.tan(a).let { it * it } + kotlin.math.tan(b).let { it * it })))
+        fun deg(v: Double) = (Math.round(v * 2) / 2.0).let { if (it == Math.floor(it)) "${it.toInt()}" else "$it" } + "°"
+        return deg(Math.toDegrees(b)) to deg(bevel)
+    }
+
     fun angledEnds(m: Mesh, obb: splitziner.mesh.OrientedBox): Pair<Double, Double>? {
         val e = listOf(obb.extents.x, obb.extents.y, obb.extents.z)
         val order = e.indices.sortedBy { e[it] }

@@ -564,6 +564,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setItem(row: CutListRow, value: ItemOverride) =
         update { it.copy(items = it.items + (CutList.itemKey(row.kind, row.t, row.w, row.l) to value)) }
 
+    /** Every item made of [material]; each can still be changed on its own. */
+    fun setAllMaterial(material: String) {
+        val rows = _state.value.open?.analysis?.cutList?.rows ?: return
+        update { m -> m.copy(items = m.items + rows.associate { r -> val k = CutList.itemKey(r.kind, r.t, r.w, r.l); k to (m.items[k] ?: ItemOverride()).copy(material = material) }) }
+    }
+
     /** Sets [row] as given and gives every item that has no material yet the same material. */
     fun setItemAndRest(row: CutListRow, value: ItemOverride) {
         val rows = _state.value.open?.analysis?.cutList?.rows ?: return

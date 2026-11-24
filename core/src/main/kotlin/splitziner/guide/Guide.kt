@@ -157,6 +157,26 @@ object GuideSteps {
      * The even gap between like parts laid side by side (slats, spaced boards), or null when they are not evenly
      * spaced or there are fewer than three. Read from the whole model, so the first step that lays some can say it.
      */
+    /**
+     * A step's sentence put the way it is read at the bench: the part's name first, its item number after it.
+     * "Screw item 1 (side) to item 2 (stud)" reads "Screw the side (1) to the stud (2)"; "4× item 2 (leg)" reads
+     * "4× leg (item 2)"; "items 8 and 9 (plinth)" reads "the plinth (items 8 and 9)".
+     */
+    fun readable(line: String): String {
+        var s = line
+        s = Regex("""(\d+)× item (\d+) \(([^()]+)\)""").replace(s) { m -> "${m.groupValues[1]}× ${m.groupValues[3]} (item ${m.groupValues[2]})" }
+        s = Regex("""\bitems (\d+(?:, \d+)* and \d+) \(([^(),]+)\)""").replace(s) { m -> "the ${m.groupValues[2]} (items ${m.groupValues[1]})" }
+        // After a count or "each" the name stands without "the", in the plural after more than one.
+        fun plural(w: String) = when { w.endsWith("shelf") -> w.dropLast(1) + "ves"; w.endsWith("foot") -> w.dropLast(4) + "feet"; w.endsWith("s") || w.endsWith("x") -> w; else -> w + "s" }
+        val many = Regex("""\b(the two|the [3-9]|the \d\d+|two|three|four|five|six|[2-9]|\d\d+|all \d+|both) item (\d+) \(([^()]+)\)""")
+        s = many.replace(s) { m -> "${m.groupValues[1]} ${plural(m.groupValues[3])} (${m.groupValues[2]})" }
+        s = Regex("""\b(each|every|one|another|its|either) item (\d+) \(([^()]+)\)""").replace(s) { m -> "${m.groupValues[1]} ${m.groupValues[3]} (${m.groupValues[2]})" }
+        s = Regex("""\b[Ii]tem (\d+) \(([^()]+)\)""").replace(s) { m -> "the ${m.groupValues[2]} (${m.groupValues[1]})" }
+        // At the start of a sentence: "The side (1) ...".
+        s = Regex("""(^|[.:;] )the """).replace(s) { m -> m.groupValues[1] + "The " }
+        return s
+    }
+
     fun evenGap(like: List<Part>, others: List<Part> = emptyList()): Double? {
         if (like.size < 2) return null
         val b = like.map { it.mesh.bounds }
@@ -711,7 +731,7 @@ object GuideSteps {
             val mult = maxOf(1, st.makeCount) * maxOf(1, st.alike)
             val need = (if (mult > 1) list.map { (k, v) -> k to v * mult } else list) +
                 hw.map { (k, v) -> k.replaceFirstChar { it.uppercase() } to v * mult }
-            out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines, need, o?.check?.takeIf { it.isNotBlank() })
+            out += GuideStep(st.step, title, pic, o?.lines?.takeIf { it.isNotEmpty() } ?: lines.map { readable(it) }, need, o?.check?.takeIf { it.isNotBlank() })
             if (!st.subassembly) done += st.partIds
         }
         return out
